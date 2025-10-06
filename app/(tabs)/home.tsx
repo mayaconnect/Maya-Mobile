@@ -1,14 +1,16 @@
 import { AnimatedButton } from '@/components/animated-button';
 import { NavigationTransition } from '@/components/navigation-transition';
+import { SharedHeader } from '@/components/shared-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
+  ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View
+  TextStyle,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,50 +27,44 @@ export default function HomeScreen() {
 
   return (
     <NavigationTransition>
-      <View style={styles.container}>
-        <LinearGradient
-          colors={Colors.gradients.primary}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
-          <SafeAreaView style={styles.safeArea}>
-            <View style={styles.header}>
-              <View style={styles.greetingContainer}>
-                <Text style={styles.greeting}>Bonjour, Sarah</Text>
-                <Text style={styles.greetingEmoji}>✨✨</Text>
-              </View>
-              <Text style={styles.subtitle}>Prête à économiser aujourd'hui ?</Text>
-              
-              <TouchableOpacity style={styles.partnerModeButton} onPress={handlePartnerMode}>
-                <Ionicons name="storefront" size={20} color={Colors.accent.orange} />
-                <Text style={styles.partnerModeText}>Mode Partenaire</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.familyText}>Famille</Text>
-          </SafeAreaView>
-        </LinearGradient>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
+          <SharedHeader
+            title="Bonjour, Sarah ✨"
+            subtitle="Prête à économiser aujourd'hui ?"
+            onPartnerModePress={handlePartnerMode}
+          />
 
-        <View style={styles.content}>
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.qrCard}>
             <Text style={styles.qrTitle}>Votre QR Code Maya</Text>
             <Text style={styles.qrSubtitle}>Présentez ce code chez tous nos partenaires</Text>
             
             <View style={styles.qrContainer}>
               <View style={styles.qrCode}>
-                {/* QR Code simulé */}
+                {/* QR Code simulé avec design amélioré */}
                 <View style={styles.qrGrid}>
-                  {Array.from({ length: 25 }, (_, i) => (
+                  {Array.from({ length: 49 }, (_, i) => (
                     <View
                       key={i}
                       style={[
                         styles.qrSquare,
-                        { backgroundColor: Math.random() > 0.5 ? Colors.primary[600] : 'white' }
+                        { 
+                          backgroundColor: (i % 7 + Math.floor(i / 7)) % 2 === 0 ? '#8B5CF6' : 'white',
+                          borderRadius: 2,
+                        }
                       ]}
                     />
                   ))}
                 </View>
+                {/* Points de détection QR */}
+                <View style={styles.qrCorner} />
+                <View style={[styles.qrCorner, styles.qrCornerTopRight]} />
+                <View style={[styles.qrCorner, styles.qrCornerBottomLeft]} />
               </View>
             </View>
 
@@ -81,26 +77,27 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, styles.savingsCard]}>
               <View style={styles.statHeader}>
-                <Ionicons name="trending-up" size={24} color={Colors.status.success} />
-                <Text style={styles.statPeriod}>CE MOIS</Text>
+                <Ionicons name="trending-up" size={20} color="#10B981" />
+                <Text style={[styles.statPeriod, styles.savingsPeriod]}>CE MOIS</Text>
               </View>
-              <Text style={styles.statValue}>47.8€</Text>
-              <Text style={styles.statLabel}>Économisées</Text>
+              <Text style={[styles.statValue, styles.savingsValue]}>47.8€</Text>
+              <Text style={[styles.statLabel, styles.savingsLabel]}>Économisées</Text>
             </View>
 
-            <View style={styles.statCard}>
+            <View style={[styles.statCard, styles.visitsCard]}>
               <View style={styles.statHeader}>
-                <Ionicons name="location" size={24} color={Colors.accent.orange} />
-                <Text style={styles.statPeriod}>VISITES</Text>
+                <Ionicons name="location" size={20} color="#F59E0B" />
+                <Text style={[styles.statPeriod, styles.visitsPeriod]}>VISITES</Text>
               </View>
-              <Text style={styles.statValue}>8</Text>
-              <Text style={styles.statLabel}>Partenaires</Text>
+              <Text style={[styles.statValue, styles.visitsValue]}>8</Text>
+              <Text style={[styles.statLabel, styles.visitsLabel]}>Partenaires</Text>
             </View>
           </View>
+        </ScrollView>
         </View>
-      </View>
+      </SafeAreaView>
     </NavigationTransition>
   );
 }
@@ -109,145 +106,143 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.light,
-  },
-  headerGradient: {
-    paddingBottom: Spacing.xl,
-  },
-  safeArea: {
+  } as ViewStyle,
+  scrollContainer: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-  },
-  greetingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  greeting: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.light,
-    marginRight: Spacing.sm,
-  },
-  greetingEmoji: {
-    fontSize: Typography.sizes.lg,
-  },
-  subtitle: {
-    fontSize: Typography.sizes.base,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: Spacing.lg,
-  },
-  partnerModeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.background.card,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 2,
-    borderColor: Colors.accent.orange,
-    alignSelf: 'flex-end',
-    gap: Spacing.xs,
-  },
-  partnerModeText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.accent.orange,
-  },
-  familyText: {
-    fontSize: Typography.sizes.sm,
-    color: 'rgba(255, 255, 255, 0.7)',
-    textAlign: 'right',
-    paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
-  },
+  } as ViewStyle,
   content: {
-    flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
-  },
+    paddingBottom: Spacing.xl,
+  } as ViewStyle,
   qrCard: {
     backgroundColor: Colors.background.card,
     borderRadius: BorderRadius['2xl'],
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
     ...Shadows.lg,
-  },
+  } as ViewStyle,
   qrTitle: {
     fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold,
+    fontWeight: 'bold',
     color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: Spacing.sm,
-  },
+  } as TextStyle,
   qrSubtitle: {
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
     textAlign: 'center',
     marginBottom: Spacing.xl,
-  },
+  } as TextStyle,
   qrContainer: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
-  },
+  } as ViewStyle,
   qrCode: {
-    width: 200,
-    height: 200,
+    width: 180,
+    height: 180,
     backgroundColor: 'white',
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    borderWidth: 2,
-    borderColor: Colors.primary[200],
+    borderWidth: 3,
+    borderColor: '#8B5CF6',
     borderStyle: 'dashed',
-  },
+    position: 'relative',
+    ...Shadows.md,
+  } as ViewStyle,
   qrGrid: {
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-  },
+    alignItems: 'center',
+  } as ViewStyle,
   qrSquare: {
-    width: '18%',
-    aspectRatio: 1,
+    width: '12%',
+    height: '12%',
     margin: '1%',
-  },
+  } as ViewStyle,
+  qrCorner: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 24,
+    height: 24,
+    borderWidth: 3,
+    borderColor: '#8B5CF6',
+    borderTopLeftRadius: 4,
+  } as ViewStyle,
+  qrCornerTopRight: {
+    top: 8,
+    right: 8,
+    left: 'auto',
+    borderTopRightRadius: 4,
+    borderTopLeftRadius: 0,
+  } as ViewStyle,
+  qrCornerBottomLeft: {
+    bottom: 8,
+    top: 'auto',
+    borderBottomLeftRadius: 4,
+    borderTopLeftRadius: 0,
+  } as ViewStyle,
   scanButton: {
     marginTop: Spacing.md,
-  },
+  } as ViewStyle,
   statsContainer: {
     flexDirection: 'row',
     gap: Spacing.md,
-  },
+  } as ViewStyle,
   statCard: {
     flex: 1,
     backgroundColor: Colors.background.card,
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     ...Shadows.md,
-  },
+  } as ViewStyle,
+  savingsCard: {
+    backgroundColor: Colors.background.card,
+  } as ViewStyle,
+  visitsCard: {
+    backgroundColor: Colors.background.card,
+  } as ViewStyle,
   statHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.md,
-  },
+  } as ViewStyle,
   statPeriod: {
     fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.status.success,
-  },
+    fontWeight: '600',
+  } as TextStyle,
+  savingsPeriod: {
+    color: '#10B981',
+  } as TextStyle,
+  visitsPeriod: {
+    color: '#F59E0B',
+  } as TextStyle,
   statValue: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold,
-    color: Colors.status.success,
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: Spacing.xs,
-  },
+  } as TextStyle,
+  savingsValue: {
+    color: '#10B981',
+  } as TextStyle,
+  visitsValue: {
+    color: '#F59E0B',
+  } as TextStyle,
   statLabel: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
     textAlign: 'center',
-  },
+  } as TextStyle,
+  savingsLabel: {
+    color: '#10B981',
+  } as TextStyle,
+  visitsLabel: {
+    color: '#F59E0B',
+  } as TextStyle,
 });

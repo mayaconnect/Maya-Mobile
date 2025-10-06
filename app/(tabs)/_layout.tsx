@@ -1,4 +1,3 @@
-import { Colors } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
@@ -6,21 +5,32 @@ import React from 'react';
 export default function TabLayout() {
   return (
     <Tabs
+      initialRouteName="home"
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary[600],
-        tabBarInactiveTintColor: Colors.text.muted,
+        tabBarActiveTintColor: '#8B5CF6',
+        tabBarInactiveTintColor: '#9CA3AF',
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: Colors.background.card,
-          borderTopWidth: 1,
-          borderTopColor: Colors.primary[100],
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
+          backgroundColor: 'white',
+          borderTopWidth: 0,
+          paddingBottom: 12,
+          paddingTop: 12,
+          height: 70,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 8,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
+          marginTop: 4,
+        },
+        tabBarIconStyle: {
+          marginTop: 2,
         },
       }}>
       <Tabs.Screen

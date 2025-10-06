@@ -25,12 +25,12 @@ export default function LoginScreen() {
       return;
     }
     // Ici vous pouvez ajouter la logique de connexion
-    router.push('/(tabs)');
+    router.push('/(tabs)/home');
   };
 
   const handleSkipLogin = () => {
     // Passer sans connexion - aller directement à l'accueil
-    router.push('/(tabs)');
+    router.push('/(tabs)/home');
   };
 
   const handleSocialLogin = (provider: string) => {
