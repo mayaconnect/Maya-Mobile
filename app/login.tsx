@@ -1,31 +1,40 @@
 import { AnimatedButton } from '@/components/animated-button';
 import { NavigationTransition } from '@/components/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const { signIn, loading } = useAuth();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       return;
     }
-    // Ici vous pouvez ajouter la logique de connexion
-    router.push('/(tabs)/home');
+    try {
+      await signIn({ email, password });
+      router.replace('/(tabs)/home');
+    } catch (e) {
+      Alert.alert('Erreur', "Échec de la connexion");
+    }
   };
 
   const handleSkipLogin = () => {
@@ -92,7 +101,7 @@ export default function LoginScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="votre@email.com"
@@ -107,14 +116,17 @@ export default function LoginScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Mot de passe</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                  <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
                     value={password}
                     onChangeText={setPassword}
-                    secureTextEntry
+                    secureTextEntry={!showPassword}
                   />
+                  <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
+                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -157,7 +169,41 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+type LoginStyles = {
+  container: ViewStyle;
+  safeArea: ViewStyle;
+  header: ViewStyle;
+  backButton: ViewStyle;
+  backButtonInner: ViewStyle;
+  headerText: TextStyle;
+  logoContainer: ViewStyle;
+  appName: TextStyle;
+  logoUnderline: ViewStyle;
+  placeholder: ViewStyle;
+  content: ViewStyle;
+  card: ViewStyle;
+  title: TextStyle;
+  subtitle: TextStyle;
+  socialButtons: ViewStyle;
+  socialButton: ViewStyle;
+  divider: ViewStyle;
+  dividerLine: ViewStyle;
+  dividerText: TextStyle;
+  inputContainer: ViewStyle;
+  inputLabel: TextStyle;
+  inputWrapper: ViewStyle;
+  inputIcon: ViewStyle;
+  input: TextStyle;
+  loginButton: ViewStyle;
+  skipLoginButton: ViewStyle;
+  forgotPassword: ViewStyle;
+  forgotPasswordText: TextStyle;
+  signupContainer: ViewStyle;
+  signupText: TextStyle;
+  signupLink: TextStyle;
+};
+
+const styles = StyleSheet.create<LoginStyles>({
   container: {
     flex: 1,
   },

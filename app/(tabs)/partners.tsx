@@ -8,15 +8,15 @@ import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-sy
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -139,6 +139,14 @@ export default function PartnersScreen() {
           title="Partenaires"
           subtitle={`${partners.length} partenaires près de vous`}
           onPartnerModePress={handlePartnerMode}
+          showPartnerMode={false}
+          variant="partners"
+          gradientColors={['#9333EA', '#3B82F6'] as const}
+          rightSlot={(
+            <TouchableOpacity style={{ backgroundColor: 'white', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 }}>
+              <Ionicons name="filter" size={16} color="#8B5CF6" />
+            </TouchableOpacity>
+          )}
         />
 
         {/* Barre de recherche */}

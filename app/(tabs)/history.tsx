@@ -1,12 +1,13 @@
 import { NavigationTransition } from '@/components/navigation-transition';
+import { SharedHeader } from '@/components/shared-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import React from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,10 +22,13 @@ export default function HistoryScreen() {
     <NavigationTransition>
       <View style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Historique</Text>
-            <Text style={styles.subtitle}>Vos économies récentes</Text>
-          </View>
+          <SharedHeader
+            title="Historique"
+            subtitle="Vos économies récentes"
+            showPartnerMode={false}
+            variant="history"
+            gradientColors={['#06B6D4', '#3B82F6'] as const}
+          />
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {transactions.map((transaction) => (

@@ -5,13 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,6 +32,9 @@ export default function SubscriptionScreen() {
             subtitle="Économisez 10% partout avec Maya"
             onPartnerModePress={handlePartnerMode}
             showFamilyBadge={false}
+            showPartnerMode={false}
+            variant="subscription"
+            gradientColors={['#6366F1', '#EC4899'] as const}
           />
 
           <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

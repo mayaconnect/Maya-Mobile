@@ -40,12 +40,13 @@ export const Colors = {
   
   // Gradients cohérents basés sur la palette principale
   gradients: {
-    primary: ['#667eea', '#764ba2'], // Bleu-violet principal
-    secondary: ['#667eea', '#8b5cf6'], // Variation violette
-    success: ['#4facfe', '#667eea'], // Bleu-cyan vers bleu principal
-    warning: ['#f093fb', '#667eea'], // Rose vers bleu principal
-    info: ['#a8edea', '#667eea'], // Turquoise vers bleu principal
-    dark: ['#2c3e50', '#667eea'], // Sombre vers bleu principal
+    // Utiliser des tuples readonly pour compatibilité stricte avec expo-linear-gradient
+    primary: ['#667eea', '#764ba2'] as const,
+    secondary: ['#667eea', '#8b5cf6'] as const,
+    success: ['#4facfe', '#667eea'] as const,
+    warning: ['#f093fb', '#667eea'] as const,
+    info: ['#a8edea', '#667eea'] as const,
+    dark: ['#2c3e50', '#667eea'] as const,
   },
   
   // Couleurs de fond
@@ -71,7 +72,7 @@ export const Colors = {
     warning: '#f59e0b',
     info: '#3b82f6',
   },
-};
+} as const;
 
 export const Typography = {
   // Tailles de police
@@ -104,7 +105,7 @@ export const Typography = {
     wide: 0.5,
     wider: 1,
   },
-};
+} as const;
 
 export const Spacing = {
   xs: 4,

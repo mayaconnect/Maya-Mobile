@@ -2,19 +2,21 @@ import { AnimatedButton } from '@/components/animated-button';
 import { NavigationTransition } from '@/components/navigation-transition';
 import { SharedHeader } from '@/components/shared-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextStyle,
-  View,
-  ViewStyle,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextStyle,
+    View,
+    ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+  const { user } = useAuth();
   const handleScanPartner = () => {
     // Logique pour scanner un partenaire
     console.log('Scanner un partenaire');
@@ -30,9 +32,14 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.container}>
           <SharedHeader
-            title="Bonjour, Sarah ✨"
-            subtitle="Prête à économiser aujourd'hui ?"
+            title={user ? `Bonjour, ${user.email.split('@')[0]} ✨` : 'Bonjour ✨'}
+            subtitle="Prêt•e à économiser aujourd'hui ?"
             onPartnerModePress={handlePartnerMode}
+            onSearchPress={() => console.log('Recherche')}
+            balanceEuros="47,80 €"
+            variant="home"
+            gradientColors={['#8B5CF6', '#2563EB'] as const}
+            showPartnerMode={false}
           />
 
         <ScrollView 

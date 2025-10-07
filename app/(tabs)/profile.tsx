@@ -4,13 +4,13 @@ import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from 'react-native';
 
 export default function ProfileScreen() {
@@ -22,9 +22,12 @@ export default function ProfileScreen() {
     <NavigationTransition>
       <View style={styles.container}>
         <SharedHeader
-          title="Profil"
+          title="Mon Profil"
           subtitle="Gérez votre compte"
           onPartnerModePress={handlePartnerMode}
+          showPartnerMode={false}
+          variant="profile"
+          gradientColors={['#7C3AED', '#3B82F6'] as const}
         />
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
