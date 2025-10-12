@@ -7,14 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,20 +23,49 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const { signIn } = useAuth();
+  const [errorMessage, setErrorMessage] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmError, setConfirmError] = useState('');
+  const { signUp } = useAuth();
 
   const handleSignup = async () => {
+    // Réinitialiser les erreurs
+    setErrorMessage('');
+    setEmailError('');
+    setPasswordError('');
+    setConfirmError('');
+
     if (!email || !password || !confirmPassword) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      setErrorMessage('⚠️ Veuillez remplir tous les champs');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      setConfirmError('❌ Les mots de passe ne correspondent pas');
+      setErrorMessage('Les deux mots de passe doivent être identiques');
       return;
     }
-    // Mock: on "crée" le compte puis on connecte l'utilisateur
-    await signIn({ email, password });
-    router.replace('/(tabs)/home');
+    if (password.length < 6) {
+      setPasswordError('❌ Minimum 6 caractères requis');
+      setErrorMessage('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+    
+    try {
+      await signUp({ email, password });
+      router.replace('/(tabs)/home');
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'EMAIL_ALREADY_EXISTS') {
+          setEmailError('❌ Cet email est déjà utilisé');
+          setErrorMessage('Un compte existe déjà avec cet email');
+        } else {
+          setErrorMessage('❌ Échec de l\'inscription. Veuillez réessayer.');
+        }
+      } else {
+        setErrorMessage('❌ Échec de l\'inscription. Veuillez réessayer.');
+      }
+    }
   };
 
   return (
@@ -68,53 +96,82 @@ export default function SignupScreen() {
               <Text style={styles.title}>Créer un compte</Text>
               <Text style={styles.subtitle}>Inscrivez-vous pour commencer à économiser</Text>
 
+              {/* Message d'erreur global */}
+              {errorMessage ? (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                  <Text style={styles.errorBannerText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
+                  <Ionicons name="mail" size={20} color={emailError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="votre@email.com"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setEmailError('');
+                      setErrorMessage('');
+                    }}
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 </View>
+                {emailError ? (
+                  <Text style={styles.fieldError}>{emailError}</Text>
+                ) : null}
               </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Mot de passe</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
+                  <Ionicons name="lock-closed" size={20} color={passwordError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      setPasswordError('');
+                      setErrorMessage('');
+                    }}
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
                     <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
                   </TouchableOpacity>
                 </View>
+                {passwordError ? (
+                  <Text style={styles.fieldError}>{passwordError}</Text>
+                ) : null}
               </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Confirmer le mot de passe</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                <View style={[styles.inputWrapper, confirmError ? styles.inputError : null]}>
+                  <Ionicons name="lock-closed" size={20} color={confirmError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
                     value={confirmPassword}
-                    onChangeText={setConfirmPassword}
+                    onChangeText={(text) => {
+                      setConfirmPassword(text);
+                      setConfirmError('');
+                      setErrorMessage('');
+                    }}
                     secureTextEntry={!showConfirm}
                   />
                   <TouchableOpacity onPress={() => setShowConfirm((v) => !v)}>
                     <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
                   </TouchableOpacity>
                 </View>
+                {confirmError ? (
+                  <Text style={styles.fieldError}>{confirmError}</Text>
+                ) : null}
               </View>
 
               <AnimatedButton
@@ -163,6 +220,10 @@ type SignupStyles = {
   switchAuthRow: ViewStyle;
   switchAuthText: TextStyle;
   switchAuthLink: TextStyle;
+  errorBanner: ViewStyle;
+  errorBannerText: TextStyle;
+  inputError: ViewStyle;
+  fieldError: TextStyle;
 };
 
 const styles = StyleSheet.create<SignupStyles>({
@@ -287,6 +348,34 @@ const styles = StyleSheet.create<SignupStyles>({
     color: '#8B5CF6',
     fontSize: 14,
     fontWeight: '500',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 10,
+  },
+  errorBannerText: {
+    flex: 1,
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#DC2626',
+    borderWidth: 2,
+    backgroundColor: '#FEF2F2',
+  },
+  fieldError: {
+    color: '#DC2626',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

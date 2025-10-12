@@ -32,7 +32,7 @@ export default function Index() {
           }
           title="10% de remise immédiate"
           description="Économisez sur tous vos achats chez nos partenaires avec un simple scan"
-          gradientColors={Colors.gradients.primary}
+          gradientColors={Colors.gradients.primary as any}
         />
         
         <View style={styles.paginationContainer}>

@@ -22,18 +22,38 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const { signIn } = useAuth();
 
   const handleLogin = async () => {
+    // Réinitialiser les erreurs
+    setErrorMessage('');
+    setEmailError('');
+    setPasswordError('');
+
     if (!email || !password) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      setErrorMessage('⚠️ Veuillez remplir tous les champs');
       return;
     }
     try {
       await signIn({ email, password });
       router.replace('/(tabs)/home');
-    } catch {
-      Alert.alert('Erreur', "Échec de la connexion");
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'INVALID_EMAIL') {
+          setEmailError('❌ Cet email n\'est pas enregistré');
+          setErrorMessage('Email non trouvé dans notre base de données');
+        } else if (error.message === 'INVALID_PASSWORD') {
+          setPasswordError('❌ Mot de passe incorrect');
+          setErrorMessage('Le mot de passe ne correspond pas à cet email');
+        } else {
+          setErrorMessage('❌ Échec de la connexion. Veuillez réessayer.');
+        }
+      } else {
+        setErrorMessage('❌ Échec de la connexion. Veuillez réessayer.');
+      }
     }
   };
 
@@ -74,6 +94,14 @@ export default function LoginScreen() {
               <Text style={styles.title}>Connexion</Text>
               <Text style={styles.subtitle}>Connectez-vous pour accéder à vos économies</Text>
 
+              {/* Message d'erreur global */}
+              {errorMessage ? (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                  <Text style={styles.errorBannerText}>{errorMessage}</Text>
+                </View>
+              ) : null}
+
               <View style={styles.socialButtons}>
                 <TouchableOpacity style={styles.socialIconButton} onPress={() => handleSocialLogin('Google')}>
                   <Ionicons name="logo-google" size={20} color="#8B5CF6" />
@@ -93,34 +121,48 @@ export default function LoginScreen() {
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
+                  <Ionicons name="mail" size={20} color={emailError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="votre@email.com"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setEmailError('');
+                      setErrorMessage('');
+                    }}
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
                 </View>
+                {emailError ? (
+                  <Text style={styles.fieldError}>{emailError}</Text>
+                ) : null}
               </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Mot de passe</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
+                  <Ionicons name="lock-closed" size={20} color={passwordError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      setPasswordError('');
+                      setErrorMessage('');
+                    }}
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
                     <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
                   </TouchableOpacity>
                 </View>
+                {passwordError ? (
+                  <Text style={styles.fieldError}>{passwordError}</Text>
+                ) : null}
               </View>
 
               <AnimatedButton
@@ -131,7 +173,10 @@ export default function LoginScreen() {
                 variant="solid"
               />
 
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity 
+                style={styles.forgotPassword}
+                onPress={() => router.push('/connexion/forgot-password')}
+              >
                 <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
               </TouchableOpacity>
 
@@ -197,6 +242,10 @@ type LoginStyles = {
   signupContainer: ViewStyle;
   signupText: TextStyle;
   signupLink: TextStyle;
+  errorBanner: ViewStyle;
+  errorBannerText: TextStyle;
+  inputError: ViewStyle;
+  fieldError: TextStyle;
 };
 
 const styles = StyleSheet.create<LoginStyles>({
@@ -372,5 +421,33 @@ const styles = StyleSheet.create<LoginStyles>({
     color: '#8B5CF6',
     fontSize: 14,
     fontWeight: '500',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 10,
+  },
+  errorBannerText: {
+    flex: 1,
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#DC2626',
+    borderWidth: 2,
+    backgroundColor: '#FEF2F2',
+  },
+  fieldError: {
+    color: '#DC2626',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
 });

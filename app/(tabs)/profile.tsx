@@ -1,3 +1,4 @@
+import { DebugUsersViewer } from '@/components/debug-users-viewer';
 import { NavigationTransition } from '@/components/navigation-transition';
 import { SharedHeader } from '@/components/shared-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
@@ -20,7 +21,8 @@ export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [faceId, setFaceId] = useState(true);
-  const { signOut } = useAuth();
+  const [showDebugUsers, setShowDebugUsers] = useState(false);
+  const { signOut, user } = useAuth();
   const handlePartnerMode = () => {
     console.log('Mode partenaire');
   };
@@ -45,11 +47,13 @@ export default function ProfileScreen() {
           {/* Carte Profil */}
           <View style={styles.profileCard}>
             <View style={styles.avatarBadge}>
-              <Text style={styles.avatarInitials}>LF</Text>
+              <Text style={styles.avatarInitials}>
+                {user?.name?.substring(0, 2).toUpperCase() || 'U'}
+              </Text>
             </View>
             <View style={{ flex: 1 } as ViewStyle}>
-              <Text style={styles.userName}>Guilaume Lafay</Text>
-              <Text style={styles.userEmail}>guilaume.lafay@email.com</Text>
+              <Text style={styles.userName}>{user?.name || 'Utilisateur'}</Text>
+              <Text style={styles.userEmail}>{user?.email || 'Non connecté'}</Text>
               <View style={styles.userMetaRow}>
                 <View style={styles.familyChip}>
                   <Text style={styles.familyChipText}>Famille</Text>
@@ -169,16 +173,34 @@ export default function ProfileScreen() {
               <Text style={styles.menuText}>Aide et support</Text>
               <Ionicons name="chevron-forward" size={20} color={Colors.text.muted} />
             </TouchableOpacity>
+
+            {/* Bouton Debug pour voir tous les utilisateurs */}
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: '#F5F3FF', borderBottomWidth: 0 }]} 
+              onPress={() => setShowDebugUsers(true)}
+            >
+              <Ionicons name="bug-outline" size={22} color="#8B5CF6" />
+              <Text style={[styles.menuText, { color: '#8B5CF6' }]}>
+                👤 Voir tous les utilisateurs (Debug)
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
+            </TouchableOpacity>
           </View>
 
           {/* Déconnexion */}
           <View style={styles.logoutContainer}>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} >
               <Ionicons name="log-out" size={20} color="#EF4444" />
               <Text style={styles.logoutText}>Se déconnecter</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        {/* Modal de debug des utilisateurs */}
+        <DebugUsersViewer 
+          visible={showDebugUsers} 
+          onClose={() => setShowDebugUsers(false)} 
+        />
       </View>
     </NavigationTransition>
   );

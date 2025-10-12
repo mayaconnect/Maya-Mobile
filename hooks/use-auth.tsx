@@ -1,14 +1,13 @@
+import { AuthService, PublicUser } from '@/services/auth.service';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
-type AuthUser = {
-  id: string;
-  email: string;
-};
+type AuthUser = PublicUser;
 
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   signIn: (params: { email: string; password: string }) => Promise<void>;
+  signUp: (params: { email: string; password: string; name?: string }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -21,11 +20,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = useCallback(async ({ email, password }: { email: string; password: string }) => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
       if (!email || !password) {
         throw new Error('MISSING_CREDENTIALS');
       }
-      setUser({ id: 'mock-user-id', email });
+      const authenticatedUser = await AuthService.signIn(email, password);
+      setUser(authenticatedUser);
+    } catch (error) {
+      setUser(null);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const signUp = useCallback(async ({ email, password, name }: { email: string; password: string; name?: string }) => {
+    setLoading(true);
+    try {
+      if (!email || !password) {
+        throw new Error('MISSING_CREDENTIALS');
+      }
+      const newUser = await AuthService.signUp(email, password, name);
+      setUser(newUser);
+    } catch (error) {
+      setUser(null);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -41,7 +59,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ user, loading, signIn, signOut }), [user, loading, signIn, signOut]);
+  const value = useMemo<AuthContextValue>(
+    () => ({ user, loading, signIn, signUp, signOut }),
+    [user, loading, signIn, signUp, signOut]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
