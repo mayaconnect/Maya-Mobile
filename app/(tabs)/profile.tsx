@@ -5,16 +5,16 @@ import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/
 import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from 'react-native';
 
 export default function ProfileScreen() {
@@ -43,16 +43,24 @@ export default function ProfileScreen() {
           gradientColors={['#7C3AED', '#3B82F6'] as const}
         />
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={{ paddingBottom: Spacing['2xl'] }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           {/* Carte Profil */}
           <View style={styles.profileCard}>
             <View style={styles.avatarBadge}>
               <Text style={styles.avatarInitials}>
-                {user?.name?.substring(0, 2).toUpperCase() || 'U'}
+                {user ? `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase() : 'U'}
               </Text>
             </View>
             <View style={{ flex: 1 } as ViewStyle}>
-              <Text style={styles.userName}>{user?.name || 'Utilisateur'}</Text>
+              <Text style={styles.userName}>
+                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur'}
+              </Text>
               <Text style={styles.userEmail}>{user?.email || 'Non connecté'}</Text>
               <View style={styles.userMetaRow}>
                 <View style={styles.familyChip}>

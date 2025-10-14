@@ -1,4 +1,4 @@
-import { AuthService, PublicUser } from '@/services/auth.service';
+import { AuthService, LoginRequest, PublicUser, RegisterRequest } from '@/services/auth.service';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 type AuthUser = PublicUser;
@@ -6,8 +6,8 @@ type AuthUser = PublicUser;
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
-  signIn: (params: { email: string; password: string }) => Promise<void>;
-  signUp: (params: { email: string; password: string; name?: string }) => Promise<void>;
+  signIn: (params: LoginRequest) => Promise<void>;
+  signUp: (params: RegisterRequest) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -17,13 +17,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const signIn = useCallback(async ({ email, password }: { email: string; password: string }) => {
+  const signIn = useCallback(async (loginData: LoginRequest) => {
     setLoading(true);
     try {
-      if (!email || !password) {
+      if (!loginData.email || !loginData.password) {
         throw new Error('MISSING_CREDENTIALS');
       }
-      const authenticatedUser = await AuthService.signIn(email, password);
+      const authenticatedUser = await AuthService.signIn(loginData);
       setUser(authenticatedUser);
     } catch (error) {
       setUser(null);
@@ -33,13 +33,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const signUp = useCallback(async ({ email, password, name }: { email: string; password: string; name?: string }) => {
+  const signUp = useCallback(async (registerData: RegisterRequest) => {
     setLoading(true);
     try {
-      if (!email || !password) {
+      if (!registerData.email || !registerData.password) {
         throw new Error('MISSING_CREDENTIALS');
       }
-      const newUser = await AuthService.signUp(email, password, name);
+      const newUser = await AuthService.signUp(registerData);
       setUser(newUser);
     } catch (error) {
       setUser(null);

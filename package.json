@@ -8,7 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "server:start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-server.ps1",
+    "server:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-server.ps1",
+    "server:quick": "cmd /c ./scripts/quick-start.bat"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

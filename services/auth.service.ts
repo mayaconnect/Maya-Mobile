@@ -1,19 +1,62 @@
 import usersData from '@/data/users.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Interface pour l'adresse selon l'API backend
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+// Interface pour l'inscription selon l'API backend
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string; // ISO 8601 format
+  address: Address;
+  avatarBase64?: string;
+}
+
+// Interface utilisateur complète (local)
 export interface User {
   id: string;
   email: string;
   password: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  address: Address;
+  avatarBase64?: string;
   createdAt: string;
 }
 
+// Interface utilisateur publique (sans mot de passe)
 export interface PublicUser {
   id: string;
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  address: Address;
+  avatarBase64?: string;
   createdAt: string;
+}
+
+// Interface pour la requête de login
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+// Interface de réponse de l'API
+export interface ApiResponse<T> {
+  data: T;
+  message: string;
+  success: boolean;
 }
 
 // Clé pour AsyncStorage
@@ -22,10 +65,85 @@ const STORAGE_KEY = '@maya_users';
 // Cache en mémoire pour les performances
 let usersCache: User[] | null = null;
 
+// Configuration de l'API
+// Pour iOS Simulator, utilise localhost
+// Pour Android Emulator, utilise 10.0.2.2
+// Pour appareil physique, utilise l'IP de ton ordinateur
+const API_BASE_URL = __DEV__ 
+  ? 'https://localhost:61802/api/v1'  // Localhost (comme Postman)
+  // ? 'https://192.168.1.11:61802/api/v1'  // IP locale alternative
+  // ? 'https://10.0.2.2:61802/api/v1'  // Android Emulator (alternative)
+  : 'https://ton-api-production.com/api/v1'; // Mode production
+
 // Fonction utilitaire pour enlever le mot de passe d'un utilisateur
 const removePassword = (user: User): PublicUser => {
   const { password, ...userWithoutPassword } = user;
   return userWithoutPassword;
+};
+
+// Fonction pour faire des appels API avec timeout
+const apiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+  };
+
+  console.log(`🌐 Appel API vers: ${url}`);
+  console.log('📤 Données envoyées:', options.body);
+
+  try {
+    // Créer un AbortController pour gérer le timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes de timeout
+
+    // Configuration pour accepter les certificats auto-signés en développement
+    const fetchOptions: RequestInit = {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers,
+      },
+      signal: controller.signal,
+    };
+
+    // En développement, ignorer les erreurs de certificat SSL
+    if (__DEV__) {
+      // Pour React Native, on peut ajouter des headers spéciaux si nécessaire
+      console.log('🔓 Mode développement: SSL non vérifié');
+    }
+
+    const response = await fetch(url, fetchOptions);
+
+    clearTimeout(timeoutId);
+    console.log(`📥 Réponse API: ${response.status} ${response.statusText}`);
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        console.log('❌ Détails de l\'erreur API:', errorData);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        console.log('❌ Impossible de parser l\'erreur JSON');
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('✅ Données reçues de l\'API:', data);
+    return data;
+  } catch (error) {
+    console.error('🚨 Erreur lors de l\'appel API:', error);
+    if (error instanceof Error) {
+      // Gérer spécifiquement les erreurs de timeout et d'abort
+      if (error.name === 'AbortError') {
+        throw new Error('TIMEOUT_ERROR');
+      }
+      throw error;
+    }
+    throw new Error('Erreur de connexion au serveur');
+  }
 };
 
 /**
@@ -84,69 +202,112 @@ const saveNewUsers = async (newUsers: User[]): Promise<void> => {
  */
 export const AuthService = {
   /**
-   * Connexion d'un utilisateur
-   * @param email - Email de l'utilisateur
-   * @param password - Mot de passe de l'utilisateur
+   * Connexion d'un utilisateur via l'API backend
+   * @param loginData - Données de connexion (email et password)
    * @returns L'utilisateur sans le mot de passe
    * @throws Error si les identifiants sont invalides
    */
-  signIn: async (email: string, password: string): Promise<PublicUser> => {
-    // Simuler une latence réseau
-    await new Promise((resolve) => setTimeout(resolve, 600));
+  signIn: async (loginData: LoginRequest): Promise<PublicUser> => {
+    try {
+      // Appel à l'API backend
+      const response = await apiCall<ApiResponse<PublicUser>>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(loginData),
+      });
 
-    const users = await loadUsers();
-    const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (!user) {
-      throw new Error('INVALID_EMAIL');
+      if (!response.success) {
+        throw new Error(response.message || 'Échec de la connexion');
+      }
+
+      // Créer un utilisateur local pour la compatibilité
+      const user: User = {
+        id: response.data.id,
+        email: response.data.email,
+        password: loginData.password, // Garder localement pour la session
+        firstName: response.data.firstName,
+        lastName: response.data.lastName,
+        birthDate: response.data.birthDate,
+        address: response.data.address,
+        avatarBase64: response.data.avatarBase64,
+        createdAt: response.data.createdAt,
+      };
+
+      // Mettre à jour le cache local
+      const users = await loadUsers();
+      const userIndex = users.findIndex((u) => u.email.toLowerCase() === loginData.email.toLowerCase());
+      if (userIndex !== -1) {
+        users[userIndex] = user;
+        usersCache = users;
+      }
+
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        // Gérer les erreurs spécifiques de l'API
+        if (error.message.includes('email') || error.message.includes('Email') || error.message.includes('invalid')) {
+          throw new Error('INVALID_EMAIL');
+        }
+        if (error.message.includes('password') || error.message.includes('Password') || error.message.includes('incorrect')) {
+          throw new Error('INVALID_PASSWORD');
+        }
+        throw error;
+      }
+      throw new Error('Échec de la connexion');
     }
-
-    if (user.password !== password) {
-      throw new Error('INVALID_PASSWORD');
-    }
-
-    return removePassword(user);
   },
 
   /**
-   * Inscription d'un nouvel utilisateur
-   * @param email - Email de l'utilisateur
-   * @param password - Mot de passe de l'utilisateur
-   * @param name - Nom de l'utilisateur (optionnel)
+   * Inscription d'un nouvel utilisateur via l'API backend
+   * @param registerData - Données d'inscription
    * @returns L'utilisateur créé sans le mot de passe
-   * @throws Error si l'email existe déjà
+   * @throws Error si l'email existe déjà ou en cas d'erreur API
    */
-  signUp: async (email: string, password: string, name?: string): Promise<PublicUser> => {
-    // Simuler une latence réseau
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  signUp: async (registerData: RegisterRequest): Promise<PublicUser> => {
+    try {
+      // Appel à l'API backend
+      const response = await apiCall<ApiResponse<PublicUser>>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(registerData),
+      });
 
-    const users = await loadUsers();
+      if (!response.success) {
+        throw new Error(response.message || 'Échec de l\'inscriptin');
+      }
 
-    // Vérifier si l'email existe déjà
-    const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (existingUser) {
-      throw new Error('EMAIL_ALREADY_EXISTS');
+      // Créer un utilisateur local pour la compatibilité
+      const newUser: User = {
+        id: response.data.id,
+        email: response.data.email,
+        password: registerData.password, // Garder localement pour la session
+        firstName: response.data.firstName,
+        lastName: response.data.lastName,
+        birthDate: response.data.birthDate,
+        address: response.data.address,
+        avatarBase64: response.data.avatarBase64,
+        createdAt: response.data.createdAt,
+      };
+
+      // Ajouter à notre cache local
+      const users = await loadUsers();
+      const updatedUsers = [...users, newUser];
+      
+      // Sauvegarder dans AsyncStorage
+      await saveNewUsers(updatedUsers);
+      
+      // Mettre à jour le cache
+      usersCache = updatedUsers;
+
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        // Gérer les erreurs spécifiques de l'API
+        if (error.message.includes('email') || error.message.includes('Email')) {
+          throw new Error('EMAIL_ALREADY_EXISTS');
+        }
+        throw error;
+      }
+      throw new Error('Échec de l\'inscription');
     }
-
-    // Créer le nouvel utilisateur
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      password,
-      name: name || email.split('@')[0],
-      createdAt: new Date().toISOString(),
-    };
-
-    // Ajouter à la liste des utilisateurs
-    const updatedUsers = [...users, newUser];
-    
-    // Sauvegarder dans AsyncStorage
-    await saveNewUsers(updatedUsers);
-    
-    // Mettre à jour le cache
-    usersCache = updatedUsers;
-
-    return removePassword(newUser);
   },
 
   /**

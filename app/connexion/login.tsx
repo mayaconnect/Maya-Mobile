@@ -5,16 +5,16 @@ import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,8 +39,10 @@ export default function LoginScreen() {
     }
     try {
       await signIn({ email, password });
+      // Redirection vers la page home après connexion réussie
       router.replace('/(tabs)/home');
     } catch (error) {
+      console.error('Erreur lors de la connexion:', error);
       if (error instanceof Error) {
         if (error.message === 'INVALID_EMAIL') {
           setEmailError('❌ Cet email n\'est pas enregistré');
@@ -48,8 +50,10 @@ export default function LoginScreen() {
         } else if (error.message === 'INVALID_PASSWORD') {
           setPasswordError('❌ Mot de passe incorrect');
           setErrorMessage('Le mot de passe ne correspond pas à cet email');
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network') || error.message === 'TIMEOUT_ERROR') {
+          setErrorMessage('❌ Serveur backend non disponible. Vérifiez que le serveur est démarré.');
         } else {
-          setErrorMessage('❌ Échec de la connexion. Veuillez réessayer.');
+          setErrorMessage(`❌ Erreur: ${error.message}`);
         }
       } else {
         setErrorMessage('❌ Échec de la connexion. Veuillez réessayer.');
@@ -106,6 +110,10 @@ export default function LoginScreen() {
                 <TouchableOpacity style={styles.socialIconButton} onPress={() => handleSocialLogin('Google')}>
                   <Ionicons name="logo-google" size={20} color="#8B5CF6" />
                   <Text style={styles.socialButtonText}>Google</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.socialIconButton} onPress={() => handleSocialLogin('Apple')}>
+                  <Ionicons name="logo-apple" size={20} color="#8B5CF6" />
+                  <Text style={styles.socialButtonText}>Apple</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.socialIconButton} onPress={() => handleSocialLogin('Facebook')}>
                   <Ionicons name="logo-facebook" size={20} color="#8B5CF6" />
@@ -186,13 +194,7 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
-              <AnimatedButton
-                title="Continuer sans compte"
-                onPress={handleSkipLogin}
-                icon="arrow-forward"
-                variant="outline"
-                style={styles.skipLoginButton}
-              />
+             
 
               <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>Pas encore de compte ? </Text>

@@ -5,11 +5,13 @@ import 'react-native-reanimated';
 
 import { AuthProvider } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 
-// Configuration supprimée - l'index.tsx gère la redirection
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  useFonts(Ionicons.font);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

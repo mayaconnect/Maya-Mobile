@@ -2,11 +2,13 @@ import { AnimatedButton } from '@/components/animated-button';
 import { NavigationTransition } from '@/components/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
+import { RegisterRequest } from '@/services/auth.service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,16 +19,59 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// Fonction pour formater automatiquement la date de naissance
+const formatBirthDate = (input: string): string => {
+  // Supprimer tous les caractères non numériques
+  const numbers = input.replace(/\D/g, '');
+  
+  // Si on a 8 chiffres, formater en YYYY-MM-DD
+  if (numbers.length === 8) {
+    const year = numbers.substring(0, 4);
+    const month = numbers.substring(4, 6);
+    const day = numbers.substring(6, 8);
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Si on a déjà le format YYYY-MM-DD, le garder
+  if (numbers.length <= 8 && input.includes('-')) {
+    return input;
+  }
+  
+  // Sinon, retourner les chiffres tels quels
+  return numbers;
+};
+
 export default function SignupScreen() {
+  // Données personnelles
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  
+  // Adresse
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [country, setCountry] = useState('');
+  
+  // Avatar (optionnel)
+  const [avatarBase64, setAvatarBase64] = useState<string | undefined>();
+  
+  // États UI
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmError, setConfirmError] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
+  const [birthDateError, setBirthDateError] = useState('');
+  const [addressError, setAddressError] = useState('');
+  
   const { signUp } = useAuth();
 
   const handleSignup = async () => {
@@ -35,11 +80,24 @@ export default function SignupScreen() {
     setEmailError('');
     setPasswordError('');
     setConfirmError('');
+    setFirstNameError('');
+    setLastNameError('');
+    setBirthDateError('');
+    setAddressError('');
 
-    if (!email || !password || !confirmPassword) {
-      setErrorMessage('⚠️ Veuillez remplir tous les champs');
+    // Validation des champs obligatoires
+    if (!email || !password || !confirmPassword || !firstName || !lastName || !birthDate) {
+      setErrorMessage('⚠️ Veuillez remplir tous les champs obligatoires');
       return;
     }
+
+    // Validation de l'adresse
+    if (!street || !city || !state || !postalCode || !country) {
+      setAddressError('❌ Veuillez remplir tous les champs d\'adresse');
+      setErrorMessage('L\'adresse complète est requise');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setConfirmError('❌ Les mots de passe ne correspondent pas');
       setErrorMessage('Les deux mots de passe doivent être identiques');
@@ -50,17 +108,53 @@ export default function SignupScreen() {
       setErrorMessage('Le mot de passe doit contenir au moins 6 caractères');
       return;
     }
+
+    // Validation de la date de naissance (format YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(birthDate)) {
+      setBirthDateError('❌ Format requis: YYYY-MM-DD');
+      setErrorMessage('Veuillez entrer la date au format YYYY-MM-DD (ex: 1990-01-15)');
+      return;
+    }
+    
+    const birthDateObj = new Date(birthDate);
+    if (isNaN(birthDateObj.getTime())) {
+      setBirthDateError('❌ Date de naissance invalide');
+      setErrorMessage('Veuillez entrer une date de naissance valide');
+      return;
+    }
     
     try {
-      await signUp({ email, password });
+      const registerData: RegisterRequest = {
+        email,
+        password,
+        firstName,
+        lastName,
+        birthDate: birthDateObj.toISOString(), // Format ISO complet avec heure
+        address: {
+          street,
+          city,
+          state,
+          postalCode,
+          country,
+        },
+        avatarBase64,
+      };
+
+      console.log('Données envoyées à l\'API:', JSON.stringify(registerData, null, 2));
+
+      await signUp(registerData);
       router.replace('/(tabs)/home');
     } catch (error) {
+      console.error('Erreur lors de l\'inscription:', error);
       if (error instanceof Error) {
         if (error.message === 'EMAIL_ALREADY_EXISTS') {
           setEmailError('❌ Cet email est déjà utilisé');
           setErrorMessage('Un compte existe déjà avec cet email');
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
+          setErrorMessage('❌ Erreur de connexion. Vérifiez que le serveur backend est démarré.');
         } else {
-          setErrorMessage('❌ Échec de l\'inscription. Veuillez réessayer.');
+          setErrorMessage(`❌ Erreur: ${error.message}`);
         }
       } else {
         setErrorMessage('❌ Échec de l\'inscription. Veuillez réessayer.');
@@ -92,103 +186,277 @@ export default function SignupScreen() {
           </View>
 
           <View style={styles.content}>
-            <View style={styles.card}>
-              <Text style={styles.title}>Créer un compte</Text>
-              <Text style={styles.subtitle}>Inscrivez-vous pour commencer à économiser</Text>
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+              <View style={styles.card}>
+                <Text style={styles.title}>Créer un compte</Text>
+                <Text style={styles.subtitle}>Inscrivez-vous pour commencer à économiser</Text>
 
-              {/* Message d'erreur global */}
-              {errorMessage ? (
-                <View style={styles.errorBanner}>
-                  <Ionicons name="alert-circle" size={20} color="#DC2626" />
-                  <Text style={styles.errorBannerText}>{errorMessage}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
-                  <Ionicons name="mail" size={20} color={emailError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="votre@email.com"
-                    value={email}
-                    onChangeText={(text) => {
-                      setEmail(text);
-                      setEmailError('');
-                      setErrorMessage('');
-                    }}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
-                {emailError ? (
-                  <Text style={styles.fieldError}>{emailError}</Text>
+                {/* Message d'erreur global */}
+                {errorMessage ? (
+                  <View style={styles.errorBanner}>
+                    <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                    <Text style={styles.errorBannerText}>{errorMessage}</Text>
+                  </View>
                 ) : null}
-              </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Mot de passe</Text>
-                <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
-                  <Ionicons name="lock-closed" size={20} color={passwordError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    value={password}
-                    onChangeText={(text) => {
-                      setPassword(text);
-                      setPasswordError('');
-                      setErrorMessage('');
-                    }}
-                    secureTextEntry={!showPassword}
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                {/* Informations personnelles */}
+                <Text style={styles.sectionTitle}>Informations personnelles</Text>
+                
+                <View style={styles.row}>
+                  <View style={[styles.inputContainer, styles.halfWidth]}>
+                    <Text style={styles.inputLabel}>Prénom *</Text>
+                    <View style={[styles.inputWrapper, firstNameError ? styles.inputError : null]}>
+                      <Ionicons name="person" size={20} color={firstNameError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Jean"
+                        value={firstName}
+                        onChangeText={(text) => {
+                          setFirstName(text);
+                          setFirstNameError('');
+                          setErrorMessage('');
+                        }}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                    {firstNameError ? (
+                      <Text style={styles.fieldError}>{firstNameError}</Text>
+                    ) : null}
+                  </View>
+
+                  <View style={[styles.inputContainer, styles.halfWidth]}>
+                    <Text style={styles.inputLabel}>Nom *</Text>
+                    <View style={[styles.inputWrapper, lastNameError ? styles.inputError : null]}>
+                      <Ionicons name="person" size={20} color={lastNameError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Dupont"
+                        value={lastName}
+                        onChangeText={(text) => {
+                          setLastName(text);
+                          setLastNameError('');
+                          setErrorMessage('');
+                        }}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                    {lastNameError ? (
+                      <Text style={styles.fieldError}>{lastNameError}</Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Email *</Text>
+                  <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
+                    <Ionicons name="mail" size={20} color={emailError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="votre@email.com"
+                      value={email}
+                      onChangeText={(text) => {
+                        setEmail(text);
+                        setEmailError('');
+                        setErrorMessage('');
+                      }}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  {emailError ? (
+                    <Text style={styles.fieldError}>{emailError}</Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Date de naissance *</Text>
+                  <View style={[styles.inputWrapper, birthDateError ? styles.inputError : null]}>
+                    <Ionicons name="calendar" size={20} color={birthDateError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="1990-01-15 ou 19900115"
+                      value={birthDate}
+                      onChangeText={(text) => {
+                        // Formatage automatique de la date
+                        const formattedDate = formatBirthDate(text);
+                        setBirthDate(formattedDate);
+                        setBirthDateError('');
+                        setErrorMessage('');
+                      }}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  {birthDateError ? (
+                    <Text style={styles.fieldError}>{birthDateError}</Text>
+                  ) : null}
+                </View>
+
+                {/* Mot de passe */}
+                <Text style={styles.sectionTitle}>Sécurité</Text>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Mot de passe *</Text>
+                  <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
+                    <Ionicons name="lock-closed" size={20} color={passwordError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="••••••••"
+                      value={password}
+                      onChangeText={(text) => {
+                        setPassword(text);
+                        setPasswordError('');
+                        setErrorMessage('');
+                      }}
+                      secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
+                      <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+                  {passwordError ? (
+                    <Text style={styles.fieldError}>{passwordError}</Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Confirmer le mot de passe *</Text>
+                  <View style={[styles.inputWrapper, confirmError ? styles.inputError : null]}>
+                    <Ionicons name="lock-closed" size={20} color={confirmError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChangeText={(text) => {
+                        setConfirmPassword(text);
+                        setConfirmError('');
+                        setErrorMessage('');
+                      }}
+                      secureTextEntry={!showConfirm}
+                    />
+                    <TouchableOpacity onPress={() => setShowConfirm((v) => !v)}>
+                      <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  </View>
+                  {confirmError ? (
+                    <Text style={styles.fieldError}>{confirmError}</Text>
+                  ) : null}
+                </View>
+
+                {/* Adresse */}
+                <Text style={styles.sectionTitle}>Adresse</Text>
+                {addressError ? (
+                  <Text style={styles.fieldError}>{addressError}</Text>
+                ) : null}
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Rue *</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="location" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="123 Rue de la Paix"
+                      value={street}
+                      onChangeText={(text) => {
+                        setStreet(text);
+                        setAddressError('');
+                        setErrorMessage('');
+                      }}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.row}>
+                  <View style={[styles.inputContainer, styles.halfWidth]}>
+                    <Text style={styles.inputLabel}>Ville *</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons name="business" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Paris"
+                        value={city}
+                        onChangeText={(text) => {
+                          setCity(text);
+                          setAddressError('');
+                          setErrorMessage('');
+                        }}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={[styles.inputContainer, styles.halfWidth]}>
+                    <Text style={styles.inputLabel}>Code postal *</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="75001"
+                        value={postalCode}
+                        onChangeText={(text) => {
+                          setPostalCode(text);
+                          setAddressError('');
+                          setErrorMessage('');
+                        }}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.row}>
+                  <View style={[styles.inputContainer, styles.halfWidth]}>
+                    <Text style={styles.inputLabel}>Région/État *</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons name="map" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Île-de-France"
+                        value={state}
+                        onChangeText={(text) => {
+                          setState(text);
+                          setAddressError('');
+                          setErrorMessage('');
+                        }}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={[styles.inputContainer, styles.halfWidth]}>
+                    <Text style={styles.inputLabel}>Pays *</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons name="flag" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="France"
+                        value={country}
+                        onChangeText={(text) => {
+                          setCountry(text);
+                          setAddressError('');
+                          setErrorMessage('');
+                        }}
+                        autoCapitalize="words"
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                <AnimatedButton
+                  title="S'inscrire"
+                  onPress={handleSignup}
+                  icon="person-add"
+                  style={styles.submitButton}
+                  variant="solid"
+                />
+
+                <View style={styles.switchAuthRow}>
+                  <Text style={styles.switchAuthText}>Déjà un compte ? </Text>
+                  <TouchableOpacity onPress={() => router.replace('/connexion/login')}>
+                    <Text style={styles.switchAuthLink}>Se connecter</Text>
                   </TouchableOpacity>
                 </View>
-                {passwordError ? (
-                  <Text style={styles.fieldError}>{passwordError}</Text>
-                ) : null}
               </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Confirmer le mot de passe</Text>
-                <View style={[styles.inputWrapper, confirmError ? styles.inputError : null]}>
-                  <Ionicons name="lock-closed" size={20} color={confirmError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChangeText={(text) => {
-                      setConfirmPassword(text);
-                      setConfirmError('');
-                      setErrorMessage('');
-                    }}
-                    secureTextEntry={!showConfirm}
-                  />
-                  <TouchableOpacity onPress={() => setShowConfirm((v) => !v)}>
-                    <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
-                  </TouchableOpacity>
-                </View>
-                {confirmError ? (
-                  <Text style={styles.fieldError}>{confirmError}</Text>
-                ) : null}
-              </View>
-
-              <AnimatedButton
-                title="S'inscrire"
-                onPress={handleSignup}
-                icon="person-add"
-                style={styles.submitButton}
-                variant="solid"
-              />
-
-              <View style={styles.switchAuthRow}>
-                <Text style={styles.switchAuthText}>Déjà un compte ? </Text>
-                <TouchableOpacity onPress={() => router.replace('/connexion/login')}>
-                  <Text style={styles.switchAuthLink}>Se connecter</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </ScrollView>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -208,9 +476,12 @@ type SignupStyles = {
   logoUnderline: ViewStyle;
   placeholder: ViewStyle;
   content: ViewStyle;
+  scrollView: ViewStyle;
+  scrollContent: ViewStyle;
   card: ViewStyle;
   title: TextStyle;
   subtitle: TextStyle;
+  sectionTitle: TextStyle;
   inputContainer: ViewStyle;
   inputLabel: TextStyle;
   inputWrapper: ViewStyle;
@@ -224,6 +495,8 @@ type SignupStyles = {
   errorBannerText: TextStyle;
   inputError: ViewStyle;
   fieldError: TextStyle;
+  row: ViewStyle;
+  halfWidth: ViewStyle;
 };
 
 const styles = StyleSheet.create<SignupStyles>({
@@ -282,8 +555,13 @@ const styles = StyleSheet.create<SignupStyles>({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 20,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingVertical: Spacing.lg,
   },
   card: {
     backgroundColor: Colors.background.card,
@@ -304,6 +582,16 @@ const styles = StyleSheet.create<SignupStyles>({
     color: '#6B7280',
     textAlign: 'center',
     marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'black',
+    marginTop: 20,
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 8,
   },
   inputContainer: {
     marginBottom: 20,
@@ -376,6 +664,13 @@ const styles = StyleSheet.create<SignupStyles>({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  halfWidth: {
+    flex: 1,
   },
 });
 
