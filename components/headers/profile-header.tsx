@@ -1,4 +1,4 @@
-import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
+import { BorderRadius, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
@@ -30,7 +30,7 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   return (
     <LinearGradient
-      colors={['#4F46E5', '#3730A3']}
+      colors={['#6366F1', '#4F46E5']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.container, style]}
@@ -38,7 +38,7 @@ export function ProfileHeader({
       {/* Header principal */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.settingsButton} onPress={onSettingsPress}>
-          <Ionicons name="settings" size={16} color={Colors.text.light} />
+          <Ionicons name="settings" size={20} color="white" />
         </TouchableOpacity>
         
         <View style={styles.titleSection}>
@@ -47,7 +47,7 @@ export function ProfileHeader({
         </View>
         
         <TouchableOpacity style={styles.notificationButton} onPress={onNotificationPress}>
-          <Ionicons name="notifications" size={16} color={Colors.text.light} />
+          <Ionicons name="notifications" size={20} color="white" />
           <View style={styles.notificationBadge}>
             <Text style={styles.notificationText}>2</Text>
           </View>
@@ -59,14 +59,14 @@ export function ProfileHeader({
         <View style={styles.userInfoContainer}>
           <View style={styles.userCard}>
             <View style={styles.avatar}>
-              <Ionicons name="person" size={24} color={Colors.text.light} />
+              <Ionicons name="person" size={28} color="white" />
             </View>
             <View style={styles.userDetails}>
               <Text style={styles.userName}>{userEmail.split('@')[0]}</Text>
               <Text style={styles.userEmail}>{userEmail}</Text>
             </View>
             <TouchableOpacity style={styles.editButton}>
-              <Ionicons name="pencil" size={14} color={Colors.text.light} />
+              <Ionicons name="pencil" size={16} color="white" />
             </TouchableOpacity>
           </View>
         </View>
@@ -77,79 +77,98 @@ export function ProfileHeader({
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingTop: Spacing['2xl'],
+    paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.lg,
     borderBottomLeftRadius: BorderRadius.xl,
     borderBottomRightRadius: BorderRadius.xl,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
   } as ViewStyle,
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   } as ViewStyle,
   settingsButton: {
-    width: 36,
-    height: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderRadius: BorderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   } as ViewStyle,
   titleSection: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   } as ViewStyle,
   title: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: '700',
-    color: Colors.text.light,
-    marginBottom: 2,
+    fontSize: 26,
+    fontWeight: '800',
+    color: 'white',
+    marginBottom: 4,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   } as TextStyle,
   subtitle: {
-    fontSize: Typography.sizes.sm,
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontWeight: '500',
+    fontSize: 14,
+    color: 'white',
+    fontWeight: '600',
     textAlign: 'center',
+    opacity: 0.95,
   } as TextStyle,
   notificationButton: {
-    width: 36,
-    height: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    position: 'relative',
-  } as ViewStyle,
-  notificationBadge: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    backgroundColor: Colors.status.error,
-    borderRadius: BorderRadius.full,
-    minWidth: 14,
-    height: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: Colors.text.light,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  } as ViewStyle,
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: BorderRadius.full,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   } as ViewStyle,
   notificationText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '700',
-    color: Colors.text.light,
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'white',
   } as TextStyle,
   userInfoContainer: {
     alignItems: 'center',
@@ -157,42 +176,61 @@ const styles = StyleSheet.create({
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    padding: Spacing.md + 4,
     width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   } as ViewStyle,
   avatar: {
-    width: 50,
-    height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 56,
+    height: 56,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: BorderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   } as ViewStyle,
   userDetails: {
     flex: 1,
+    marginLeft: Spacing.sm,
   } as ViewStyle,
   userName: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: Colors.text.light,
-    marginBottom: 2,
+    fontSize: Typography.sizes.xl,
+    fontWeight: '800',
+    color: 'white',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   } as TextStyle,
   userEmail: {
-    fontSize: Typography.sizes.sm,
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontWeight: '500',
+    fontSize: Typography.sizes.base,
+    color: 'white',
+    fontWeight: '600',
+    opacity: 0.9,
   } as TextStyle,
   editButton: {
-    width: 32,
-    height: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderRadius: BorderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+    elevation: 2,
   } as ViewStyle,
 });

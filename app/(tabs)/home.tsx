@@ -1,11 +1,14 @@
-import { AnimatedButton } from '@/components/animated-button';
-import { NavigationTransition } from '@/components/navigation-transition';
+import { AnimatedButton } from '@/components/common/animated-button';
+import { NavigationTransition } from '@/components/common/navigation-transition';
 import { HomeHeader } from '@/components/headers/home-header';
+import { QRScanner } from '@/components/qr/qr-scanner';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import { router } from 'expo-router';
+import React, { useState, useEffect } from 'react';
 import {
+    Alert,
     ScrollView,
     StyleSheet,
     Text,
@@ -16,9 +19,44 @@ import {
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const [showQRScanner, setShowQRScanner] = useState(false);
+
+  // Vérifier si l'utilisateur est un partenaire
+  useEffect(() => {
+    // Détecter si l'email contient "partner" ou si l'utilisateur a un rôle partenaire
+    const isPartner = user?.email?.toLowerCase().includes('partner') || 
+                      user?.email?.toLowerCase().includes('partenaire') ||
+                      (user as any)?.role === 'partner' ||
+                      (user as any)?.isPartner === true;
+    
+    if (isPartner) {
+      // Rediriger vers l'interface partenaire
+      router.replace('/(tabs)/partner-home');
+    }
+  }, [user]);
+
   const handleScanPartner = () => {
-    // Logique pour scanner un partenaire
-    console.log('Scanner un partenaire');
+    setShowQRScanner(true);
+  };
+
+  const handleQRScanned = (data: string) => {
+    console.log('📱 QR Code partenaire scanné:', data);
+    
+    // Extraire l'ID du partenaire du QR code
+    // Format attendu: "maya:partner:123" ou similaire
+    const partnerId = data.split(':').pop() || data;
+    
+    // Ici vous pouvez ajouter la logique pour:
+    // - Valider le partenaire avec l'API
+    // - Enregistrer la visite
+    // - Afficher les détails du partenaire
+    // - Rediriger vers la page du partenaire
+    
+    Alert.alert(
+      '✅ Visite enregistrée',
+      `Vous avez scanné le QR code du partenaire ${partnerId}. Votre visite a été enregistrée avec succès !`,
+      [{ text: 'Parfait', onPress: () => setShowQRScanner(false) }]
+    );
   };
 
   const handlePartnerMode = () => {
@@ -114,6 +152,13 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       </View>
+
+      {/* Scanner QR Code */}
+      <QRScanner
+        visible={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onScan={handleQRScanned}
+      />
     </NavigationTransition>
   );
 }

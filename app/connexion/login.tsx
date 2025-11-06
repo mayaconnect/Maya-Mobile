@@ -1,5 +1,5 @@
-import { AnimatedButton } from '@/components/animated-button';
-import { NavigationTransition } from '@/components/navigation-transition';
+import { AnimatedButton } from '@/components/common/animated-button';
+import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,14 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle
+    StyleSheet,
+    Text,
+    TextInput,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -61,14 +60,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSkipLogin = () => {
-    // Passer sans connexion - aller directement à l'accueil
-    router.push('/(tabs)/home');
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    Alert.alert('Connexion', `Connexion avec ${provider}`);
-  };
 
   return (
     <NavigationTransition direction="right">
@@ -106,26 +97,7 @@ export default function LoginScreen() {
                 </View>
               ) : null}
 
-              <View style={styles.socialButtons}>
-                <TouchableOpacity style={styles.socialIconButton} onPress={() => handleSocialLogin('Google')}>
-                  <Ionicons name="logo-google" size={20} color="#8B5CF6" />
-                  <Text style={styles.socialButtonText}>Google</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialIconButton} onPress={() => handleSocialLogin('Apple')}>
-                  <Ionicons name="logo-apple" size={20} color="#8B5CF6" />
-                  <Text style={styles.socialButtonText}>Apple</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialIconButton} onPress={() => handleSocialLogin('Facebook')}>
-                  <Ionicons name="logo-facebook" size={20} color="#8B5CF6" />
-                  <Text style={styles.socialButtonText}>Facebook</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
-                <View style={styles.dividerLine} />
-              </View>
+              {/* Connexion sociale désactivée temporairement */}
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>

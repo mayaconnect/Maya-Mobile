@@ -1,10 +1,16 @@
-import { NavigationTransition } from '@/components/navigation-transition';
+import { NavigationTransition } from '@/components/common/navigation-transition';
 import { SubscriptionHeader } from '@/components/headers/subscription-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { PaymentService, PaymentRequest } from '@/services/payment.service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import React, { useState, useEffect } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,9 +24,100 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function SubscriptionScreen() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<'individual' | 'duo' | 'famille' | 'vip'>('duo');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [applePayAvailable, setApplePayAvailable] = useState(false);
+  const [googlePayAvailable, setGooglePayAvailable] = useState(false);
 
   const handlePartnerMode = () => {
     console.log('Mode partenaire');
+  };
+
+  const handleContinue = () => {
+    setShowPaymentModal(true);
+  };
+
+  const getPlanPrice = () => {
+    const prices = {
+      individual: { monthly: 3, annual: 30 },
+      duo: { monthly: 5, annual: 50 },
+      famille: { monthly: 7, annual: 70 },
+      vip: { monthly: 12, annual: 120 },
+    };
+    return prices[selectedPlan][billingCycle];
+  };
+
+  const getPlanName = () => {
+    const names = {
+      individual: 'Individuel',
+      duo: 'Duo',
+      famille: 'Famille',
+      vip: 'VIP',
+    };
+    return names[selectedPlan];
+  };
+
+  // Vérifier la disponibilité des méthodes de paiement
+  useEffect(() => {
+    const checkPaymentMethods = async () => {
+      const applePay = await PaymentService.isApplePayAvailable();
+      const googlePay = await PaymentService.isGooglePayAvailable();
+      setApplePayAvailable(applePay);
+      setGooglePayAvailable(googlePay);
+    };
+    checkPaymentMethods();
+  }, []);
+
+  const handlePayment = async () => {
+    if (!selectedPaymentMethod) return;
+
+    setIsProcessingPayment(true);
+
+    try {
+      const paymentRequest: PaymentRequest = {
+        amount: getPlanPrice(),
+        currency: 'EUR',
+        planId: selectedPlan,
+        planName: getPlanName(),
+        billingCycle,
+        paymentMethod: selectedPaymentMethod as any,
+      };
+
+      const response = await PaymentService.processPayment(paymentRequest);
+
+      if (response.success) {
+        Alert.alert(
+          '✅ Paiement réussi',
+          `Votre abonnement ${getPlanName()} a été activé avec succès.\n\nTransaction: ${response.transactionId}`,
+          [
+            {
+              text: 'Parfait',
+              onPress: () => {
+                setShowPaymentModal(false);
+                setSelectedPaymentMethod(null);
+                // router.replace('/(tabs)/home');
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          '❌ Erreur de paiement',
+          response.error || 'Une erreur est survenue lors du paiement',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Erreur lors du paiement:', error);
+      Alert.alert(
+        '❌ Erreur',
+        'Une erreur inattendue est survenue. Veuillez réessayer.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   return (
@@ -275,8 +372,216 @@ export default function SubscriptionScreen() {
             >
               <Text style={styles.whyChooseText}>Pourquoi choisir Maya ?</Text>
             </LinearGradient>
+
+            {/* Bouton Continuer */}
+            <TouchableOpacity 
+              style={styles.continueButton}
+              onPress={handleContinue}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#7C3AED']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.continueButtonGradient}
+              >
+                <Text style={styles.continueButtonText}>
+                  Continuer vers le paiement
+                </Text>
+                <Ionicons name="arrow-forward" size={20} color="white" />
+              </LinearGradient>
+            </TouchableOpacity>
           </ScrollView>
         </View>
+
+        {/* Modal de sélection du paiement */}
+        <Modal
+          visible={showPaymentModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowPaymentModal(false)}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={() => setShowPaymentModal(false)}
+              >
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Choisir un moyen de paiement</Text>
+            </View>
+
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {/* Récapitulatif de l'abonnement */}
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>Récapitulatif</Text>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Plan sélectionné</Text>
+                  <Text style={styles.summaryValue}>{getPlanName()}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Période</Text>
+                  <Text style={styles.summaryValue}>
+                    {billingCycle === 'monthly' ? 'Mensuel' : 'Annuel'}
+                  </Text>
+                </View>
+                <View style={[styles.summaryRow, styles.summaryTotal]}>
+                  <Text style={styles.summaryTotalLabel}>Total</Text>
+                  <Text style={styles.summaryTotalValue}>
+                    {getPlanPrice()}€ {billingCycle === 'monthly' ? '/mois' : '/an'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Méthodes de paiement */}
+              <Text style={styles.paymentSectionTitle}>Moyens de paiement</Text>
+
+              {/* Carte bancaire */}
+              <TouchableOpacity
+                style={[
+                  styles.paymentMethodCard,
+                  selectedPaymentMethod === 'card' && styles.paymentMethodCardSelected
+                ]}
+                onPress={() => setSelectedPaymentMethod('card')}
+              >
+                <View style={styles.paymentMethodIcon}>
+                  <Ionicons name="card" size={24} color={Colors.primary[600]} />
+                </View>
+                <View style={styles.paymentMethodInfo}>
+                  <Text style={styles.paymentMethodName}>Carte bancaire</Text>
+                  <Text style={styles.paymentMethodDescription}>
+                    Visa, Mastercard, American Express
+                  </Text>
+                </View>
+                <View style={styles.paymentMethodRadio}>
+                  {selectedPaymentMethod === 'card' && (
+                    <Ionicons name="checkmark-circle" size={24} color={Colors.primary[600]} />
+                  )}
+                  {selectedPaymentMethod !== 'card' && (
+                    <View style={styles.paymentMethodRadioEmpty} />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* PayPal */}
+              <TouchableOpacity
+                style={[
+                  styles.paymentMethodCard,
+                  selectedPaymentMethod === 'paypal' && styles.paymentMethodCardSelected
+                ]}
+                onPress={() => setSelectedPaymentMethod('paypal')}
+              >
+                <View style={styles.paymentMethodIcon}>
+                  <Ionicons name="logo-paypal" size={24} color="#0070BA" />
+                </View>
+                <View style={styles.paymentMethodInfo}>
+                  <Text style={styles.paymentMethodName}>PayPal</Text>
+                  <Text style={styles.paymentMethodDescription}>
+                    Payer avec votre compte PayPal
+                  </Text>
+                </View>
+                <View style={styles.paymentMethodRadio}>
+                  {selectedPaymentMethod === 'paypal' && (
+                    <Ionicons name="checkmark-circle" size={24} color={Colors.primary[600]} />
+                  )}
+                  {selectedPaymentMethod !== 'paypal' && (
+                    <View style={styles.paymentMethodRadioEmpty} />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Apple Pay */}
+              {applePayAvailable && (
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodCard,
+                    selectedPaymentMethod === 'applepay' && styles.paymentMethodCardSelected
+                  ]}
+                  onPress={() => setSelectedPaymentMethod('applepay')}
+                >
+                  <View style={styles.paymentMethodIcon}>
+                    <Ionicons name="logo-apple" size={24} color={Colors.text.primary} />
+                  </View>
+                  <View style={styles.paymentMethodInfo}>
+                    <Text style={styles.paymentMethodName}>Apple Pay</Text>
+                    <Text style={styles.paymentMethodDescription}>
+                      Paiement rapide et sécurisé
+                    </Text>
+                  </View>
+                  <View style={styles.paymentMethodRadio}>
+                    {selectedPaymentMethod === 'applepay' && (
+                      <Ionicons name="checkmark-circle" size={24} color={Colors.primary[600]} />
+                    )}
+                    {selectedPaymentMethod !== 'applepay' && (
+                      <View style={styles.paymentMethodRadioEmpty} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {/* Google Pay */}
+              {googlePayAvailable && (
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodCard,
+                    selectedPaymentMethod === 'googlepay' && styles.paymentMethodCardSelected
+                  ]}
+                  onPress={() => setSelectedPaymentMethod('googlepay')}
+                >
+                  <View style={styles.paymentMethodIcon}>
+                    <Ionicons name="logo-google" size={24} color="#4285F4" />
+                  </View>
+                  <View style={styles.paymentMethodInfo}>
+                    <Text style={styles.paymentMethodName}>Google Pay</Text>
+                    <Text style={styles.paymentMethodDescription}>
+                      Paiement rapide et sécurisé
+                    </Text>
+                  </View>
+                  <View style={styles.paymentMethodRadio}>
+                    {selectedPaymentMethod === 'googlepay' && (
+                      <Ionicons name="checkmark-circle" size={24} color={Colors.primary[600]} />
+                    )}
+                    {selectedPaymentMethod !== 'googlepay' && (
+                      <View style={styles.paymentMethodRadioEmpty} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {/* Bouton Payer */}
+              <TouchableOpacity
+                style={[
+                  styles.payButton,
+                  (!selectedPaymentMethod || isProcessingPayment) && styles.payButtonDisabled
+                ]}
+                onPress={handlePayment}
+                disabled={!selectedPaymentMethod || isProcessingPayment}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={selectedPaymentMethod && !isProcessingPayment ? ['#8B5CF6', '#7C3AED'] : ['#D1D5DB', '#9CA3AF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.payButtonGradient}
+                >
+                  {isProcessingPayment ? (
+                    <View style={styles.payButtonLoading}>
+                      <ActivityIndicator size="small" color="white" />
+                      <Text style={styles.payButtonText}>
+                        Traitement en cours...
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.payButtonText}>
+                      Payer {getPlanPrice()}€ {billingCycle === 'monthly' ? '/mois' : '/an'}
+                    </Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
         </SafeAreaView>
     </NavigationTransition>
   );
@@ -497,5 +802,190 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.text.light,
     textAlign: 'center',
+  } as TextStyle,
+  
+  // Bouton Continuer
+  continueButton: {
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    ...Shadows.lg,
+  } as ViewStyle,
+  continueButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    gap: Spacing.sm,
+  } as ViewStyle,
+  continueButtonText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: 'white',
+  } as TextStyle,
+  
+  // Modal de paiement
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background.light,
+  } as ViewStyle,
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.primary[100],
+  } as ViewStyle,
+  modalCloseButton: {
+    padding: Spacing.sm,
+    marginRight: Spacing.md,
+  } as ViewStyle,
+  modalTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    flex: 1,
+  } as TextStyle,
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+  } as ViewStyle,
+  
+  // Récapitulatif
+  summaryCard: {
+    backgroundColor: Colors.background.card,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
+    ...Shadows.md,
+  } as ViewStyle,
+  summaryTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: Spacing.md,
+  } as TextStyle,
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  summaryTotal: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.primary[100],
+  } as ViewStyle,
+  summaryLabel: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  summaryValue: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  } as TextStyle,
+  summaryTotalLabel: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  } as TextStyle,
+  summaryTotalValue: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '800',
+    color: Colors.primary[600],
+  } as TextStyle,
+  
+  // Section paiement
+  paymentSectionTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: Spacing.md,
+  } as TextStyle,
+  
+  // Méthodes de paiement
+  paymentMethodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.card,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    ...Shadows.sm,
+  } as ViewStyle,
+  paymentMethodCardSelected: {
+    borderColor: Colors.primary[600],
+    backgroundColor: Colors.primary[50],
+  } as ViewStyle,
+  paymentMethodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  } as ViewStyle,
+  paymentMethodInfo: {
+    flex: 1,
+  } as ViewStyle,
+  paymentMethodName: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: Spacing.xs,
+  } as TextStyle,
+  paymentMethodDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  paymentMethodRadio: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  paymentMethodRadioEmpty: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.primary[200],
+  } as ViewStyle,
+  
+  // Bouton Payer
+  payButton: {
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    ...Shadows.lg,
+  } as ViewStyle,
+  payButtonDisabled: {
+    opacity: 0.6,
+  } as ViewStyle,
+  payButtonGradient: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  payButtonLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  payButtonText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: 'white',
   } as TextStyle,
 });

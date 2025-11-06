@@ -1,4 +1,4 @@
-import { NavigationTransition } from '@/components/navigation-transition';
+import { NavigationTransition } from '@/components/common/navigation-transition';
 import { HistoryHeader } from '@/components/headers/history-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import React from 'react';

@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userInfo = await AuthService.getCurrentUserInfo();
             setUser(userInfo);
             console.log('👤 Utilisateur chargé depuis l\'API:', userInfo.email);
-          } catch (apiError) {
+          } catch {
             // Si l'API échoue, utiliser les données locales
             console.log('⚠️ API indisponible, utilisation des données locales');
             const currentUser = await AuthService.getCurrentUser();
@@ -62,12 +62,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!loginData.email || !loginData.password) {
         throw new Error('MISSING_CREDENTIALS');
       }
-      await AuthService.signIn(loginData);
       
-      // Récupérer les infos complètes de l'utilisateur après connexion
-      const userInfo = await AuthService.getCurrentUserInfo();
+      // La méthode signIn retourne déjà l'utilisateur
+      const userInfo = await AuthService.signIn(loginData);
       setUser(userInfo);
       console.log('✅ Connexion réussie:', userInfo.email);
+      
+      // Essayer de récupérer les infos complètes depuis l'API en arrière-plan
+      // mais ne pas bloquer la connexion si ça échoue
+      try {
+        const updatedUserInfo = await AuthService.getCurrentUserInfo();
+        if (updatedUserInfo) {
+          setUser(updatedUserInfo);
+          console.log('🔄 Infos utilisateur mises à jour depuis l\'API');
+        }
+      } catch {
+        console.log('⚠️ Impossible de récupérer les infos complètes, utilisation des données de base');
+      }
     } catch (error) {
       setUser(null);
       throw error;
@@ -82,8 +93,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!registerData.email || !registerData.password) {
         throw new Error('MISSING_CREDENTIALS');
       }
+      
+      // La méthode signUp crée le compte et met à jour les infos
       const newUser = await AuthService.signUp(registerData);
       setUser(newUser);
+      console.log('✅ Inscription réussie:', newUser.email);
+      
+      // Essayer de récupérer les infos complètes depuis l'API en arrière-plan
+      try {
+        const updatedUserInfo = await AuthService.getCurrentUserInfo();
+        if (updatedUserInfo) {
+          setUser(updatedUserInfo);
+          console.log('🔄 Infos utilisateur mises à jour depuis l\'API');
+        }
+      } catch {
+        console.log('⚠️ Impossible de récupérer les infos complètes, utilisation des données de base');
+      }
     } catch (error) {
       setUser(null);
       throw error;

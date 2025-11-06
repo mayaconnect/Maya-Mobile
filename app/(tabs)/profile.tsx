@@ -1,5 +1,5 @@
 import { DebugUsersViewer } from '@/components/debug-users-viewer';
-import { NavigationTransition } from '@/components/navigation-transition';
+import { NavigationTransition } from '@/components/common/navigation-transition';
 import { ProfileHeader } from '@/components/headers/profile-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';

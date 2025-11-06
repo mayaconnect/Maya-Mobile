@@ -1,8 +1,8 @@
-import { AnimatedButton } from '@/components/animated-button';
+import { AnimatedButton } from '@/components/common/animated-button';
 import { FeatureIcon } from '@/components/feature-icon';
-import { NavigationTransition } from '@/components/navigation-transition';
-import { OnboardingContentCard } from '@/components/onboarding-content-card';
-import { OnboardingScreen } from '@/components/onboarding-screen';
+import { NavigationTransition } from '@/components/common/navigation-transition';
+import { OnboardingContentCard } from '@/components/onboarding/onboarding-content-card';
+import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { PaginationDots } from '@/components/pagination-dots';
 import { Colors } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';

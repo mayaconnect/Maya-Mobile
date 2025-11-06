@@ -1,4 +1,4 @@
-import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
+import { BorderRadius, Spacing } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
@@ -11,7 +11,6 @@ import {
     View,
     ViewStyle,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface PartnersHeaderProps {
   title: string;
@@ -71,7 +70,7 @@ export function PartnersHeader({
               onPress={onLocationPress}
               activeOpacity={0.7}
             >
-              <Ionicons name="location" size={16} color={Colors.text.light} />
+              <Ionicons name="location" size={20} color="white" />
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -79,7 +78,7 @@ export function PartnersHeader({
               onPress={onNotificationPress}
               activeOpacity={0.7}
             >
-              <Ionicons name="notifications" size={16} color={Colors.text.light} />
+              <Ionicons name="notifications" size={20} color="white" />
               <View style={styles.notificationBadge}>
                 <Text style={styles.notificationText}>3</Text>
               </View>
@@ -87,52 +86,25 @@ export function PartnersHeader({
           </View>
         </View>
 
-        {/* Statistiques rapides */}
+        {/* Statistiques rapides - Design épuré */}
         <View style={styles.statsContainer}>
-          <Animated.View style={[styles.statCard, { transform: [{ scale: pulseAnim }] }]}>
-            <View style={styles.statIcon}>
-              <Ionicons name="business" size={14} color={Colors.text.light} />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>{totalPartners}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-          </Animated.View>
-
           <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Ionicons name="location" size={14} color={Colors.text.light} />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>{nearbyPartners}</Text>
-              <Text style={styles.statLabel}>Proche</Text>
-            </View>
+            <Ionicons name="business" size={16} color="white" />
+            <Text style={styles.statValue}>{totalPartners}</Text>
+            <Text style={styles.statLabel}>Total</Text>
           </View>
 
           <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Ionicons name="gift" size={14} color={Colors.text.light} />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>12</Text>
-              <Text style={styles.statLabel}>Promos</Text>
-            </View>
+            <Ionicons name="location" size={16} color="white" />
+            <Text style={styles.statValue}>{nearbyPartners}</Text>
+            <Text style={styles.statLabel}>À proximité</Text>
           </View>
 
           <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Ionicons name="star" size={14} color={Colors.accent.gold} />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>4.7</Text>
-              <Text style={styles.statLabel}>Note moy.</Text>
-            </View>
+            <Ionicons name="gift" size={16} color="white" />
+            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statLabel}>Promotions</Text>
           </View>
-        </View>
-
-        {/* Indicateur de scroll */}
-        <View style={styles.scrollIndicator}>
-          <View style={styles.scrollDot} />
         </View>
     </LinearGradient>
   );
@@ -141,13 +113,14 @@ export function PartnersHeader({
 const styles = StyleSheet.create({
   container: {
     paddingTop: Spacing.xl,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     borderBottomLeftRadius: BorderRadius.xl,
     borderBottomRightRadius: BorderRadius.xl,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
     elevation: 4,
   } as ViewStyle,
   safeArea: {
@@ -156,109 +129,97 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
-    paddingTop: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
   } as ViewStyle,
   titleSection: {
     flex: 1,
   } as ViewStyle,
   title: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: '700',
-    color: Colors.text.light,
+    fontSize: 24,
+    fontWeight: '800',
+    color: 'white',
     marginBottom: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   } as TextStyle,
   subtitle: {
-    fontSize: Typography.sizes.sm,
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 13,
+    color: 'white',
     fontWeight: '500',
+    opacity: 0.9,
   } as TextStyle,
   actions: {
     flexDirection: 'row',
     gap: Spacing.xs,
   } as ViewStyle,
   actionButton: {
-    width: 36,
-    height: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    position: 'relative',
-  } as ViewStyle,
-  notificationBadge: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    backgroundColor: Colors.status.error,
-    borderRadius: BorderRadius.full,
-    minWidth: 14,
-    height: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: Colors.text.light,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  } as ViewStyle,
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: BorderRadius.full,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   } as ViewStyle,
   notificationText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '700',
-    color: Colors.text.light,
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'white',
   } as TextStyle,
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     gap: Spacing.xs,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.sm,
+    paddingHorizontal: 0,
+    marginTop: Spacing.sm,
   } as ViewStyle,
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.md,
-    padding: Spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  } as ViewStyle,
-  statIcon: {
-    width: 24,
-    height: 24,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.sm,
-    justifyContent: 'center',
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
     alignItems: 'center',
-  } as ViewStyle,
-  statContent: {
-    flex: 1,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    gap: 2,
   } as ViewStyle,
   statValue: {
-    fontSize: Typography.sizes.base,
-    fontWeight: '700',
-    color: Colors.text.light,
-    marginBottom: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    color: 'white',
+    marginTop: 2,
   } as TextStyle,
   statLabel: {
-    fontSize: Typography.sizes.xs,
-    color: 'rgba(255, 255, 255, 0.75)',
-    fontWeight: '500',
+    fontSize: 10,
+    color: 'white',
+    fontWeight: '600',
+    opacity: 0.85,
+    textAlign: 'center',
   } as TextStyle,
-  scrollIndicator: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-  } as ViewStyle,
-  scrollDot: {
-    width: 3,
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    borderRadius: 1.5,
-  } as ViewStyle,
 });

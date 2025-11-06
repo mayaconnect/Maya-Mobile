@@ -8,6 +8,13 @@ export default function TabLayout() {
   if (!user) {
     return <Redirect href="/login" />;
   }
+
+  // Vérifier si l'utilisateur est un partenaire
+  const isPartner = user?.email?.toLowerCase().includes('partner') || 
+                    user?.email?.toLowerCase().includes('partenaire') ||
+                    (user as any)?.role === 'partner' ||
+                    (user as any)?.isPartner === true;
+
   return (
     <Tabs
       initialRouteName="home"
@@ -15,7 +22,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#8B5CF6',
         tabBarInactiveTintColor: '#9CA3AF',
         headerShown: false,
-        tabBarStyle: {
+        tabBarStyle: isPartner ? {
+          display: 'none', // Masquer la barre de navigation pour les partenaires
+        } : {
           backgroundColor: 'white',
           borderTopWidth: 0,
           paddingBottom: 12,
@@ -106,6 +115,12 @@ export default function TabLayout() {
               color={color} 
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="partner-home"
+        options={{
+          href: null, // Cacher de la barre de navigation
         }}
       />
     </Tabs>

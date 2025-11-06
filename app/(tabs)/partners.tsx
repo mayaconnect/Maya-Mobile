@@ -1,10 +1,6 @@
-import { NavigationTransition } from '@/components/navigation-transition';
-import { FilterChips } from '@/components/partners/filter-chips';
+import { NavigationTransition } from '@/components/common/navigation-transition';
 import { PartnerCard } from '@/components/partners/partner-card';
 import { PartnersHeader } from '@/components/partners/partners-header';
-import { RealMapsView } from '@/components/partners/real-maps-view';
-import { SearchBar } from '@/components/partners/search-bar';
-import { ViewToggle } from '@/components/partners/view-toggle';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
@@ -14,6 +10,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TextStyle,
     TouchableOpacity,
     View,
@@ -23,11 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PartnersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('Tous');
-  const [viewMode, setViewMode] = useState<'liste' | 'carte'>('liste');
+  const [selectedCategory, setSelectedCategory] = useState('Tous');
+  const [viewMode, setViewMode] = useState<'grille' | 'liste'>('grille');
   const [selectedPartner, setSelectedPartner] = useState<any>(null);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   
   // Animation pour les transitions
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
@@ -123,26 +119,21 @@ export default function PartnersScreen() {
                          partner.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          partner.category.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesFilter = selectedFilter === 'Tous' || 
-                         partner.category === selectedFilter ||
-                         (selectedFilter === 'Promotions' && partner.promotion?.isActive);
+    const matchesFilter = selectedCategory === 'Tous' || 
+                         partner.category === selectedCategory;
     
     return matchesSearch && matchesFilter;
   });
-
-  const handlePartnerMode = () => {
-    console.log('Mode partenaire');
-  };
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
 
-  const handleFilterChange = (filter: string) => {
-    setSelectedFilter(filter);
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
   };
 
-  const handleViewToggle = (mode: 'liste' | 'carte') => {
+  const handleViewToggle = (mode: 'grille' | 'liste') => {
     // Animation de transition
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -170,48 +161,176 @@ export default function PartnersScreen() {
     setSelectedPartner(null);
   };
 
-  const handleFilterPress = () => {
-    setShowFilters(!showFilters);
-  };
+  // Obtenir toutes les catégories uniques
+  const categories = ['Tous', ...new Set(partners.map(p => p.category))];
 
   return (
     <NavigationTransition>
       <View style={styles.container}>
+        {/* Header avec statistiques */}
         <PartnersHeader
           title="Partenaires"
-          subtitle={`${filteredPartners.length} partenaires trouvés`}
+          subtitle={`${filteredPartners.length} trouvé${filteredPartners.length > 1 ? 's' : ''}`}
           totalPartners={stats.totalPartners}
           nearbyPartners={stats.nearbyPartners}
           onLocationPress={() => console.log('Location pressed')}
           onNotificationPress={() => console.log('Notification pressed')}
         />
 
-        {/* Barre de recherche améliorée */}
-        <SearchBar
-          value={searchQuery}
-          onChangeText={handleSearch}
-          onFilterPress={handleFilterPress}
-          showFilterButton={true}
-        />
+        {/* Recherche moderne */}
+        <View style={styles.searchSection}>
+          {/* Input de recherche moderne */}
+          <View style={styles.searchInputContainer}>
+            <View style={styles.searchIconWrapper}>
+              <Ionicons name="search" size={18} color={Colors.primary[600]} />
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Rechercher un partenaire..."
+              placeholderTextColor={Colors.text.secondary}
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => handleSearch('')}
+                style={styles.clearBtn}
+              >
+                <Ionicons name="close" size={18} color={Colors.text.secondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {/* Catégories modernes */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContainer}
+          >
+            {categories.map((category) => {
+              const isActive = selectedCategory === category;
+              const getIcon = () => {
+                if (category === 'Tous') return 'apps';
+                if (category === 'Café') return 'cafe';
+                if (category === 'Restaurant') return 'restaurant';
+                if (category === 'Shop') return 'storefront';
+                return 'business';
+              };
+              
+              return (
+                <TouchableOpacity
+                  key={category}
+                  style={[
+                    styles.categoryPill,
+                    isActive && styles.categoryPillActive
+                  ]}
+                  onPress={() => handleCategoryChange(category)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons 
+                    name={getIcon() as any} 
+                    size={14} 
+                    color={isActive ? 'white' : Colors.text.secondary} 
+                    style={styles.categoryIcon}
+                  />
+                  <Text style={[
+                    styles.categoryPillText,
+                    isActive && styles.categoryPillTextActive
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         {/* Contenu principal */}
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-          {/* Toggle Liste/Carte */}
-          <ViewToggle
-            selectedMode={viewMode}
-            onModeChange={handleViewToggle}
-            style={styles.viewToggle}
-          />
 
-          {/* Filtres */}
-          <FilterChips
-            selectedFilter={selectedFilter}
-            onFilterChange={handleFilterChange}
-            style={styles.filters}
-          />
+          {/* Toggle Vue */}
+          <View style={styles.viewToggleContainer}>
+            <TouchableOpacity
+              style={[styles.viewToggleButton, viewMode === 'grille' && styles.viewToggleButtonActive]}
+              onPress={() => handleViewToggle('grille')}
+            >
+              <Ionicons 
+                name="grid" 
+                size={18} 
+                color={viewMode === 'grille' ? Colors.text.light : Colors.text.secondary} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleButton, viewMode === 'liste' && styles.viewToggleButtonActive]}
+              onPress={() => handleViewToggle('liste')}
+            >
+              <Ionicons 
+                name="list" 
+                size={18} 
+                color={viewMode === 'liste' ? Colors.text.light : Colors.text.secondary} 
+              />
+            </TouchableOpacity>
+          </View>
 
-          {/* Contenu conditionnel : Liste ou Carte */}
-          {viewMode === 'liste' ? (
+          {/* Contenu conditionnel : Grille ou Liste */}
+          {viewMode === 'grille' ? (
+            /* Grille des partenaires */
+            <View style={styles.partnersGrid}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.partnersGridContent}
+              >
+                {filteredPartners.length > 0 ? (
+                  filteredPartners.map((partner, index) => (
+                    <TouchableOpacity
+                      key={partner.id}
+                      style={[
+                        styles.gridCard,
+                        index % 2 === 0 && styles.gridCardLeft,
+                        index % 2 === 1 && styles.gridCardRight
+                      ]}
+                      onPress={() => handlePartnerSelect(partner)}
+                      activeOpacity={0.8}
+                    >
+                    {/* Image/Emoji */}
+                    <View style={styles.gridCardImage}>
+                      <Text style={styles.gridCardEmoji}>{partner.image}</Text>
+                      {partner.promotion?.isActive && (
+                        <View style={styles.gridPromoBadge}>
+                          <Text style={styles.gridPromoBadgeText}>{partner.promotion.discount}</Text>
+                        </View>
+                      )}
+                      {!partner.isOpen && (
+                        <View style={styles.gridClosedOverlay}>
+                          <Text style={styles.gridClosedText}>Fermé</Text>
+                        </View>
+                      )}
+                    </View>
+                    
+                    {/* Infos */}
+                    <View style={styles.gridCardInfo}>
+                      <Text style={styles.gridCardName} numberOfLines={1}>{partner.name}</Text>
+                      <View style={styles.gridCardMeta}>
+                        <Ionicons name="star" size={12} color={Colors.accent.gold} />
+                        <Text style={styles.gridCardRating}>{partner.rating}</Text>
+                        <Text style={styles.gridCardDistance}>• {partner.distance} km</Text>
+                      </View>
+                      <Text style={styles.gridCardAddress} numberOfLines={1}>{partner.address}</Text>
+                    </View>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="storefront-outline" size={64} color={Colors.text.secondary} />
+                    <Text style={styles.emptyStateTitle}>Aucun partenaire trouvé</Text>
+                    <Text style={styles.emptyStateText}>
+                      Essayez de modifier vos critères de recherche
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          ) : (
             /* Liste des partenaires */
             <ScrollView
               style={styles.partnersList}
@@ -229,7 +348,7 @@ export default function PartnersScreen() {
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="search" size={48} color={Colors.text.secondary} />
+                  <Ionicons name="storefront-outline" size={64} color={Colors.text.secondary} />
                   <Text style={styles.emptyStateTitle}>Aucun partenaire trouvé</Text>
                   <Text style={styles.emptyStateText}>
                     Essayez de modifier vos critères de recherche
@@ -237,13 +356,6 @@ export default function PartnersScreen() {
                 </View>
               )}
             </ScrollView>
-          ) : (
-            /* Carte interactive */
-            <RealMapsView
-              partners={filteredPartners}
-              onPartnerSelect={handlePartnerSelect}
-              style={styles.mapView}
-            />
           )}
         </Animated.View>
 
@@ -330,56 +442,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.light,
   } as ViewStyle,
-  header: {
+  
+  // Section recherche moderne
+  searchSection: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
+    gap: Spacing.md,
+    backgroundColor: Colors.background.light,
   } as ViewStyle,
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
-  } as ViewStyle,
-  titleContainer: {
-    flex: 1,
-  } as ViewStyle,
-  title: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.text.light,
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  subtitle: {
-    fontSize: Typography.sizes.base,
-    color: 'rgba(255, 255, 255, 0.9)',
-  } as TextStyle,
-  partnerModeButton: {
+  
+  // Input de recherche moderne
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background.card,
+    backgroundColor: 'white',
+    borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: Colors.accent.orange,
-    gap: Spacing.xs,
+    borderColor: 'rgba(99, 102, 241, 0.08)',
   } as ViewStyle,
-  partnerModeText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold as any,
-    color: Colors.accent.orange,
+  searchIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+  } as ViewStyle,
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text.primary,
+    padding: 0,
+    fontWeight: '500',
   } as TextStyle,
+  clearBtn: {
+    padding: 4,
+    marginLeft: Spacing.xs,
+  } as ViewStyle,
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xl * 2,
+    paddingVertical: Spacing['2xl'],
     paddingHorizontal: Spacing.lg,
   } as ViewStyle,
   emptyStateTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xl,
+    fontWeight: '700',
     color: Colors.text.primary,
-    marginTop: Spacing.md,
+    marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
   } as TextStyle,
   emptyStateText: {
@@ -391,14 +510,197 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
   } as ViewStyle,
-  viewToggle: {
+  
+  // Catégories modernes
+  categoriesContainer: {
+    gap: Spacing.sm,
+    paddingRight: Spacing.lg,
+  } as ViewStyle,
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.background.card,
+    borderWidth: 1.5,
+    borderColor: Colors.primary[100],
+    minHeight: 38,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+    gap: 6,
+  } as ViewStyle,
+  categoryPillActive: {
+    backgroundColor: Colors.primary[600],
+    borderColor: Colors.primary[600],
+    shadowColor: Colors.primary[600],
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  } as ViewStyle,
+  categoryPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  } as TextStyle,
+  categoryPillTextActive: {
+    color: 'white',
+    fontWeight: '700',
+  } as TextStyle,
+  categoryIcon: {
+    marginRight: 2,
+  } as ViewStyle,
+  
+  // Toggle Vue
+  viewToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: BorderRadius.full,
+    padding: 4,
+    alignSelf: 'flex-end',
     marginBottom: Spacing.md,
+    marginRight: -Spacing.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.primary[200],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   } as ViewStyle,
-  filters: {
+  viewToggleButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    minWidth: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  viewToggleButtonActive: {
+    backgroundColor: Colors.primary[600],
+    shadowColor: Colors.primary[600],
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  } as ViewStyle,
+  
+  // Grille
+  partnersGrid: {
+    flex: 1,
+  } as ViewStyle,
+  partnersGridContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.xl,
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
+  
+  // Cards de grille
+  gridCard: {
+    width: '48%',
+    backgroundColor: 'white',
+    borderRadius: BorderRadius.xl,
     marginBottom: Spacing.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.primary[100],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   } as ViewStyle,
+  gridCardLeft: {
+    marginRight: '2%',
+  } as ViewStyle,
+  gridCardRight: {
+    marginRight: 0,
+  } as ViewStyle,
+  gridCardImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: Colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  } as ViewStyle,
+  gridCardEmoji: {
+    fontSize: 48,
+  } as TextStyle,
+  gridPromoBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: Colors.status.success,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.md,
+    shadowColor: Colors.status.success,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  } as ViewStyle,
+  gridPromoBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'white',
+  } as TextStyle,
+  gridClosedOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  gridClosedText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  } as TextStyle,
+  gridCardInfo: {
+    padding: Spacing.sm,
+  } as ViewStyle,
+  gridCardName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  } as TextStyle,
+  gridCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  } as ViewStyle,
+  gridCardRating: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  } as TextStyle,
+  gridCardDistance: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+    fontWeight: '500',
+  } as TextStyle,
+  gridCardAddress: {
+    fontSize: 11,
+    color: Colors.text.secondary,
+    lineHeight: 14,
+  } as TextStyle,
+  
+  // Liste
   partnersList: {
     flex: 1,
   } as ViewStyle,
@@ -406,10 +708,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
   } as ViewStyle,
   partnerCard: {
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
-  mapView: {
-    flex: 1,
+    marginBottom: Spacing.md,
   } as ViewStyle,
   modalContainer: {
     flex: 1,

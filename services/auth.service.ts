@@ -129,14 +129,24 @@ const apiCall = async <T>(endpoint: string, options: RequestInit = {}, retryCoun
   // Récupérer le token d'authentification si disponible
   const tokens = await getTokens();
   
-  const defaultHeaders = {
+  const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(tokens?.accessToken && { 'Authorization': `Bearer ${tokens.accessToken}` }),
   };
-
+  
+  // Ajouter le header Authorization si un token est présent
+  if (tokens?.accessToken) {
+    defaultHeaders['Authorization'] = `Bearer ${tokens.accessToken}`;
+  }
+  
   console.log(`🌐 Appel API vers: ${url}`);
   console.log('📤 Données envoyées:', options.body);
   console.log('🔑 Token présent:', !!tokens?.accessToken);
+  console.log('🔑 Headers envoyés:', JSON.stringify(defaultHeaders, null, 2));
+  
+  // Déboguer le token en entier (seulement en dev)
+  if (__DEV__ && tokens?.accessToken) {
+    console.log('🔑 Token complet:', tokens.accessToken);
+  }
 
   try {
     // Créer un AbortController pour gérer le timeout
@@ -163,15 +173,26 @@ const apiCall = async <T>(endpoint: string, options: RequestInit = {}, retryCoun
 
     clearTimeout(timeoutId);
     console.log(`📥 Réponse API: ${response.status} ${response.statusText}`);
+    
+    // Logger tous les headers de réponse pour déboguer
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+    console.log('📥 Headers de réponse:', JSON.stringify(responseHeaders, null, 2));
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       try {
-        const errorData = await response.json();
-        console.log('❌ Détails de l\'erreur API:', errorData);
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch {
-        console.log('❌ Impossible de parser l\'erreur JSON');
+        const errorText = await response.text();
+        console.log('❌ Corps de l\'erreur API (texte brut):', errorText);
+        if (errorText) {
+          const errorData = JSON.parse(errorText);
+          console.log('❌ Détails de l\'erreur API (JSON):', JSON.stringify(errorData, null, 2));
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        }
+      } catch (parseError) {
+        console.log('❌ Impossible de parser l\'erreur JSON:', parseError);
       }
       throw new Error(errorMessage);
     }
@@ -308,16 +329,16 @@ export const AuthService = {
       console.log('✅ Connexion réussie!');
 
       // Extraire les données de l'utilisateur de la réponse
-      const userData = response.user || response;
+      const userData = response.user || response.data || response;
       
       // Créer l'utilisateur avec les vraies données
       const user: User = {
         id: userData.id || response.userId || 'temp-id',
         email: loginData.email,
         password: loginData.password, // Garder localement pour la session
-        firstName: userData.firstName || 'Utilisateur',
-        lastName: userData.lastName || 'Maya',
-        birthDate: userData.birthDate || new Date().toISOString(),
+        firstName: userData.firstName || userData.first_name || 'Utilisateur',
+        lastName: userData.lastName || userData.last_name || 'Maya',
+        birthDate: userData.birthDate || userData.birth_date || new Date().toISOString(),
         address: userData.address || {
           street: '',
           city: '',
@@ -325,8 +346,8 @@ export const AuthService = {
           postalCode: '',
           country: 'France'
         },
-        avatarBase64: userData.avatarBase64 || '',
-        createdAt: userData.createdAt || new Date().toISOString(),
+        avatarBase64: userData.avatarBase64 || userData.avatar || '',
+        createdAt: userData.createdAt || userData.created_at || new Date().toISOString(),
       };
 
       // Stocker les tokens reçus de l'API
@@ -340,6 +361,9 @@ export const AuthService = {
         
         await saveTokens(tokenData);
         console.log('🔑 Token sauvegardé:', response.accessToken.substring(0, 20) + '...');
+        console.log('🔑 Token complet:', response.accessToken);
+      } else {
+        console.warn('⚠️ Pas de token dans la réponse:', Object.keys(response));
       }
 
       // Retourner l'utilisateur public
@@ -394,43 +418,81 @@ export const AuthService = {
    */
   signUp: async (registerData: RegisterRequest): Promise<PublicUser> => {
     try {
-      // Appel à l'API backend
-      const response = await apiCall<ApiResponse<PublicUser>>('/auth/register', {
+      // Appel à l'API backend pour créer le compte
+      const registerResponse = await apiCall<any>('/auth/register', {
         method: 'POST',
-        body: JSON.stringify(registerData),
+        body: JSON.stringify({
+          email: registerData.email,
+          password: registerData.password,
+        }),
       });
 
-      if (!response.success) {
-        throw new Error(response.message || 'Échec de l\'inscriptin');
+      console.log('✅ Compte créé, réponse complète:', JSON.stringify(registerResponse, null, 2));
+
+      // Stocker les tokens reçus après inscription
+      if (registerResponse.accessToken) {
+        const tokenData: TokenData = {
+          accessToken: registerResponse.accessToken,
+          refreshToken: registerResponse.refreshToken,
+          expiresAt: registerResponse.expiresAt || new Date(Date.now() + 3600000).toISOString(),
+          userId: registerResponse.user?.id || registerResponse.id || 'temp-id',
+        };
+        
+        await saveTokens(tokenData);
+        console.log('🔑 Token sauvegardé après inscription');
       }
 
-      // Créer un utilisateur local pour la compatibilité
+      // Appeler PUT /auth/me pour mettre à jour les infos complètes
+      console.log('📝 Mise à jour des informations utilisateur...');
+      
+      // Préparer les données pour PUT /auth/me
+      const updateData = {
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        birthDate: registerData.birthDate,
+        address: registerData.address,
+      };
+      
+      console.log('📤 Données envoyées à PUT /auth/me:', JSON.stringify(updateData, null, 2));
+      
+      const updateResponse = await apiCall<any>('/auth/me', {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      });
+
+      console.log('✅ Informations mises à jour, réponse complète:', JSON.stringify(updateResponse, null, 2));
+
+      // Créer l'objet utilisateur avec les données mises à jour
       const newUser: User = {
-        id: response.data.id,
-        email: response.data.email,
-        password: registerData.password, // Garder localement pour la session
-        firstName: response.data.firstName,
-        lastName: response.data.lastName,
-        birthDate: response.data.birthDate,
-        address: response.data.address,
-        avatarBase64: response.data.avatarBase64,
-        createdAt: response.data.createdAt,
+        id: updateResponse.user?.id || registerResponse.user?.id || registerResponse.id || 'temp-id',
+        email: registerData.email,
+        password: registerData.password,
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        birthDate: registerData.birthDate,
+        address: registerData.address,
+        avatarBase64: registerData.avatarBase64,
+        createdAt: new Date().toISOString(),
       };
 
-      // Ajouter à notre cache local
-      const users = await loadUsers();
-      const updatedUsers = [...users, newUser];
-      
-      // Sauvegarder dans AsyncStorage
-      await saveNewUsers(updatedUsers);
-      
-      // Mettre à jour le cache
-      usersCache = updatedUsers;
+      const publicUser: PublicUser = {
+        id: newUser.id,
+        email: newUser.email,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        birthDate: newUser.birthDate,
+        address: newUser.address,
+        avatarBase64: newUser.avatarBase64,
+        createdAt: newUser.createdAt,
+      };
 
-      return response.data;
+      // Sauvegarder l'utilisateur connecté
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(publicUser));
+      console.log('👤 Utilisateur sauvegardé après inscription:', publicUser.email);
+
+      return publicUser;
     } catch (error) {
-      // Ne pas permettre l'inscription en cas d'erreur API
-      console.log('🚨 Inscription refusée - erreur API');
+      console.log('🚨 Inscription refusée - erreur API:', error);
       throw error;
     }
   },

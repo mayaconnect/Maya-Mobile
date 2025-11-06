@@ -21,6 +21,9 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# Stub files
+InternalBytecode.js
+
 # debug
 npm-debug.*
 yarn-debug.*

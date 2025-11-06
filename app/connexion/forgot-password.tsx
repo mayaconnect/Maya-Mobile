@@ -1,5 +1,5 @@
-import { AnimatedButton } from '@/components/animated-button';
-import { NavigationTransition } from '@/components/navigation-transition';
+import { AnimatedButton } from '@/components/common/animated-button';
+import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { AuthService } from '@/services/auth.service';
 import { Ionicons } from '@expo/vector-icons';
