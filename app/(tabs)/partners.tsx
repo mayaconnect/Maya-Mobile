@@ -2,116 +2,184 @@ import { NavigationTransition } from '@/components/common/navigation-transition'
 import { PartnerCard } from '@/components/partners/partner-card';
 import { PartnersHeader } from '@/components/partners/partners-header';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
+import { PartnerService } from '@/services/partner.service';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Animated,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Animated,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+type PartnerUI = {
+  id: string;
+  name: string;
+  description: string;
+  address: string;
+  distance: number | null;
+  isOpen: boolean;
+  closingTime: string | null;
+  category: string;
+  image: string;
+  promotion?: {
+    discount: string;
+    description: string;
+    isActive: boolean;
+  } | null;
+  rating: number;
+};
 
 export default function PartnersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [viewMode, setViewMode] = useState<'grille' | 'liste'>('grille');
-  const [selectedPartner, setSelectedPartner] = useState<any>(null);
+  const [selectedPartner, setSelectedPartner] = useState<PartnerUI | null>(null);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [partners, setPartners] = useState<PartnerUI[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
   
   // Animation pour les transitions
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
 
-  // Données des partenaires (à remplacer par des données réelles)
-  const partners = [
-    {
-      id: 1,
-      name: 'Café des Arts',
-      rating: 4.8,
-      description: 'Café cosy avec terrasse',
-      address: '15 rue de la Paix, Paris',
-      distance: 0.2,
-      isOpen: true,
-      closingTime: '22h00',
-      category: 'Café',
-      image: '☕',
-      promotion: {
-        discount: '10% OFF',
-        description: 'Remise immédiate avec Maya',
-        isActive: true,
-      },
-    },
-    {
-      id: 2,
-      name: 'Bistro Le Marché',
-      rating: 4.6,
-      description: 'Cuisine française traditionnelle',
-      address: '8 place du Marché, Paris',
-      distance: 0.5,
-      isOpen: true,
-      closingTime: '23h00',
-      category: 'Restaurant',
-      image: '🍽️',
-      promotion: null,
-    },
-    {
-      id: 3,
-      name: 'Boulangerie Martin',
-      rating: 4.9,
-      description: 'Pain artisanal et pâtisseries',
-      address: '12 avenue des Champs, Paris',
-      distance: 0.8,
-      isOpen: true,
-      closingTime: '19h00',
-      category: 'Shop',
-      image: '🥖',
-      promotion: {
-        discount: '15% OFF',
-        description: 'Sur tous les viennoiseries',
-        isActive: true,
-      },
-    },
-    {
-      id: 4,
-      name: 'Restaurant Sushi Zen',
-      rating: 4.7,
-      description: 'Sushi frais et cuisine japonaise',
-      address: '25 rue de Rivoli, Paris',
-      distance: 1.2,
-      isOpen: false,
-      closingTime: '22h30',
-      category: 'Restaurant',
-      image: '🍣',
-      promotion: null,
-    },
-    {
-      id: 5,
-      name: 'Coffee Shop Corner',
-      rating: 4.5,
-      description: 'Café de spécialité et snacks',
-      address: '7 boulevard Saint-Germain, Paris',
-      distance: 0.9,
-      isOpen: true,
-      closingTime: '18h00',
-      category: 'Café',
-      image: '☕',
-      promotion: null,
-    },
-  ];
+  const computeCategory = useCallback((dto: any): string => {
+    if (!dto) return 'Partenaire';
+    if (dto.category) return dto.category;
+    if (dto.sector) return dto.sector;
+    if (dto.businessType) return dto.businessType;
+    if (dto.tags?.length) return dto.tags[0];
+    return 'Partenaire';
+  }, []);
 
-  // Calcul des statistiques
-  const stats = {
-    totalPartners: partners.length,
-    nearbyPartners: partners.filter(p => p.distance < 1).length,
-    activePromotions: partners.filter(p => p.promotion?.isActive).length,
-    averageRating: partners.reduce((sum, p) => sum + p.rating, 0) / partners.length,
-  };
+  const computeAddress = useCallback((dto: any): string => {
+    if (!dto) {
+      return 'Adresse non renseignée';
+    }
+
+    const store = dto.primaryStore ?? dto.mainStore ?? dto.store ?? dto.stores?.[0];
+    const address = store?.address ?? dto.address;
+
+    if (address) {
+      if (typeof address === 'string') {
+        return address;
+      }
+
+      const parts = [address.street, address.postalCode, address.city].filter(Boolean);
+      if (parts.length) {
+        return parts.join(', ');
+      }
+    }
+
+    return dto.city ?? dto.location ?? 'Adresse non renseignée';
+  }, []);
+
+  const computePromotion = useCallback((dto: any) => {
+    const promo = dto.activePromotion ?? dto.currentPromotion ?? dto.promotion;
+    if (!promo) {
+      return null;
+    }
+
+    return {
+      discount: promo.discountLabel ?? promo.discount ?? promo.title ?? 'Promo',
+      description: promo.description ?? promo.details ?? 'Promotion disponible',
+      isActive: promo.isActive ?? true,
+    };
+  }, []);
+
+  const mapPartner = useCallback((dto: any, index: number): PartnerUI => {
+    const fallbackEmojis = ['🏬', '🍽️', '☕', '🍕', '🍣', '🥗', '🍰'];
+    const image = dto.emoji ?? dto.icon ?? fallbackEmojis[index % fallbackEmojis.length];
+
+    const rawDistance = dto.distance ?? dto.distanceKm ?? dto.distanceKM ?? dto.distanceMeters ?? null;
+    const distanceValue =
+      rawDistance === null || rawDistance === undefined ? null : Number(rawDistance);
+    const rawRating = dto.averageRating ?? dto.rating ?? dto.score ?? dto.reviewScore;
+    const ratingValue =
+      rawRating === null || rawRating === undefined || Number.isNaN(Number(rawRating))
+        ? 4
+        : Number(rawRating);
+
+    return {
+      id: dto.id ?? dto.partnerId ?? `partner-${index}`,
+      name: dto.name ?? dto.companyName ?? dto.legalName ?? dto.email ?? 'Partenaire',
+      description: dto.description ?? dto.summary ?? 'Partenaire du programme Maya',
+      address: computeAddress(dto),
+      distance: distanceValue,
+      isOpen: dto.isOpen ?? dto.openNow ?? true,
+      closingTime: dto.closingTime ?? dto.openingHours?.closing ?? null,
+      category: computeCategory(dto),
+      image,
+      promotion: computePromotion(dto),
+      rating: ratingValue,
+    };
+  }, [computeCategory, computeAddress, computePromotion]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPartners = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const response = await PartnerService.getPartners();
+        if (!isMounted) {
+          return;
+        }
+        const list = response?.items ?? [];
+        const mapped = list.map((partner, index) => mapPartner(partner, index));
+        setPartners(mapped);
+      } catch (err) {
+        console.error('Erreur lors du chargement des partenaires:', err);
+        if (isMounted) {
+          setError('Impossible de récupérer les partenaires pour le moment.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchPartners();
+    return () => {
+      isMounted = false;
+    };
+  }, [mapPartner]);
+
+  const stats = useMemo(() => {
+    if (!partners.length) {
+      return {
+        totalPartners: 0,
+        nearbyPartners: 0,
+        activePromotions: 0,
+        averageRating: 0,
+      };
+    }
+
+    const totalPartners = partners.length;
+    const nearbyPartners = partners.filter((p) => (p.distance ?? Infinity) < 1).length;
+    const activePromotions = partners.filter((p) => p.promotion?.isActive).length;
+    const averageRating =
+      partners.reduce((sum, p) => sum + (p.rating ?? 0), 0) / Math.max(partners.length, 1);
+
+    return {
+      totalPartners,
+      nearbyPartners,
+      activePromotions,
+      averageRating,
+    };
+  }, [partners]);
 
   // Filtrage des partenaires
   const filteredPartners = partners.filter(partner => {
@@ -151,18 +219,36 @@ export default function PartnersScreen() {
     setViewMode(mode);
   };
 
-  const handlePartnerSelect = (partner: any) => {
+  const handlePartnerSelect = async (partner: PartnerUI) => {
     setSelectedPartner(partner);
     setShowPartnerModal(true);
+    setDetailError('');
+    setDetailLoading(true);
+
+    try {
+      const detailDto = await PartnerService.getPartnerById(partner.id);
+      const mapped = mapPartner(detailDto, 0);
+      setSelectedPartner(mapped);
+    } catch (err) {
+      console.error('Erreur lors du chargement du partenaire:', err);
+      setDetailError('Impossible de charger les détails du partenaire.');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const closePartnerModal = () => {
     setShowPartnerModal(false);
     setSelectedPartner(null);
+    setDetailError('');
+    setDetailLoading(false);
   };
 
   // Obtenir toutes les catégories uniques
-  const categories = ['Tous', ...new Set(partners.map(p => p.category))];
+  const categories = useMemo(() => {
+    const unique = new Set(partners.map((p) => p.category || 'Partenaire'));
+    return ['Tous', ...unique];
+  }, [partners]);
 
   return (
     <NavigationTransition>
@@ -280,43 +366,60 @@ export default function PartnersScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.partnersGridContent}
               >
-                {filteredPartners.length > 0 ? (
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={Colors.primary[600]} />
+                    <Text style={styles.loadingText}>Chargement des partenaires…</Text>
+                  </View>
+                ) : error ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="alert-circle-outline" size={64} color={Colors.status.error} />
+                    <Text style={styles.emptyStateTitle}>Oups…</Text>
+                    <Text style={styles.emptyStateText}>{error}</Text>
+                  </View>
+                ) : filteredPartners.length > 0 ? (
                   filteredPartners.map((partner, index) => (
                     <TouchableOpacity
-                      key={partner.id}
+                      key={partner.id ?? index}
                       style={[
                         styles.gridCard,
                         index % 2 === 0 && styles.gridCardLeft,
-                        index % 2 === 1 && styles.gridCardRight
+                        index % 2 === 1 && styles.gridCardRight,
                       ]}
                       onPress={() => handlePartnerSelect(partner)}
                       activeOpacity={0.8}
                     >
-                    {/* Image/Emoji */}
-                    <View style={styles.gridCardImage}>
-                      <Text style={styles.gridCardEmoji}>{partner.image}</Text>
-                      {partner.promotion?.isActive && (
-                        <View style={styles.gridPromoBadge}>
-                          <Text style={styles.gridPromoBadgeText}>{partner.promotion.discount}</Text>
-                        </View>
-                      )}
-                      {!partner.isOpen && (
-                        <View style={styles.gridClosedOverlay}>
-                          <Text style={styles.gridClosedText}>Fermé</Text>
-                        </View>
-                      )}
-                    </View>
-                    
-                    {/* Infos */}
-                    <View style={styles.gridCardInfo}>
-                      <Text style={styles.gridCardName} numberOfLines={1}>{partner.name}</Text>
-                      <View style={styles.gridCardMeta}>
-                        <Ionicons name="star" size={12} color={Colors.accent.gold} />
-                        <Text style={styles.gridCardRating}>{partner.rating}</Text>
-                        <Text style={styles.gridCardDistance}>• {partner.distance} km</Text>
+                      {/* Image/Emoji */}
+                      <View style={styles.gridCardImage}>
+                        <Text style={styles.gridCardEmoji}>{partner.image}</Text>
+                        {partner.promotion?.isActive && (
+                          <View style={styles.gridPromoBadge}>
+                            <Text style={styles.gridPromoBadgeText}>{partner.promotion.discount}</Text>
+                          </View>
+                        )}
+                        {partner.isOpen === false && (
+                          <View style={styles.gridClosedOverlay}>
+                            <Text style={styles.gridClosedText}>Fermé</Text>
+                          </View>
+                        )}
                       </View>
-                      <Text style={styles.gridCardAddress} numberOfLines={1}>{partner.address}</Text>
-                    </View>
+
+                      {/* Infos */}
+                      <View style={styles.gridCardInfo}>
+                        <Text style={styles.gridCardName} numberOfLines={1}>
+                          {partner.name}
+                        </Text>
+                        <View style={styles.gridCardMeta}>
+                          <Ionicons name="star" size={12} color={Colors.accent.gold} />
+                          <Text style={styles.gridCardRating}>{partner.rating?.toFixed?.(1) ?? partner.rating}</Text>
+                          {partner.distance !== null && partner.distance !== undefined && (
+                            <Text style={styles.gridCardDistance}>• {partner.distance} km</Text>
+                          )}
+                        </View>
+                        <Text style={styles.gridCardAddress} numberOfLines={1}>
+                          {partner.address}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   ))
                 ) : (
@@ -337,10 +440,21 @@ export default function PartnersScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.partnersListContent}
             >
-              {filteredPartners.length > 0 ? (
-                filteredPartners.map((partner) => (
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={Colors.primary[600]} />
+                  <Text style={styles.loadingText}>Chargement des partenaires…</Text>
+                </View>
+              ) : error ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="alert-circle-outline" size={64} color={Colors.status.error} />
+                  <Text style={styles.emptyStateTitle}>Oups…</Text>
+                  <Text style={styles.emptyStateText}>{error}</Text>
+                </View>
+              ) : filteredPartners.length > 0 ? (
+                filteredPartners.map((partner, index) => (
                   <PartnerCard
-                    key={partner.id}
+                    key={partner.id ?? index}
                     partner={partner}
                     onPress={() => handlePartnerSelect(partner)}
                     style={styles.partnerCard}
@@ -376,6 +490,19 @@ export default function PartnersScreen() {
             
             {selectedPartner && (
               <View style={styles.modalContent}>
+                {detailLoading && (
+                  <View style={styles.modalLoading}>
+                    <ActivityIndicator size="small" color={Colors.primary[600]} />
+                    <Text style={styles.modalLoadingText}>Actualisation…</Text>
+                  </View>
+                )}
+                {!!detailError && (
+                  <View style={styles.modalError}>
+                    <Ionicons name="warning" size={18} color={Colors.status.error} />
+                    <Text style={styles.modalErrorText}>{detailError}</Text>
+                  </View>
+                )}
+
                 <View style={styles.modalImageContainer}>
                   <Text style={styles.modalImageText}>{selectedPartner.image}</Text>
                 </View>
@@ -494,6 +621,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing['2xl'],
     paddingHorizontal: Spacing.lg,
   } as ViewStyle,
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing['2xl'],
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+  } as ViewStyle,
   emptyStateTitle: {
     fontSize: Typography.sizes.xl,
     fontWeight: '700',
@@ -506,6 +640,10 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
+  } as TextStyle,
+  loadingText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
   } as TextStyle,
   content: {
     flex: 1,
@@ -554,7 +692,7 @@ const styles = StyleSheet.create({
   } as TextStyle,
   categoryIcon: {
     marginRight: 2,
-  } as ViewStyle,
+  } as TextStyle,
   
   // Toggle Vue
   viewToggleContainer: {
@@ -735,6 +873,39 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: Spacing.lg,
   } as ViewStyle,
+  modalLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary[50],
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  modalLoadingText: {
+    color: Colors.primary[600],
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
+  modalError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.status.error + '20',
+    borderWidth: 1,
+    borderColor: Colors.status.error,
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  modalErrorText: {
+    color: Colors.status.error,
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+  } as TextStyle,
   modalImageContainer: {
     width: 80,
     height: 80,

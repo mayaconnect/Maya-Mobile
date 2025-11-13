@@ -109,7 +109,7 @@ const clearTokens = async (): Promise<void> => {
 // Pour iOS Simulator, utilise localhost
 // Pour Android Emulator, utilise 10.0.2.2
 // Pour appareil physique, utilise l'IP de ton ordinateur
-const API_BASE_URL = __DEV__ 
+export const API_BASE_URL = __DEV__ 
   ? 'http://192.168.1.11:61803/api/v1'  // HTTP sur IP locale (fonctionne avec émulateur)
   // ? 'https://192.168.1.11:61802/api/v1'  // HTTPS (problèmes de certificat SSL)
   // ? 'https://localhost:61802/api/v1'  // Localhost (Postman seulement)
@@ -123,8 +123,14 @@ const removePassword = (user: User): PublicUser => {
 };
 
 // Fonction pour faire des appels API avec timeout et retry
-const apiCall = async <T>(endpoint: string, options: RequestInit = {}, retryCount: number = 0): Promise<T> => {
-  const url = `${API_BASE_URL}${endpoint}`;
+const apiCall = async <T>(
+  endpoint: string,
+  options: RequestInit = {},
+  retryCount: number = 0,
+  baseUrlOverride?: string,
+): Promise<T> => {
+  const baseUrl = baseUrlOverride ?? API_BASE_URL;
+  const url = `${baseUrl}${endpoint}`;
   
   // Récupérer le token d'authentification si disponible
   const tokens = await getTokens();
@@ -424,6 +430,11 @@ export const AuthService = {
         body: JSON.stringify({
           email: registerData.email,
           password: registerData.password,
+          firstName: registerData.firstName,
+          lastName: registerData.lastName,
+          birthDate: registerData.birthDate,
+          address: registerData.address,
+          avatarBase64: registerData.avatarBase64,
         }),
       });
 
@@ -443,34 +454,31 @@ export const AuthService = {
       }
 
       // Appeler PUT /auth/me pour mettre à jour les infos complètes
-      console.log('📝 Mise à jour des informations utilisateur...');
-      
-      // Préparer les données pour PUT /auth/me
-      const updateData = {
-        firstName: registerData.firstName,
-        lastName: registerData.lastName,
-        birthDate: registerData.birthDate,
-        address: registerData.address,
-      };
-      
-      console.log('📤 Données envoyées à PUT /auth/me:', JSON.stringify(updateData, null, 2));
-      
-      const updateResponse = await apiCall<any>('/auth/me', {
-        method: 'PUT',
-        body: JSON.stringify(updateData),
-      });
-
-      console.log('✅ Informations mises à jour, réponse complète:', JSON.stringify(updateResponse, null, 2));
+      let mergedUserData: any = registerResponse?.user ?? registerResponse;
+      // Si l'API ne renvoie pas les infos complètes, reprendre ce que l'on a envoyé
+      if (!mergedUserData?.firstName && registerData.firstName) {
+        mergedUserData = {
+          ...mergedUserData,
+          firstName: registerData.firstName,
+          lastName: registerData.lastName,
+          birthDate: registerData.birthDate,
+          address: registerData.address,
+        };
+      }
 
       // Créer l'objet utilisateur avec les données mises à jour
       const newUser: User = {
-        id: updateResponse.user?.id || registerResponse.user?.id || registerResponse.id || 'temp-id',
+        id:
+          mergedUserData?.id ||
+          registerResponse.user?.id ||
+          registerResponse.id ||
+          'temp-id',
         email: registerData.email,
         password: registerData.password,
-        firstName: registerData.firstName,
-        lastName: registerData.lastName,
-        birthDate: registerData.birthDate,
-        address: registerData.address,
+        firstName: mergedUserData?.firstName ?? registerData.firstName,
+        lastName: mergedUserData?.lastName ?? registerData.lastName,
+        birthDate: mergedUserData?.birthDate ?? registerData.birthDate,
+        address: mergedUserData?.address ?? registerData.address,
         avatarBase64: registerData.avatarBase64,
         createdAt: new Date().toISOString(),
       };
@@ -550,9 +558,8 @@ export const AuthService = {
   },
 
   /**
-   * Demander un reset de mot de passe
+   * Étape 1 - Vérifier l'existence de l'email et déclencher la procédure de reset
    * @param email - Email de l'utilisateur
-   * @returns Confirmation de l'envoi de l'email
    */
   requestPasswordReset: async (email: string): Promise<void> => {
     try {
@@ -561,10 +568,62 @@ export const AuthService = {
         body: JSON.stringify({ email }),
       });
 
-      console.log('📧 Email de reset de mot de passe envoyé');
+      console.log('📧 Email vérifié, procédure de reset démarrée');
     } catch (error) {
-      console.log('❌ Erreur lors de la demande de reset:', error);
-      throw new Error('Échec de l\'envoi de l\'email de reset');
+      console.log('❌ Erreur lors de la vérification de l\'email:', error);
+      throw new Error('Adresse email inconnue');
+    }
+  },
+
+  /**
+   * Étape 2 - Envoyer un code de réinitialisation
+   * @param email - Email de l'utilisateur
+   * @param phoneNumber - Numéro de téléphone (pour SMS)
+   * @param channel - Canal d'envoi (email ou sms)
+   */
+  requestPasswordResetCode: async (
+    email: string,
+    phoneNumber?: string,
+    channel: 'email' | 'sms' = 'email'
+  ): Promise<void> => {
+    try {
+      const payload: Record<string, string> = {
+        email,
+        channel,
+      };
+
+      if (phoneNumber) {
+        payload.phoneNumber = phoneNumber;
+      }
+
+      await apiCall('/auth/request-password-reset-code', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      console.log(`📨 Code de reset envoyé via ${channel}`);
+    } catch (error) {
+      console.log('❌ Erreur lors de l\'envoi du code:', error);
+      throw new Error('Impossible d\'envoyer le code de vérification');
+    }
+  },
+
+  /**
+   * Étape 3 - Vérifier le code reçu
+   * @param email - Email de l'utilisateur
+   * @param code - Code de vérification
+   */
+  verifyPasswordResetCode: async (email: string, code: string): Promise<void> => {
+    try {
+      await apiCall('/auth/verify-password-reset-code', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
+      });
+
+      console.log('✅ Code de reset vérifié');
+    } catch (error) {
+      console.log('❌ Code invalide:', error);
+      throw new Error('Code de vérification invalide');
     }
   },
 
@@ -574,14 +633,20 @@ export const AuthService = {
    * @param newPassword - Nouveau mot de passe
    * @returns Confirmation de la réinitialisation
    */
-  resetPassword: async (token: string, newPassword: string): Promise<void> => {
+  resetPassword: async (code: string, newPassword: string, email?: string): Promise<void> => {
     try {
+      const payload: Record<string, string> = {
+        code,
+        newPassword,
+      };
+
+      if (email) {
+        payload.email = email;
+      }
+
       await apiCall('/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({ 
-          token, 
-          newPassword 
-        }),
+        body: JSON.stringify(payload),
       });
 
       console.log('✅ Mot de passe réinitialisé avec succès');
@@ -589,6 +654,10 @@ export const AuthService = {
       console.log('❌ Erreur lors de la réinitialisation:', error);
       throw new Error('Échec de la réinitialisation du mot de passe');
     }
+  },
+  getAccessToken: async (): Promise<string | null> => {
+    const tokens = await getTokens();
+    return tokens?.accessToken ?? null;
   },
 
   /**
@@ -711,16 +780,18 @@ export const AuthService = {
         throw new Error('Utilisateur non authentifié');
       }
 
-      const response = await apiCall('/auth/me', {
+      const response = await apiCall<any>('/auth/me', {
         method: 'GET',
-      }) as { user: PublicUser };
+      });
 
-      if (!response.user) {
+      const userData: PublicUser | undefined = response?.user ?? response;
+
+      if (!userData) {
         throw new Error('Aucune donnée utilisateur reçue');
       }
 
-      console.log('👤 Informations utilisateur récupérées depuis l\'API:', response.user.email);
-      return response.user;
+      console.log('👤 Informations utilisateur récupérées depuis l\'API:', userData.email);
+      return userData;
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des infos utilisateur:', error);
       throw new Error('Impossible de récupérer les informations utilisateur');

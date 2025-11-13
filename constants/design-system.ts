@@ -1,94 +1,77 @@
-// Direction Artistique Maya - Système de design cohérent
-
 export const Colors = {
-  // Couleurs principales
   primary: {
-    50: '#f0f9ff',
-    100: '#e0f2fe',
-    200: '#bae6fd',
-    300: '#7dd3fc',
-    400: '#38bdf8',
-    500: '#0ea5e9',
-    600: '#0284c7',
-    700: '#0369a1',
-    800: '#075985',
-    900: '#0c4a6e',
+    50: '#f2f5ff',
+    100: '#dfe5ff',
+    200: '#bcc7ff',
+    300: '#8e9fff',
+    400: '#6178ff',
+    500: '#3C4BFF',
+    600: '#2e38d6',
+    700: '#242cb0',
+    800: '#1a2086',
+    900: '#12175f',
   },
-  
-  // Couleurs secondaires (violet)
   secondary: {
-    50: '#faf5ff',
-    100: '#f3e8ff',
-    200: '#e9d5ff',
-    300: '#d8b4fe',
-    400: '#c084fc',
-    500: '#a855f7',
-    600: '#9333ea',
-    700: '#7c3aed',
-    800: '#6b21a8',
-    900: '#581c87',
+    50: '#edfff8',
+    100: '#caffee',
+    200: '#9bffde',
+    300: '#68ffd0',
+    400: '#3fffc1',
+    500: '#27EFA1',
+    600: '#1ec180',
+    700: '#159663',
+    800: '#0d6b46',
+    900: '#06412a',
   },
-  
-  // Couleurs d'accent
   accent: {
-    gold: '#fbbf24',
-    emerald: '#10b981',
-    rose: '#f43f5e',
-    cyan: '#06b6d4',
-    orange: '#f97316',
+    gold: '#F6C756',
+    emerald: '#27efa1',
+    rose: '#FF6B6B',
+    cyan: '#2DD9FF',
+    orange: '#FF9F68',
   },
-  
-  // Gradients cohérents basés sur la palette principale
   gradients: {
-    // Utiliser des tuples readonly pour compatibilité stricte avec expo-linear-gradient
-    primary: ['#667eea', '#764ba2'] as const,
-    secondary: ['#667eea', '#8b5cf6'] as const,
-    success: ['#4facfe', '#667eea'] as const,
-    warning: ['#f093fb', '#667eea'] as const,
-    info: ['#a8edea', '#667eea'] as const,
-    dark: ['#2c3e50', '#667eea'] as const,
+    primary: ['#15162E', '#242E5F', '#3C4BFF'] as const,
+    crimson: ['#4D1328', '#7B1E3D', '#A32552'] as const,
+    violet: ['#15162E', '#242E5F', '#3C4BFF'] as const,
+    success: ['#0C2F2B', '#146149', '#27EFA1'] as const,
+    warning: ['#34170E', '#602319', '#FF6B6B'] as const,
+    midnight: ['#050506', '#0A0A13', '#121325'] as const,
+    aurora: ['#121325', '#18203F', '#26346A'] as const,
   },
-  
-  // Couleurs de fond
   background: {
-    light: '#ffffff',
-    dark: '#1a1a1a',
-    card: '#ffffff',
-    overlay: 'rgba(0, 0, 0, 0.5)',
+    light: '#050506',
+    dark: '#050506',
+    surface: '#0C0C14',
+    card: '#10101A',
+    overlay: 'rgba(18,19,37,0.72)',
   },
-  
-  // Couleurs de texte
   text: {
-    primary: '#1f2937',
-    secondary: '#6b7280',
-    light: '#ffffff',
-    muted: '#9ca3af',
+    primary: '#FFFFFF',
+    secondary: 'rgba(255,255,255,0.70)',
+    light: '#FFFFFF',
+    muted: 'rgba(255,255,255,0.45)',
   },
-  
-  // Couleurs d'état
   status: {
-    success: '#10b981',
-    error: '#ef4444',
-    warning: '#f59e0b',
-    info: '#3b82f6',
+    success: '#27EFA1',
+    error: '#FF6B6B',
+    warning: '#FF9F68',
+    info: '#3C4BFF',
   },
 } as const;
 
 export const Typography = {
-  // Tailles de police
   sizes: {
     xs: 12,
     sm: 14,
     base: 16,
     lg: 18,
-    xl: 20,
-    '2xl': 24,
-    '3xl': 30,
-    '4xl': 36,
-    '5xl': 48,
+    xl: 22,
+    '2xl': 30,
+    '3xl': 38,
+    '4xl': 48,
+    '5xl': 60,
   },
-  
-  // Poids de police
   weights: {
     light: '300',
     normal: '400',
@@ -97,64 +80,62 @@ export const Typography = {
     bold: '700',
     extrabold: '800',
   },
-  
-  // Espacement des lettres
   letterSpacing: {
-    tight: -0.5,
+    tight: -0.6,
     normal: 0,
-    wide: 0.5,
-    wider: 1,
+    wide: 0.4,
+    wider: 0.75,
   },
 } as const;
 
 export const Spacing = {
-  xs: 4,
-  sm: 8,
+  xs: 6,
+  sm: 12,
   md: 16,
   lg: 24,
   xl: 32,
-  '2xl': 40,
-  '3xl': 48,
-  '4xl': 64,
+  '2xl': 44,
+  '3xl': 60,
+  '4xl': 84,
 };
 
 export const BorderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
+  sm: 12,
+  md: 16,
+  lg: 22,
+  xl: 28,
+  '2xl': 36,
+  '3xl': 44,
   full: 9999,
 };
 
 export const Shadows = {
   sm: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 8,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.22,
+    shadowRadius: 28,
+    elevation: 16,
   },
   xl: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.25,
-    shadowRadius: 25,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 32 },
+    shadowOpacity: 0.3,
+    shadowRadius: 46,
+    elevation: 26,
   },
 };

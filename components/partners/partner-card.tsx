@@ -13,14 +13,14 @@ import {
 import { PartnerPromotion } from './partner-promotion';
 
 export interface Partner {
-  id: number;
+  id: string;
   name: string;
   rating: number;
   description: string;
   address: string;
-  distance: number;
+  distance: number | null;
   isOpen: boolean;
-  closingTime: string;
+  closingTime: string | null;
   category: string;
   image: string;
   promotion?: {
@@ -78,7 +78,7 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
             </View>
             {partner.promotion?.isActive && (
               <View style={styles.promotionBadge}>
-                <Text style={styles.promotionBadgeText}>-{partner.promotion.discount}</Text>
+                <Text style={styles.promotionBadgeText}>{partner.promotion.discount}</Text>
               </View>
             )}
           </View>
@@ -88,7 +88,9 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
               <Text style={styles.name} numberOfLines={1}>{partner.name}</Text>
               <View style={styles.rating}>
                 <Ionicons name="star" size={14} color={Colors.accent.gold} />
-                <Text style={styles.ratingText}>{partner.rating}</Text>
+                <Text style={styles.ratingText}>
+                  {Number.isFinite(partner.rating) ? partner.rating.toFixed(1) : '4.0'}
+                </Text>
               </View>
             </View>
             
@@ -107,7 +109,9 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
             <Ionicons name="location" size={14} color={Colors.text.secondary} />
             <Text style={styles.address} numberOfLines={1}>{partner.address}</Text>
           </View>
-          <Text style={styles.distance}>{partner.distance} km</Text>
+          <Text style={styles.distance}>
+            {partner.distance != null ? `${partner.distance} km` : '—'}
+          </Text>
         </View>
 
         {/* Status et actions */}
@@ -127,7 +131,7 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
               ]}>
                 {partner.isOpen ? 'Ouvert' : 'Fermé'}
               </Text>
-              {partner.isOpen && (
+              {partner.isOpen && partner.closingTime && (
                 <Text style={styles.closingTime}>• {partner.closingTime}</Text>
               )}
             </View>
