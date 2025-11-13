@@ -1,9 +1,10 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
+import { NeoCard } from '@/components/neo/NeoCard';
 import { PartnerCard } from '@/components/partners/partner-card';
-import { PartnersHeader } from '@/components/partners/partners-header';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { PartnerService } from '@/services/partner.service';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -38,10 +39,13 @@ type PartnerUI = {
   rating: number;
 };
 
+type SortOption = 'recommandé' | 'distance' | 'promotions';
+
 export default function PartnersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
-  const [viewMode, setViewMode] = useState<'grille' | 'liste'>('grille');
+  const [viewMode, setViewMode] = useState<'grille' | 'liste'>('liste');
+  const [sortOption, setSortOption] = useState<SortOption>('recommandé');
   const [selectedPartner, setSelectedPartner] = useState<PartnerUI | null>(null);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [partners, setPartners] = useState<PartnerUI[]>([]);
@@ -139,6 +143,7 @@ export default function PartnersScreen() {
         const list = response?.items ?? [];
         const mapped = list.map((partner, index) => mapPartner(partner, index));
         setPartners(mapped);
+        setError('');
       } catch (err) {
         console.error('Erreur lors du chargement des partenaires:', err);
         if (isMounted) {
@@ -182,7 +187,7 @@ export default function PartnersScreen() {
   }, [partners]);
 
   // Filtrage des partenaires
-  const filteredPartners = partners.filter(partner => {
+  const filteredPartners = partners.filter((partner) => {
     const matchesSearch = partner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          partner.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          partner.category.toLowerCase().includes(searchQuery.toLowerCase());
@@ -193,12 +198,49 @@ export default function PartnersScreen() {
     return matchesSearch && matchesFilter;
   });
 
+  const sortedPartners = useMemo(() => {
+    const sorted = [...filteredPartners];
+
+    if (sortOption === 'distance') {
+      sorted.sort((a, b) => {
+        const distA = a.distance ?? Infinity;
+        const distB = b.distance ?? Infinity;
+        return distA - distB;
+      });
+    } else if (sortOption === 'promotions') {
+      sorted.sort((a, b) => {
+        const promoA = a.promotion?.isActive ? 0 : 1;
+        const promoB = b.promotion?.isActive ? 0 : 1;
+        if (promoA !== promoB) {
+          return promoA - promoB;
+        }
+        const ratingA = a.rating ?? 0;
+        const ratingB = b.rating ?? 0;
+        return ratingB - ratingA;
+      });
+    } else {
+      sorted.sort((a, b) => {
+        const ratingA = a.rating ?? 0;
+        const ratingB = b.rating ?? 0;
+        return ratingB - ratingA;
+      });
+    }
+
+    return sorted;
+  }, [filteredPartners, sortOption]);
+
+  const highlightedPartners = useMemo(() => sortedPartners.slice(0, 4), [sortedPartners]);
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
+  };
+
+  const handleSortChange = (option: SortOption) => {
+    setSortOption(option);
   };
 
   const handleViewToggle = (mode: 'grille' | 'liste') => {
@@ -250,315 +292,538 @@ export default function PartnersScreen() {
     return ['Tous', ...unique];
   }, [partners]);
 
+  const resultCount = sortedPartners.length;
+
   return (
     <NavigationTransition>
       <View style={styles.container}>
-        {/* Header avec statistiques */}
-        <PartnersHeader
-          title="Partenaires"
-          subtitle={`${filteredPartners.length} trouvé${filteredPartners.length > 1 ? 's' : ''}`}
-          totalPartners={stats.totalPartners}
-          nearbyPartners={stats.nearbyPartners}
-          onLocationPress={() => console.log('Location pressed')}
-          onNotificationPress={() => console.log('Notification pressed')}
-        />
-
-        {/* Recherche moderne */}
-        <View style={styles.searchSection}>
-          {/* Input de recherche moderne */}
-          <View style={styles.searchInputContainer}>
-            <View style={styles.searchIconWrapper}>
-              <Ionicons name="search" size={18} color={Colors.primary[600]} />
-            </View>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Rechercher un partenaire..."
-              placeholderTextColor={Colors.text.secondary}
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity 
-                onPress={() => handleSearch('')}
-                style={styles.clearBtn}
-              >
-                <Ionicons name="close" size={18} color={Colors.text.secondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-          
-          {/* Catégories modernes */}
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {categories.map((category) => {
-              const isActive = selectedCategory === category;
-              const getIcon = () => {
-                if (category === 'Tous') return 'apps';
-                if (category === 'Café') return 'cafe';
-                if (category === 'Restaurant') return 'restaurant';
-                if (category === 'Shop') return 'storefront';
-                return 'business';
-              };
-              
-              return (
+        <LinearGradient colors={['#450A1D', '#120A18']} style={styles.backgroundGradient} />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <NeoCard gradient={['#4C0F22', '#1A112A']} style={styles.heroCard}>
+              <View style={styles.heroHeader}>
+                <Text style={styles.heroTitle}>Réseau de partenaires</Text>
+                <Text style={styles.heroSubtitle}>
+                  {resultCount} résultat{resultCount > 1 ? 's' : ''} trouvés
+                </Text>
+              </View>
+              <View style={styles.heroSummaryRow}>
+                <View style={styles.heroSummaryItem}>
+                  <Text style={styles.heroSummaryValue}>{stats.totalPartners}</Text>
+                  <Text style={styles.heroSummaryLabel}>Partenaires actifs</Text>
+                </View>
+                <View style={styles.heroDivider} />
+                <View style={styles.heroSummaryItem}>
+                  <Text style={styles.heroSummaryValue}>{stats.activePromotions}</Text>
+                  <Text style={styles.heroSummaryLabel}>Promos en cours</Text>
+                </View>
+              </View>
+              <View style={styles.heroActions}>
                 <TouchableOpacity
-                  key={category}
+                  activeOpacity={0.8}
                   style={[
-                    styles.categoryPill,
-                    isActive && styles.categoryPillActive
+                    styles.heroAction,
+                    sortOption === 'distance' && styles.heroActionActive,
                   ]}
-                  onPress={() => handleCategoryChange(category)}
-                  activeOpacity={0.7}
+                  onPress={() => handleSortChange('distance')}
                 >
-                  <Ionicons 
-                    name={getIcon() as any} 
-                    size={14} 
-                    color={isActive ? 'white' : Colors.text.secondary} 
-                    style={styles.categoryIcon}
-                  />
-                  <Text style={[
-                    styles.categoryPillText,
-                    isActive && styles.categoryPillTextActive
-                  ]}>
-                    {category}
-                  </Text>
+                  <View style={styles.heroActionIcon}>
+                    <Ionicons name="navigate" size={16} color={Colors.text.light} />
+                  </View>
+                  <View style={styles.heroActionTexts}>
+                    <Text style={styles.heroActionTitle}>À proximité</Text>
+                    <Text style={styles.heroActionSubtitle}>Trie par distance</Text>
+                  </View>
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Contenu principal */}
-        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-
-          {/* Toggle Vue */}
-          <View style={styles.viewToggleContainer}>
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'grille' && styles.viewToggleButtonActive]}
-              onPress={() => handleViewToggle('grille')}
-            >
-              <Ionicons 
-                name="grid" 
-                size={18} 
-                color={viewMode === 'grille' ? Colors.text.light : Colors.text.secondary} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'liste' && styles.viewToggleButtonActive]}
-              onPress={() => handleViewToggle('liste')}
-            >
-              <Ionicons 
-                name="list" 
-                size={18} 
-                color={viewMode === 'liste' ? Colors.text.light : Colors.text.secondary} 
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Contenu conditionnel : Grille ou Liste */}
-          {viewMode === 'grille' ? (
-            /* Grille des partenaires */
-            <View style={styles.partnersGrid}>
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.partnersGridContent}
-              >
-                {loading ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={Colors.primary[600]} />
-                    <Text style={styles.loadingText}>Chargement des partenaires…</Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[
+                    styles.heroAction,
+                    sortOption === 'promotions' && styles.heroActionActive,
+                  ]}
+                  onPress={() => handleSortChange('promotions')}
+                >
+                  <View style={styles.heroActionIcon}>
+                    <Ionicons name="sparkles-outline" size={16} color={Colors.text.light} />
                   </View>
-                ) : error ? (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="alert-circle-outline" size={64} color={Colors.status.error} />
-                    <Text style={styles.emptyStateTitle}>Oups…</Text>
-                    <Text style={styles.emptyStateText}>{error}</Text>
+                  <View style={styles.heroActionTexts}>
+                    <Text style={styles.heroActionTitle}>Offres flash</Text>
+                    <Text style={styles.heroActionSubtitle}>Priorise les promos</Text>
                   </View>
-                ) : filteredPartners.length > 0 ? (
-                  filteredPartners.map((partner, index) => (
-                    <TouchableOpacity
-                      key={partner.id ?? index}
-                      style={[
-                        styles.gridCard,
-                        index % 2 === 0 && styles.gridCardLeft,
-                        index % 2 === 1 && styles.gridCardRight,
-                      ]}
-                      onPress={() => handlePartnerSelect(partner)}
-                      activeOpacity={0.8}
-                    >
-                      {/* Image/Emoji */}
-                      <View style={styles.gridCardImage}>
-                        <Text style={styles.gridCardEmoji}>{partner.image}</Text>
-                        {partner.promotion?.isActive && (
-                          <View style={styles.gridPromoBadge}>
-                            <Text style={styles.gridPromoBadgeText}>{partner.promotion.discount}</Text>
-                          </View>
-                        )}
-                        {partner.isOpen === false && (
-                          <View style={styles.gridClosedOverlay}>
-                            <Text style={styles.gridClosedText}>Fermé</Text>
-                          </View>
-                        )}
-                      </View>
+                </TouchableOpacity>
+              </View>
+            </NeoCard>
 
-                      {/* Infos */}
-                      <View style={styles.gridCardInfo}>
-                        <Text style={styles.gridCardName} numberOfLines={1}>
-                          {partner.name}
-                        </Text>
-                        <View style={styles.gridCardMeta}>
-                          <Ionicons name="star" size={12} color={Colors.accent.gold} />
-                          <Text style={styles.gridCardRating}>{partner.rating?.toFixed?.(1) ?? partner.rating}</Text>
-                          {partner.distance !== null && partner.distance !== undefined && (
-                            <Text style={styles.gridCardDistance}>• {partner.distance} km</Text>
-                          )}
-                        </View>
-                        <Text style={styles.gridCardAddress} numberOfLines={1}>
-                          {partner.address}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="storefront-outline" size={64} color={Colors.text.secondary} />
-                    <Text style={styles.emptyStateTitle}>Aucun partenaire trouvé</Text>
-                    <Text style={styles.emptyStateText}>
-                      Essayez de modifier vos critères de recherche
+            {highlightedPartners.length > 0 && (
+              <NeoCard variant="glass" style={styles.discoveryCard}>
+                <View style={styles.discoveryHeader}>
+                  <View>
+                    <Text style={styles.discoveryTitle}>À ne pas manquer</Text>
+                    <Text style={styles.discoverySubtitle}>
+                      {resultCount > 0 ? `Note moyenne ${stats.averageRating.toFixed(1)} ★` : 'Sélection personnalisée'}
                     </Text>
                   </View>
-                )}
-              </ScrollView>
-            </View>
-          ) : (
-            /* Liste des partenaires */
-            <ScrollView
-              style={styles.partnersList}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.partnersListContent}
-            >
+                  <TouchableOpacity
+                    style={styles.discoveryAction}
+                    activeOpacity={0.7}
+                    onPress={() => handleCategoryChange('Tous')}
+                  >
+                    <Text style={styles.discoveryActionLabel}>Tout afficher</Text>
+                    <Ionicons name="arrow-forward" size={14} color={Colors.text.light} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.discoveryList}
+                >
+                  {highlightedPartners.map((partner) => (
+                    <TouchableOpacity
+                      key={`highlight-${partner.id}`}
+                      activeOpacity={0.85}
+                      onPress={() => handlePartnerSelect(partner)}
+                    >
+                      <LinearGradient
+                        colors={['rgba(251,76,136,0.45)', 'rgba(37,13,45,0.9)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.discoveryItem}
+                      >
+                        <View style={styles.discoveryIcon}>
+                          <Text style={styles.discoveryEmoji}>{partner.image}</Text>
+                        </View>
+                        <View style={styles.discoveryItemInfo}>
+                          <View style={styles.discoveryItemHeader}>
+                            <Text style={styles.discoveryName} numberOfLines={1}>
+                              {partner.name}
+                            </Text>
+                            <View style={styles.discoveryRating}>
+                              <Ionicons name="star" size={12} color={Colors.accent.gold} />
+                              <Text style={styles.discoveryRatingText}>{partner.rating.toFixed(1)}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.discoveryMeta}>{partner.category}</Text>
+                          <View style={styles.discoveryChips}>
+                            <View style={styles.discoveryChip}>
+                              <Ionicons name="location" size={12} color={Colors.text.light} />
+                              <Text style={styles.discoveryChipText}>
+                                {partner.distance !== null ? `${partner.distance.toFixed(1)} km` : 'Distance N/A'}
+                              </Text>
+                            </View>
+                            {partner.promotion?.isActive && (
+                              <View style={[styles.discoveryChip, styles.discoveryPromoChip]}>
+                                <Ionicons name="sparkles-outline" size={12} color={Colors.accent.gold} />
+                                <Text style={styles.discoveryPromoText}>{partner.promotion.discount}</Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </NeoCard>
+            )}
+
+            {/* Recherche moderne */}
+            <NeoCard variant="glass" style={styles.searchSectionCard}>
+              <View style={styles.searchSection}>
+                <View style={styles.searchIntro}>
+                  <View>
+                    <Text style={styles.searchTitle}>Explorer ton réseau</Text>
+                    <Text style={styles.searchSubtitle}>Afficheur intelligent des partenaires Maya</Text>
+                  </View>
+                  <View style={styles.searchBadge}>
+                    <Ionicons name="people-circle" size={16} color={Colors.text.light} />
+                    <Text style={styles.searchBadgeText}>
+                      {resultCount} partenaire{resultCount > 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.searchInputContainer}>
+                  <View style={styles.searchIconWrapper}>
+                    <Ionicons name="search" size={18} color={Colors.text.light} />
+                  </View>
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Rechercher un partenaire..."
+                    placeholderTextColor={Colors.text.secondary}
+                    value={searchQuery}
+                    onChangeText={handleSearch}
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity 
+                      onPress={() => handleSearch('')}
+                      style={styles.clearBtn}
+                    >
+                      <Ionicons name="close" size={18} color={Colors.text.secondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoriesContainer}
+                >
+                  {categories.map((category) => {
+                    const isActive = selectedCategory === category;
+                    const getIcon = () => {
+                      if (category === 'Tous') return 'apps';
+                      if (category === 'Café') return 'cafe';
+                      if (category === 'Restaurant') return 'restaurant';
+                      if (category === 'Shop') return 'storefront';
+                      return 'business';
+                    };
+                    
+                    return (
+                      <TouchableOpacity
+                        key={category}
+                        style={[
+                          styles.categoryPill,
+                          isActive && styles.categoryPillActive
+                        ]}
+                        onPress={() => handleCategoryChange(category)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons 
+                          name={getIcon() as any} 
+                          size={14} 
+                          color={isActive ? 'white' : Colors.text.secondary} 
+                          style={styles.categoryIcon}
+                        />
+                        <Text style={[
+                          styles.categoryPillText,
+                          isActive && styles.categoryPillTextActive
+                        ]}>
+                          {category}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <View style={styles.sortSection}>
+                  {(['recommandé', 'distance', 'promotions'] as SortOption[]).map((option) => {
+                    const isActive = sortOption === option;
+                    const getIcon = () => {
+                      if (option === 'distance') return 'navigate';
+                      if (option === 'promotions') return 'flame';
+                      return 'sparkles-outline';
+                    };
+                    const helper =
+                      option === 'distance'
+                        ? 'Plus proche en premier'
+                        : option === 'promotions'
+                        ? 'Met en avant les offres'
+                        : 'Tri par popularité';
+                    return (
+                      <TouchableOpacity
+                        key={option}
+                        style={[styles.sortChip, isActive && styles.sortChipActive]}
+                        activeOpacity={0.75}
+                        onPress={() => handleSortChange(option)}
+                      >
+                        <View style={styles.sortChipIcon}>
+                          <Ionicons
+                            name={getIcon() as any}
+                            size={14}
+                            color={isActive ? Colors.text.light : Colors.text.secondary}
+                          />
+                        </View>
+                        <View style={styles.sortChipTexts}>
+                          <Text style={[styles.sortChipLabel, isActive && styles.sortChipLabelActive]}>
+                            {option === 'recommandé' ? 'Recommandés' : option === 'distance' ? 'Distance' : 'Promotions'}
+                          </Text>
+                          <Text style={styles.sortChipHelper}>{helper}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.viewToggleContainer}>
+                <TouchableOpacity
+                  style={[styles.viewToggleButton, viewMode === 'liste' && styles.viewToggleButtonActive]}
+                  onPress={() => handleViewToggle('liste')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={viewMode === 'liste' ? 'list' : 'list-outline'}
+                    size={16}
+                    color={viewMode === 'liste' ? Colors.text.light : Colors.text.secondary}
+                  />
+                  <Text
+                    style={[styles.viewToggleLabel, viewMode === 'liste' && styles.viewToggleLabelActive]}
+                  >
+                    Liste
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.viewToggleButton, viewMode === 'grille' && styles.viewToggleButtonActive]}
+                  onPress={() => handleViewToggle('grille')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={viewMode === 'grille' ? 'grid' : 'grid-outline'}
+                    size={16}
+                    color={viewMode === 'grille' ? Colors.text.light : Colors.text.secondary}
+                  />
+                  <Text
+                    style={[styles.viewToggleLabel, viewMode === 'grille' && styles.viewToggleLabelActive]}
+                  >
+                    Grille
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </NeoCard>
+
+            <NeoCard gradient={['#512048', '#231537']} style={styles.featuredCard}>
+              <View style={styles.featuredHeader}>
+                <View>
+                  <Text style={styles.featuredTitle}>Suggestion du moment</Text>
+                  <Text style={styles.featuredSubtitle}>Découvre les partenaires les plus appréciés près de toi</Text>
+                </View>
+                <TouchableOpacity style={styles.featuredButton} onPress={() => handleCategoryChange('Tous')}>
+                  <Ionicons name="sparkles-outline" size={16} color={Colors.text.light} />
+                  <Text style={styles.featuredButtonLabel}>Explorer</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.featuredChips}>
+                <View style={styles.featuredChip}>
+                  <Ionicons name="time-outline" size={14} color={Colors.text.light} />
+                  <Text style={styles.featuredChipText}>{stats.nearbyPartners} à proximité</Text>
+                </View>
+                <View style={styles.featuredChip}>
+                  <Ionicons name="flame" size={14} color={Colors.text.light} />
+                  <Text style={styles.featuredChipText}>{stats.activePromotions} offres actives</Text>
+                </View>
+              </View>
+            </NeoCard>
+
+            {/* Stats résumées */}
+            <NeoCard variant="glass" style={styles.statsCard}>
+              <View style={styles.partnerStatsGrid}>
+                <View style={styles.partnerStatCard}>
+                  <View style={styles.statIconWrapper}>
+                    <Ionicons name="people" size={18} color={Colors.primary[600]} />
+                  </View>
+                  <Text style={styles.partnerStatValue}>{stats.totalPartners}</Text>
+                  <Text style={styles.partnerStatLabel}>Partenaires actifs</Text>
+                </View>
+                <View style={styles.partnerStatCard}>
+                  <View style={[styles.statIconWrapper, styles.statIconSecondary]}>
+                    <Ionicons name="location" size={18} color={Colors.accent.cyan} />
+                  </View>
+                  <Text style={styles.partnerStatValue}>{stats.nearbyPartners}</Text>
+                  <Text style={styles.partnerStatLabel}>À proximité</Text>
+                </View>
+                <View style={styles.partnerStatCard}>
+                  <View style={[styles.statIconWrapper, styles.statIconTertiary]}>
+                    <Ionicons name="sparkles" size={18} color={Colors.accent.rose} />
+                  </View>
+                  <Text style={styles.partnerStatValue}>{stats.activePromotions}</Text>
+                  <Text style={styles.partnerStatLabel}>Promos actives</Text>
+                </View>
+                <View style={styles.partnerStatCard}>
+                  <View style={[styles.statIconWrapper, styles.statIconInfo]}>
+                    <Ionicons name="star" size={18} color={Colors.status.warning} />
+                  </View>
+                  <Text style={styles.partnerStatValue}>{stats.averageRating.toFixed(1)}</Text>
+                  <Text style={styles.partnerStatLabel}>Note moyenne</Text>
+                </View>
+              </View>
+            </NeoCard>
+
+            {/* Grille / liste de partenaires */}
+            <Animated.View style={{ opacity: fadeAnim }}>
               {loading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={Colors.primary[600]} />
+                  <ActivityIndicator size="large" color={Colors.primary[500]} />
                   <Text style={styles.loadingText}>Chargement des partenaires…</Text>
                 </View>
               ) : error ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="alert-circle-outline" size={64} color={Colors.status.error} />
-                  <Text style={styles.emptyStateTitle}>Oups…</Text>
+                  <Ionicons name="alert-circle" size={40} color={Colors.status.error} />
+                  <Text style={styles.emptyStateTitle}>Erreur de chargement</Text>
                   <Text style={styles.emptyStateText}>{error}</Text>
                 </View>
-              ) : filteredPartners.length > 0 ? (
-                filteredPartners.map((partner, index) => (
-                  <PartnerCard
-                    key={partner.id ?? index}
-                    partner={partner}
-                    onPress={() => handlePartnerSelect(partner)}
-                    style={styles.partnerCard}
-                  />
-                ))
-              ) : (
+              ) : filteredPartners.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="storefront-outline" size={64} color={Colors.text.secondary} />
+                  <Ionicons name="search" size={40} color={Colors.text.secondary} />
                   <Text style={styles.emptyStateTitle}>Aucun partenaire trouvé</Text>
                   <Text style={styles.emptyStateText}>
-                    Essayez de modifier vos critères de recherche
+                    Essaye de modifier ta recherche ou de changer de catégorie.
                   </Text>
                 </View>
+              ) : viewMode === 'grille' ? (
+                <View style={styles.gridContainer}>
+                  {sortedPartners.map((partner) => (
+                    <PartnerCard
+                      key={partner.id}
+                      partner={partner}
+                      onPress={() => handlePartnerSelect(partner)}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.listContainer}>
+                  {sortedPartners.map((partner) => (
+                    <TouchableOpacity
+                      key={partner.id}
+                      style={styles.listItem}
+                      onPress={() => handlePartnerSelect(partner)}
+                      activeOpacity={0.85}
+                    >
+                      <LinearGradient
+                        colors={['rgba(71,17,38,0.85)', 'rgba(18,10,24,0.95)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.listItemBackground}
+                      >
+                        <View style={styles.listItemIcon}>
+                          <Text style={styles.listItemEmoji}>{partner.image}</Text>
+                        </View>
+                        <View style={styles.listItemBody}>
+                          <View style={styles.listItemHeader}>
+                            <Text style={styles.listItemTitle}>{partner.name}</Text>
+                            <View
+                              style={[
+                                styles.listItemStatus,
+                                partner.isOpen ? styles.listItemStatusOpen : styles.listItemStatusClosed,
+                              ]}
+                            >
+                              <Text style={styles.listItemStatusText}>
+                                {partner.isOpen ? 'Ouvert' : 'Fermé'}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.listItemSubtitle}>{partner.category}</Text>
+                          <View style={styles.listItemDetails}>
+                            <Ionicons name="location" size={13} color={Colors.text.secondary} />
+                            <Text style={styles.listItemAddress}>{partner.address}</Text>
+                          </View>
+                          {partner.promotion?.isActive && (
+                            <View style={styles.listItemPromo}>
+                              <Ionicons name="sparkles-outline" size={12} color={Colors.accent.gold} />
+                              <Text style={styles.listItemPromoText}>{partner.promotion.discount}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.listItemRight}>
+                          <View style={styles.listItemRating}>
+                            <Ionicons name="star" size={13} color={Colors.accent.gold} />
+                            <Text style={styles.listItemRatingText}>{partner.rating.toFixed(1)}</Text>
+                          </View>
+                          <Text style={styles.listItemDistance}>
+                            {partner.distance !== null ? `${partner.distance.toFixed(1)} km` : '—'}
+                          </Text>
+                          {partner.closingTime && (
+                            <Text style={styles.listItemClosing}>Ferme à {partner.closingTime}</Text>
+                          )}
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
-            </ScrollView>
-          )}
-        </Animated.View>
+            </Animated.View>
+          </ScrollView>
+        </SafeAreaView>
 
-        {/* Modal des détails du partenaire */}
-        <Modal
-          visible={showPartnerModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={closePartnerModal}
-        >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <TouchableOpacity style={styles.closeButton} onPress={closePartnerModal}>
-                <Ionicons name="close" size={24} color={Colors.text.primary} />
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Détails du partenaire</Text>
-            </View>
-            
-            {selectedPartner && (
+        {showPartnerModal && (
+          <Modal
+            visible={showPartnerModal}
+            transparent
+            animationType="fade"
+            onRequestClose={closePartnerModal}
+          >
+            <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
-                {detailLoading && (
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Détails du partenaire</Text>
+                  <TouchableOpacity onPress={closePartnerModal} style={styles.modalCloseBtn}>
+                    <Ionicons name="close" size={20} color={Colors.text.light} />
+                  </TouchableOpacity>
+                </View>
+
+                {detailLoading ? (
                   <View style={styles.modalLoading}>
-                    <ActivityIndicator size="small" color={Colors.primary[600]} />
-                    <Text style={styles.modalLoadingText}>Actualisation…</Text>
+                    <ActivityIndicator size="large" color={Colors.primary[500]} />
+                    <Text style={styles.modalLoadingText}>Chargement des détails…</Text>
                   </View>
-                )}
-                {!!detailError && (
+                ) : detailError ? (
                   <View style={styles.modalError}>
                     <Ionicons name="warning" size={18} color={Colors.status.error} />
                     <Text style={styles.modalErrorText}>{detailError}</Text>
                   </View>
-                )}
-
-                <View style={styles.modalImageContainer}>
-                  <Text style={styles.modalImageText}>{selectedPartner.image}</Text>
-                </View>
-                
-                <View style={styles.modalInfo}>
-                  <Text style={styles.modalName}>{selectedPartner.name}</Text>
-                  <View style={styles.modalRating}>
-                    <Ionicons name="star" size={20} color={Colors.accent.gold} />
-                    <Text style={styles.modalRatingText}>{selectedPartner.rating}</Text>
-                  </View>
-                  
-                  <Text style={styles.modalDescription}>{selectedPartner.description}</Text>
-                  
-                  <View style={styles.modalLocation}>
-                    <Ionicons name="location" size={16} color={Colors.text.secondary} />
-                    <Text style={styles.modalAddress}>{selectedPartner.address}</Text>
-                    <Text style={styles.modalDistance}>{selectedPartner.distance} km</Text>
-                  </View>
-                  
-                  <View style={styles.modalStatus}>
-                    <View style={[styles.modalStatusChip, selectedPartner.isOpen ? styles.modalStatusOpen : styles.modalStatusClosed]}>
-                      <Ionicons 
-                        name="time" 
-                        size={14} 
-                        color={selectedPartner.isOpen ? Colors.status.success : Colors.status.error} 
-                      />
-                      <Text style={[
-                        styles.modalStatusText,
-                        { color: selectedPartner.isOpen ? Colors.status.success : Colors.status.error }
-                      ]}>
-                        {selectedPartner.isOpen ? 'Ouvert' : 'Fermé'}
-                      </Text>
-                      {selectedPartner.isOpen && (
-                        <Text style={styles.modalClosingTime}>• {selectedPartner.closingTime}</Text>
-                      )}
-                    </View>
-                  </View>
-                  
-                  {selectedPartner.promotion && selectedPartner.promotion.isActive && (
-                    <View style={styles.modalPromotion}>
-                      <View style={styles.modalPromotionTag}>
-                        <Text style={styles.modalPromotionDiscount}>{selectedPartner.promotion.discount}</Text>
+                ) : (
+                  selectedPartner && (
+                    <View>
+                      <View style={styles.modalImageContainer}>
+                        <Text style={styles.modalImageText}>{selectedPartner.image}</Text>
                       </View>
-                      <Text style={styles.modalPromotionText}>{selectedPartner.promotion.description}</Text>
+                      <View style={styles.modalInfo}>
+                        <Text style={styles.modalName}>{selectedPartner.name}</Text>
+                        <View style={styles.modalRating}>
+                          <Ionicons name="star" size={20} color={Colors.accent.gold} />
+                          <Text style={styles.modalRatingText}>{selectedPartner.rating}</Text>
+                        </View>
+                        <Text style={styles.modalDescription}>{selectedPartner.description}</Text>
+                        <View style={styles.modalLocation}>
+                          <Ionicons name="location" size={16} color={Colors.text.secondary} />
+                          <Text style={styles.modalAddress}>{selectedPartner.address}</Text>
+                          <Text style={styles.modalDistance}>
+                            {selectedPartner.distance !== null
+                              ? `${selectedPartner.distance.toFixed(1)} km`
+                              : '—'}
+                          </Text>
+                        </View>
+                        <View style={styles.modalStatus}>
+                          <View
+                            style={[
+                              styles.modalStatusChip,
+                              selectedPartner.isOpen ? styles.modalStatusOpen : styles.modalStatusClosed,
+                            ]}
+                          >
+                            <Ionicons
+                              name="time"
+                              size={14}
+                              color={selectedPartner.isOpen ? Colors.status.success : Colors.status.error}
+                            />
+                            <Text
+                              style={[
+                                styles.modalStatusText,
+                                { color: selectedPartner.isOpen ? Colors.status.success : Colors.status.error },
+                              ]}
+                            >
+                              {selectedPartner.isOpen ? 'Ouvert' : 'Fermé'}
+                            </Text>
+                            {selectedPartner.isOpen && (
+                              <Text style={styles.modalClosingTime}>• {selectedPartner.closingTime}</Text>
+                            )}
+                          </View>
+                        </View>
+                        {selectedPartner.promotion && selectedPartner.promotion.isActive && (
+                          <View style={styles.modalPromotion}>
+                            <View style={styles.modalPromotionTag}>
+                              <Text style={styles.modalPromotionDiscount}>{selectedPartner.promotion.discount}</Text>
+                            </View>
+                            <Text style={styles.modalPromotionText}>{selectedPartner.promotion.description}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <TouchableOpacity style={styles.modalActionButton}>
+                        <Ionicons name="navigate" size={20} color={Colors.text.light} />
+                        <Text style={styles.modalActionText}>Y aller</Text>
+                      </TouchableOpacity>
                     </View>
-                  )}
-                </View>
-                
-                <TouchableOpacity style={styles.modalActionButton}>
-                  <Ionicons name="navigate" size={20} color={Colors.text.light} />
-                  <Text style={styles.modalActionText}>Y aller</Text>
-                </TouchableOpacity>
+                  )
+                )}
               </View>
-            )}
-          </SafeAreaView>
-        </Modal>
+            </View>
+          </Modal>
+        )}
       </View>
     </NavigationTransition>
   );
@@ -567,39 +832,296 @@ export default function PartnersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.light,
+    position: 'relative',
   } as ViewStyle,
-  
+  backgroundGradient: {
+    ...StyleSheet.absoluteFillObject,
+  } as ViewStyle,
+  safeArea: {
+    flex: 1,
+  } as ViewStyle,
+  content: {
+    flex: 1,
+    gap: Spacing['2xl'],
+    paddingBottom: Spacing['2xl'],
+    paddingHorizontal: Spacing.lg,
+  } as ViewStyle,
+  heroCard: {
+    paddingVertical: Spacing['2xl'],
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  heroHeader: {
+    gap: Spacing.xs,
+  } as ViewStyle,
+  heroTitle: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  heroSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  heroSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BorderRadius['2xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  heroSummaryItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.xs / 2,
+  } as ViewStyle,
+  heroSummaryValue: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  heroSummaryLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  } as TextStyle,
+  heroDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  } as ViewStyle,
+  heroActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  } as ViewStyle,
+  heroAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius['2xl'],
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+    backgroundColor: 'rgba(15,10,24,0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  } as ViewStyle,
+  heroActionActive: {
+    backgroundColor: 'rgba(251,76,136,0.25)',
+    borderColor: 'rgba(251,76,136,0.55)',
+    shadowColor: Colors.accent.rose,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 18,
+    elevation: 6,
+  } as ViewStyle,
+  heroActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  heroActionTexts: {
+    flex: 1,
+  } as ViewStyle,
+  heroActionTitle: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  heroActionSubtitle: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  discoveryCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  discoveryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  } as ViewStyle,
+  discoveryTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+    letterSpacing: Typography.letterSpacing.wide,
+  } as TextStyle,
+  discoverySubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xs / 2,
+  } as TextStyle,
+  discoveryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm / 1.2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  } as ViewStyle,
+  discoveryActionLabel: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
+  discoveryList: {
+    gap: Spacing.md,
+    paddingRight: Spacing.lg,
+  } as ViewStyle,
+  discoveryItem: {
+    width: 200,
+    borderRadius: BorderRadius['3xl'],
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    marginRight: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  } as ViewStyle,
+  discoveryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  discoveryEmoji: {
+    fontSize: 26,
+  } as TextStyle,
+  discoveryItemInfo: {
+    flex: 1,
+    gap: Spacing.xs / 1.5,
+  } as ViewStyle,
+  discoveryItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  discoveryName: {
+    flex: 1,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  discoveryRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs / 2,
+  } as ViewStyle,
+  discoveryRatingText: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
+  discoveryMeta: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  discoveryChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  } as ViewStyle,
+  discoveryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs / 2,
+    backgroundColor: 'rgba(17,17,23,0.55)',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs / 1.2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  } as ViewStyle,
+  discoveryChipText: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.xs,
+  } as TextStyle,
+  discoveryPromoChip: {
+    backgroundColor: 'rgba(251,76,136,0.25)',
+    borderColor: 'rgba(251,76,136,0.45)',
+  } as ViewStyle,
+  discoveryPromoText: {
+    color: Colors.accent.gold,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
+  searchSectionCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.md,
+  } as ViewStyle,
+
   // Section recherche moderne
   searchSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.md,
     gap: Spacing.md,
-    backgroundColor: Colors.background.light,
   } as ViewStyle,
+  searchIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  } as ViewStyle,
+  searchTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  searchSubtitle: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xs / 2,
+  } as TextStyle,
+  searchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs / 2,
+    backgroundColor: 'rgba(251,76,136,0.25)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(251,76,136,0.45)',
+  } as ViewStyle,
+  searchBadgeText: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
   
   // Input de recherche moderne
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BorderRadius['2xl'],
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.08)',
+    borderColor: 'rgba(255,255,255,0.08)',
   } as ViewStyle,
   searchIconWrapper: {
     width: 32,
     height: 32,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary[50],
+    backgroundColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.sm,
@@ -607,7 +1129,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: Colors.text.primary,
+    color: Colors.text.light,
     padding: 0,
     fontWeight: '500',
   } as TextStyle,
@@ -615,6 +1137,55 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: Spacing.xs,
   } as ViewStyle,
+  sortSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  } as ViewStyle,
+  sortChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius['2xl'],
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(24,17,34,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  } as ViewStyle,
+  sortChipActive: {
+    backgroundColor: 'rgba(251,76,136,0.22)',
+    borderColor: 'rgba(251,76,136,0.45)',
+    shadowColor: Colors.accent.rose,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 4,
+  } as ViewStyle,
+  sortChipIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  } as ViewStyle,
+  sortChipTexts: {
+    gap: Spacing.xs / 2,
+  } as ViewStyle,
+  sortChipLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
+  sortChipLabelActive: {
+    color: Colors.text.light,
+  } as TextStyle,
+  sortChipHelper: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
+  } as TextStyle,
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -645,71 +1216,51 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
   } as TextStyle,
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-  } as ViewStyle,
   
   // Catégories modernes
   categoriesContainer: {
     gap: Spacing.sm,
     paddingRight: Spacing.lg,
+    paddingLeft: 2,
   } as ViewStyle,
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.background.card,
-    borderWidth: 1.5,
-    borderColor: Colors.primary[100],
-    minHeight: 38,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-    gap: 6,
+    marginRight: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   } as ViewStyle,
   categoryPillActive: {
-    backgroundColor: Colors.primary[600],
-    borderColor: Colors.primary[600],
-    shadowColor: Colors.primary[600],
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: 'rgba(251,76,136,0.25)',
   } as ViewStyle,
   categoryPillText: {
-    fontSize: 14,
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.muted,
     fontWeight: '600',
-    color: Colors.text.secondary,
   } as TextStyle,
   categoryPillTextActive: {
-    color: 'white',
-    fontWeight: '700',
+    color: Colors.text.light,
   } as TextStyle,
   categoryIcon: {
-    marginRight: 2,
+    marginRight: Spacing.xs,
   } as TextStyle,
   
   // Toggle Vue
   viewToggleContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(17,17,23,0.85)',
     borderRadius: BorderRadius.full,
     padding: 4,
-    alignSelf: 'flex-end',
-    marginBottom: Spacing.md,
-    marginRight: -Spacing.lg,
-    borderWidth: 1.5,
-    borderColor: Colors.primary[200],
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   } as ViewStyle,
   viewToggleButton: {
     paddingHorizontal: Spacing.md,
@@ -727,6 +1278,74 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   } as ViewStyle,
+  viewToggleLabel: {
+    marginTop: Spacing.xs / 2,
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
+  } as TextStyle,
+  viewToggleLabelActive: {
+    color: Colors.text.light,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
+  featuredCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.md,
+  } as ViewStyle,
+  featuredHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+  } as ViewStyle,
+  featuredTitle: {
+    fontSize: Typography.sizes.lg,
+    color: Colors.text.light,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
+  featuredSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xs,
+  } as TextStyle,
+  featuredButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  } as ViewStyle,
+  featuredButtonLabel: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
+  featuredChips: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  featuredChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  } as ViewStyle,
+  featuredChipText: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.xs,
+  } as TextStyle,
+  statsCard: {
+    padding: Spacing.lg,
+  } as ViewStyle,
   
   // Grille
   partnersGrid: {
@@ -743,17 +1362,17 @@ const styles = StyleSheet.create({
   // Cards de grille
   gridCard: {
     width: '48%',
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(24,17,34,0.92)',
     borderRadius: BorderRadius.xl,
     marginBottom: Spacing.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.primary[100],
+    borderColor: 'rgba(255,255,255,0.05)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 8,
   } as ViewStyle,
   gridCardLeft: {
     marginRight: '2%',
@@ -764,7 +1383,7 @@ const styles = StyleSheet.create({
   gridCardImage: {
     width: '100%',
     height: 120,
-    backgroundColor: Colors.primary[50],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -776,20 +1395,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 6,
-    backgroundColor: Colors.status.success,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.md,
-    shadowColor: Colors.status.success,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
+    backgroundColor: 'rgba(39,239,161,0.2)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.status.success,
   } as ViewStyle,
   gridPromoBadgeText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: 'white',
+    fontWeight: '700',
+    color: Colors.status.success,
   } as TextStyle,
   gridClosedOverlay: {
     position: 'absolute',
@@ -855,23 +1471,30 @@ const styles = StyleSheet.create({
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    justifyContent: 'space-between',
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.primary[200],
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   } as ViewStyle,
   closeButton: {
     padding: Spacing.sm,
   } as ViewStyle,
   modalTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginLeft: Spacing.md,
+    fontSize: Typography.sizes.xl,
+    fontWeight: '700',
+    color: Colors.text.light,
   } as TextStyle,
   modalContent: {
-    flex: 1,
-    padding: Spacing.lg,
+    width: '90%',
+    maxWidth: 420,
+    backgroundColor: 'rgba(11,10,18,0.92)',
+    borderRadius: BorderRadius['3xl'],
+    padding: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: Spacing.lg,
+    overflow: 'hidden',
   } as ViewStyle,
   modalLoading: {
     flexDirection: 'row',
@@ -881,11 +1504,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary[50],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     marginBottom: Spacing.sm,
   } as ViewStyle,
   modalLoadingText: {
-    color: Colors.primary[600],
+    color: Colors.text.light,
     fontSize: Typography.sizes.sm,
     fontWeight: '600',
   } as TextStyle,
@@ -896,9 +1519,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.status.error + '20',
+    backgroundColor: 'rgba(255,107,107,0.12)',
     borderWidth: 1,
-    borderColor: Colors.status.error,
+    borderColor: 'rgba(255,107,107,0.35)',
     marginBottom: Spacing.sm,
   } as ViewStyle,
   modalErrorText: {
@@ -909,7 +1532,7 @@ const styles = StyleSheet.create({
   modalImageContainer: {
     width: 80,
     height: 80,
-    backgroundColor: Colors.primary[100],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
@@ -922,6 +1545,7 @@ const styles = StyleSheet.create({
   } as TextStyle,
   modalInfo: {
     marginBottom: Spacing.xl,
+    gap: Spacing.md,
   } as ViewStyle,
   modalName: {
     fontSize: Typography.sizes['2xl'],
@@ -980,23 +1604,24 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   } as ViewStyle,
   modalStatusOpen: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: 'rgba(39,239,161,0.16)',
   } as ViewStyle,
   modalStatusClosed: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: 'rgba(255,107,107,0.16)',
   } as ViewStyle,
   modalStatusText: {
     fontSize: Typography.sizes.base,
     fontWeight: '600',
+    color: Colors.text.primary,
   } as TextStyle,
   modalClosingTime: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
   } as TextStyle,
   modalPromotion: {
-    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+    backgroundColor: 'rgba(251,76,136,0.12)',
     borderWidth: 1,
-    borderColor: Colors.status.success,
+    borderColor: 'rgba(251,76,136,0.35)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.lg,
@@ -1008,7 +1633,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.status.success,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.full,
   } as ViewStyle,
   modalPromotionDiscount: {
     fontSize: Typography.sizes.sm,
@@ -1025,15 +1650,206 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary[600],
+    backgroundColor: Colors.accent.rose,
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius['2xl'],
     gap: Spacing.sm,
+    shadowColor: Colors.accent.rose,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 8,
   } as ViewStyle,
   modalActionText: {
     fontSize: Typography.sizes.lg,
     fontWeight: '600',
     color: Colors.text.light,
   } as TextStyle,
+  partnerStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+  } as ViewStyle,
+  partnerStatCard: {
+    flexBasis: '48%',
+    backgroundColor: 'rgba(24,17,34,0.8)',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  statIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  statIconSecondary: {
+    backgroundColor: 'rgba(45,217,255,0.12)',
+  } as ViewStyle,
+  statIconTertiary: {
+    backgroundColor: 'rgba(255,107,107,0.15)',
+  } as ViewStyle,
+  statIconInfo: {
+    backgroundColor: 'rgba(255,184,77,0.15)',
+  } as ViewStyle,
+  partnerStatValue: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '700',
+    color: Colors.text.light,
+  } as TextStyle,
+  partnerStatLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.muted,
+  } as TextStyle,
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.xl,
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
+  listContainer: {
+    paddingBottom: Spacing.xl,
+  } as ViewStyle,
+  listItem: {
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  listItemBackground: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: Spacing.md,
+    overflow: 'hidden',
+  } as ViewStyle,
+  listItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  } as ViewStyle,
+  listItemEmoji: {
+    fontSize: 24,
+  } as TextStyle,
+  listItemBody: {
+    flex: 1,
+    gap: Spacing.xs,
+  } as ViewStyle,
+  listItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  listItemTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+    color: Colors.text.light,
+  } as TextStyle,
+  listItemSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.muted,
+  } as TextStyle,
+  listItemDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    flexWrap: 'wrap',
+  } as ViewStyle,
+  listItemAddress: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.muted,
+  } as TextStyle,
+  listItemStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs / 1.2,
+    borderWidth: 1,
+    gap: Spacing.xs / 2,
+  } as ViewStyle,
+  listItemStatusOpen: {
+    backgroundColor: 'rgba(39,239,161,0.18)',
+    borderColor: 'rgba(39,239,161,0.35)',
+  } as ViewStyle,
+  listItemStatusClosed: {
+    backgroundColor: 'rgba(255,107,107,0.18)',
+    borderColor: 'rgba(255,107,107,0.35)',
+  } as ViewStyle,
+  listItemStatusText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  } as TextStyle,
+  listItemPromo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs / 2,
+    marginTop: Spacing.xs,
+    backgroundColor: 'rgba(251,76,136,0.18)',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs / 1.5,
+    borderWidth: 1,
+    borderColor: 'rgba(251,76,136,0.35)',
+    alignSelf: 'flex-start',
+  } as ViewStyle,
+  listItemPromoText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.accent.gold,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
+  listItemRight: {
+    alignItems: 'flex-end',
+    gap: Spacing.xs / 2,
+    marginLeft: Spacing.md,
+  } as ViewStyle,
+  listItemDistance: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: '500',
+  } as TextStyle,
+  listItemRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  } as ViewStyle,
+  listItemRatingText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.text.light,
+  } as TextStyle,
+  listItemClosing: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
+  } as TextStyle,
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  } as ViewStyle,
+  modalCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
 });

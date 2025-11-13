@@ -11,7 +11,7 @@ import { useFonts } from 'expo-font';
 
 
 function RootLayoutNav() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   // Afficher l'écran de chargement pendant la vérification de l'authentification
   if (loading) {
@@ -24,9 +24,7 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding/onboarding-2" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/onboarding-3" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/onboarding-4" options={{ headerShown: false }} />
-      <Stack.Screen name="connexion/login" options={{ headerShown: false }} />
-      <Stack.Screen name="connexion/signup" options={{ headerShown: false }} />
-      <Stack.Screen name="connexion/forgot-password" options={{ headerShown: false }} />
+      <Stack.Screen name="connexion" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
     </Stack>

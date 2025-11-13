@@ -11,7 +11,7 @@ import { StyleSheet, View } from 'react-native';
 
 export default function Onboarding3Screen() {
   const handleSkip = () => {
-    router.push('/connexion/login');
+    router.push('/connexion/login' as const);
   };
 
   const handleNext = () => {
@@ -26,13 +26,13 @@ export default function Onboarding3Screen() {
             <FeatureIcon
               name="gift"
               color={Colors.accent.rose}
-              backgroundColor="rgba(244, 63, 94, 0.2)"
+              backgroundColor="rgba(251, 76, 136, 0.18)"
               animated={true}
             />
           }
           title="Offres exclusives"
           description="Accédez à des promotions spéciales réservées aux membres Maya"
-          gradientColors={Colors.gradients.warning}
+          gradientColors={Colors.gradients.violet as any}
         />
         
         <View style={styles.paginationContainer}>

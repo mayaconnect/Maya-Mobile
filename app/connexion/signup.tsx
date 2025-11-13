@@ -1,6 +1,7 @@
 import { AnimatedButton } from '@/components/common/animated-button';
 import { NavigationTransition } from '@/components/common/navigation-transition';
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { NeoCard } from '@/components/neo/NeoCard';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { RegisterRequest } from '@/services/auth.service';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,7 +61,7 @@ export default function SignupScreen() {
   const [country, setCountry] = useState('');
   
   // Avatar (optionnel)
-  const [avatarBase64, setAvatarBase64] = useState<string | undefined>();
+  const [avatarBase64] = useState<string | undefined>();
   
   // États UI
   const [showPassword, setShowPassword] = useState(false);
@@ -269,16 +270,16 @@ export default function SignupScreen() {
   return (
     <NavigationTransition direction="right">
       <LinearGradient
-        colors={Colors.gradients.primary}
+        colors={['#450A1D', '#120A18']}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 0, y: 1 }}
         style={styles.container}
       >
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <View style={styles.backButtonInner}>
-                <Ionicons name="arrow-back" size={20} color="white" />
+                <Ionicons name="arrow-back" size={20} color={Colors.text.light} />
                 <Text style={styles.headerText}>Retour</Text>
               </View>
             </TouchableOpacity>
@@ -291,14 +292,14 @@ export default function SignupScreen() {
 
           <View style={styles.content}>
             <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-              <View style={styles.card}>
+              <NeoCard variant="glass" style={styles.card}>
                 <Text style={styles.title}>Créer un compte</Text>
                 <Text style={styles.subtitle}>Inscrivez-vous pour commencer à économiser</Text>
 
                 {/* Message d'erreur global */}
                 {errorMessage ? (
                   <View style={styles.errorBanner}>
-                    <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                    <Ionicons name="alert-circle" size={20} color={Colors.status.error} />
                     <Text style={styles.errorBannerText}>{errorMessage}</Text>
                   </View>
                 ) : null}
@@ -336,7 +337,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Prénom *</Text>
                         <View style={[styles.inputWrapper, firstNameError ? styles.inputError : null]}>
-                          <Ionicons name="person" size={20} color={firstNameError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                          <Ionicons name="person" size={20} color={firstNameError ? Colors.status.error : Colors.text.secondary} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Jean"
@@ -357,7 +358,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Nom *</Text>
                         <View style={[styles.inputWrapper, lastNameError ? styles.inputError : null]}>
-                          <Ionicons name="person" size={20} color={lastNameError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                          <Ionicons name="person" size={20} color={lastNameError ? Colors.status.error : Colors.text.secondary} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Dupont"
@@ -379,7 +380,7 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Email *</Text>
                       <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
-                        <Ionicons name="mail" size={20} color={emailError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="mail" size={20} color={emailError ? Colors.status.error : Colors.text.secondary} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="votre@email.com"
@@ -401,7 +402,7 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Date de naissance *</Text>
                       <View style={[styles.inputWrapper, birthDateError ? styles.inputError : null]}>
-                        <Ionicons name="calendar" size={20} color={birthDateError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="calendar" size={20} color={birthDateError ? Colors.status.error : Colors.text.secondary} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="1990-01-15 ou 19900115"
@@ -429,7 +430,7 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Mot de passe *</Text>
                       <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
-                        <Ionicons name="lock-closed" size={20} color={passwordError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="lock-closed" size={20} color={passwordError ? Colors.status.error : Colors.text.secondary} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="••••••••"
@@ -442,7 +443,7 @@ export default function SignupScreen() {
                           secureTextEntry={!showPassword}
                         />
                         <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={Colors.text.secondary} />
                         </TouchableOpacity>
                       </View>
                       {passwordError ? (
@@ -455,7 +456,7 @@ export default function SignupScreen() {
                           <Ionicons
                             name={password.length >= 8 ? "checkmark-circle" : "close-circle"}
                             size={16}
-                            color={password.length >= 8 ? "#10B981" : "#DC2626"}
+                            color={password.length >= 8 ? Colors.status.success : Colors.status.error}
                           />
                           <Text style={[styles.criteriaText, password.length >= 8 ? styles.criteriaMet : styles.criteriaNotMet]}>
                             Au moins 8 caractères
@@ -465,7 +466,7 @@ export default function SignupScreen() {
                           <Ionicons
                             name={/\d/.test(password) ? "checkmark-circle" : "close-circle"}
                             size={16}
-                            color={/\d/.test(password) ? "#10B981" : "#DC2626"}
+                            color={/\d/.test(password) ? Colors.status.success : Colors.status.error}
                           />
                           <Text style={[styles.criteriaText, /\d/.test(password) ? styles.criteriaMet : styles.criteriaNotMet]}>
                             Au moins un chiffre (0-9)
@@ -475,7 +476,7 @@ export default function SignupScreen() {
                           <Ionicons
                             name={/[A-Z]/.test(password) ? "checkmark-circle" : "close-circle"}
                             size={16}
-                            color={/[A-Z]/.test(password) ? "#10B981" : "#DC2626"}
+                            color={/[A-Z]/.test(password) ? Colors.status.success : Colors.status.error}
                           />
                           <Text style={[styles.criteriaText, /[A-Z]/.test(password) ? styles.criteriaMet : styles.criteriaNotMet]}>
                             Au moins une majuscule (A-Z)
@@ -487,7 +488,7 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Confirmer le mot de passe *</Text>
                       <View style={[styles.inputWrapper, confirmError ? styles.inputError : null]}>
-                        <Ionicons name="lock-closed" size={20} color={confirmError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="lock-closed" size={20} color={confirmError ? Colors.status.error : Colors.text.secondary} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="••••••••"
@@ -500,7 +501,7 @@ export default function SignupScreen() {
                           secureTextEntry={!showConfirm}
                         />
                         <TouchableOpacity onPress={() => setShowConfirm((v) => !v)}>
-                          <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                          <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={Colors.text.secondary} />
                         </TouchableOpacity>
                       </View>
                       {confirmError ? (
@@ -520,7 +521,7 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Rue *</Text>
                       <View style={styles.inputWrapper}>
-                        <Ionicons name="location" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                        <Ionicons name="location" size={20} color={Colors.text.secondary} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="123 Rue de la Paix"
@@ -538,7 +539,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Ville *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="business" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="business" size={20} color={Colors.text.secondary} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Paris"
@@ -556,7 +557,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Code postal *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="mail" size={20} color={Colors.text.secondary} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="75001"
@@ -576,7 +577,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Région/État *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="map" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="map" size={20} color={Colors.text.secondary} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Île-de-France"
@@ -594,7 +595,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Pays *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="flag" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="flag" size={20} color={Colors.text.secondary} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="France"
@@ -615,17 +616,17 @@ export default function SignupScreen() {
                 <View style={styles.navigationButtons}>
                   {step !== 'personal' && (
                     <TouchableOpacity style={styles.backNavButton} onPress={goToPreviousStep}>
-                      <Ionicons name="arrow-back" size={18} color={Colors.primary[600]} />
+                      <Ionicons name="arrow-back" size={18} color={Colors.text.light} />
                       <Text style={styles.backNavButtonText}>Retour</Text>
                     </TouchableOpacity>
                   )}
                   <AnimatedButton
-                    title={isLastStep ? "Créer mon compte" : "Continuer"}
-                    onPress={isLastStep ? handleSignup : goToNextStep}
-                    icon={isLastStep ? "checkmark" : "arrow-forward"}
-                    style={[styles.submitButton, styles.primaryNavButton]}
-                    variant="solid"
-                  />
+                     title={isLastStep ? "Créer mon compte" : "Continuer"}
+                     onPress={isLastStep ? handleSignup : goToNextStep}
+                     icon={isLastStep ? "checkmark" : "arrow-forward"}
+                     style={styles.submitButton}
+                     variant="solid"
+                   />
                 </View>
 
                 <View style={styles.switchAuthRow}>
@@ -634,7 +635,7 @@ export default function SignupScreen() {
                     <Text style={styles.switchAuthLink}>Se connecter</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </NeoCard>
             </ScrollView>
           </View>
         </SafeAreaView>
@@ -674,7 +675,6 @@ type SignupStyles = {
   inputIcon: ViewStyle;
   input: TextStyle;
   submitButton: ViewStyle;
-  primaryNavButton: ViewStyle;
   switchAuthRow: ViewStyle;
   switchAuthText: TextStyle;
   switchAuthLink: TextStyle;
@@ -715,7 +715,8 @@ const styles = StyleSheet.create<SignupStyles>({
     borderRadius: BorderRadius['2xl'],
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    ...Shadows.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   backButtonInner: {
     flexDirection: 'row',
@@ -751,33 +752,30 @@ const styles = StyleSheet.create<SignupStyles>({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing['4xl'],
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingVertical: Spacing.lg,
+    gap: Spacing.lg,
   },
   card: {
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius['3xl'],
     padding: Spacing['2xl'],
-    marginVertical: Spacing.lg,
-    ...Shadows.xl,
+    gap: Spacing.lg,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'black',
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
     textAlign: 'center',
-    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
     textAlign: 'center',
-    marginBottom: 30,
   },
   stepProgress: {
     marginBottom: Spacing.lg,
@@ -791,10 +789,14 @@ const styles = StyleSheet.create<SignupStyles>({
     flex: 1,
     height: 6,
     borderRadius: BorderRadius.full,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   progressSegmentActive: {
-    backgroundColor: Colors.primary[600],
+    backgroundColor: Colors.accent.rose,
+    shadowColor: Colors.accent.rose,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
   },
   stepLabelsRow: {
     flexDirection: 'row',
@@ -805,51 +807,47 @@ const styles = StyleSheet.create<SignupStyles>({
     color: Colors.text.secondary,
   },
   stepLabelActive: {
-    color: Colors.primary[600],
-    fontWeight: '600',
+    color: Colors.text.light,
+    fontWeight: Typography.weights.semibold as any,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'black',
-    marginTop: 20,
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 8,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    letterSpacing: Typography.letterSpacing.wide,
   },
   inputContainer: {
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'black',
-    marginBottom: 8,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.xs,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   inputIcon: {
-    marginRight: 8,
+    marginRight: Spacing.xs,
   },
   input: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: 'black',
+    paddingVertical: Spacing.sm,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.light,
   },
   submitButton: {
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  primaryNavButton: {
     flex: 1,
+    marginTop: Spacing.md,
   },
   switchAuthRow: {
     flexDirection: 'row',
@@ -857,78 +855,76 @@ const styles = StyleSheet.create<SignupStyles>({
     alignItems: 'center',
   },
   switchAuthText: {
-    color: '#6B7280',
-    fontSize: 14,
+    color: Colors.text.secondary,
+    fontSize: Typography.sizes.sm,
   },
   switchAuthLink: {
-    color: '#8B5CF6',
-    fontSize: 14,
-    fontWeight: '500',
+    color: Colors.accent.rose,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#DC2626',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 10,
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(255,107,107,0.12)',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,107,0.35)',
+    padding: Spacing.md,
   },
   errorBannerText: {
     flex: 1,
-    color: '#991B1B',
-    fontSize: 14,
-    fontWeight: '500',
+    color: Colors.status.error,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
   },
   inputError: {
-    borderColor: '#DC2626',
-    borderWidth: 2,
-    backgroundColor: '#FEF2F2',
+    borderColor: Colors.status.error,
+    backgroundColor: 'rgba(255,107,107,0.08)',
   },
   fieldError: {
-    color: '#DC2626',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
+    color: Colors.status.error,
+    fontSize: Typography.sizes.xs,
+    marginTop: Spacing.xs / 2,
+    marginLeft: Spacing.xs,
   },
   row: {
     flexDirection: 'row',
-    gap: 10,
+    gap: Spacing.md,
   },
   halfWidth: {
     flex: 1,
   },
   passwordCriteria: {
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
+    marginTop: Spacing.sm,
+    padding: Spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   criteriaTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.xs,
   },
   criteriaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: Spacing.xs,
   },
   criteriaText: {
-    fontSize: 13,
-    marginLeft: 8,
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
   },
   criteriaMet: {
-    color: '#10B981',
-    fontWeight: '500',
+    color: Colors.status.success,
+    fontWeight: Typography.weights.medium as any,
   },
   criteriaNotMet: {
-    color: '#6B7280',
+    color: Colors.text.muted,
   },
   navigationButtons: {
     flexDirection: 'row',
@@ -943,14 +939,14 @@ const styles = StyleSheet.create<SignupStyles>({
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: Colors.primary[200],
-    backgroundColor: Colors.primary[50],
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     gap: Spacing.xs,
   },
   backNavButtonText: {
-    color: Colors.primary[600],
+    color: Colors.text.light,
     fontSize: Typography.sizes.sm,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold as any,
   },
 });
 

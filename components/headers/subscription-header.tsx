@@ -30,7 +30,7 @@ export function SubscriptionHeader({
 }: SubscriptionHeaderProps) {
   return (
     <LinearGradient
-      colors={['#312E81', '#1E1B4B']}
+      colors={['#4C0F22', '#1A112A']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.container, style]}

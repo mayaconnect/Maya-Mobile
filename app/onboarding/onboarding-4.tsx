@@ -1,6 +1,6 @@
 import { AnimatedButton } from '@/components/common/animated-button';
-import { FeatureIcon } from '@/components/feature-icon';
 import { NavigationTransition } from '@/components/common/navigation-transition';
+import { FeatureIcon } from '@/components/feature-icon';
 import { OnboardingContentCard } from '@/components/onboarding/onboarding-content-card';
 import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { PaginationDots } from '@/components/pagination-dots';
@@ -26,13 +26,13 @@ export default function Onboarding4Screen() {
             <FeatureIcon
               name="star"
               color={Colors.accent.gold}
-              backgroundColor="rgba(251, 191, 36, 0.2)"
+              backgroundColor="rgba(255, 199, 86, 0.2)"
               animated={true}
             />
           }
           title="Rejoignez Maya"
           description="Des milliers de partenaires vous attendent pour maximiser vos économies"
-          gradientColors={Colors.gradients.info}
+          gradientColors={Colors.gradients.aurora as any}
         />
         
         <View style={styles.paginationContainer}>

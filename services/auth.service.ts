@@ -459,11 +459,11 @@ export const AuthService = {
       if (!mergedUserData?.firstName && registerData.firstName) {
         mergedUserData = {
           ...mergedUserData,
-          firstName: registerData.firstName,
-          lastName: registerData.lastName,
-          birthDate: registerData.birthDate,
-          address: registerData.address,
-        };
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        birthDate: registerData.birthDate,
+        address: registerData.address,
+      };
       }
 
       // Créer l'objet utilisateur avec les données mises à jour

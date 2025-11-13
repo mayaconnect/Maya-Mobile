@@ -27,7 +27,7 @@ export default function Index() {
   }
 
   const handleSkip = () => {
-    router.push('/connexion/login');
+    router.push('/connexion/login' as const);
   };
 
   const handleNext = () => {
@@ -41,14 +41,14 @@ export default function Index() {
           icon={
             <FeatureIcon
               name="flash"
-              color={Colors.accent.gold}
-              backgroundColor="rgba(251, 191, 36, 0.2)"
+              color={Colors.accent.rose}
+              backgroundColor="rgba(251, 76, 136, 0.2)"
               animated={true}
             />
           }
           title="10% de remise immédiate"
           description="Économisez sur tous vos achats chez nos partenaires avec un simple scan"
-          gradientColors={Colors.gradients.primary as any}
+          gradientColors={Colors.gradients.violet as any}
         />
         
         <View style={styles.paginationContainer}>

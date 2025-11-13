@@ -31,7 +31,7 @@ export function HistoryHeader({
 }: HistoryHeaderProps) {
   return (
     <LinearGradient
-      colors={['#3730A3', '#312E81']}
+      colors={['#4C0F22', '#1A112A']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.container, style]}

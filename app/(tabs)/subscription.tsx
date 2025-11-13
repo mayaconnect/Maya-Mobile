@@ -1,23 +1,22 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
-import { SubscriptionHeader } from '@/components/headers/subscription-header';
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { PaymentService, PaymentRequest } from '@/services/payment.service';
+import { NeoCard } from '@/components/neo/NeoCard';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
+import { PaymentRequest, PaymentService } from '@/services/payment.service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -29,10 +28,6 @@ export default function SubscriptionScreen() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [applePayAvailable, setApplePayAvailable] = useState(false);
   const [googlePayAvailable, setGooglePayAvailable] = useState(false);
-
-  const handlePartnerMode = () => {
-    console.log('Mode partenaire');
-  };
 
   const handleContinue = () => {
     setShowPaymentModal(true);
@@ -121,17 +116,34 @@ export default function SubscriptionScreen() {
   };
 
   return (
-    <NavigationTransition>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
-          <SubscriptionHeader
-            title="Choisissez votre plan"
-            subtitle="Économisez 10% partout avec Maya"
-            currentPlan="Duo"
-            onNotificationPress={() => console.log('Notifications')}
-          />
+     <NavigationTransition>
+      <View style={styles.screen}>
+        <LinearGradient
+          colors={['#450A1D', '#120A18']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <StatusBar barStyle="light-content" />
 
-          <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <NeoCard gradient={['#4C0F22', '#1A112A']} style={styles.heroCard}>
+              <Text style={styles.heroTitle}>Choisissez votre plan</Text>
+              <Text style={styles.heroSubtitle}>Économisez jusqu’à 20% chez tous nos partenaires</Text>
+              <View style={styles.heroSummaryRow}>
+                <View style={styles.heroSummaryItem}>
+                  <Text style={styles.heroSummaryValue}>Duo</Text>
+                  <Text style={styles.heroSummaryLabel}>Plan actuel</Text>
+                </View>
+                <View style={styles.heroDivider} />
+                <View style={styles.heroSummaryItem}>
+                  <Text style={styles.heroSummaryValue}>-20%</Text>
+                  <Text style={styles.heroSummaryLabel}>en annuel</Text>
+                </View>
+              </View>
+            </NeoCard>
+
             {/* Toggle Mensuel/Annuel */}
             <View style={styles.billingToggle}>
               <TouchableOpacity
@@ -365,7 +377,7 @@ export default function SubscriptionScreen() {
 
             {/* Section Pourquoi choisir Maya */}
             <LinearGradient
-              colors={['#8B5CF6', '#EC4899']}
+              colors={Colors.gradients.violet}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.whyChooseSection}
@@ -380,7 +392,7 @@ export default function SubscriptionScreen() {
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
+                colors={[Colors.accent.rose, Colors.accent.cyan]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.continueButtonGradient}
@@ -392,7 +404,7 @@ export default function SubscriptionScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </ScrollView>
-        </View>
+        </SafeAreaView>
 
         {/* Modal de sélection du paiement */}
         <Modal
@@ -560,7 +572,9 @@ export default function SubscriptionScreen() {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={selectedPaymentMethod && !isProcessingPayment ? ['#8B5CF6', '#7C3AED'] : ['#D1D5DB', '#9CA3AF']}
+                  colors={selectedPaymentMethod && !isProcessingPayment
+                    ? [Colors.accent.rose, Colors.accent.cyan]
+                    : ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.05)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.payButtonGradient}
@@ -582,183 +596,192 @@ export default function SubscriptionScreen() {
             </ScrollView>
           </SafeAreaView>
         </Modal>
-        </SafeAreaView>
+      </View>
     </NavigationTransition>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: Colors.background.light,
+    backgroundColor: Colors.background.dark,
   } as ViewStyle,
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background.light,
-  } as ViewStyle,
-  headerGradient: {
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.lg,
-  } as ViewStyle,
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.lg,
-  } as ViewStyle,
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  } as ViewStyle,
-  titleContainer: {
-    flex: 1,
-  } as ViewStyle,
-  title: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: 'bold',
-    color: Colors.text.light,
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  subtitle: {
-    fontSize: Typography.sizes.base,
-    color: 'rgba(255, 255, 255, 0.9)',
-  } as TextStyle,
-  partnerModeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.background.card,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    gap: Spacing.xs,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  } as ViewStyle,
-  partnerModeText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '600',
-    color: '#F59E0B',
-  } as TextStyle,
-  scrollContainer: {
-    flex: 1,
   } as ViewStyle,
   content: {
+    position: 'relative',
+    top: 20,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing['4xl'],
+    gap: Spacing['2xl'],
+  } as ViewStyle,
+  heroCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing['2xl'],
+    gap: Spacing.lg,
+  } as ViewStyle,
+  heroTitle: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  heroSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  heroSummaryRow: {
+    position: 'relative',
+    top: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BorderRadius['2xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  heroSummaryItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.xs / 2,
+  } as ViewStyle,
+  heroSummaryValue: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  heroSummaryLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  } as TextStyle,
+  heroDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   } as ViewStyle,
   billingToggle: {
     flexDirection: 'row',
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xs,
-    marginBottom: Spacing.lg,
-    ...Shadows.sm,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BorderRadius.full,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignSelf: 'center',
   } as ViewStyle,
   toggleOption: {
     flex: 1,
     paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.full,
     alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
   } as ViewStyle,
   toggleOptionActive: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: Colors.accent.rose,
+    shadowColor: Colors.accent.rose,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
   } as ViewStyle,
   toggleText: {
     fontSize: Typography.sizes.base,
-    fontWeight: '600',
-    color: Colors.text.secondary,
+    fontWeight: Typography.weights.medium as any,
+    color: Colors.text.muted,
   } as TextStyle,
   toggleTextActive: {
     color: Colors.text.light,
   } as TextStyle,
   discountBadge: {
     position: 'absolute',
-    top: -Spacing.xs,
+    top: -Spacing.sm,
     right: Spacing.sm,
-    backgroundColor: '#10B981',
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
+    backgroundColor: 'rgba(39,239,161,0.2)',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs / 1.2,
+    borderWidth: 1,
+    borderColor: 'rgba(39,239,161,0.35)',
   } as ViewStyle,
   discountText: {
     fontSize: Typography.sizes.xs,
-    fontWeight: '600',
-    color: Colors.text.light,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.secondary[300],
   } as TextStyle,
   planCard: {
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.xl,
+    backgroundColor: 'rgba(15,14,24,0.92)',
+    borderRadius: BorderRadius['3xl'],
     padding: Spacing.lg,
-    marginBottom: Spacing.lg,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    ...Shadows.md,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  } as ViewStyle,
-  planCardPopular: {
-    borderColor: '#8B5CF6',
+    gap: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     position: 'relative',
   } as ViewStyle,
+  planCardPopular: {
+    borderColor: Colors.accent.rose,
+  } as ViewStyle,
   planCardSelected: {
-    borderColor: '#8B5CF6',
+    borderColor: Colors.accent.rose,
+    shadowColor: Colors.accent.rose,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 10,
   } as ViewStyle,
   popularBanner: {
     position: 'absolute',
-    top: -Spacing.xs,
+    top: -Spacing.md,
     left: Spacing.lg,
     right: Spacing.lg,
-    backgroundColor: '#EC4899',
+    backgroundColor: 'rgba(255,107,107,0.85)',
+    borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    zIndex: 1,
   } as ViewStyle,
   popularText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold as any,
     color: Colors.text.light,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   } as TextStyle,
   planIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.lg,
-    marginRight: Spacing.md,
-    marginTop: Spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: BorderRadius['2xl'],
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   } as ViewStyle,
   planIconGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
+    flex: 1,
     alignItems: 'center',
-    borderRadius: BorderRadius.lg,
+    justifyContent: 'center',
   } as ViewStyle,
   planInfo: {
     flex: 1,
-    marginTop: Spacing.lg,
+    gap: Spacing.sm,
   } as ViewStyle,
   planName: {
     fontSize: Typography.sizes.xl,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
   } as TextStyle,
   planPrice: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
+    fontWeight: Typography.weights.medium as any,
+    color: Colors.text.secondary,
   } as TextStyle,
   planFeatures: {
     gap: Spacing.sm,
@@ -770,66 +793,62 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   featureText: {
     fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
+    color: Colors.text.muted,
   } as TextStyle,
   planSelector: {
-    marginTop: Spacing.lg,
-    marginLeft: Spacing.md,
+    justifyContent: 'center',
   } as ViewStyle,
   radioButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: BorderRadius.full,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
-    justifyContent: 'center',
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
+    justifyContent: 'center',
   } as ViewStyle,
   radioButtonSelected: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
+    borderColor: Colors.accent.rose,
+    backgroundColor: 'rgba(251,76,136,0.45)',
   } as ViewStyle,
   whyChooseSection: {
-    marginTop: Spacing.lg,
-    paddingVertical: Spacing.xl,
+    borderRadius: BorderRadius['3xl'],
+    paddingVertical: Spacing['2xl'],
     paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   } as ViewStyle,
   whyChooseText: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: 'bold',
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
     color: Colors.text.light,
-    textAlign: 'center',
   } as TextStyle,
-  
-  // Bouton Continuer
   continueButton: {
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.lg,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius['3xl'],
     overflow: 'hidden',
-    ...Shadows.lg,
+    shadowColor: Colors.accent.rose,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.45,
+    shadowRadius: 28,
+    elevation: 12,
   } as ViewStyle,
   continueButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
     gap: Spacing.sm,
   } as ViewStyle,
   continueButtonText: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: 'white',
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
   } as TextStyle,
-  
-  // Modal de paiement
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.background.light,
+    backgroundColor: 'rgba(8,8,14,0.96)',
   } as ViewStyle,
   modalHeader: {
     flexDirection: 'row',
@@ -837,144 +856,141 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.primary[100],
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   } as ViewStyle,
   modalCloseButton: {
-    padding: Spacing.sm,
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: Spacing.md,
   } as ViewStyle,
   modalTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    flex: 1,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
   } as TextStyle,
   modalContent: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
+    paddingBottom: Spacing['2xl'],
+    gap: Spacing['2xl'],
   } as ViewStyle,
-  
-  // Récapitulatif
   summaryCard: {
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.xl,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: BorderRadius['2xl'],
     padding: Spacing.lg,
-    marginBottom: Spacing.xl,
-    ...Shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: Spacing.sm,
   } as ViewStyle,
   summaryTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.muted,
   } as TextStyle,
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
   } as ViewStyle,
+  summaryLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.muted,
+  } as TextStyle,
+  summaryValue: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.light,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
   summaryTotal: {
     marginTop: Spacing.md,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.primary[100],
+    borderTopColor: 'rgba(255,255,255,0.08)',
   } as ViewStyle,
-  summaryLabel: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.secondary,
-  } as TextStyle,
-  summaryValue: {
-    fontSize: Typography.sizes.base,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  } as TextStyle,
   summaryTotalLabel: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: Colors.text.primary,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
   } as TextStyle,
   summaryTotalValue: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: '800',
-    color: Colors.primary[600],
-  } as TextStyle,
-  
-  // Section paiement
-  paymentSectionTitle: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.accent.rose,
   } as TextStyle,
-  
-  // Méthodes de paiement
+  paymentSectionTitle: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.muted,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  } as TextStyle,
   paymentMethodCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: BorderRadius['2xl'],
     padding: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    ...Shadows.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: Spacing.md,
   } as ViewStyle,
   paymentMethodCardSelected: {
-    borderColor: Colors.primary[600],
-    backgroundColor: Colors.primary[50],
+    borderColor: Colors.accent.rose,
+    backgroundColor: 'rgba(251,76,136,0.18)',
   } as ViewStyle,
   paymentMethodIcon: {
     width: 48,
     height: 48,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary[50],
-    justifyContent: 'center',
+    borderRadius: BorderRadius.full,
     alignItems: 'center',
-    marginRight: Spacing.md,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   } as ViewStyle,
   paymentMethodInfo: {
     flex: 1,
+    gap: Spacing.xs,
   } as ViewStyle,
   paymentMethodName: {
     fontSize: Typography.sizes.base,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
   } as TextStyle,
   paymentMethodDescription: {
     fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
+    color: Colors.text.muted,
   } as TextStyle,
   paymentMethodRadio: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
+    width: 26,
+    height: 26,
+    borderRadius: BorderRadius.full,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
+    justifyContent: 'center',
   } as ViewStyle,
   paymentMethodRadioEmpty: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: Colors.primary[200],
+    width: 14,
+    height: 14,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   } as ViewStyle,
-  
-  // Bouton Payer
   payButton: {
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.xl,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius['3xl'],
     overflow: 'hidden',
-    ...Shadows.lg,
+    marginBottom: Spacing['2xl'],
   } as ViewStyle,
   payButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   } as ViewStyle,
   payButtonGradient: {
     paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   } as ViewStyle,
@@ -985,7 +1001,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   payButtonText: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: 'white',
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
   } as TextStyle,
 });

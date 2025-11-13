@@ -1,36 +1,37 @@
 import { AnimatedButton } from '@/components/common/animated-button';
 import { NavigationTransition } from '@/components/common/navigation-transition';
-import { HomeHeader } from '@/components/headers/home-header';
+import { NeoCard } from '@/components/neo/NeoCard';
 import { QRScanner } from '@/components/qr/qr-scanner';
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    View,
-    ViewStyle,
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+  ViewStyle,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const [showQRScanner, setShowQRScanner] = useState(false);
 
-  // Vérifier si l'utilisateur est un partenaire
   useEffect(() => {
-    // Détecter si l'email contient "partner" ou si l'utilisateur a un rôle partenaire
-    const isPartner = user?.email?.toLowerCase().includes('partner') || 
-                      user?.email?.toLowerCase().includes('partenaire') ||
-                      (user as any)?.role === 'partner' ||
-                      (user as any)?.isPartner === true;
-    
+    const isPartner =
+      user?.email?.toLowerCase().includes('partner') ||
+      user?.email?.toLowerCase().includes('partenaire') ||
+      (user as any)?.role === 'partner' ||
+      (user as any)?.isPartner === true;
+
     if (isPartner) {
-      // Rediriger vers l'interface partenaire
       router.replace('/(tabs)/partner-home');
     }
   }, [user]);
@@ -40,196 +41,260 @@ export default function HomeScreen() {
   };
 
   const handleQRScanned = (data: string) => {
-    console.log('📱 QR Code partenaire scanné:', data);
-    
-    // Extraire l'ID du partenaire du QR code
-    // Format attendu: "maya:partner:123" ou similaire
     const partnerId = data.split(':').pop() || data;
-    
-    // Ici vous pouvez ajouter la logique pour:
-    // - Valider le partenaire avec l'API
-    // - Enregistrer la visite
-    // - Afficher les détails du partenaire
-    // - Rediriger vers la page du partenaire
-    
     Alert.alert(
       '✅ Visite enregistrée',
       `Vous avez scanné le QR code du partenaire ${partnerId}. Votre visite a été enregistrée avec succès !`,
-      [{ text: 'Parfait', onPress: () => setShowQRScanner(false) }]
+      [{ text: 'Parfait', onPress: () => setShowQRScanner(false) }],
     );
   };
 
-  const handlePartnerMode = () => {
-    // Logique pour le mode partenaire
-    console.log('Mode partenaire');
-  };
+  const heroGreeting = useMemo(() => {
+    if (!user?.email) return 'Bonjour ✨';
+    const name = user.email.split('@')[0];
+    return `Bonjour, ${name} ✨`;
+  }, [user?.email]);
+
+  const contentGradient = ['#450A1D', '#120A18'] as const;
 
   return (
     <NavigationTransition>
-      <View style={styles.container}>
-        <HomeHeader
-          title={user ? `Bonjour, ${user.email.split('@')[0]} ✨` : 'Bonjour ✨'}
-          subtitle="Prêt•e à économiser aujourd'hui ?"
-          balanceEuros="47,80 €"
-          onNotificationPress={() => console.log('Notifications')}
-          onProfilePress={() => console.log('Profil')}
-        />
-
-        <ScrollView 
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.quickActions}>
-            <View style={styles.quickAction}>
-              <Ionicons name="scan" size={18} color="#8B5CF6" />
-              <Text style={styles.quickActionText}>Scanner</Text>
-            </View>
-            <View style={styles.quickAction}>
-              <Ionicons name="storefront" size={18} color="#10B981" />
-              <Text style={styles.quickActionText}>Partenaires</Text>
-            </View>
-            <View style={styles.quickAction}>
-              <Ionicons name="card" size={18} color="#F59E0B" />
-              <Text style={styles.quickActionText}>Abonnement</Text>
-            </View>
-          </View>
-          <View style={styles.qrCard}>
-            <Text style={styles.qrTitle}>Votre QR Code Maya</Text>
-            <Text style={styles.qrSubtitle}>Présentez ce code chez tous nos partenaires</Text>
-            
-            <View style={styles.qrContainer}>
-              <View style={styles.qrCode}>
-                {/* QR Code simulé avec design amélioré */}
-                <View style={styles.qrGrid}>
-                  {Array.from({ length: 49 }, (_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.qrSquare,
-                        { 
-                          backgroundColor: (i % 7 + Math.floor(i / 7)) % 2 === 0 ? '#8B5CF6' : 'white',
-                          borderRadius: 2,
-                        }
-                      ]}
-                    />
-                  ))}
+      <View style={styles.screen}>
+        <LinearGradient colors={contentGradient} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <StatusBar barStyle="light-content" />
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <NeoCard gradient={['#4C0F22', '#1A112A']} style={styles.heroCard}>
+              <View style={styles.heroHeader}>
+                <Text style={styles.heroTitle}>{heroGreeting}</Text>
+                <Text style={styles.heroSubtitle}>Prêt·e à économiser aujourd’hui ?</Text>
+              </View>
+              <View style={styles.heroSummaryRow}>
+                <View style={styles.heroSummaryItem}>
+                  <Text style={styles.heroSummaryValue}>47,80 €</Text>
+                  <Text style={styles.heroSummaryLabel}>Économies totales</Text>
                 </View>
-                {/* Points de détection QR */}
-                <View style={styles.qrCorner} />
-                <View style={[styles.qrCorner, styles.qrCornerTopRight]} />
-                <View style={[styles.qrCorner, styles.qrCornerBottomLeft]} />
+                <View style={styles.heroDivider} />
+                <View style={styles.heroSummaryItem}>
+                  <Text style={styles.heroSummaryValue}>12</Text>
+                  <Text style={styles.heroSummaryLabel}>Partenaires visités</Text>
+                </View>
               </View>
-            </View>
+            </NeoCard>
 
-            <AnimatedButton
-              title="Scanner un partenaire"
-              onPress={handleScanPartner}
-              icon="scan"
-              style={styles.scanButton}
-              variant="solid"
-            />
-          </View>
-
-          <View style={styles.statsContainer}>
-            <View style={[styles.statCard, styles.savingsCard]}>
-              <View style={styles.statHeader}>
-                <Ionicons name="trending-up" size={20} color="#10B981" />
-                <Text style={[styles.statPeriod, styles.savingsPeriod]}>CE MOIS</Text>
+            <NeoCard variant="glass" style={styles.quickActionsCard}>
+              <Text style={styles.sectionTitle}>Accès rapide</Text>
+              <View style={styles.quickActionsRow}>
+                <View style={styles.quickAction}>
+                  <View style={[styles.quickIcon, styles.quickIconRose]}>
+                    <Ionicons name="scan" size={18} color={Colors.accent.rose} />
+                  </View>
+                  <Text style={styles.quickLabel}>Scanner</Text>
+                </View>
+                <View style={styles.quickAction}>
+                  <View style={[styles.quickIcon, styles.quickIconCyan]}>
+                    <Ionicons name="storefront" size={18} color={Colors.accent.cyan} />
+                  </View>
+                  <Text style={styles.quickLabel}>Partenaires</Text>
+                </View>
+                <View style={styles.quickAction}>
+                  <View style={[styles.quickIcon, styles.quickIconGold]}>
+                    <Ionicons name="card" size={18} color={Colors.accent.gold} />
+                  </View>
+                  <Text style={styles.quickLabel}>Abonnement</Text>
+                </View>
               </View>
-              <Text style={[styles.statValue, styles.savingsValue]}>47.8€</Text>
-              <Text style={[styles.statLabel, styles.savingsLabel]}>Économisées</Text>
-            </View>
+            </NeoCard>
 
-            <View style={[styles.statCard, styles.visitsCard]}>
-              <View style={styles.statHeader}>
-                <Ionicons name="location" size={20} color="#F59E0B" />
-                <Text style={[styles.statPeriod, styles.visitsPeriod]}>VISITES</Text>
+            <NeoCard variant="glass" style={styles.qrCard}>
+              <Text style={styles.qrTitle}>Votre QR Code Maya</Text>
+              <Text style={styles.qrSubtitle}>Présentez ce code chez tous nos partenaires</Text>
+              <View style={styles.qrWrapper}>
+                <View style={styles.qrBackdrop}>
+                  <View style={styles.qrGrid}>
+                    {Array.from({ length: 49 }, (_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.qrSquare,
+                          {
+                            backgroundColor:
+                              (i % 7 + Math.floor(i / 7)) % 2 === 0 ? Colors.accent.rose : 'rgba(255,255,255,0.9)',
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <View style={styles.qrCorner} />
+                  <View style={[styles.qrCorner, styles.qrCornerTopRight]} />
+                  <View style={[styles.qrCorner, styles.qrCornerBottomLeft]} />
+                </View>
               </View>
-              <Text style={[styles.statValue, styles.visitsValue]}>8</Text>
-              <Text style={[styles.statLabel, styles.visitsLabel]}>Partenaires</Text>
-            </View>
-          </View>
-        </ScrollView>
+              <AnimatedButton title="Scanner un partenaire" onPress={handleScanPartner} icon="scan" style={styles.scanButton} variant="solid" />
+            </NeoCard>
+
+            <NeoCard variant="glass" style={styles.metricsCard}>
+              <Text style={styles.sectionTitle}>Cette semaine</Text>
+              <View style={styles.metricsRow}>
+                <View style={styles.metricItem}>
+                  <Ionicons name="trending-up" size={18} color={Colors.secondary[300]} />
+                  <Text style={styles.metricValue}>+12%</Text>
+                  <Text style={styles.metricLabel}>par rapport à la semaine dernière</Text>
+                </View>
+                <View style={styles.metricDivider} />
+                <View style={styles.metricItem}>
+                  <Ionicons name="gift" size={18} color={Colors.accent.gold} />
+                  <Text style={styles.metricValue}>3 offres</Text>
+                  <Text style={styles.metricLabel}>actives à saisir</Text>
+                </View>
+              </View>
+            </NeoCard>
+          </ScrollView>
+        </SafeAreaView>
+
+        <QRScanner visible={showQRScanner} onClose={() => setShowQRScanner(false)} onScan={handleQRScanned} />
       </View>
-
-      {/* Scanner QR Code */}
-      <QRScanner
-        visible={showQRScanner}
-        onClose={() => setShowQRScanner(false)}
-        onScan={handleQRScanned}
-      />
     </NavigationTransition>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: Colors.background.light,
+    backgroundColor: Colors.background.dark,
   } as ViewStyle,
-  scrollContainer: {
+  safeArea: {
     flex: 1,
   } as ViewStyle,
   content: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing['4xl'],
+    gap: Spacing['2xl'],
   } as ViewStyle,
-  quickActions: {
+  heroCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing['2xl'],
+    gap: Spacing.lg,
+  } as ViewStyle,
+  heroHeader: {
+    gap: Spacing.xs,
+  } as ViewStyle,
+  heroTitle: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  heroSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  heroSummaryRow: {
+    position: 'relative',
+    top: 20,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BorderRadius['2xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  heroSummaryItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.xs / 2,
+  } as ViewStyle,
+  heroSummaryValue: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  heroSummaryLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  } as TextStyle,
+  heroDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  } as ViewStyle,
+  quickActionsCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  sectionTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+  } as TextStyle,
+  quickActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: Spacing.md,
-    marginBottom: Spacing.lg,
   } as ViewStyle,
   quickAction: {
     flex: 1,
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
     alignItems: 'center',
-    ...Shadows.sm,
+    gap: Spacing.xs,
   } as ViewStyle,
-  quickActionText: {
-    marginTop: 6,
-    color: Colors.text.primary,
+  quickIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  } as ViewStyle,
+  quickIconRose: {
+    borderColor: 'rgba(251,76,136,0.3)',
+  } as ViewStyle,
+  quickIconCyan: {
+    borderColor: 'rgba(45,217,255,0.3)',
+  } as ViewStyle,
+  quickIconGold: {
+    borderColor: 'rgba(255,199,86,0.3)',
+  } as ViewStyle,
+  quickLabel: {
     fontSize: Typography.sizes.sm,
-    fontWeight: '600',
+    color: Colors.text.secondary,
+    fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   qrCard: {
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.xl,
-    marginBottom: Spacing.lg,
-    ...Shadows.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.lg,
   } as ViewStyle,
   qrTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: 'bold',
-    color: Colors.text.primary,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
     textAlign: 'center',
-    marginBottom: Spacing.sm,
   } as TextStyle,
   qrSubtitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
     textAlign: 'center',
-    marginBottom: Spacing.xl,
   } as TextStyle,
-  qrContainer: {
+  qrWrapper: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
   } as ViewStyle,
-  qrCode: {
-    width: 180,
-    height: 180,
-    backgroundColor: 'white',
-    borderRadius: BorderRadius.lg,
+  qrBackdrop: {
+    width: 200,
+    height: 200,
+    borderRadius: BorderRadius['2xl'],
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
     padding: Spacing.md,
-    borderWidth: 3,
-    borderColor: '#8B5CF6',
-    borderStyle: 'dashed',
     position: 'relative',
-    ...Shadows.md,
   } as ViewStyle,
   qrGrid: {
     flex: 1,
@@ -242,87 +307,60 @@ const styles = StyleSheet.create({
     width: '12%',
     height: '12%',
     margin: '1%',
+    borderRadius: 2,
   } as ViewStyle,
   qrCorner: {
     position: 'absolute',
-    top: 8,
-    left: 8,
+    top: 10,
+    left: 10,
     width: 24,
     height: 24,
-    borderWidth: 3,
-    borderColor: '#8B5CF6',
-    borderTopLeftRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.accent.rose,
+    borderTopLeftRadius: 6,
   } as ViewStyle,
   qrCornerTopRight: {
-    top: 8,
-    right: 8,
+    top: 10,
+    right: 10,
     left: 'auto',
-    borderTopRightRadius: 4,
+    borderTopRightRadius: 6,
     borderTopLeftRadius: 0,
   } as ViewStyle,
   qrCornerBottomLeft: {
-    bottom: 8,
+    bottom: 10,
     top: 'auto',
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 6,
     borderTopLeftRadius: 0,
   } as ViewStyle,
   scanButton: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   } as ViewStyle,
-  statsContainer: {
+  metricsCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  metricsRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
-  } as ViewStyle,
-  statCard: {
-    flex: 1,
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    ...Shadows.md,
-  } as ViewStyle,
-  savingsCard: {
-    backgroundColor: Colors.background.card,
-  } as ViewStyle,
-  visitsCard: {
-    backgroundColor: Colors.background.card,
-  } as ViewStyle,
-  statHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    gap: Spacing.lg,
   } as ViewStyle,
-  statPeriod: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '600',
+  metricItem: {
+    flex: 1,
+    gap: Spacing.xs,
+  } as ViewStyle,
+  metricValue: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
   } as TextStyle,
-  savingsPeriod: {
-    color: '#10B981',
+  metricLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.muted,
   } as TextStyle,
-  visitsPeriod: {
-    color: '#F59E0B',
-  } as TextStyle,
-  statValue: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  savingsValue: {
-    color: '#10B981',
-  } as TextStyle,
-  visitsValue: {
-    color: '#F59E0B',
-  } as TextStyle,
-  statLabel: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-  } as TextStyle,
-  savingsLabel: {
-    color: '#10B981',
-  } as TextStyle,
-  visitsLabel: {
-    color: '#F59E0B',
-  } as TextStyle,
+  metricDivider: {
+    width: 1,
+    height: 48,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  } as ViewStyle,
 });
