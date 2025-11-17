@@ -19,6 +19,7 @@ export interface RegisterRequest {
   birthDate: string; // ISO 8601 format
   address: Address;
   avatarBase64?: string;
+  role?: 'partners' | 'client';
 }
 
 // Interface utilisateur complète (local)
@@ -50,6 +51,7 @@ export interface PublicUser {
 export interface LoginRequest {
   email: string;
   password: string;
+  role?: 'partners' | 'client';
 }
 
 // Interface de réponse de l'API
@@ -780,27 +782,85 @@ export const AuthService = {
    * @returns Informations complètes de l'utilisateur
    */
   getCurrentUserInfo: async (): Promise<PublicUser> => {
+    console.log('👤 [Auth Service] getCurrentUserInfo appelé');
+    
     try {
       // Vérifier d'abord si l'utilisateur est authentifié
+      console.log('🔐 [Auth Service] Vérification de l\'authentification...');
       const isAuth = await AuthService.isAuthenticated();
+      console.log('🔐 [Auth Service] Authentifié:', isAuth);
+      
       if (!isAuth) {
+        console.error('❌ [Auth Service] Utilisateur non authentifié');
         throw new Error('Utilisateur non authentifié');
       }
 
+      const token = await getTokens();
+      console.log('🔑 [Auth Service] Token disponible:', token ? token.accessToken.substring(0, 20) + '...' : 'Aucun');
+      console.log('🌐 [Auth Service] Appel API: GET /api/v1/auth/me');
+      console.log('🌐 [Auth Service] Base URL:', API_BASE_URL);
+
+      const startTime = Date.now();
       const response = await apiCall<any>('/auth/me', {
         method: 'GET',
       });
+      const duration = Date.now() - startTime;
+
+      console.log('✅ [Auth Service] Réponse API reçue', {
+        duration: duration + 'ms',
+        hasUser: !!response?.user,
+        hasData: !!response?.data,
+        responseKeys: response ? Object.keys(response) : [],
+      });
+
+      if (response) {
+        console.log('📄 [Auth Service] Contenu de la réponse:', {
+          responseType: typeof response,
+          isUser: !!response.user,
+          isDirect: !response.user && !response.data,
+          fullResponse: JSON.stringify(response, null, 2),
+        });
+      }
 
       const userData: PublicUser | undefined = response?.user ?? response;
 
       if (!userData) {
+        console.error('❌ [Auth Service] Aucune donnée utilisateur dans la réponse', {
+          response,
+        });
         throw new Error('Aucune donnée utilisateur reçue');
       }
 
-      console.log('👤 Informations utilisateur récupérées depuis l\'API:', userData.email);
+      console.log('✅ [Auth Service] Informations utilisateur récupérées', {
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        hasAddress: !!userData.address,
+        hasBirthDate: !!userData.birthDate,
+        hasAvatar: !!userData.avatarBase64,
+        address: userData.address,
+      });
+
+      // Sauvegarder les informations mises à jour
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+      console.log('💾 [Auth Service] Informations utilisateur sauvegardées localement');
+
       return userData;
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération des infos utilisateur:', error);
+      console.error('❌ [Auth Service] Erreur lors de la récupération des infos utilisateur:', error);
+      if (error instanceof Error) {
+        console.error('❌ [Auth Service] Détails de l\'erreur:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.substring(0, 200),
+        });
+
+        // Si le token a expiré, essayer de le rafraîchir
+        if (error.message.includes('401') || error.message.includes('expired') || error.message.includes('invalid_token')) {
+          console.log('🔄 [Auth Service] Token expiré, tentative de rafraîchissement...');
+          // Note: Le refresh token devrait être géré automatiquement par le hook useAuth
+        }
+      }
       throw new Error('Impossible de récupérer les informations utilisateur');
     }
   },
@@ -828,6 +888,72 @@ export const AuthService = {
     } catch (error) {
       console.log('❌ Email non trouvé via l\'API:', error);
       return false;
+    }
+  },
+
+  /**
+   * Met à jour le profil de l'utilisateur actuel (PUT /auth/me)
+   */
+  updateCurrentUser: async (updates: Partial<Omit<PublicUser, 'id' | 'createdAt'>>): Promise<PublicUser> => {
+    try {
+      const response = await apiCall<any>('/auth/me', {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+
+      const userData: PublicUser = response?.user ?? response;
+
+      // Mettre à jour le cache local
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+
+      return userData;
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour du profil:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Upload un avatar (POST /auth/upload-avatar, multipart, max 5MB)
+   */
+  uploadAvatar: async (imageUri: string): Promise<PublicUser> => {
+    try {
+      // Créer un FormData pour l'upload multipart
+      const formData = new FormData();
+      
+      // Extraire le nom du fichier de l'URI
+      const filename = imageUri.split('/').pop() || 'avatar.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('file', {
+        uri: imageUri,
+        name: filename,
+        type: type,
+      } as any);
+
+      const token = await AuthService.getAccessToken();
+      const headers: Record<string, string> = {};
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await apiCall<any>('/auth/upload-avatar', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const userData: PublicUser = response?.user ?? response;
+
+      // Mettre à jour le cache local
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+
+      return userData;
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'upload de l\'avatar:', error);
+      throw error;
     }
   },
 

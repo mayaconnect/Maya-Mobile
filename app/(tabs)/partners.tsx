@@ -1,12 +1,14 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { PartnerCard } from '@/components/partners/partner-card';
 import { PartnersHeader } from '@/components/partners/partners-header';
-import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
-import { PartnerService } from '@/services/partner.service';
+import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { StoresService } from '@/services/stores.service';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Modal,
   ScrollView,
@@ -19,6 +21,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
 type PartnerUI = {
   id: string;
@@ -41,7 +44,7 @@ type PartnerUI = {
 export default function PartnersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
-  const [viewMode, setViewMode] = useState<'grille' | 'liste'>('grille');
+  const [viewMode, setViewMode] = useState<'grille' | 'liste' | 'carte'>('grille');
   const [selectedPartner, setSelectedPartner] = useState<PartnerUI | null>(null);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [partners, setPartners] = useState<PartnerUI[]>([]);
@@ -49,6 +52,18 @@ export default function PartnersScreen() {
   const [error, setError] = useState('');
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  
+  // États pour la carte
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationPermission, setLocationPermission] = useState<boolean>(false);
+  const [mapStores, setMapStores] = useState<PartnerUI[]>([]);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 48.8566, // Paris par défaut
+    longitude: 2.3522,
+    latitudeDelta: 0.5, // ~50km
+    longitudeDelta: 0.5,
+  });
   
   // Animation pour les transitions
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
@@ -67,8 +82,7 @@ export default function PartnersScreen() {
       return 'Adresse non renseignée';
     }
 
-    const store = dto.primaryStore ?? dto.mainStore ?? dto.store ?? dto.stores?.[0];
-    const address = store?.address ?? dto.address;
+    const address = dto.address;
 
     if (address) {
       if (typeof address === 'string') {
@@ -97,7 +111,7 @@ export default function PartnersScreen() {
     };
   }, []);
 
-  const mapPartner = useCallback((dto: any, index: number): PartnerUI => {
+  const mapStore = useCallback((dto: any, index: number): PartnerUI => {
     const fallbackEmojis = ['🏬', '🍽️', '☕', '🍕', '🍣', '🥗', '🍰'];
     const image = dto.emoji ?? dto.icon ?? fallbackEmojis[index % fallbackEmojis.length];
 
@@ -110,10 +124,21 @@ export default function PartnersScreen() {
         ? 4
         : Number(rawRating);
 
+    // Récupérer les infos du partenaire depuis le store
+    const partner = dto.partner ?? dto.partnerData;
+    const partnerName = partner?.name ?? dto.partnerName ?? dto.name ?? 'Partenaire';
+    const partnerDescription = partner?.description ?? dto.partnerDescription ?? dto.description ?? 'Partenaire du programme Maya';
+
+    // Extraire les coordonnées pour la carte
+    const latitude = dto.latitude ?? dto.address?.latitude ?? dto.location?.latitude ?? 
+      (typeof dto.address === 'object' && dto.address?.lat) ?? null;
+    const longitude = dto.longitude ?? dto.address?.longitude ?? dto.location?.longitude ?? 
+      (typeof dto.address === 'object' && dto.address?.lng) ?? null;
+
     return {
-      id: dto.id ?? dto.partnerId ?? `partner-${index}`,
-      name: dto.name ?? dto.companyName ?? dto.legalName ?? dto.email ?? 'Partenaire',
-      description: dto.description ?? dto.summary ?? 'Partenaire du programme Maya',
+      id: dto.id ?? dto.storeId ?? `store-${index}`,
+      name: partnerName,
+      description: partnerDescription,
       address: computeAddress(dto),
       distance: distanceValue,
       isOpen: dto.isOpen ?? dto.openNow ?? true,
@@ -122,27 +147,29 @@ export default function PartnersScreen() {
       image,
       promotion: computePromotion(dto),
       rating: ratingValue,
-    };
+      latitude: latitude ? Number(latitude) : undefined,
+      longitude: longitude ? Number(longitude) : undefined,
+    } as PartnerUI & { latitude?: number; longitude?: number };
   }, [computeCategory, computeAddress, computePromotion]);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchPartners = async () => {
+    const fetchStores = async () => {
       setLoading(true);
       setError('');
       try {
-        const response = await PartnerService.getPartners();
+        const response = await StoresService.searchStores();
         if (!isMounted) {
           return;
         }
         const list = response?.items ?? [];
-        const mapped = list.map((partner, index) => mapPartner(partner, index));
+        const mapped = list.map((store, index) => mapStore(store, index));
         setPartners(mapped);
       } catch (err) {
-        console.error('Erreur lors du chargement des partenaires:', err);
+        console.error('Erreur lors du chargement des magasins:', err);
         if (isMounted) {
-          setError('Impossible de récupérer les partenaires pour le moment.');
+          setError('Impossible de récupérer les magasins pour le moment.');
         }
       } finally {
         if (isMounted) {
@@ -151,11 +178,11 @@ export default function PartnersScreen() {
       }
     };
 
-    fetchPartners();
+    fetchStores();
     return () => {
       isMounted = false;
     };
-  }, [mapPartner]);
+  }, [mapStore]);
 
   const stats = useMemo(() => {
     if (!partners.length) {
@@ -201,7 +228,7 @@ export default function PartnersScreen() {
     setSelectedCategory(category);
   };
 
-  const handleViewToggle = (mode: 'grille' | 'liste') => {
+  const handleViewToggle = (mode: 'grille' | 'liste' | 'carte') => {
     // Animation de transition
     Animated.sequence([
       Animated.timing(fadeAnim, {
@@ -217,7 +244,288 @@ export default function PartnersScreen() {
     ]).start();
     
     setViewMode(mode);
+    
+    // Si on passe en mode carte, charger les stores avec géolocalisation
+    if (mode === 'carte') {
+      loadStoresNearby();
+    }
   };
+
+  // Récupérer la position actuelle
+  const getCurrentLocation = useCallback(async () => {
+    try {
+      console.log('📍 [Partners] Récupération de la position...');
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      
+      const coords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      
+      console.log('✅ [Partners] Position récupérée:', coords);
+      setUserLocation(coords);
+      
+      // Mettre à jour la région de la carte
+      setMapRegion({
+        ...coords,
+        latitudeDelta: 0.5, // ~50km
+        longitudeDelta: 0.5,
+      });
+    } catch (error) {
+      console.error('❌ [Partners] Erreur lors de la récupération de la position:', error);
+      Alert.alert('Erreur', 'Impossible de récupérer votre position');
+    }
+  }, []);
+
+  // Demander la permission de géolocalisation
+  const requestLocationPermission = useCallback(async () => {
+    try {
+      console.log('📍 [Partners] Demande de permission de géolocalisation...');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('📍 [Partners] Statut de permission:', status);
+      
+      if (status === 'granted') {
+        setLocationPermission(true);
+        await getCurrentLocation();
+      } else {
+        setLocationPermission(false);
+        Alert.alert(
+          'Permission requise',
+          'La géolocalisation est nécessaire pour afficher les stores près de chez vous.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('❌ [Partners] Erreur lors de la demande de permission:', error);
+      setLocationPermission(false);
+    }
+  }, [getCurrentLocation]);
+
+  // Charger les stores à proximité (50km max)
+  const loadStoresNearby = useCallback(async () => {
+    console.log('🗺️ [Partners] Chargement des stores à proximité...');
+    
+    setMapLoading(true);
+    
+    try {
+      // Si pas de permission, la demander
+      let currentPermission = locationPermission;
+      if (!currentPermission) {
+        console.log('📍 [Partners] Demande de permission...');
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        currentPermission = status === 'granted';
+        setLocationPermission(currentPermission);
+        
+        if (!currentPermission) {
+          Alert.alert(
+            'Permission requise',
+            'La géolocalisation est nécessaire pour afficher les stores près de chez vous.',
+            [{ text: 'OK' }]
+          );
+          setMapLoading(false);
+          return;
+        }
+      }
+
+      // Récupérer la position actuelle
+      let currentLocation = userLocation;
+      if (!currentLocation) {
+        console.log('📍 [Partners] Récupération de la position...');
+        try {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          
+          currentLocation = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          
+          console.log('✅ [Partners] Position récupérée:', currentLocation);
+          setUserLocation(currentLocation);
+          
+          // Mettre à jour la région de la carte
+          setMapRegion({
+            ...currentLocation,
+            latitudeDelta: 0.5, // ~50km
+            longitudeDelta: 0.5,
+          });
+        } catch (error) {
+          console.error('❌ [Partners] Erreur lors de la récupération de la position:', error);
+          Alert.alert('Erreur', 'Impossible de récupérer votre position');
+          setMapLoading(false);
+          return;
+        }
+      }
+
+      // Utiliser une position par défaut si toujours pas de position
+      if (!currentLocation) {
+        currentLocation = { latitude: 48.8566, longitude: 2.3522 };
+        console.warn('⚠️ [Partners] Utilisation de la position par défaut (Paris)');
+      }
+
+      console.log('🔍 [Partners] Recherche de stores avec:', {
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        radiusKm: 50,
+      });
+
+      const response = await StoresService.searchStores({
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+        radiusKm: 50,
+        page: 1,
+        pageSize: 100, // Récupérer jusqu'à 100 stores
+      });
+
+      console.log('✅ [Partners] Stores récupérés:', response.items.length);
+      
+      const mapped = response.items.map((store, index) => mapStore(store, index));
+      setMapStores(mapped);
+      
+      console.log('✅ [Partners] Stores mappés pour la carte:', mapped.length);
+    } catch (error) {
+      console.error('❌ [Partners] Erreur lors du chargement des stores:', error);
+      if (error instanceof Error && error.message.includes('401')) {
+        Alert.alert(
+          'Erreur d\'authentification',
+          'Votre session a expiré. Veuillez vous reconnecter.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Erreur', 'Impossible de charger les stores à proximité');
+      }
+    } finally {
+      setMapLoading(false);
+    }
+  }, [userLocation, locationPermission, mapStore]);
+
+  // Charger la position au montage si on est en mode carte
+  useEffect(() => {
+    if (viewMode === 'carte') {
+      requestLocationPermission();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
+
+  // Générer le HTML pour la carte avec OpenStreetMap (Leaflet) - gratuit, pas besoin de clé API
+  const generateMapHTML = useCallback((userLoc: { latitude: number; longitude: number } | null, stores: PartnerUI[]) => {
+    if (!userLoc) {
+      return '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;"><p style="color:#666;">Chargement de la position...</p></body></html>';
+    }
+
+    const storesMarkers = stores
+      .map((store) => {
+        const storeWithCoords = store as PartnerUI & { latitude?: number; longitude?: number };
+        if (!storeWithCoords.latitude || !storeWithCoords.longitude) return null;
+        
+        const color = store.isOpen ? '#10B981' : '#EF4444';
+        const escapedName = store.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ');
+        const escapedAddress = (store.address || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ');
+        return `
+          {
+            lat: ${storeWithCoords.latitude},
+            lng: ${storeWithCoords.longitude},
+            title: "${escapedName}",
+            description: "${escapedAddress}",
+            color: "${color}",
+            storeId: "${store.id}"
+          }
+        `;
+      })
+      .filter(Boolean)
+      .join(',');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+          <style>
+            body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+            #map { width: 100%; height: 100vh; }
+            .leaflet-popup-content-wrapper {
+              border-radius: 8px;
+              padding: 0;
+            }
+            .leaflet-popup-content {
+              margin: 0;
+              padding: 12px;
+            }
+            .store-popup h3 {
+              margin: 0 0 6px 0;
+              font-size: 16px;
+              font-weight: 600;
+              color: #1F2937;
+            }
+            .store-popup p {
+              margin: 0;
+              font-size: 14px;
+              color: #6B7280;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="map"></div>
+          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+          <script>
+            // Initialiser la carte
+            const userLocation = [${userLoc.latitude}, ${userLoc.longitude}];
+            const map = L.map('map').setView(userLocation, 11);
+
+            // Ajouter les tuiles OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+              maxZoom: 19,
+            }).addTo(map);
+
+            // Marqueur utilisateur (icône personnalisée)
+            const userIcon = L.divIcon({
+              className: 'user-marker',
+              html: '<div style="background-color: #4285F4; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+              iconSize: [24, 24],
+              iconAnchor: [12, 12],
+            });
+
+            L.marker(userLocation, { icon: userIcon })
+              .addTo(map)
+              .bindPopup('<b>Votre position</b><br>Vous êtes ici');
+
+            // Marqueurs des stores
+            const stores = [${storesMarkers}];
+            stores.forEach((store) => {
+              const storeIcon = L.divIcon({
+                className: 'store-marker',
+                html: '<div style="background-color: ' + store.color + '; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">🏪</div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+              });
+
+              const marker = L.marker([store.lat, store.lng], { icon: storeIcon })
+                .addTo(map);
+
+              const popupContent = '<div class="store-popup"><h3>' + store.title + '</h3><p>' + store.description + '</p></div>';
+              
+              marker.bindPopup(popupContent);
+
+              marker.on('click', () => {
+                // Envoyer un message à React Native
+                if (window.ReactNativeWebView) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'storeClick',
+                    storeId: store.storeId
+                  }));
+                }
+              });
+            });
+          </script>
+        </body>
+      </html>
+    `;
+  }, []);
 
   const handlePartnerSelect = async (partner: PartnerUI) => {
     setSelectedPartner(partner);
@@ -226,12 +534,12 @@ export default function PartnersScreen() {
     setDetailLoading(true);
 
     try {
-      const detailDto = await PartnerService.getPartnerById(partner.id);
-      const mapped = mapPartner(detailDto, 0);
+      const detailDto = await StoresService.getStoreById(partner.id);
+      const mapped = mapStore(detailDto, 0);
       setSelectedPartner(mapped);
     } catch (err) {
-      console.error('Erreur lors du chargement du partenaire:', err);
-      setDetailError('Impossible de charger les détails du partenaire.');
+      console.error('Erreur lors du chargement du magasin:', err);
+      setDetailError('Impossible de charger les détails du magasin.');
     } finally {
       setDetailLoading(false);
     }
@@ -356,10 +664,87 @@ export default function PartnersScreen() {
                 color={viewMode === 'liste' ? Colors.text.light : Colors.text.secondary} 
               />
             </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.viewToggleButton, viewMode === 'carte' && styles.viewToggleButtonActive]}
+              onPress={() => handleViewToggle('carte')}
+            >
+              <Ionicons 
+                name="map" 
+                size={18} 
+                color={viewMode === 'carte' ? Colors.text.light : Colors.text.secondary} 
+              />
+            </TouchableOpacity>
           </View>
 
-          {/* Contenu conditionnel : Grille ou Liste */}
-          {viewMode === 'grille' ? (
+          {/* Contenu conditionnel : Grille, Liste ou Carte */}
+          {viewMode === 'carte' ? (
+            /* Vue Carte */
+            <View style={styles.mapContainer}>
+              {mapLoading ? (
+                <View style={styles.mapLoadingContainer}>
+                  <ActivityIndicator size="large" color={Colors.primary[600]} />
+                  <Text style={styles.mapLoadingText}>Chargement des stores à proximité...</Text>
+                </View>
+              ) : !userLocation ? (
+                <View style={styles.mapLoadingContainer}>
+                  <Ionicons name="location-outline" size={48} color={Colors.text.secondary} />
+                  <Text style={styles.mapLoadingText}>Activation de la géolocalisation...</Text>
+                  <TouchableOpacity 
+                    style={styles.locationButton}
+                    onPress={requestLocationPermission}
+                  >
+                    <Text style={styles.locationButtonText}>Autoriser la géolocalisation</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <WebView
+                    style={styles.map}
+                    source={{
+                      html: generateMapHTML(userLocation, mapStores),
+                    }}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    onMessage={(event) => {
+                      // Gérer les clics sur les stores depuis la WebView
+                      const data = JSON.parse(event.nativeEvent.data);
+                      if (data.type === 'storeClick' && data.storeId) {
+                        const store = mapStores.find(s => s.id === data.storeId);
+                        if (store) {
+                          handlePartnerSelect(store);
+                        }
+                      }
+                    }}
+                  />
+
+                  {/* Contrôles de la carte */}
+                  <View style={styles.mapControls}>
+                    <TouchableOpacity 
+                      style={styles.mapControlButton}
+                      onPress={getCurrentLocation}
+                    >
+                      <Ionicons name="locate" size={24} color={Colors.primary[600]} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={styles.mapControlButton}
+                      onPress={loadStoresNearby}
+                    >
+                      <Ionicons name="refresh" size={24} color={Colors.primary[600]} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Info sur les stores */}
+                  <View style={styles.mapInfo}>
+                    <Text style={styles.mapInfoText}>
+                      {mapStores.length} store{mapStores.length > 1 ? 's' : ''} dans un rayon de 50km
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+          ) : viewMode === 'grille' ? (
             /* Grille des partenaires */
             <View style={styles.partnersGrid}>
               <ScrollView
@@ -838,6 +1223,104 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   } as TextStyle,
   
+  // Carte
+  mapContainer: {
+    flex: 1,
+    height: 600,
+    marginTop: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    backgroundColor: Colors.background.card,
+    ...Shadows.md,
+  } as ViewStyle,
+  map: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  } as ViewStyle,
+  mapLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+    gap: Spacing.md,
+    minHeight: 400,
+  } as ViewStyle,
+  mapLoadingText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+  } as TextStyle,
+  locationButton: {
+    backgroundColor: Colors.primary[600],
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.md,
+  } as ViewStyle,
+  locationButtonText: {
+    color: 'white',
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+  } as TextStyle,
+  mapControls: {
+    position: 'absolute',
+    right: Spacing.md,
+    top: Spacing.md,
+    gap: Spacing.sm,
+  } as ViewStyle,
+  mapControlButton: {
+    backgroundColor: Colors.background.card,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadows.md,
+  } as ViewStyle,
+  mapInfo: {
+    position: 'absolute',
+    bottom: Spacing.md,
+    left: Spacing.md,
+    right: Spacing.md,
+    backgroundColor: Colors.background.card,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    ...Shadows.md,
+  } as ViewStyle,
+  mapInfoText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.primary,
+    fontWeight: '600',
+    textAlign: 'center',
+  } as TextStyle,
+  userMarker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary[600],
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+    ...Shadows.md,
+  } as ViewStyle,
+  storeMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+    ...Shadows.md,
+  } as ViewStyle,
+  storeMarkerOpen: {
+    backgroundColor: Colors.status.success,
+  } as ViewStyle,
+  storeMarkerClosed: {
+    backgroundColor: Colors.status.error,
+  } as ViewStyle,
   // Liste
   partnersList: {
     flex: 1,

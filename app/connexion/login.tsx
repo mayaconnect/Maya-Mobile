@@ -7,19 +7,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'partners' | 'client'>('client');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -37,7 +38,7 @@ export default function LoginScreen() {
       return;
     }
     try {
-      await signIn({ email, password });
+      await signIn({ email, password, role });
       // Redirection vers la page home après connexion réussie
       router.replace('/(tabs)/home');
     } catch (error) {
@@ -98,6 +99,38 @@ export default function LoginScreen() {
               ) : null}
 
               {/* Connexion sociale désactivée temporairement */}
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Rôle</Text>
+                <View style={styles.roleSelector}>
+                  <TouchableOpacity
+                    style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
+                    onPress={() => setRole('client')}
+                  >
+                    <Ionicons 
+                      name="person" 
+                      size={18} 
+                      color={role === 'client' ? 'white' : '#6B7280'} 
+                    />
+                    <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
+                      Client
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleButton, role === 'partners' && styles.roleButtonActive]}
+                    onPress={() => setRole('partners')}
+                  >
+                    <Ionicons 
+                      name="storefront" 
+                      size={18} 
+                      color={role === 'partners' ? 'white' : '#6B7280'} 
+                    />
+                    <Text style={[styles.roleButtonText, role === 'partners' && styles.roleButtonTextActive]}>
+                      Partenaire
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
@@ -220,6 +253,11 @@ type LoginStyles = {
   errorBannerText: TextStyle;
   inputError: ViewStyle;
   fieldError: TextStyle;
+  roleSelector: ViewStyle;
+  roleButton: ViewStyle;
+  roleButtonActive: ViewStyle;
+  roleButtonText: TextStyle;
+  roleButtonTextActive: TextStyle;
 };
 
 const styles = StyleSheet.create<LoginStyles>({
@@ -423,5 +461,36 @@ const styles = StyleSheet.create<LoginStyles>({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  roleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: 'white',
+  },
+  roleButtonActive: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  roleButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  roleButtonTextActive: {
+    color: 'white',
+    fontWeight: '600',
   },
 });

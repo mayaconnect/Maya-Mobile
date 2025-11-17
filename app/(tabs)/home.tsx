@@ -4,22 +4,29 @@ import { HomeHeader } from '@/components/headers/home-header';
 import { QRScanner } from '@/components/qr/qr-scanner';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
+import { QrService, QrTokenData } from '@/services/qr.service';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    View,
-    ViewStyle,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [qrData, setQrData] = useState<QrTokenData | null>(null);
+  const [qrLoading, setQrLoading] = useState(true);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [qrSeed, setQrSeed] = useState(() => Date.now());
 
   // Vérifier si l'utilisateur est un partenaire
   useEffect(() => {
@@ -34,6 +41,32 @@ export default function HomeScreen() {
       router.replace('/(tabs)/partner-home');
     }
   }, [user]);
+
+  // Charger le QR Code côté client
+  const loadQrToken = useCallback(async (forceRefresh: boolean = false) => {
+    setQrLoading(true);
+    setQrError(null);
+    try {
+      const token = await QrService.issueQrToken(forceRefresh);
+      setQrData(token);
+      setQrSeed(Date.now());
+    } catch (error) {
+      console.error('Erreur lors du chargement du QR Code:', error);
+      setQrError("Impossible de charger le QR Code.");
+    } finally {
+      setQrLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user?.email?.toLowerCase().includes('partner')) {
+      loadQrToken();
+    }
+  }, [loadQrToken, user]);
+
+  const handleReloadQR = useCallback(() => {
+    loadQrToken(true);
+  }, [loadQrToken]);
 
   const handleScanPartner = () => {
     setShowQRScanner(true);
@@ -59,10 +92,6 @@ export default function HomeScreen() {
     );
   };
 
-  const handlePartnerMode = () => {
-    // Logique pour le mode partenaire
-    console.log('Mode partenaire');
-  };
 
   return (
     <NavigationTransition>
@@ -95,31 +124,68 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.qrCard}>
-            <Text style={styles.qrTitle}>Votre QR Code Maya</Text>
-            <Text style={styles.qrSubtitle}>Présentez ce code chez tous nos partenaires</Text>
+            <View style={styles.qrCardHeader}>
+              <View>
+                <Text style={styles.qrTitle}>Votre QR Code Maya</Text>
+                <Text style={styles.qrSubtitle}>Présentez ce code chez tous nos partenaires</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.qrReloadButton}
+                onPress={handleReloadQR}
+                disabled={qrLoading}
+              >
+                <Ionicons 
+                  name="refresh" 
+                  size={20} 
+                  color={Colors.primary[600]} 
+                  style={qrLoading && { opacity: 0.5 }}
+                />
+              </TouchableOpacity>
+            </View>
             
             <View style={styles.qrContainer}>
-              <View style={styles.qrCode}>
-                {/* QR Code simulé avec design amélioré */}
-                <View style={styles.qrGrid}>
-                  {Array.from({ length: 49 }, (_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.qrSquare,
-                        { 
-                          backgroundColor: (i % 7 + Math.floor(i / 7)) % 2 === 0 ? '#8B5CF6' : 'white',
-                          borderRadius: 2,
-                        }
-                      ]}
-                    />
-                  ))}
+              {qrLoading ? (
+                <View style={styles.qrLoadingContainer}>
+                  <ActivityIndicator size="large" color={Colors.primary[600]} />
+                  <Text style={styles.qrLoadingText}>Génération du QR Code...</Text>
                 </View>
-                {/* Points de détection QR */}
-                <View style={styles.qrCorner} />
-                <View style={[styles.qrCorner, styles.qrCornerTopRight]} />
-                <View style={[styles.qrCorner, styles.qrCornerBottomLeft]} />
-              </View>
+              ) : qrError ? (
+                <View style={styles.qrErrorContainer}>
+                  <Ionicons name="alert-circle" size={32} color={Colors.status.error} />
+                  <Text style={styles.qrErrorText}>{qrError}</Text>
+                  <TouchableOpacity 
+                    style={styles.qrRetryButton}
+                    onPress={() => loadQrToken(true)}
+                  >
+                    <Text style={styles.qrRetryText}>Réessayer</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : qrData ? (
+                <View style={styles.qrCode}>
+                  {/* QR Code généré à partir du token */}
+                  <View style={styles.qrGrid}>
+                    {Array.from({ length: 49 }, (_, i) => {
+                      const isEven = (i + qrSeed) % 2 === 0;
+                      return (
+                        <View
+                          key={`${qrSeed}-${i}`}
+                          style={[
+                            styles.qrSquare,
+                            { 
+                              backgroundColor: isEven ? '#8B5CF6' : 'white',
+                              borderRadius: 2,
+                            }
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                  {/* Points de détection QR */}
+                  <View style={styles.qrCorner} />
+                  <View style={[styles.qrCorner, styles.qrCornerTopRight]} />
+                  <View style={[styles.qrCorner, styles.qrCornerBottomLeft]} />
+                </View>
+              ) : null}
             </View>
 
             <AnimatedButton
@@ -202,18 +268,62 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     ...Shadows.lg,
   } as ViewStyle,
+  qrCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.lg,
+  } as ViewStyle,
+  qrReloadButton: {
+    padding: Spacing.sm,
+    backgroundColor: Colors.primary[50],
+    borderRadius: BorderRadius.md,
+  } as ViewStyle,
   qrTitle: {
     fontSize: Typography.sizes.xl,
     fontWeight: 'bold',
     color: Colors.text.primary,
-    textAlign: 'center',
     marginBottom: Spacing.sm,
   } as TextStyle,
   qrSubtitle: {
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
+  } as TextStyle,
+  qrLoadingContainer: {
+    width: 180,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.md,
+  } as ViewStyle,
+  qrLoadingText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  qrErrorContainer: {
+    width: 180,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+  } as ViewStyle,
+  qrErrorText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.status.error,
     textAlign: 'center',
-    marginBottom: Spacing.xl,
+  } as TextStyle,
+  qrRetryButton: {
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.primary[600],
+    borderRadius: BorderRadius.md,
+  } as ViewStyle,
+  qrRetryText: {
+    color: 'white',
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
   } as TextStyle,
   qrContainer: {
     alignItems: 'center',
