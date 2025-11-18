@@ -28,6 +28,7 @@ const ForgotPasswordScreen: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [confirmError, setConfirmError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const resetMessages = () => {
     setErrorMessage('');
@@ -94,11 +95,22 @@ const ForgotPasswordScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      await AuthService.verifyPasswordResetCode(email, code);
+      console.log('🔍 [Forgot Password] Vérification du code...');
+      const token = await AuthService.verifyPasswordResetCode(email, code);
+      
+      if (token) {
+        console.log('✅ [Forgot Password] Token de réinitialisation reçu');
+        setResetToken(token);
+      } else {
+        console.log('✅ [Forgot Password] Code vérifié, utilisation du code comme token');
+        // Si l'API ne retourne pas de token, utiliser le code comme token
+        setResetToken(code);
+      }
+      
       setSuccessMessage('✅ Code vérifié ! Créez votre nouveau mot de passe');
       setStep('reset');
     } catch (error) {
-      console.error('Erreur lors de la vérification du code:', error);
+      console.error('❌ [Forgot Password] Erreur lors de la vérification du code:', error);
       setCodeError('Code incorrect');
       setErrorMessage('❌ Code de vérification incorrect');
     } finally {
@@ -130,12 +142,27 @@ const ForgotPasswordScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      await AuthService.resetPassword(code, newPassword, email);
+      // Utiliser le token de réinitialisation (obtenu lors de la vérification du code)
+      // Si pas de token, utiliser le code comme fallback
+      const token = resetToken || code;
+      
+      console.log('🔐 [Forgot Password] Réinitialisation du mot de passe...');
+      console.log('📋 [Forgot Password] Paramètres:', {
+        hasToken: !!resetToken,
+        tokenLength: token.length,
+        passwordLength: newPassword.length,
+      });
+      
+      await AuthService.resetPassword(token, newPassword);
       setSuccessMessage('✅ Mot de passe réinitialisé avec succès !');
       setTimeout(() => router.replace('/connexion/login'), 2000);
     } catch (error) {
-      console.error('Erreur lors de la réinitialisation:', error);
-      setErrorMessage('❌ Échec de la réinitialisation');
+      console.error('❌ [Forgot Password] Erreur lors de la réinitialisation:', error);
+      if (error instanceof Error) {
+        setErrorMessage(`❌ ${error.message}`);
+      } else {
+        setErrorMessage('❌ Échec de la réinitialisation');
+      }
     } finally {
       setLoading(false);
     }

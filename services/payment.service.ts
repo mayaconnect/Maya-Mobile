@@ -3,6 +3,42 @@
  * Gère les paiements via PayPal, Apple Pay, Google Pay et cartes bancaires
  */
 
+import { API_BASE_URL, AuthService } from './auth.service';
+import { apiCall } from './shared/api';
+
+const PAYMENTS_API_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/i, '/api');
+
+const paymentsApiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
+  const token = await AuthService.getAccessToken();
+  console.log('🔑 [Payments Service] Token disponible:', token ? token.substring(0, 20) + '...' : 'Aucun');
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> | undefined),
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+    console.log('✅ [Payments Service] Token ajouté aux headers');
+  } else {
+    console.warn('⚠️ [Payments Service] Aucun token disponible');
+  }
+
+  const finalOptions: RequestInit = {
+    ...options,
+    headers,
+  };
+
+  console.log('📤 [Payments Service] Options de requête:', {
+    method: finalOptions.method || 'GET',
+    hasBody: !!finalOptions.body,
+    hasAuth: !!headers.Authorization,
+    headers: Object.keys(headers),
+  });
+
+  return apiCall<T>(endpoint, finalOptions, 0, PAYMENTS_API_BASE_URL);
+};
+
 export type PaymentMethod = 'card' | 'paypal' | 'applepay' | 'googlepay';
 
 export interface PaymentRequest {
@@ -224,6 +260,61 @@ export const PaymentService = {
       return Platform.OS === 'android';
     } catch {
       return false;
+    }
+  },
+
+  /**
+   * Créer une session de checkout pour un abonnement
+   * @param planCode - Code du plan d'abonnement (ex: "individual", "duo", "famille", "vip")
+   * @param successUrl - URL de redirection en cas de succès
+   * @param cancelUrl - URL de redirection en cas d'annulation
+   * @returns URL de la session de checkout ou données de la session
+   */
+  createCheckoutSession: async (
+    planCode: string,
+    successUrl: string,
+    cancelUrl: string
+  ): Promise<any> => {
+    console.log('💳 [Payments Service] createCheckoutSession appelé');
+    console.log('📋 [Payments Service] Paramètres:', {
+      planCode,
+      successUrl,
+      cancelUrl,
+    });
+
+    try {
+      const startTime = Date.now();
+      const response = await paymentsApiCall<any>('/payments/create-checkout-session', {
+        method: 'POST',
+        body: JSON.stringify({
+          planCode,
+          successUrl,
+          cancelUrl,
+        }),
+      });
+      const duration = Date.now() - startTime;
+
+      console.log('✅ [Payments Service] Session de checkout créée', {
+        duration: duration + 'ms',
+        hasUrl: !!response?.url,
+        hasSessionId: !!response?.sessionId,
+        responseKeys: response ? Object.keys(response) : [],
+      });
+
+      if (response) {
+        console.log('📄 [Payments Service] Réponse complète:', JSON.stringify(response, null, 2));
+      }
+
+      return response;
+    } catch (error) {
+      console.error('❌ [Payments Service] Erreur lors de la création de la session:', error);
+      if (error instanceof Error) {
+        console.error('❌ [Payments Service] Détails de l\'erreur:', {
+          message: error.message,
+          name: error.name,
+        });
+      }
+      throw error;
     }
   },
 };

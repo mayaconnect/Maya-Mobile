@@ -7,6 +7,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   signIn: (params: LoginRequest) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (params: RegisterRequest) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -87,6 +88,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    setLoading(true);
+    try {
+      const userInfo = await AuthService.signInWithGoogle();
+      setUser(userInfo);
+      console.log('✅ Connexion Google réussie:', userInfo.email);
+      
+      // Essayer de récupérer les infos complètes depuis l'API en arrière-plan
+      try {
+        const updatedUserInfo = await AuthService.getCurrentUserInfo();
+        if (updatedUserInfo) {
+          setUser(updatedUserInfo);
+          console.log('🔄 Infos utilisateur mises à jour depuis l\'API');
+        }
+      } catch {
+        console.log('⚠️ Impossible de récupérer les infos complètes, utilisation des données de base');
+      }
+    } catch (error) {
+      setUser(null);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const signUp = useCallback(async (registerData: RegisterRequest) => {
     setLoading(true);
     try {
@@ -144,8 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, signIn, signUp, signOut, refreshUser }),
-    [user, loading, signIn, signUp, signOut, refreshUser]
+    () => ({ user, loading, signIn, signInWithGoogle, signUp, signOut, refreshUser }),
+    [user, loading, signIn, signInWithGoogle, signUp, signOut, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

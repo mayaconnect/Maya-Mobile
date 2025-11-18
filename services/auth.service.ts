@@ -1,5 +1,6 @@
 import usersData from '@/data/users.json';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as AuthSession from 'expo-auth-session';
 
 // Interface pour l'adresse selon l'API backend
 export interface Address {
@@ -19,6 +20,7 @@ export interface RegisterRequest {
   birthDate: string; // ISO 8601 format
   address: Address;
   avatarBase64?: string;
+  role?: 'partners' | 'client';
 }
 
 // Interface utilisateur complète (local)
@@ -50,6 +52,7 @@ export interface PublicUser {
 export interface LoginRequest {
   email: string;
   password: string;
+  role?: 'partners' | 'client';
 }
 
 // Interface de réponse de l'API
@@ -616,20 +619,51 @@ export const AuthService = {
   },
 
   /**
-   * Étape 3 - Vérifier le code reçu
+   * Vérifier le code de réinitialisation (étape 3)
+   * POST /api/v1/auth/verify-password-reset-code
    * @param email - Email de l'utilisateur
-   * @param code - Code de vérification
+   * @param code - Code de vérification reçu
+   * @returns Token de réinitialisation (si l'API le retourne, sinon undefined)
    */
-  verifyPasswordResetCode: async (email: string, code: string): Promise<void> => {
+  verifyPasswordResetCode: async (email: string, code: string): Promise<string | undefined> => {
+    console.log('🔐 [Auth Service] verifyPasswordResetCode appelé');
+    console.log('📋 [Auth Service] Paramètres:', {
+      email,
+      codeLength: code.length,
+      codePreview: code.substring(0, 2) + '...',
+    });
+    console.log('🌐 [Auth Service] Appel API: POST /api/v1/auth/verify-password-reset-code');
+    
     try {
-      await apiCall('/auth/verify-password-reset-code', {
+      const startTime = Date.now();
+      const response = await apiCall<any>('/auth/verify-password-reset-code', {
         method: 'POST',
         body: JSON.stringify({ email, code }),
       });
+      const duration = Date.now() - startTime;
 
-      console.log('✅ Code de reset vérifié');
+      console.log('✅ [Auth Service] Code de reset vérifié', {
+        duration: duration + 'ms',
+        hasToken: !!response?.token,
+        responseKeys: response ? Object.keys(response) : [],
+      });
+
+      // Si l'API retourne un token, le retourner pour l'étape suivante
+      if (response?.token) {
+        console.log('🔑 [Auth Service] Token de réinitialisation reçu');
+        return response.token;
+      }
+
+      console.log('✅ [Auth Service] Code vérifié avec succès (pas de token retourné)');
+      return undefined;
     } catch (error) {
-      console.log('❌ Code invalide:', error);
+      console.error('❌ [Auth Service] Code invalide:', error);
+      if (error instanceof Error) {
+        console.error('❌ [Auth Service] Détails de l\'erreur:', {
+          message: error.message,
+          name: error.name,
+        });
+      }
       throw new Error('Code de vérification invalide');
     }
   },
@@ -640,26 +674,35 @@ export const AuthService = {
    * @param newPassword - Nouveau mot de passe
    * @returns Confirmation de la réinitialisation
    */
-  resetPassword: async (code: string, newPassword: string, email?: string): Promise<void> => {
+  resetPassword: async (token: string, newPassword: string): Promise<void> => {
+    console.log('🔐 [Auth Service] resetPassword appelé');
+    console.log('📋 [Auth Service] Paramètres:', {
+      tokenLength: token.length,
+      tokenPreview: token.substring(0, 20) + '...',
+      passwordLength: newPassword.length,
+    });
+    console.log('🌐 [Auth Service] Appel API: POST /api/v1/auth/reset-password');
+    
     try {
-      const payload: Record<string, string> = {
-        code,
-        newPassword,
-      };
-
-      if (email) {
-        payload.email = email;
-      }
-
+      const startTime = Date.now();
       await apiCall('/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ token, newPassword }),
       });
+      const duration = Date.now() - startTime;
 
-      console.log('✅ Mot de passe réinitialisé avec succès');
+      console.log('✅ [Auth Service] Mot de passe réinitialisé avec succès', {
+        duration: duration + 'ms',
+      });
     } catch (error) {
-      console.log('❌ Erreur lors de la réinitialisation:', error);
-      throw new Error('Échec de la réinitialisation du mot de passe');
+      console.error('❌ [Auth Service] Erreur lors de la réinitialisation:', error);
+      if (error instanceof Error) {
+        console.error('❌ [Auth Service] Détails de l\'erreur:', {
+          message: error.message,
+          name: error.name,
+        });
+      }
+      throw new Error('Impossible de réinitialiser le mot de passe');
     }
   },
   getAccessToken: async (): Promise<string | null> => {
@@ -780,27 +823,85 @@ export const AuthService = {
    * @returns Informations complètes de l'utilisateur
    */
   getCurrentUserInfo: async (): Promise<PublicUser> => {
+    console.log('👤 [Auth Service] getCurrentUserInfo appelé');
+    
     try {
       // Vérifier d'abord si l'utilisateur est authentifié
+      console.log('🔐 [Auth Service] Vérification de l\'authentification...');
       const isAuth = await AuthService.isAuthenticated();
+      console.log('🔐 [Auth Service] Authentifié:', isAuth);
+      
       if (!isAuth) {
+        console.error('❌ [Auth Service] Utilisateur non authentifié');
         throw new Error('Utilisateur non authentifié');
       }
 
+      const token = await getTokens();
+      console.log('🔑 [Auth Service] Token disponible:', token ? token.accessToken.substring(0, 20) + '...' : 'Aucun');
+      console.log('🌐 [Auth Service] Appel API: GET /api/v1/auth/me');
+      console.log('🌐 [Auth Service] Base URL:', API_BASE_URL);
+
+      const startTime = Date.now();
       const response = await apiCall<any>('/auth/me', {
         method: 'GET',
       });
+      const duration = Date.now() - startTime;
+
+      console.log('✅ [Auth Service] Réponse API reçue', {
+        duration: duration + 'ms',
+        hasUser: !!response?.user,
+        hasData: !!response?.data,
+        responseKeys: response ? Object.keys(response) : [],
+      });
+
+      if (response) {
+        console.log('📄 [Auth Service] Contenu de la réponse:', {
+          responseType: typeof response,
+          isUser: !!response.user,
+          isDirect: !response.user && !response.data,
+          fullResponse: JSON.stringify(response, null, 2),
+        });
+      }
 
       const userData: PublicUser | undefined = response?.user ?? response;
 
       if (!userData) {
+        console.error('❌ [Auth Service] Aucune donnée utilisateur dans la réponse', {
+          response,
+        });
         throw new Error('Aucune donnée utilisateur reçue');
       }
 
-      console.log('👤 Informations utilisateur récupérées depuis l\'API:', userData.email);
+      console.log('✅ [Auth Service] Informations utilisateur récupérées', {
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        hasAddress: !!userData.address,
+        hasBirthDate: !!userData.birthDate,
+        hasAvatar: !!userData.avatarBase64,
+        address: userData.address,
+      });
+
+      // Sauvegarder les informations mises à jour
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+      console.log('💾 [Auth Service] Informations utilisateur sauvegardées localement');
+
       return userData;
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération des infos utilisateur:', error);
+      console.error('❌ [Auth Service] Erreur lors de la récupération des infos utilisateur:', error);
+      if (error instanceof Error) {
+        console.error('❌ [Auth Service] Détails de l\'erreur:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.substring(0, 200),
+        });
+
+        // Si le token a expiré, essayer de le rafraîchir
+        if (error.message.includes('401') || error.message.includes('expired') || error.message.includes('invalid_token')) {
+          console.log('🔄 [Auth Service] Token expiré, tentative de rafraîchissement...');
+          // Note: Le refresh token devrait être géré automatiquement par le hook useAuth
+        }
+      }
       throw new Error('Impossible de récupérer les informations utilisateur');
     }
   },
@@ -831,5 +932,225 @@ export const AuthService = {
     }
   },
 
+  /**
+   * Met à jour le profil de l'utilisateur actuel (PUT /auth/me)
+   */
+  updateCurrentUser: async (updates: Partial<Omit<PublicUser, 'id' | 'createdAt'>>): Promise<PublicUser> => {
+    try {
+      const response = await apiCall<any>('/auth/me', {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+
+      const userData: PublicUser = response?.user ?? response;
+
+      // Mettre à jour le cache local
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+
+      return userData;
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour du profil:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Upload un avatar (POST /auth/upload-avatar, multipart, max 5MB)
+   */
+  uploadAvatar: async (imageUri: string): Promise<PublicUser> => {
+    try {
+      // Créer un FormData pour l'upload multipart
+      const formData = new FormData();
+      
+      // Extraire le nom du fichier de l'URI
+      const filename = imageUri.split('/').pop() || 'avatar.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+
+      formData.append('file', {
+        uri: imageUri,
+        name: filename,
+        type: type,
+      } as any);
+
+      const token = await AuthService.getAccessToken();
+      const headers: Record<string, string> = {};
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await apiCall<any>('/auth/upload-avatar', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const userData: PublicUser = response?.user ?? response;
+
+      // Mettre à jour le cache local
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+
+      return userData;
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'upload de l\'avatar:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Connexion via Google OAuth
+   * @returns L'utilisateur connecté
+   * @throws Error si la connexion Google échoue
+   */
+  signInWithGoogle: async (): Promise<PublicUser> => {
+    console.log('🔐 [Auth Service] Début de la connexion Google...');
+    
+    try {
+      // Configuration de la requête d'authentification Google
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+      };
+
+      // Récupérer le Client ID depuis les variables d'environnement ou app.json
+      const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 
+                       '535870809549-kanp7rd1hmu5ubq88aejlg2pk78htjhi.apps.googleusercontent.com';
+      
+      if (!clientId) {
+        throw new Error('Google Client ID non configuré. Veuillez définir EXPO_PUBLIC_GOOGLE_CLIENT_ID');
+      }
+
+      // Créer la requête d'authentification
+      const request = new AuthSession.AuthRequest({
+        clientId: clientId,
+        scopes: ['openid', 'profile', 'email'],
+        responseType: AuthSession.ResponseType.IdToken,
+        redirectUri: AuthSession.makeRedirectUri({
+          scheme: 'maya',
+          path: 'auth',
+        }),
+      });
+
+      console.log('🌐 [Auth Service] Requête d\'authentification Google créée');
+      console.log('📋 [Auth Service] Configuration:', {
+        clientId: clientId.substring(0, 20) + '...',
+        clientIdConfigured: !!clientId,
+        redirectUri: request.redirectUri,
+        scopes: request.scopes,
+      });
+
+      // Lancer la requête d'authentification
+      const result = await request.promptAsync(discovery);
+      
+      console.log('📥 [Auth Service] Résultat de l\'authentification Google:', {
+        type: result.type,
+      });
+
+      if (result.type === 'success' && 'params' in result) {
+        const { id_token } = (result.params as { id_token?: string });
+        
+        if (!id_token) {
+          console.error('❌ [Auth Service] Aucun id_token reçu de Google');
+          throw new Error('Aucun token Google reçu');
+        }
+
+        console.log('✅ [Auth Service] ID Token Google reçu:', id_token.substring(0, 30) + '...');
+        console.log('🌐 [Auth Service] Appel API: POST /api/v1/auth/google');
+        console.log('🌐 [Auth Service] Base URL:', API_BASE_URL);
+
+        // Envoyer l'idToken à votre API backend
+        const startTime = Date.now();
+        const response = await apiCall<any>('/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({
+            idToken: id_token,
+          }),
+        });
+        const duration = Date.now() - startTime;
+
+        console.log('✅ [Auth Service] Réponse API reçue:', {
+          duration: duration + 'ms',
+          hasUser: !!response?.user,
+          hasAccessToken: !!response?.accessToken,
+          responseKeys: response ? Object.keys(response) : [],
+        });
+
+        // Extraire les données de l'utilisateur de la réponse
+        const userData = response.user || response.data || response;
+        
+        // Créer l'utilisateur avec les données reçues
+        const user: User = {
+          id: userData.id || response.userId || 'temp-id',
+          email: userData.email || '',
+          password: '', // Pas de mot de passe pour Google
+          firstName: userData.firstName || userData.first_name || userData.given_name || 'Utilisateur',
+          lastName: userData.lastName || userData.last_name || userData.family_name || 'Maya',
+          birthDate: userData.birthDate || userData.birth_date || new Date().toISOString(),
+          address: userData.address || {
+            street: '',
+            city: '',
+            state: '',
+            postalCode: '',
+            country: 'France'
+          },
+          avatarBase64: userData.avatarBase64 || userData.avatar || userData.picture || '',
+          createdAt: userData.createdAt || userData.created_at || new Date().toISOString(),
+        };
+
+        // Stocker les tokens reçus de l'API
+        if (response.accessToken) {
+          const tokenData: TokenData = {
+            accessToken: response.accessToken,
+            refreshToken: response.refreshToken,
+            expiresAt: response.expiresAt || new Date(Date.now() + 3600000).toISOString(),
+            userId: user.id,
+          };
+          
+          await saveTokens(tokenData);
+          console.log('🔑 [Auth Service] Token sauvegardé:', response.accessToken.substring(0, 20) + '...');
+        } else {
+          console.warn('⚠️ [Auth Service] Pas de token dans la réponse');
+        }
+
+        // Retourner l'utilisateur public
+        const publicUser: PublicUser = {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          birthDate: user.birthDate,
+          address: user.address,
+          avatarBase64: user.avatarBase64,
+          createdAt: user.createdAt,
+        };
+
+        // Sauvegarder l'utilisateur connecté
+        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(publicUser));
+        console.log('👤 [Auth Service] Utilisateur Google sauvegardé:', publicUser.email);
+
+        return publicUser;
+      } else if (result.type === 'error' && 'errorCode' in result) {
+        console.error('❌ [Auth Service] Erreur lors de l\'authentification Google:', {
+          error: result.errorCode,
+        });
+        throw new Error(result.errorCode || 'Erreur lors de la connexion Google');
+      } else {
+        console.log('❌ [Auth Service] Authentification Google annulée par l\'utilisateur');
+        throw new Error('Connexion Google annulée');
+      }
+    } catch (error) {
+      console.error('❌ [Auth Service] Erreur lors de la connexion Google:', error);
+      if (error instanceof Error) {
+        console.error('❌ [Auth Service] Détails de l\'erreur:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.substring(0, 200),
+        });
+      }
+      throw error;
+    }
+  },
 };
 

@@ -7,24 +7,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'partners' | 'client'>('client');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleLogin = async () => {
     // Réinitialiser les erreurs
@@ -37,7 +39,7 @@ export default function LoginScreen() {
       return;
     }
     try {
-      await signIn({ email, password });
+      await signIn({ email, password, role });
       // Redirection vers la page home après connexion réussie
       router.replace('/(tabs)/home');
     } catch (error) {
@@ -97,7 +99,81 @@ export default function LoginScreen() {
                 </View>
               ) : null}
 
-              {/* Connexion sociale désactivée temporairement */}
+              {/* Bouton de connexion Google */}
+              <TouchableOpacity
+                style={[styles.googleButton, googleLoading && styles.googleButtonDisabled]}
+                onPress={async () => {
+                  setGoogleLoading(true);
+                  setErrorMessage('');
+                  try {
+                    await signInWithGoogle();
+                    router.replace('/(tabs)/home');
+                  } catch (error) {
+                    console.error('Erreur lors de la connexion Google:', error);
+                    if (error instanceof Error) {
+                      if (error.message.includes('annulée')) {
+                        setErrorMessage('Connexion Google annulée');
+                      } else {
+                        setErrorMessage(`❌ Erreur Google: ${error.message}`);
+                      }
+                    } else {
+                      setErrorMessage('❌ Échec de la connexion Google. Veuillez réessayer.');
+                    }
+                  } finally {
+                    setGoogleLoading(false);
+                  }
+                }}
+                disabled={googleLoading}
+              >
+                <View style={styles.googleButtonContent}>
+                  {googleLoading ? (
+                    <Text style={styles.googleButtonText}>Connexion...</Text>
+                  ) : (
+                    <>
+                      <Ionicons name="logo-google" size={20} color="#4285F4" />
+                      <Text style={styles.googleButtonText}>Continuer avec Google</Text>
+                    </>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OU</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Rôle</Text>
+                <View style={styles.roleSelector}>
+                  <TouchableOpacity
+                    style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
+                    onPress={() => setRole('client')}
+                  >
+                    <Ionicons 
+                      name="person" 
+                      size={18} 
+                      color={role === 'client' ? 'white' : '#6B7280'} 
+                    />
+                    <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
+                      Client
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleButton, role === 'partners' && styles.roleButtonActive]}
+                    onPress={() => setRole('partners')}
+                  >
+                    <Ionicons 
+                      name="storefront" 
+                      size={18} 
+                      color={role === 'partners' ? 'white' : '#6B7280'} 
+                    />
+                    <Text style={[styles.roleButtonText, role === 'partners' && styles.roleButtonTextActive]}>
+                      Partenaire
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
@@ -201,6 +277,10 @@ type LoginStyles = {
   socialButton: ViewStyle;
   socialIconButton: ViewStyle;
   socialButtonText: TextStyle;
+  googleButton: ViewStyle;
+  googleButtonDisabled: ViewStyle;
+  googleButtonContent: ViewStyle;
+  googleButtonText: TextStyle;
   divider: ViewStyle;
   dividerLine: ViewStyle;
   dividerText: TextStyle;
@@ -220,6 +300,11 @@ type LoginStyles = {
   errorBannerText: TextStyle;
   inputError: ViewStyle;
   fieldError: TextStyle;
+  roleSelector: ViewStyle;
+  roleButton: ViewStyle;
+  roleButtonActive: ViewStyle;
+  roleButtonText: TextStyle;
+  roleButtonTextActive: TextStyle;
 };
 
 const styles = StyleSheet.create<LoginStyles>({
@@ -326,6 +411,30 @@ const styles = StyleSheet.create<LoginStyles>({
     fontSize: 14,
     fontWeight: '500',
   },
+  googleButton: {
+    backgroundColor: 'white',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    ...Shadows.sm,
+  } as ViewStyle,
+  googleButtonDisabled: {
+    opacity: 0.6,
+  } as ViewStyle,
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  googleButtonText: {
+    color: '#1F2937',
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+  } as TextStyle,
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -423,5 +532,36 @@ const styles = StyleSheet.create<LoginStyles>({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  roleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: 'white',
+  },
+  roleButtonActive: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  roleButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  roleButtonTextActive: {
+    color: 'white',
+    fontWeight: '600',
   },
 });

@@ -9,7 +9,22 @@ export const apiCall = async <T>(
   const baseUrl = baseUrlOverride ?? API_BASE_URL;
   const url = `${baseUrl}${endpoint}`;
 
-  const response = await fetch(url, options);
+  // S'assurer que les headers sont correctement passés
+  const finalOptions: RequestInit = {
+    ...options,
+    headers: {
+      ...options.headers,
+    },
+  };
+
+  console.log('🌐 [API Call] Requête:', {
+    url,
+    method: finalOptions.method || 'GET',
+    hasHeaders: !!finalOptions.headers,
+    headersKeys: finalOptions.headers ? Object.keys(finalOptions.headers as Record<string, string>) : [],
+  });
+
+  const response = await fetch(url, finalOptions);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');

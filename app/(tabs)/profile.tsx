@@ -3,10 +3,16 @@ import { NavigationTransition } from '@/components/common/navigation-transition'
 import { ProfileHeader } from '@/components/headers/profile-header';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
+import { AuthService } from '@/services/auth.service';
+import { ClientService } from '@/services/client.service';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Switch,
@@ -22,13 +28,86 @@ export default function ProfileScreen() {
   const [darkMode, setDarkMode] = useState(false);
   const [faceId, setFaceId] = useState(true);
   const [showDebugUsers, setShowDebugUsers] = useState(false);
-  const { signOut, user } = useAuth();
+  const { signOut, user, refreshUser } = useAuth();
+  
+  // États pour les informations complètes
+  const [userInfo, setUserInfo] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any | null>(null);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
+  // Charger les informations complètes de l'utilisateur
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      console.log('👤 [Profile] Chargement des informations utilisateur...');
+      setLoading(true);
+      try {
+        // Récupérer les infos complètes depuis l'API
+        const info = await AuthService.getCurrentUserInfo();
+        console.log('✅ [Profile] Informations utilisateur récupérées:', {
+          email: info.email,
+          firstName: info.firstName,
+          lastName: info.lastName,
+          hasAddress: !!info.address,
+          hasBirthDate: !!info.birthDate,
+        });
+        setUserInfo(info);
+
+        // Récupérer l'abonnement si c'est un client
+        setSubscriptionLoading(true);
+        try {
+          const hasSub = await ClientService.hasActiveSubscription();
+          setHasSubscription(hasSub);
+          console.log('📦 [Profile] Abonnement actif:', hasSub);
+
+          if (hasSub) {
+            const sub = await ClientService.getMySubscription();
+            console.log('✅ [Profile] Détails de l\'abonnement récupérés:', sub);
+            setSubscription(sub);
+          }
+        } catch (error) {
+          console.warn('⚠️ [Profile] Impossible de récupérer l\'abonnement:', error);
+        } finally {
+          setSubscriptionLoading(false);
+        }
+      } catch (error) {
+        console.error('❌ [Profile] Erreur lors du chargement des informations:', error);
+        // Utiliser les données de base si l'API échoue
+        if (user) {
+          setUserInfo(user);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserInfo();
+  }, [user]);
+
   const handlePartnerMode = () => {
     console.log('Mode partenaire');
   };
+
   const handleLogout = async () => {
     await signOut();
     router.replace('/connexion/login');
+  };
+
+  const handleRefresh = async () => {
+    console.log('🔄 [Profile] Actualisation des informations...');
+    setLoading(true);
+    try {
+      await refreshUser();
+      const info = await AuthService.getCurrentUserInfo();
+      setUserInfo(info);
+      console.log('✅ [Profile] Informations actualisées');
+    } catch (error) {
+      console.error('❌ [Profile] Erreur lors de l\'actualisation:', error);
+      Alert.alert('Erreur', 'Impossible d\'actualiser les informations');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,109 +127,275 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={handleRefresh} tintColor={Colors.primary[600]} />
+          }
         >
-          {/* Carte Profil */}
-          <View style={styles.profileCard}>
-            <View style={styles.avatarBadge}>
-              <Text style={styles.avatarInitials}>
-                {user ? `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase() : 'U'}
-              </Text>
+          {loading && !userInfo ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary[600]} />
+              <Text style={styles.loadingText}>Chargement de votre profil...</Text>
             </View>
-            <View style={{ flex: 1 } as ViewStyle}>
-              <Text style={styles.userName}>
-                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur'}
-              </Text>
-              <Text style={styles.userEmail}>{user?.email || 'Non connecté'}</Text>
-              <View style={styles.userMetaRow}>
-                <View style={styles.familyChip}>
-                  <Text style={styles.familyChipText}>Famille</Text>
+          ) : (
+            <>
+              {/* Carte Profil */}
+              <View style={styles.profileCard}>
+                <View style={styles.avatarBadge}>
+                  {userInfo?.avatarBase64 ? (
+                    <Image 
+                      source={{ uri: `data:image/jpeg;base64,${userInfo.avatarBase64}` }}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.avatarInitials}>
+                      {userInfo ? `${userInfo.firstName?.charAt(0) || ''}${userInfo.lastName?.charAt(0) || ''}`.toUpperCase() : 'U'}
+                    </Text>
+                  )}
                 </View>
-                <Text style={styles.userMetaText}>Expire le 10/02/2025</Text>
-              </View>
-            </View>
-          </View>
+                <View style={{ flex: 1 } as ViewStyle}>
+                  <View style={styles.userNameRow}>
+                    <Text style={styles.userName}>
+                      {userInfo ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur'}
+                    </Text>
+                    <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+                      <Ionicons name="refresh" size={18} color={Colors.primary[600]} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.userEmail}>{userInfo?.email || user?.email || 'Non connecté'}</Text>
+                  
+                  {userInfo?.birthDate && (
+                    <View style={styles.userInfoRow}>
+                      <Ionicons name="calendar" size={14} color={Colors.text.secondary} />
+                      <Text style={styles.userInfoText}>
+                        Né(e) le {new Date(userInfo.birthDate).toLocaleDateString('fr-FR')}
+                      </Text>
+                    </View>
+                  )}
 
-          {/* Abonnement */}
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Abonnement</Text>
-              <TouchableOpacity style={styles.ghostButton}>
-                <Text style={styles.ghostButtonText}>Modifier</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.planRow}>
-              <View style={{ flex: 1 } as ViewStyle}>
-                <Text style={styles.planName}>Plan Famille</Text>
-                <Text style={styles.planDetails}>7€/mois • Renouvelé automatiquement</Text>
-              </View>
-              <View style={styles.statusChipActive}>
-                <Text style={styles.statusChipText}>Actif</Text>
-              </View>
-            </View>
-            <TouchableOpacity>
-              <Text style={styles.cancelLink}>Résilier l’abonnement</Text>
-            </TouchableOpacity>
-          </View>
+                  {userInfo?.address && (
+                    <View style={styles.userInfoRow}>
+                      <Ionicons name="location" size={14} color={Colors.text.secondary} />
+                      <Text style={styles.userInfoText} numberOfLines={1}>
+                        {[
+                          userInfo.address.street,
+                          userInfo.address.postalCode,
+                          userInfo.address.city
+                        ].filter(Boolean).join(', ')}
+                      </Text>
+                    </View>
+                  )}
 
-          {/* Moyens de paiement */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Moyens de paiement</Text>
-            <TouchableOpacity style={styles.paymentItem}>
-              <Ionicons name="card" size={18} color={Colors.text.primary} />
-              <View style={{ flex: 1, marginLeft: Spacing.md } as ViewStyle}>
-                <Text style={styles.paymentTitle}>Visa •••• 4242</Text>
-                <View style={styles.inlineRow}>
-                  <View style={styles.defaultChip}><Text style={styles.defaultChipText}>Par défaut</Text></View>
+                  {hasSubscription && (
+                    <View style={styles.userMetaRow}>
+                      <View style={styles.familyChip}>
+                        <Ionicons name="checkmark-circle" size={14} color={Colors.status.success} />
+                        <Text style={styles.familyChipText}>Abonnement actif</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.text.muted} />
-            </TouchableOpacity>
 
-            <TouchableOpacity style={styles.paymentItem}>
-              <Ionicons name="logo-paypal" size={18} color={Colors.text.primary} />
-              <View style={{ flex: 1, marginLeft: Spacing.md } as ViewStyle}>
-                <Text style={styles.paymentTitle}>PayPal</Text>
-                <Text style={styles.paymentSubtitle}>sarah.martinez@email.com</Text>
+              {/* Informations personnelles */}
+              {userInfo && (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>Informations personnelles</Text>
+                  
+                  <View style={styles.infoRow}>
+                    <Ionicons name="person" size={20} color={Colors.text.secondary} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Nom complet</Text>
+                      <Text style={styles.infoValue}>
+                        {userInfo.firstName || ''} {userInfo.lastName || ''}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.separator} />
+
+                  <View style={styles.infoRow}>
+                    <Ionicons name="mail" size={20} color={Colors.text.secondary} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Email</Text>
+                      <Text style={styles.infoValue}>{userInfo.email || 'N/A'}</Text>
+                    </View>
+                  </View>
+
+                  {userInfo.birthDate && (
+                    <>
+                      <View style={styles.separator} />
+                      <View style={styles.infoRow}>
+                        <Ionicons name="calendar" size={20} color={Colors.text.secondary} />
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Date de naissance</Text>
+                          <Text style={styles.infoValue}>
+                            {new Date(userInfo.birthDate).toLocaleDateString('fr-FR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  {userInfo.address && (
+                    <>
+                      <View style={styles.separator} />
+                      <View style={styles.infoRow}>
+                        <Ionicons name="location" size={20} color={Colors.text.secondary} />
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Adresse</Text>
+                          <Text style={styles.infoValue}>
+                            {userInfo.address.street && `${userInfo.address.street}\n`}
+                            {[userInfo.address.postalCode, userInfo.address.city]
+                              .filter(Boolean)
+                              .join(' ')}
+                            {userInfo.address.country && `\n${userInfo.address.country}`}
+                          </Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  {userInfo.phoneNumber && (
+                    <>
+                      <View style={styles.separator} />
+                      <View style={styles.infoRow}>
+                        <Ionicons name="call" size={20} color={Colors.text.secondary} />
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Téléphone</Text>
+                          <Text style={styles.infoValue}>{userInfo.phoneNumber}</Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+
+              {/* Abonnement */}
+              {subscriptionLoading ? (
+                <View style={styles.sectionCard}>
+                  <View style={styles.loadingSection}>
+                    <ActivityIndicator size="small" color={Colors.primary[600]} />
+                    <Text style={styles.loadingSectionText}>Vérification de l'abonnement...</Text>
+                  </View>
+                </View>
+              ) : hasSubscription && subscription ? (
+                <View style={styles.sectionCard}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Abonnement</Text>
+                    <TouchableOpacity style={styles.ghostButton}>
+                      <Text style={styles.ghostButtonText}>Modifier</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.planRow}>
+                    <View style={{ flex: 1 } as ViewStyle}>
+                      <Text style={styles.planName}>
+                        {subscription.planName || subscription.plan?.name || 'Plan actif'}
+                      </Text>
+                      <Text style={styles.planDetails}>
+                        {subscription.price ? `${subscription.price}€` : ''} / {subscription.period || 'mois'}
+                        {subscription.isActive !== false ? ' • Renouvelé automatiquement' : ''}
+                      </Text>
+                      {subscription.startDate && (
+                        <Text style={styles.planDetails}>
+                          Depuis le {new Date(subscription.startDate).toLocaleDateString('fr-FR')}
+                        </Text>
+                      )}
+                      {subscription.endDate && (
+                        <Text style={styles.planDetails}>
+                          Jusqu'au {new Date(subscription.endDate).toLocaleDateString('fr-FR')}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.statusChipActive}>
+                      <Text style={styles.statusChipText}>
+                        {subscription.isActive !== false ? 'Actif' : 'Inactif'}
+                      </Text>
+                    </View>
+                  </View>
+                  {subscription.isActive !== false && (
+                    <TouchableOpacity>
+                      <Text style={styles.cancelLink}>Résilier l'abonnement</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.sectionCard}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Abonnement</Text>
+                  </View>
+                  <View style={styles.noSubscriptionContainer}>
+                    <Ionicons name="card-outline" size={32} color={Colors.text.secondary} />
+                    <Text style={styles.noSubscriptionText}>Aucun abonnement actif</Text>
+                    <TouchableOpacity style={styles.subscribeButton}>
+                      <Text style={styles.subscribeButtonText}>S'abonner</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Moyens de paiement */}
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Moyens de paiement</Text>
+                <TouchableOpacity style={styles.paymentItem}>
+                  <Ionicons name="card" size={18} color={Colors.text.primary} />
+                  <View style={{ flex: 1, marginLeft: Spacing.md } as ViewStyle}>
+                    <Text style={styles.paymentTitle}>Visa •••• 4242</Text>
+                    <View style={styles.inlineRow}>
+                      <View style={styles.defaultChip}><Text style={styles.defaultChipText}>Par défaut</Text></View>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.text.muted} />
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.paymentItem}>
+                  <Ionicons name="logo-paypal" size={18} color={Colors.text.primary} />
+                  <View style={{ flex: 1, marginLeft: Spacing.md } as ViewStyle}>
+                    <Text style={styles.paymentTitle}>PayPal</Text>
+                    <Text style={styles.paymentSubtitle}>{userInfo?.email || user?.email || 'email@example.com'}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.text.muted} />
+                </TouchableOpacity>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.text.muted} />
-            </TouchableOpacity>
-          </View>
 
-          {/* Paramètres */}
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Paramètres</Text>
+              {/* Paramètres */}
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Paramètres</Text>
 
-            <View style={styles.settingRow}>
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>Notifications push</Text>
-                <Text style={styles.settingSubtitle}>Offres et alertes</Text>
+                <View style={styles.settingRow}>
+                  <View style={styles.settingTextCol}>
+                    <Text style={styles.settingTitle}>Notifications push</Text>
+                    <Text style={styles.settingSubtitle}>Offres et alertes</Text>
+                  </View>
+                  <Switch value={pushEnabled} onValueChange={setPushEnabled} />
+                </View>
+
+                <View style={styles.separator} />
+
+                <View style={styles.settingRow}>
+                  <View style={styles.settingTextCol}>
+                    <Text style={styles.settingTitle}>Mode sombre</Text>
+                    <Text style={styles.settingSubtitle}>Interface sombre</Text>
+                  </View>
+                  <Switch value={darkMode} onValueChange={setDarkMode} />
+                </View>
+
+                <View style={styles.separator} />
+
+                <View style={styles.settingRow}>
+                  <View style={styles.settingTextCol}>
+                    <Text style={styles.settingTitle}>Face ID</Text>
+                    <Text style={styles.settingSubtitle}>Connexion biométrique</Text>
+                  </View>
+                  <Switch value={faceId} onValueChange={setFaceId} />
+                </View>
               </View>
-              <Switch value={pushEnabled} onValueChange={setPushEnabled} />
-            </View>
 
-            <View style={styles.separator} />
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>Mode sombre</Text>
-                <Text style={styles.settingSubtitle}>Interface sombre</Text>
-              </View>
-              <Switch value={darkMode} onValueChange={setDarkMode} />
-            </View>
-
-            <View style={styles.separator} />
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingTextCol}>
-                <Text style={styles.settingTitle}>Face ID</Text>
-                <Text style={styles.settingSubtitle}>Connexion biométrique</Text>
-              </View>
-              <Switch value={faceId} onValueChange={setFaceId} />
-            </View>
-          </View>
-
-          {/* Liens rapides */}
-          <View style={styles.menuSection}>
+              {/* Liens rapides */}
+              <View style={styles.menuSection}>
             <TouchableOpacity style={styles.menuItem}>
               <Ionicons name="wallet-outline" size={22} color={Colors.text.primary} />
               <Text style={styles.menuText}>Moyens de paiement</Text>
@@ -194,13 +439,15 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Déconnexion */}
-          <View style={styles.logoutContainer}>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} >
-              <Ionicons name="log-out" size={20} color="#EF4444" />
-              <Text style={styles.logoutText}>Se déconnecter</Text>
-            </TouchableOpacity>
-          </View>
+              {/* Déconnexion */}
+              <View style={styles.logoutContainer}>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} >
+                  <Ionicons name="log-out" size={20} color="#EF4444" />
+                  <Text style={styles.logoutText}>Se déconnecter</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </ScrollView>
 
         {/* Modal de debug des utilisateurs */}
@@ -448,5 +695,94 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.primary,
     marginLeft: Spacing.md,
+  } as TextStyle,
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing['2xl'],
+    gap: Spacing.md,
+  } as ViewStyle,
+  loadingText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  refreshButton: {
+    padding: Spacing.xs,
+  } as ViewStyle,
+  avatarImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  } as ViewStyle,
+  userInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
+  userInfoText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    flex: 1,
+  } as TextStyle,
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+  } as ViewStyle,
+  infoContent: {
+    flex: 1,
+  } as ViewStyle,
+  infoLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    marginBottom: 4,
+    fontWeight: '600',
+  } as TextStyle,
+  infoValue: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    fontWeight: '500',
+  } as TextStyle,
+  loadingSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  } as ViewStyle,
+  loadingSectionText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  noSubscriptionContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+    gap: Spacing.md,
+  } as ViewStyle,
+  noSubscriptionText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+  } as TextStyle,
+  subscribeButton: {
+    backgroundColor: Colors.primary[600],
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginTop: Spacing.sm,
+  } as ViewStyle,
+  subscribeButtonText: {
+    color: 'white',
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
   } as TextStyle,
 });

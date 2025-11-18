@@ -51,6 +51,7 @@ export default function SignupScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [role, setRole] = useState<'partners' | 'client'>('client');
   
   // Adresse
   const [street, setStreet] = useState('');
@@ -243,6 +244,7 @@ export default function SignupScreen() {
           country,
         },
         avatarBase64,
+        role,
       };
 
       console.log('Données envoyées à l\'API:', JSON.stringify(registerData, null, 2));
@@ -331,6 +333,38 @@ export default function SignupScreen() {
                 {step === 'personal' && (
                   <>
                     <Text style={styles.sectionTitle}>Informations personnelles</Text>
+
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.inputLabel}>Rôle *</Text>
+                      <View style={styles.roleSelector}>
+                        <TouchableOpacity
+                          style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
+                          onPress={() => setRole('client')}
+                        >
+                          <Ionicons 
+                            name="person" 
+                            size={18} 
+                            color={role === 'client' ? 'white' : '#6B7280'} 
+                          />
+                          <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
+                            Client
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.roleButton, role === 'partners' && styles.roleButtonActive]}
+                          onPress={() => setRole('partners')}
+                        >
+                          <Ionicons 
+                            name="storefront" 
+                            size={18} 
+                            color={role === 'partners' ? 'white' : '#6B7280'} 
+                          />
+                          <Text style={[styles.roleButtonText, role === 'partners' && styles.roleButtonTextActive]}>
+                            Partenaire
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
 
                     <View style={styles.row}>
                       <View style={[styles.inputContainer, styles.halfWidth]}>
@@ -623,7 +657,7 @@ export default function SignupScreen() {
                     title={isLastStep ? "Créer mon compte" : "Continuer"}
                     onPress={isLastStep ? handleSignup : goToNextStep}
                     icon={isLastStep ? "checkmark" : "arrow-forward"}
-                    style={[styles.submitButton, styles.primaryNavButton]}
+                    style={[styles.submitButton, styles.primaryNavButton] as any}
                     variant="solid"
                   />
                 </View>
@@ -693,6 +727,11 @@ type SignupStyles = {
   navigationButtons: ViewStyle;
   backNavButton: ViewStyle;
   backNavButtonText: TextStyle;
+  roleSelector: ViewStyle;
+  roleButton: ViewStyle;
+  roleButtonActive: ViewStyle;
+  roleButtonText: TextStyle;
+  roleButtonTextActive: TextStyle;
 };
 
 const styles = StyleSheet.create<SignupStyles>({
@@ -950,6 +989,37 @@ const styles = StyleSheet.create<SignupStyles>({
   backNavButtonText: {
     color: Colors.primary[600],
     fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  roleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: 'white',
+  },
+  roleButtonActive: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  roleButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  roleButtonTextActive: {
+    color: 'white',
     fontWeight: '600',
   },
 });
