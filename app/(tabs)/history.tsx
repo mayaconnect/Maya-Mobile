@@ -102,6 +102,8 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
   safeArea: {
     flex: 1,
@@ -124,6 +126,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 100, // Space for bottom navigation
+    width: '100%',
+    height: '100%',
   },
 });

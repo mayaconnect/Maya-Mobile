@@ -7,17 +7,17 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,6 +31,7 @@ export default function SubscriptionScreen() {
   const [applePayAvailable, setApplePayAvailable] = useState(false);
   const [googlePayAvailable, setGooglePayAvailable] = useState(false);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
+  const [isCheckingPaymentStatus, setIsCheckingPaymentStatus] = useState(false);
 
   const handlePartnerMode = () => {
     console.log('Mode partenaire');
@@ -96,6 +97,140 @@ export default function SubscriptionScreen() {
     checkPaymentMethods();
   }, []);
 
+  // Fonction pour vérifier le statut du paiement avec retry
+  const checkPaymentStatusWithRetry = async (sessionId: string, retries = 3, delay = 2000): Promise<void> => {
+    setIsCheckingPaymentStatus(true);
+    let statusResult: { status: string; paymentStatus?: string; subscriptionId?: string; message?: string } | null = null;
+    
+    try {
+      console.log('🔍 [Subscription] Vérification du statut du paiement...', {
+        sessionId: sessionId.substring(0, 20) + '...',
+        retries,
+      });
+
+      statusResult = await PaymentService.checkPaymentSessionStatus(sessionId);
+      
+      console.log('📊 [Subscription] Statut du paiement récupéré:', {
+        status: statusResult.status,
+        paymentStatus: statusResult.paymentStatus,
+        hasSubscriptionId: !!statusResult.subscriptionId,
+      });
+
+      if (statusResult.status === 'complete' && statusResult.paymentStatus === 'paid') {
+        // Paiement confirmé avec succès
+        console.log('✅ [Subscription] Paiement confirmé et complété');
+        setIsCheckingPaymentStatus(false);
+        Alert.alert(
+          '✅ Paiement confirmé',
+          `Votre abonnement a été activé avec succès !${statusResult.subscriptionId ? '\n\nID d\'abonnement: ' + statusResult.subscriptionId : ''}`,
+          [
+            {
+              text: 'Parfait',
+              onPress: () => {
+                setShowPaymentModal(false);
+                setSelectedPaymentMethod(null);
+                setCheckoutSessionId(null);
+                router.replace('/(tabs)/home');
+              },
+            },
+          ]
+        );
+      } else if (statusResult.status === 'processing' || statusResult.status === 'open') {
+        // Paiement en cours de traitement ou en attente
+        if (retries > 0) {
+          console.log(`⏳ [Subscription] Paiement en cours, nouvelle tentative dans ${delay}ms...`);
+          // Ne pas mettre à jour isCheckingPaymentStatus ici, on continue les retries
+          setTimeout(() => {
+            checkPaymentStatusWithRetry(sessionId, retries - 1, delay);
+          }, delay);
+        } else {
+          // Plus de tentatives, afficher un message d'attente
+          console.log('⏳ [Subscription] Paiement en cours de traitement par le serveur');
+          setIsCheckingPaymentStatus(false);
+          Alert.alert(
+            '⏳ Paiement en cours',
+            'Votre paiement est en cours de traitement. Vous recevrez une confirmation une fois le traitement terminé. Le webhook va finaliser le paiement côté serveur.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setShowPaymentModal(false);
+                  setSelectedPaymentMethod(null);
+                  setCheckoutSessionId(null);
+                  router.replace('/(tabs)/home');
+                },
+              },
+            ]
+          );
+        }
+      } else if (statusResult.status === 'expired') {
+        // Session expirée
+        console.log('❌ [Subscription] Session de paiement expirée');
+        setIsCheckingPaymentStatus(false);
+        Alert.alert(
+          '⏰ Session expirée',
+          'La session de paiement a expiré. Veuillez réessayer.',
+          [
+            {
+              text: 'Réessayer',
+              onPress: () => {
+                setCheckoutSessionId(null);
+              },
+            },
+            {
+              text: 'Annuler',
+              style: 'cancel',
+              onPress: () => {
+                setShowPaymentModal(false);
+                setSelectedPaymentMethod(null);
+                setCheckoutSessionId(null);
+              },
+            },
+          ]
+        );
+      } else {
+        // Erreur ou statut inconnu
+        console.error('❌ [Subscription] Statut de paiement inattendu:', statusResult.status);
+        setIsCheckingPaymentStatus(false);
+        Alert.alert(
+          '⚠️ Statut du paiement',
+          statusResult.message || 'Impossible de vérifier le statut du paiement. Veuillez vérifier votre abonnement dans quelques instants.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setShowPaymentModal(false);
+                setSelectedPaymentMethod(null);
+                setCheckoutSessionId(null);
+                router.replace('/(tabs)/home');
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('❌ [Subscription] Erreur lors de la vérification du statut:', error);
+      setIsCheckingPaymentStatus(false);
+      
+      // En cas d'erreur, afficher un message mais permettre à l'utilisateur de continuer
+      Alert.alert(
+        '⚠️ Vérification du paiement',
+        'Nous n\'avons pas pu vérifier immédiatement le statut de votre paiement. Le webhook va traiter le paiement côté serveur. Vous recevrez une confirmation une fois le traitement terminé.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setShowPaymentModal(false);
+              setSelectedPaymentMethod(null);
+              setCheckoutSessionId(null);
+              router.replace('/(tabs)/home');
+            },
+          },
+        ]
+      );
+    }
+  };
+
   // Écouter les deep links de retour depuis Stripe
   useEffect(() => {
     const handleDeepLink = async (url: string) => {
@@ -111,22 +246,16 @@ export default function SubscriptionScreen() {
         }
         
         if (sessionId) {
-          console.log('✅ [Subscription] Paiement réussi, session ID:', sessionId);
+          console.log('✅ [Subscription] Retour depuis Stripe, session ID:', sessionId);
+          
+          // Vérifier le statut du paiement
+          await checkPaymentStatusWithRetry(sessionId);
+        } else {
+          console.warn('⚠️ [Subscription] Aucun session_id trouvé dans l\'URL');
           Alert.alert(
-            '✅ Paiement réussi',
-            'Votre abonnement a été activé avec succès. Le webhook va confirmer le paiement côté serveur.',
-            [
-              {
-                text: 'Parfait',
-                onPress: () => {
-                  setShowPaymentModal(false);
-                  setSelectedPaymentMethod(null);
-                  setCheckoutSessionId(null);
-                  // Optionnel : rafraîchir les infos utilisateur
-                  router.replace('/(tabs)/home');
-                },
-              },
-            ]
+            '⚠️ Information manquante',
+            'Impossible de vérifier le statut du paiement. Veuillez vérifier votre abonnement dans quelques instants.',
+            [{ text: 'OK' }]
           );
         }
       } else if (url.includes('subscription/cancel')) {
@@ -137,6 +266,7 @@ export default function SubscriptionScreen() {
           [{ text: 'OK' }]
         );
         setCheckoutSessionId(null);
+        setIsCheckingPaymentStatus(false);
       }
     };
 
@@ -494,9 +624,19 @@ export default function SubscriptionScreen() {
           visible={showPaymentModal}
           animationType="slide"
           presentationStyle="pageSheet"
-          onRequestClose={() => setShowPaymentModal(false)}
+          onRequestClose={() => !isCheckingPaymentStatus && setShowPaymentModal(false)}
         >
           <SafeAreaView style={styles.modalContainer}>
+            {/* Overlay de chargement pour la vérification du statut */}
+            {isCheckingPaymentStatus && (
+              <View style={styles.loadingOverlay}>
+                <View style={styles.loadingCard}>
+                  <ActivityIndicator size="large" color={Colors.primary[600]} />
+                  <Text style={styles.loadingText}>Vérification du paiement en cours...</Text>
+                  <Text style={styles.loadingSubtext}>Veuillez patienter quelques instants</Text>
+                </View>
+              </View>
+            )}
             <View style={styles.modalHeader}>
               <TouchableOpacity 
                 style={styles.modalCloseButton}
@@ -1081,5 +1221,40 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.lg,
     fontWeight: '700',
     color: 'white',
+  } as TextStyle,
+  
+  // Overlay de chargement pour la vérification
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  } as ViewStyle,
+  loadingCard: {
+    backgroundColor: Colors.background.light,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 250,
+    ...Shadows.lg,
+  } as ViewStyle,
+  loadingText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginTop: Spacing.md,
+    textAlign: 'center',
+  } as TextStyle,
+  loadingSubtext: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   } as TextStyle,
 });

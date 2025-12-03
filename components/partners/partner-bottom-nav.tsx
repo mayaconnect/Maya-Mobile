@@ -1,10 +1,9 @@
-import { Colors } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
-export type PartnerTab = 'overview' | 'history' | 'subscription' | 'stats' | 'me';
+export type PartnerTab = 'overview' | 'history' | 'stats' | 'me';
 
 interface PartnerBottomNavProps {
   selectedTab: PartnerTab;
@@ -16,7 +15,6 @@ export function PartnerBottomNav({ selectedTab, onTabChange }: PartnerBottomNavP
     { key: 'overview', label: 'Home', icon: { active: 'grid', inactive: 'grid-outline' } },
     { key: 'history', label: 'Historique', icon: { active: 'time', inactive: 'time-outline' } },
     { key: 'stats', label: 'Statistiques', icon: { active: 'stats-chart', inactive: 'stats-chart-outline' } },
-    { key: 'subscription', label: 'Abonnement', icon: { active: 'card', inactive: 'card-outline' } },
     { key: 'me', label: 'Me', icon: { active: 'person', inactive: 'person-outline' } },
   ];
 

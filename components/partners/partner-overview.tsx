@@ -6,7 +6,9 @@ import { ActivityIndicator, StyleSheet, Text, TextStyle, TouchableOpacity, View,
 interface PartnerOverviewProps {
   totalRevenue: number;
   todayRevenue: number;
-  totalScans: number;
+  scans: any[];
+  scansLoading: boolean;
+  scansError: string | null;
   clients: any[];
   clientsLoading: boolean;
   clientsError: string | null;
@@ -19,7 +21,9 @@ interface PartnerOverviewProps {
 export function PartnerOverview({
   totalRevenue,
   todayRevenue,
-  totalScans,
+  scans,
+  scansLoading,
+  scansError,
   clients,
   clientsLoading,
   clientsError,
@@ -28,17 +32,11 @@ export function PartnerOverview({
   onScanQR,
   validatingQR = false,
 }: PartnerOverviewProps) {
+  const totalScans = scans.length;
   return (
     <>
       {/* Statistiques */}
       <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <View style={styles.statIconContainer}>
-            <Ionicons name="wallet" size={24} color="#10B981" />
-          </View>
-          <Text style={styles.statValue}>{totalRevenue.toFixed(2)}€</Text>
-          <Text style={styles.statLabel}>Revenus totaux</Text>
-        </View>
         <View style={styles.statCard}>
           <View style={[styles.statIconContainer, { backgroundColor: 'rgba(139, 47, 63, 0.25)' }]}>
             <Ionicons name="today" size={24} color="#8B2F3F" />
@@ -97,6 +95,54 @@ export function PartnerOverview({
             <Text style={styles.quickActionSubtext}>Compte</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Scans récents */}
+      <View style={styles.recentSection}>
+        <Text style={styles.sectionTitle}>Scans récents</Text>
+        {scansLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={Colors.text.light} />
+            <Text style={styles.loadingText}>Chargement des scans...</Text>
+          </View>
+        ) : scansError ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={20} color={Colors.status.error} />
+            <Text style={styles.errorText}>{scansError}</Text>
+          </View>
+        ) : scans.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="qr-code-outline" size={32} color={Colors.text.secondary} />
+            <Text style={styles.emptyText}>Aucun scan trouvé</Text>
+          </View>
+        ) : (
+          scans.slice(0, 5).map((scan) => (
+            <View key={scan.id} style={styles.transactionItem}>
+              <View style={styles.transactionIcon}>
+                <Ionicons name="qr-code" size={20} color={Colors.text.light} />
+              </View>
+              <View style={styles.transactionInfo}>
+                <Text style={styles.transactionName}>
+                  {scan.customer?.firstName || scan.client?.firstName || 'Client'}{' '}
+                  {scan.customer?.lastName || scan.client?.lastName || ''}
+                </Text>
+                <Text style={styles.transactionDate}>
+                  {scan.store?.name || 'Magasin'} • {new Date(scan.createdAt).toLocaleDateString('fr-FR')}
+                </Text>
+              </View>
+              <View style={styles.amountBadge}>
+                <Text style={styles.amountText}>
+                  {scan.amountGross?.toFixed(2) || '0.00'}€
+                </Text>
+                {scan.discountAmount > 0 && (
+                  <Text style={styles.discountText}>
+                    -{scan.discountAmount?.toFixed(2) || '0.00'}€
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))
+        )}
       </View>
 
       {/* Clients récents */}
@@ -285,6 +331,20 @@ const styles = StyleSheet.create({
   transactionDate: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
+  } as TextStyle,
+  amountBadge: {
+    alignItems: 'flex-end',
+    gap: 4,
+  } as ViewStyle,
+  amountText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: Colors.text.light,
+  } as TextStyle,
+  discountText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.status.success,
   } as TextStyle,
 });
 

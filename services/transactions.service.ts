@@ -238,6 +238,123 @@ export const TransactionsService = {
   },
 
   /**
+   * Récupère le nombre de scans pour un partenaire (Partner)
+   * Optionnel: storeId, since (date)
+   */
+  getScanCount: async (partnerId?: string, storeId?: string, since?: string): Promise<string> => {
+    const params = new URLSearchParams();
+
+    if (partnerId) {
+      params.append('partnerId', partnerId);
+    }
+    if (storeId) {
+      params.append('storeId', storeId);
+    }
+    if (since) {
+      params.append('since', since);
+    }
+
+    const query = params.toString();
+    const endpoint = `/transactions/scancount${query ? `?${query}` : ''}`;
+
+    const response = await transactionsApiCall<string | number | { count: number }>(endpoint);
+
+    if (typeof response === 'string') {
+      return response;
+    }
+
+    if (typeof response === 'number') {
+      return String(response);
+    }
+
+    if (typeof response === 'object' && 'count' in response) {
+      return String(response.count);
+    }
+
+    return '0';
+  },
+
+  /**
+   * Récupère les transactions filtrées avec détails (scans détaillés)
+   * Optionnel: partnerId, storeId, operatorUserId, customerUserId, since, until, page, pageSize
+   */
+  getFilteredTransactions: async (filters: {
+    partnerId?: string;
+    storeId?: string;
+    operatorUserId?: string;
+    customerUserId?: string;
+    subscriptionId?: string;
+    planId?: string;
+    since?: string;
+    until?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<TransactionListResponse> => {
+    const params = new URLSearchParams();
+
+    if (filters.partnerId) {
+      params.append('partnerId', filters.partnerId);
+    }
+    if (filters.storeId) {
+      params.append('storeId', filters.storeId);
+    }
+    if (filters.operatorUserId) {
+      params.append('operatorUserId', filters.operatorUserId);
+    }
+    if (filters.customerUserId) {
+      params.append('customerUserId', filters.customerUserId);
+    }
+    if (filters.subscriptionId) {
+      params.append('subscriptionId', filters.subscriptionId);
+    }
+    if (filters.planId) {
+      params.append('planId', filters.planId);
+    }
+    if (filters.since) {
+      params.append('since', filters.since);
+    }
+    if (filters.until) {
+      params.append('until', filters.until);
+    }
+    if (filters.page) {
+      params.append('page', String(filters.page));
+    }
+    if (filters.pageSize) {
+      params.append('pageSize', String(filters.pageSize));
+    }
+
+    const query = params.toString();
+    const endpoint = `/transactions/filtered${query ? `?${query}` : ''}`;
+
+    const response = await transactionsApiCall<any>(endpoint);
+
+    if (Array.isArray(response)) {
+      return {
+        items: response,
+        page: filters.page,
+        pageSize: filters.pageSize ?? response.length,
+        totalCount: response.length,
+      };
+    }
+
+    if (response?.items && Array.isArray(response.items)) {
+      return {
+        items: response.items,
+        page: response.page ?? filters.page,
+        pageSize: response.pageSize ?? filters.pageSize,
+        totalCount: response.totalCount ?? response.total ?? response.count,
+      };
+    }
+
+    return {
+      items: [],
+      page: filters.page,
+      pageSize: filters.pageSize,
+      totalCount: 0,
+    };
+  },
+
+  /**
    * Récupère les économies d'un utilisateur par période (auth)
    * Période: day|week|month|year
    */

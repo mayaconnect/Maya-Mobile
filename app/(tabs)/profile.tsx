@@ -1,5 +1,5 @@
-import { DebugUsersViewer } from '@/components/debug-users-viewer';
 import { NavigationTransition } from '@/components/common/navigation-transition';
+import { DebugUsersViewer } from '@/components/debug-users-viewer';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthService } from '@/services/auth.service';
@@ -9,18 +9,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Alert,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -207,7 +207,7 @@ export default function ProfileScreen() {
                   
                   <View style={styles.infoRow}>
                     <Ionicons name="person" size={20} color={Colors.text.secondary} />
-                    <View style={styles.infoContent}>
+                    <View>
                       <Text style={styles.infoLabel}>Nom complet</Text>
                       <Text style={styles.infoValue}>
                         {userInfo.firstName || ''} {userInfo.lastName || ''}
@@ -219,7 +219,7 @@ export default function ProfileScreen() {
 
                   <View style={styles.infoRow}>
                     <Ionicons name="mail" size={20} color={Colors.text.secondary} />
-                    <View style={styles.infoContent}>
+                    <View>
                       <Text style={styles.infoLabel}>Email</Text>
                       <Text style={styles.infoValue}>{userInfo.email || 'N/A'}</Text>
                     </View>
@@ -230,7 +230,7 @@ export default function ProfileScreen() {
                       <View style={styles.separator} />
                       <View style={styles.infoRow}>
                         <Ionicons name="calendar" size={20} color={Colors.text.secondary} />
-                        <View style={styles.infoContent}>
+                        <View>
                           <Text style={styles.infoLabel}>Date de naissance</Text>
                           <Text style={styles.infoValue}>
                             {new Date(userInfo.birthDate).toLocaleDateString('fr-FR', {
@@ -249,7 +249,7 @@ export default function ProfileScreen() {
                       <View style={styles.separator} />
                       <View style={styles.infoRow}>
                         <Ionicons name="location" size={20} color={Colors.text.secondary} />
-                        <View style={styles.infoContent}>
+                        <View>
                           <Text style={styles.infoLabel}>Adresse</Text>
                           <Text style={styles.infoValue}>
                             {userInfo.address.street && `${userInfo.address.street}\n`}
@@ -268,7 +268,7 @@ export default function ProfileScreen() {
                       <View style={styles.separator} />
                       <View style={styles.infoRow}>
                         <Ionicons name="call" size={20} color={Colors.text.secondary} />
-                        <View style={styles.infoContent}>
+                        <View>
                           <Text style={styles.infoLabel}>Téléphone</Text>
                           <Text style={styles.infoValue}>{userInfo.phoneNumber}</Text>
                         </View>
@@ -310,7 +310,7 @@ export default function ProfileScreen() {
                       )}
                       {subscription.endDate && (
                         <Text style={styles.planDetails}>
-                          Jusqu'au {new Date(subscription.endDate).toLocaleDateString('fr-FR')}
+                          Jusqu&apos;au {new Date(subscription.endDate).toLocaleDateString('fr-FR')}
                         </Text>
                       )}
                     </View>
@@ -322,7 +322,7 @@ export default function ProfileScreen() {
                   </View>
                   {subscription.isActive !== false && (
                     <TouchableOpacity>
-                      <Text style={styles.cancelLink}>Résilier l'abonnement</Text>
+                      <Text style={styles.cancelLink}>Résilier l&apos;abonnement</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -335,8 +335,8 @@ export default function ProfileScreen() {
                     <Ionicons name="card-outline" size={32} color={Colors.text.secondary} />
                     <Text style={styles.noSubscriptionText}>Aucun abonnement actif</Text>
                     <TouchableOpacity style={styles.subscribeButton}>
-                      <Text style={styles.subscribeButtonText}>S'abonner</Text>
-                    </TouchableOpacity>
+                      <Text style={styles.subscribeButtonText} onPress={() => router.push('/subscription')}>S&apos;abonner</Text>
+                    </TouchableOpacity> 
                   </View>
                 </View>
               )}
@@ -400,11 +400,7 @@ export default function ProfileScreen() {
 
               {/* Liens rapides */}
               <View style={styles.menuSection}>
-            <TouchableOpacity style={styles.menuItem}>
-              <Ionicons name="wallet-outline" size={22} color={Colors.text.primary} />
-              <Text style={styles.menuText}>Moyens de paiement</Text>
-              <Ionicons name="chevron-forward" size={20} color={Colors.text.muted} />
-            </TouchableOpacity>
+           
 
             <TouchableOpacity style={styles.menuItem}>
               <Ionicons name="download-outline" size={22} color={Colors.text.primary} />
@@ -430,17 +426,7 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.text.muted} />
             </TouchableOpacity>
 
-            {/* Bouton Debug pour voir tous les utilisateurs */}
-            <TouchableOpacity 
-              style={[styles.menuItem, { backgroundColor: '#F5F3FF', borderBottomWidth: 0 }]} 
-              onPress={() => setShowDebugUsers(true)}
-            >
-              <Ionicons name="bug-outline" size={22} color="#8B2F3F" />
-              <Text style={[styles.menuText, { color: '#8B2F3F' }]}>
-                👤 Voir tous les utilisateurs (Debug)
-              </Text>
-              <Ionicons name="chevron-forward" size={20} color="#8B2F3F" />
-            </TouchableOpacity>
+           
           </View>
 
               {/* Déconnexion */}

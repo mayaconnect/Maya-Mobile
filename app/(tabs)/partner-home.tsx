@@ -7,8 +7,8 @@ import { PartnerOverview } from '@/components/partners/partner-overview';
 import { PartnerStats } from '@/components/partners/partner-stats';
 import { PartnerStoreModal } from '@/components/partners/partner-store-modal';
 // import { PartnerStores } from '@/components/partners/partner-stores';
-import { PartnerSubscription } from '@/components/partners/partner-subscription';
 import { QrValidationModal } from '@/components/partners/qr-validation-modal';
+import { StoreSelectionModal } from '@/components/partners/store-selection-modal';
 import { QRScanner } from '@/components/qr/qr-scanner';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
@@ -29,18 +29,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Données mockées pour les abonnements
-const mockSubscriptions = [
-  {
-    id: 1,
-    planName: 'Plan Premium',
-    price: 49.99,
-    period: 'Mensuel',
-    status: 'active',
-    nextBilling: '2024-02-15',
-    features: ['QR Code illimité', 'Statistiques avancées', 'Support prioritaire'],
-  },
-];
 
 export default function PartnerHomeScreen() {
   const { user, signOut } = useAuth();
@@ -49,6 +37,8 @@ export default function PartnerHomeScreen() {
   const [filterPeriod, setFilterPeriod] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [validatingQR, setValidatingQR] = useState(false);
+  const [showStoreSelection, setShowStoreSelection] = useState(false);
+  const [selectedStoreForScan, setSelectedStoreForScan] = useState<string | null>(null);
 
   // États pour le modal de validation QR
   const [showQRValidationModal, setShowQRValidationModal] = useState(false);
@@ -64,6 +54,11 @@ export default function PartnerHomeScreen() {
   const [clients, setClients] = useState<any[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [clientsError, setClientsError] = useState<string | null>(null);
+
+  // État pour les scans détaillés
+  const [scans, setScans] = useState<any[]>([]);
+  const [scansLoading, setScansLoading] = useState(false);
+  const [scansError, setScansError] = useState<string | null>(null);
 
   // États pour les transactions du partenaire
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -82,8 +77,32 @@ export default function PartnerHomeScreen() {
 
   const handleScanQR = () => {
     console.log('📱 [Partner Home] Bouton Scanner QR cliqué');
+
+    // Si le partenaire a plusieurs stores, afficher la modal de sélection
+    if (stores.length > 1) {
+      console.log('📱 [Partner Home] Plusieurs stores disponibles, affichage de la modal de sélection');
+      setShowStoreSelection(true);
+    } else if (stores.length === 1) {
+      // Si un seul store, le sélectionner automatiquement
+      console.log('📱 [Partner Home] Un seul store disponible, sélection automatique');
+      setSelectedStoreForScan(stores[0].id);
+      setShowQRScanner(true);
+    } else {
+      // Aucun store disponible
+      console.warn('⚠️ [Partner Home] Aucun store disponible');
+      Alert.alert(
+        '⚠️ Aucun magasin',
+        'Vous devez avoir au moins un magasin pour scanner un QR Code.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleStoreSelected = (storeId: string) => {
+    console.log('📱 [Partner Home] Store sélectionné pour le scan:', storeId);
+    setSelectedStoreForScan(storeId);
+    setShowStoreSelection(false);
     setShowQRScanner(true);
-    console.log('📱 [Partner Home] showQRScanner mis à true');
   };
 
   const handleQRScanned = async (qrData: string) => {
@@ -226,45 +245,25 @@ export default function PartnerHomeScreen() {
       // Sélectionner le store et extraire son partnerId
       let activeStore: any = null;
 
-      // Utiliser en priorité le magasin actif choisi par l'utilisateur
-      if (selectedStoreId) {
-        activeStore = stores.find((s: any) => s.id === selectedStoreId);
+      // Utiliser le store sélectionné pour le scan
+      if (selectedStoreForScan) {
+        activeStore = stores.find((s: any) => s.id === selectedStoreForScan);
         if (activeStore) {
           storeId = activeStore.id as string;
           partnerId = activeStore.partnerId || activeStore.partner?.id;
-          console.log('✅ [QR SCAN] Magasin actif sélectionné pour la validation:', {
+          console.log('✅ [QR SCAN] Store sélectionné pour le scan:', {
             storeId: storeId.substring(0, 20) + '...',
             storeName: activeStore.name || activeStore.partner?.name || 'N/A',
             partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'undefined',
           });
         } else {
-          console.warn('⚠️ [QR SCAN] Magasin actif introuvable dans la liste des stores, fallback automatique');
+          console.error('❌ [QR SCAN] Store sélectionné introuvable dans la liste des stores');
+          throw new Error('Store sélectionné introuvable');
         }
-      }
-
-      // Fallback si aucun magasin actif n'a été trouvé
-      if (!storeId || !partnerId) {
-        if (stores.length === 1) {
-          activeStore = stores[0];
-          storeId = activeStore.id as string;
-          partnerId = activeStore.partnerId || activeStore.partner?.id;
-          console.log('✅ [QR SCAN] Store unique sélectionné automatiquement:', {
-            storeId: storeId.substring(0, 20) + '...',
-            storeName: activeStore.name || activeStore.partner?.name || 'N/A',
-            partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'undefined',
-          });
-        } else {
-          // Si plusieurs stores et aucun actif défini, utiliser le premier
-          activeStore = stores[0];
-          storeId = activeStore.id as string;
-          partnerId = activeStore.partnerId || activeStore.partner?.id;
-          console.log('⚠️ [QR SCAN] Plusieurs stores disponibles, aucun actif défini, utilisation du premier:', {
-            storeId: storeId.substring(0, 20) + '...',
-            storeName: activeStore.name || activeStore.partner?.name || 'N/A',
-            partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'undefined',
-            totalStores: stores.length,
-          });
-        }
+      } else {
+        // Si aucun store n'a été sélectionné pour le scan (ne devrait pas arriver)
+        console.error('❌ [QR SCAN] Aucun store sélectionné pour le scan');
+        throw new Error('Aucun store sélectionné pour le scan');
       }
       
       // Vérification finale des paramètres
@@ -442,6 +441,74 @@ export default function PartnerHomeScreen() {
   useEffect(() => {
     loadClients();
   }, [loadClients]);
+
+  // Charger les scans détaillés
+  const loadScans = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    try {
+      setScansLoading(true);
+      setScansError(null);
+
+      // Récupérer le partnerId depuis les stores
+      let partnerId: string | undefined;
+
+      if (selectedStoreId) {
+        // Si un store spécifique est sélectionné
+        const selectedStore = stores.find((s: any) => s.id === selectedStoreId);
+        if (selectedStore) {
+          partnerId = selectedStore.partnerId || selectedStore.partner?.id;
+        }
+      } else if (stores.length > 0) {
+        // Sinon, utiliser le partnerId du premier store
+        const firstStore = stores[0];
+        partnerId = firstStore.partnerId || firstStore.partner?.id;
+      }
+
+      console.log('📊 [Partner Home] Chargement des scans détaillés:', {
+        partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'undefined',
+        storeId: selectedStoreId,
+      });
+
+      // Utiliser getUserTransactions pour récupérer les transactions de l'opérateur
+      // Cette route existe déjà et fonctionne
+      const response = await TransactionsService.getUserTransactions(user.id, {
+        page: 1,
+        pageSize: 100, // Charger les 100 derniers scans
+      });
+
+      console.log('✅ [Partner Home] Scans détaillés récupérés:', {
+        count: response.items?.length || 0,
+        totalCount: response.totalCount,
+      });
+
+      // Filtrer les scans par storeId si un store est sélectionné
+      let filteredScans = response.items || [];
+      if (selectedStoreId) {
+        filteredScans = filteredScans.filter((scan: any) => scan.storeId === selectedStoreId);
+        console.log('🔍 [Partner Home] Scans filtrés par store:', {
+          storeId: selectedStoreId,
+          countAfterFilter: filteredScans.length,
+        });
+      }
+
+      setScans(filteredScans);
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des scans:', error);
+      setScansError('Impossible de charger les scans');
+      setScans([]);
+    } finally {
+      setScansLoading(false);
+    }
+  }, [user, selectedStoreId, stores]);
+
+  useEffect(() => {
+    if (stores.length > 0) {
+      loadScans();
+    }
+  }, [loadScans, stores.length]);
 
   // Charger les transactions du partenaire/opérateur
   const loadPartnerTransactions = useCallback(async () => {
@@ -682,8 +749,7 @@ export default function PartnerHomeScreen() {
     return matchesSearch;
   });
 
-  // Statistiques basées sur les clients (à adapter selon tes besoins)
-  const totalScans = clients.length;
+  // Statistiques basées sur les clients et les scans (à adapter selon tes besoins)
   const totalRevenue = 0; // L'API clients ne fournit pas les montants
   const todayRevenue = 0; // L'API clients ne fournit pas les montants
 
@@ -719,7 +785,9 @@ export default function PartnerHomeScreen() {
             <PartnerOverview
               totalRevenue={totalRevenue}
               todayRevenue={todayRevenue}
-              totalScans={totalScans}
+              scans={scans}
+              scansLoading={scansLoading}
+              scansError={scansError}
               clients={clients}
               clientsLoading={clientsLoading}
               clientsError={clientsError}
@@ -744,10 +812,6 @@ export default function PartnerHomeScreen() {
               onStoreFilterChange={setSelectedStoreId}
               onExportData={handleExportData}
             />
-          )}
-
-          {selectedTab === 'subscription' && (
-            <PartnerSubscription subscriptions={mockSubscriptions} />
           )}
 
           {selectedTab === ('me' as PartnerTab) && (
@@ -779,9 +843,20 @@ export default function PartnerHomeScreen() {
           }}
         />
 
+        {/* Modal de sélection de store avant le scan */}
+        <StoreSelectionModal
+          visible={showStoreSelection}
+          stores={stores}
+          onClose={() => setShowStoreSelection(false)}
+          onSelectStore={handleStoreSelected}
+        />
+
         <QRScanner
           visible={showQRScanner}
-          onClose={() => setShowQRScanner(false)}
+          onClose={() => {
+            setShowQRScanner(false);
+            setSelectedStoreForScan(null); // Réinitialiser le store sélectionné
+          }}
           onScan={handleQRScanned}
           mode="partner"
         />
