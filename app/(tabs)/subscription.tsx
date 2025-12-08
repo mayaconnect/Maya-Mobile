@@ -1,6 +1,7 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { PaymentService } from '@/services/payment.service';
+import { SubscriptionsService } from '@/services/subscriptions.service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -11,6 +12,7 @@ import {
     Alert,
     Linking,
     Modal,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
@@ -32,6 +34,12 @@ export default function SubscriptionScreen() {
   const [googlePayAvailable, setGooglePayAvailable] = useState(false);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
   const [isCheckingPaymentStatus, setIsCheckingPaymentStatus] = useState(false);
+
+  // États pour l'abonnement actif
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [activeSubscription, setActiveSubscription] = useState<any>(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handlePartnerMode = () => {
     console.log('Mode partenaire');
@@ -85,6 +93,44 @@ export default function SubscriptionScreen() {
     // const cycle = billingCycle === 'monthly' ? 'Monthly' : 'Annual';
     // return `${baseCode}-${cycle}`;
   };
+
+  // Charger l'abonnement actif
+  const loadActiveSubscription = async () => {
+    try {
+      setIsLoadingSubscription(true);
+      console.log('🔍 [Subscription Page] Chargement de l\'abonnement actif...');
+
+      const hasSub = await SubscriptionsService.hasActiveSubscription();
+      setHasActiveSubscription(hasSub);
+
+      if (hasSub) {
+        const sub = await SubscriptionsService.getMyActiveSubscription();
+        setActiveSubscription(sub);
+        console.log('✅ [Subscription Page] Abonnement actif chargé:', sub);
+      } else {
+        setActiveSubscription(null);
+        console.log('ℹ️ [Subscription Page] Aucun abonnement actif');
+      }
+    } catch (error) {
+      console.error('❌ [Subscription Page] Erreur lors du chargement de l\'abonnement:', error);
+      setHasActiveSubscription(false);
+      setActiveSubscription(null);
+    } finally {
+      setIsLoadingSubscription(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Rafraîchir l'abonnement
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadActiveSubscription();
+  };
+
+  // Charger l'abonnement au montage du composant
+  useEffect(() => {
+    loadActiveSubscription();
+  }, []);
 
   // Vérifier la disponibilité des méthodes de paiement
   useEffect(() => {
@@ -405,11 +451,171 @@ export default function SubscriptionScreen() {
         style={styles.container}
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Choisissez votre plan</Text>
-              <Text style={styles.subtitle}>Économisez jusqu&apos;à 20% chez tous nos partenaires</Text>
-            </View>
+          <ScrollView
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={Colors.text.light}
+              />
+            }
+          >
+            {isLoadingSubscription ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary[600]} />
+                <Text style={styles.loadingText}>Chargement de votre abonnement...</Text>
+              </View>
+            ) : hasActiveSubscription && activeSubscription ? (
+              // Afficher l'abonnement actif
+              <>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Mon abonnement</Text>
+                  <Text style={styles.subtitle}>Gérez votre abonnement actuel</Text>
+                </View>
+
+                {/* Carte de l'abonnement actif */}
+                <View style={styles.activeSubscriptionCard}>
+                  <View style={styles.activeSubHeader}>
+                    <View style={styles.activeSubIcon}>
+                      <LinearGradient
+                        colors={['#8B2F3F', '#7B1F2F']}
+                        style={styles.planIconGradient}
+                      >
+                        <Ionicons name="shield-checkmark" size={32} color="white" />
+                      </LinearGradient>
+                    </View>
+                    <View style={styles.activeSubBadge}>
+                      <View style={styles.activeBadgeDot} />
+                      <Text style={styles.activeBadgeText}>Actif</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.activeSubPlan}>
+                    Plan {activeSubscription.planCode || 'Premium'}
+                  </Text>
+
+                  {activeSubscription.price > 0 ? (
+                    <Text style={styles.activeSubPrice}>
+                      {activeSubscription.price}€ / mois
+                    </Text>
+                  ) : (
+                    <Text style={styles.activeSubPrice}>Gratuit</Text>
+                  )}
+
+                  {activeSubscription.personsAllowed && (
+                    <View style={styles.activeSubFeature}>
+                      <Ionicons name="people" size={20} color={Colors.primary[600]} />
+                      <Text style={styles.activeSubFeatureText}>
+                        {activeSubscription.personsAllowed} {activeSubscription.personsAllowed > 1 ? 'personnes' : 'personne'}
+                      </Text>
+                    </View>
+                  )}
+
+                  {activeSubscription.startedAt && (
+                    <View style={styles.activeSubInfo}>
+                      <Ionicons name="calendar" size={16} color={Colors.text.secondary} />
+                      <Text style={styles.activeSubInfoText}>
+                        Actif depuis le {new Date(activeSubscription.startedAt).toLocaleDateString('fr-FR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </Text>
+                    </View>
+                  )}
+
+                  {activeSubscription.expiresAt && activeSubscription.expiresAt !== null ? (
+                    <View style={styles.activeSubInfo}>
+                      <Ionicons name="time" size={16} color={Colors.text.secondary} />
+                      <Text style={styles.activeSubInfoText}>
+                        Expire le {new Date(activeSubscription.expiresAt).toLocaleDateString('fr-FR', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.activeSubInfo}>
+                      <Ionicons name="refresh" size={16} color={Colors.text.secondary} />
+                      <Text style={styles.activeSubInfoText}>
+                        Renouvelé automatiquement
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Options de gestion */}
+                <View style={styles.managementSection}>
+                  <Text style={styles.managementTitle}>Options</Text>
+
+                  <TouchableOpacity style={styles.managementOption}>
+                    <View style={styles.managementOptionIcon}>
+                      <Ionicons name="card-outline" size={24} color={Colors.primary[600]} />
+                    </View>
+                    <View style={styles.managementOptionInfo}>
+                      <Text style={styles.managementOptionTitle}>Moyen de paiement</Text>
+                      <Text style={styles.managementOptionDescription}>
+                        Gérer vos méthodes de paiement
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.managementOption}>
+                    <View style={styles.managementOptionIcon}>
+                      <Ionicons name="receipt-outline" size={24} color={Colors.primary[600]} />
+                    </View>
+                    <View style={styles.managementOptionInfo}>
+                      <Text style={styles.managementOptionTitle}>Historique de facturation</Text>
+                      <Text style={styles.managementOptionDescription}>
+                        Voir toutes vos factures
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.managementOption, styles.managementOptionDanger]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Résilier l\'abonnement',
+                        'Êtes-vous sûr de vouloir résilier votre abonnement ? Vous perdrez tous les avantages.',
+                        [
+                          { text: 'Annuler', style: 'cancel' },
+                          { text: 'Résilier', style: 'destructive', onPress: () => {
+                            // TODO: Implémenter la résiliation
+                            Alert.alert('À venir', 'La résiliation sera disponible prochainement.');
+                          }},
+                        ]
+                      );
+                    }}
+                  >
+                    <View style={styles.managementOptionIcon}>
+                      <Ionicons name="close-circle-outline" size={24} color={Colors.status.error} />
+                    </View>
+                    <View style={styles.managementOptionInfo}>
+                      <Text style={[styles.managementOptionTitle, styles.managementOptionDangerText]}>
+                        Résilier l'abonnement
+                      </Text>
+                      <Text style={styles.managementOptionDescription}>
+                        Annuler votre abonnement
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              // Afficher les options d'abonnement
+              <>
+                <View style={styles.header}>
+                  <Text style={styles.title}>Choisissez votre plan</Text>
+                  <Text style={styles.subtitle}>Économisez jusqu&apos;à 20% chez tous nos partenaires</Text>
+                </View>
             {/* Toggle Mensuel/Annuel */}
             <View style={styles.billingToggle}>
               <TouchableOpacity
@@ -615,6 +821,8 @@ export default function SubscriptionScreen() {
                 <Ionicons name="arrow-forward" size={20} color="white" />
               </LinearGradient>
             </TouchableOpacity>
+              </>
+            )}
           </ScrollView>
         </SafeAreaView>
       </LinearGradient>
@@ -1256,5 +1464,140 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     marginTop: Spacing.xs,
     textAlign: 'center',
+  } as TextStyle,
+
+  // Styles pour le chargement
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.xl * 3,
+  } as ViewStyle,
+
+  // Styles pour l'abonnement actif
+  activeSubscriptionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 2,
+    borderColor: '#8B2F3F',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+    ...Shadows.lg,
+  } as ViewStyle,
+  activeSubHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  } as ViewStyle,
+  activeSubIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: BorderRadius['2xl'],
+    overflow: 'hidden',
+  } as ViewStyle,
+  activeSubBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    gap: Spacing.xs,
+  } as ViewStyle,
+  activeBadgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#10B981',
+  } as ViewStyle,
+  activeBadgeText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '700',
+    color: '#10B981',
+  } as TextStyle,
+  activeSubPlan: {
+    fontSize: Typography.sizes['3xl'],
+    fontWeight: '800',
+    color: Colors.text.light,
+    marginBottom: Spacing.xs,
+  } as TextStyle,
+  activeSubPrice: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    marginBottom: Spacing.lg,
+  } as TextStyle,
+  activeSubFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  activeSubFeatureText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.light,
+    fontWeight: '600',
+  } as TextStyle,
+  activeSubInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  } as ViewStyle,
+  activeSubInfoText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+  } as TextStyle,
+
+  // Options de gestion
+  managementSection: {
+    marginBottom: Spacing.xl,
+  } as ViewStyle,
+  managementTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '700',
+    color: Colors.text.light,
+    marginBottom: Spacing.md,
+  } as TextStyle,
+  managementOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    ...Shadows.md,
+  } as ViewStyle,
+  managementOptionDanger: {
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  } as ViewStyle,
+  managementOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  } as ViewStyle,
+  managementOptionInfo: {
+    flex: 1,
+  } as ViewStyle,
+  managementOptionTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: Colors.text.light,
+    marginBottom: 4,
+  } as TextStyle,
+  managementOptionDangerText: {
+    color: Colors.status.error,
+  } as TextStyle,
+  managementOptionDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
   } as TextStyle,
 });

@@ -7,9 +7,11 @@ interface PartnerHeaderProps {
   firstName?: string;
   lastName?: string;
   onLogout?: () => void;
+  showWelcome?: boolean;
+  title?: string;
 }
 
-export function PartnerHeader({ firstName, lastName, onLogout }: PartnerHeaderProps) {
+export function PartnerHeader({ firstName, lastName, onLogout, showWelcome = true, title }: PartnerHeaderProps) {
   return (
     <View style={styles.header}>
       <LinearGradient
@@ -20,20 +22,30 @@ export function PartnerHeader({ firstName, lastName, onLogout }: PartnerHeaderPr
       >
         <View style={styles.headerContent}>
           <View style={styles.headerTextContainer}>
-            <View style={styles.welcomeContainer}>
-              <Text style={styles.welcomeText}>Bienvenue,</Text>
-              <View style={styles.nameBadge}>
-                <Ionicons name="sparkles" size={16} color="#8B2F3F" style={styles.sparkleIcon} />
+            {showWelcome ? (
+              <>
+                <View style={styles.welcomeContainer}>
+                  <Text style={styles.welcomeText}>Bienvenue,</Text>
+                  <View style={styles.nameBadge}>
+                    <Ionicons name="sparkles" size={16} color="#8B2F3F" style={styles.sparkleIcon} />
+                    <Text style={styles.headerTitle}>
+                      {firstName || 'Partenaire'} {lastName || ''}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.headerSubtitle}>Tableau de bord partenaire</Text>
+              </>
+            ) : (
+              <View style={styles.titleContainer}>
                 <Text style={styles.headerTitle}>
-                  {firstName || 'Partenaire'} {lastName || ''}
+                  {title || `${firstName || 'Partenaire'} ${lastName || ''}`}
                 </Text>
               </View>
-            </View>
-            <Text style={styles.headerSubtitle}>Tableau de bord partenaire</Text>
+            )}
           </View>
           {onLogout && (
-            <TouchableOpacity 
-              style={styles.logoutButton} 
+            <TouchableOpacity
+              style={styles.logoutButton}
               onPress={onLogout}
               activeOpacity={0.7}
             >
@@ -69,6 +81,9 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   welcomeContainer: {
     marginBottom: Spacing.xs,
+  } as ViewStyle,
+  titleContainer: {
+    paddingVertical: Spacing.xs,
   } as ViewStyle,
   welcomeText: {
     fontSize: Typography.sizes.sm,

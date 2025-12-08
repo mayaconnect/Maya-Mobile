@@ -4,6 +4,7 @@ import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/
 import { useAuth } from '@/hooks/use-auth';
 import { AuthService } from '@/services/auth.service';
 import { ClientService } from '@/services/client.service';
+import { SubscriptionsService } from '@/services/subscriptions.service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -55,20 +56,41 @@ export default function ProfileScreen() {
         });
         setUserInfo(info);
 
-        // Récupérer l'abonnement si c'est un client
+        // Récupérer l'abonnement actif de l'utilisateur connecté
         setSubscriptionLoading(true);
         try {
-          const hasSub = await ClientService.hasActiveSubscription();
-          setHasSubscription(hasSub);
-          console.log('📦 [Profile] Abonnement actif:', hasSub);
+          // D'abord vérifier si l'utilisateur a un abonnement
+          const hasSub = await SubscriptionsService.hasActiveSubscription();
+          console.log('📦 [Profile] Vérification abonnement:', hasSub);
 
           if (hasSub) {
-            const sub = await ClientService.getMySubscription();
-            console.log('✅ [Profile] Détails de l\'abonnement récupérés:', sub);
-            setSubscription(sub);
+            // Si oui, récupérer les détails complets
+            const sub = await SubscriptionsService.getMyActiveSubscription();
+
+            if (sub) {
+              console.log('✅ [Profile] Abonnement actif récupéré:', {
+                id: sub.id,
+                planName: sub.planCode || sub.plan?.name,
+                isActive: sub.isActive,
+                startDate: sub.startedAt,
+                expiresAt: sub.expiresAt,
+              });
+              setSubscription(sub);
+              setHasSubscription(true);
+            } else {
+              console.log('ℹ️ [Profile] Aucun abonnement actif trouvé');
+              setSubscription(null);
+              setHasSubscription(false);
+            }
+          } else {
+            console.log('ℹ️ [Profile] Pas d\'abonnement actif');
+            setSubscription(null);
+            setHasSubscription(false);
           }
         } catch (error) {
           console.warn('⚠️ [Profile] Impossible de récupérer l\'abonnement:', error);
+          setSubscription(null);
+          setHasSubscription(false);
         } finally {
           setSubscriptionLoading(false);
         }
@@ -297,32 +319,44 @@ export default function ProfileScreen() {
                   <View style={styles.planRow}>
                     <View style={{ flex: 1 } as ViewStyle}>
                       <Text style={styles.planName}>
-                        {subscription.planName || subscription.plan?.name || 'Plan actif'}
+                        {subscription.planCode || subscription.plan?.name || 'Plan actif'}
                       </Text>
                       <Text style={styles.planDetails}>
-                        {subscription.price ? `${subscription.price}€` : ''} / {subscription.period || 'mois'}
-                        {subscription.isActive !== false ? ' • Renouvelé automatiquement' : ''}
+                        {subscription.price > 0 ? `${subscription.price}€ / mois` : 'Gratuit'}
+                        {subscription.isActive && subscription.personsAllowed ? ` • ${subscription.personsAllowed} ${subscription.personsAllowed > 1 ? 'personnes' : 'personne'}` : ''}
                       </Text>
-                      {subscription.startDate && (
+                      {subscription.startedAt && (
                         <Text style={styles.planDetails}>
-                          Depuis le {new Date(subscription.startDate).toLocaleDateString('fr-FR')}
+                          Actif depuis le {new Date(subscription.startedAt).toLocaleDateString('fr-FR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
                         </Text>
                       )}
-                      {subscription.endDate && (
+                      {subscription.expiresAt && subscription.expiresAt !== null ? (
                         <Text style={styles.planDetails}>
-                          Jusqu&apos;au {new Date(subscription.endDate).toLocaleDateString('fr-FR')}
+                          Expire le {new Date(subscription.expiresAt).toLocaleDateString('fr-FR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </Text>
+                      ) : subscription.isActive && (
+                        <Text style={styles.planDetails}>
+                          Renouvelé automatiquement
                         </Text>
                       )}
                     </View>
                     <View style={styles.statusChipActive}>
                       <Text style={styles.statusChipText}>
-                        {subscription.isActive !== false ? 'Actif' : 'Inactif'}
+                        {subscription.isActive ? 'Actif' : 'Inactif'}
                       </Text>
                     </View>
                   </View>
-                  {subscription.isActive !== false && (
-                    <TouchableOpacity>
-                      <Text style={styles.cancelLink}>Résilier l&apos;abonnement</Text>
+                  {subscription.isActive && (
+                    <TouchableOpacity onPress={() => router.push('/subscription')}>
+                      <Text style={styles.cancelLink}>Gérer l&apos;abonnement</Text>
                     </TouchableOpacity>
                   )}
                 </View>

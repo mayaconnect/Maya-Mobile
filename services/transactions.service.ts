@@ -385,15 +385,46 @@ export const TransactionsService = {
       throw new Error('User ID requis');
     }
 
-    const response = await transactionsApiCall<SavingsByCategoryResponse[] | { data: SavingsByCategoryResponse[] }>(
+    const response = await transactionsApiCall<any>(
       `/transactions/user/${userId}/savings/by-category`,
     );
 
+    console.log('📊 [Transactions Service] Réponse brute getUserSavingsByCategory:', response);
+
+    // Si la réponse est un tableau direct
     if (Array.isArray(response)) {
-      return response;
+      return response.map(item => ({
+        category: item.category || 'Autre',
+        totalSavings: item.totalSavings || item.amount || 0,
+        transactionCount: item.transactionCount || 0,
+      }));
     }
 
-    return response?.data ?? [];
+    // Si la réponse a une propriété data
+    if (response?.data) {
+      let data = response.data;
+
+      // Si data est une chaîne JSON, la parser
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch (e) {
+          console.error('❌ [Transactions Service] Erreur lors du parsing de data:', e);
+          return [];
+        }
+      }
+
+      // Si data est maintenant un tableau
+      if (Array.isArray(data)) {
+        return data.map(item => ({
+          category: item.category || 'Autre',
+          totalSavings: item.totalSavings || item.amount || 0,
+          transactionCount: item.transactionCount || 0,
+        }));
+      }
+    }
+
+    return [];
   },
 };
 

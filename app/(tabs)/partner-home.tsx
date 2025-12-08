@@ -762,9 +762,16 @@ export default function PartnerHomeScreen() {
         style={styles.container}
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <PartnerHeader 
-            firstName={user?.firstName} 
+          <PartnerHeader
+            firstName={user?.firstName}
             lastName={user?.lastName}
+            showWelcome={selectedTab === 'overview'}
+            title={
+              selectedTab === 'history' ? 'Historique' :
+              selectedTab === 'stats' ? 'Statistiques' :
+              selectedTab === 'me' ? 'Mon profil' :
+              undefined
+            }
             onLogout={async () => {
               try {
                 await signOut();

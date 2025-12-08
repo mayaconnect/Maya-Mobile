@@ -145,40 +145,7 @@ export function PartnerOverview({
         )}
       </View>
 
-      {/* Clients récents */}
-      <View style={styles.recentSection}>
-        <Text style={styles.sectionTitle}>Clients récents</Text>
-        {clientsLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={Colors.text.light} />
-            <Text style={styles.loadingText}>Chargement des clients...</Text>
-          </View>
-        ) : clientsError ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={20} color={Colors.status.error} />
-            <Text style={styles.errorText}>{clientsError}</Text>
-          </View>
-        ) : filteredClients.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={32} color={Colors.text.secondary} />
-            <Text style={styles.emptyText}>Aucun client trouvé</Text>
-          </View>
-        ) : (
-          filteredClients.slice(0, 3).map((client) => (
-            <View key={client.id || client.email} style={styles.transactionItem}>
-              <View style={styles.transactionIcon}>
-                <Ionicons name="person" size={20} color={Colors.text.light} />
-              </View>
-              <View style={styles.transactionInfo}>
-                <Text style={styles.transactionName}>
-                  {client.firstName || ''} {client.lastName || ''}
-                </Text>
-                <Text style={styles.transactionDate}>{client.email || ''}</Text>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
+
     </>
   );
 }

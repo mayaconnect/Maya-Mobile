@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss init -p)",
+      "Bash(node node_modules/tailwindcss/lib/cli.js:*)",
+      "Bash(echo:*)",
+      "Bash(README.md)",
+      "Bash(npm run dev:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(nul)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,4 +1,5 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
+import { SavingsByCategory } from '@/components/home/savings-by-category';
 import { UserTransactionsHistory } from '@/components/home/user-transactions-history';
 import { Colors, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
@@ -6,6 +7,7 @@ import { TransactionsService } from '@/services/transactions.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ScrollView,
   StyleSheet,
   Text,
   View
@@ -85,14 +87,22 @@ export default function HistoryScreen() {
             </Text>
           </View>
 
-          <View style={styles.content}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Économies par catégorie */}
+            {user?.id && <SavingsByCategory userId={user.id} />}
+
+            {/* Historique des transactions */}
             <UserTransactionsHistory
               transactions={transactions}
               transactionsLoading={loading}
               transactionsError={error}
               onRefresh={loadTransactions}
             />
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </LinearGradient>
     </NavigationTransition>
@@ -123,10 +133,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: Spacing.lg,
-    width: '100%',
-    height: '100%',
+    paddingBottom: Spacing.xl,
   },
 });

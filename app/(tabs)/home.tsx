@@ -214,28 +214,15 @@ export default function HomeScreen() {
         tokenMatch: qrData.token === (qrCodeResponse?.token || qrData.token),
       });
       
-      // Récupérer l'image base64 du QR Code ou générer une URL
-      // IMPORTANT: Utiliser exactement la même source que dans l'app pour garantir la cohérence
-      let qrImageSrc = qrCodeResponse?.imageBase64;
-      
-      // Si on a l'image base64, s'assurer qu'elle a le bon format
-      if (qrImageSrc) {
-        if (!qrImageSrc.startsWith('data:')) {
-          qrImageSrc = `data:image/png;base64,${qrImageSrc}`;
-        }
-        console.log('✅ [Home] Utilisation de l\'image base64 du QR Code');
-      } else if (qrCodeResponse?.qrCodeUrl) {
-        // Utiliser l'URL directement
-        qrImageSrc = qrCodeResponse.qrCodeUrl;
-        console.log('✅ [Home] Utilisation de l\'URL du QR Code:', qrImageSrc);
-      } else {
-        // Générer une URL de QR Code en ligne à partir du token
-        // Utiliser les mêmes paramètres que dans l'app pour garantir la cohérence
-        console.log('🔄 [Home] Génération d\'une URL QR Code à partir du token...');
-        qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData.token)}&format=png&margin=1`;
-        console.log('✅ [Home] URL QR Code générée (même token que l\'app):', qrImageSrc);
-        console.log('🔑 [Home] Token utilisé:', qrData.token.substring(0, 30) + '...');
-      }
+      // IMPORTANT: Toujours utiliser l'API qrserver.com avec le MÊME TOKEN que l'app
+      // Cela garantit que le QR Code PDF est identique au QR Code de l'app
+      console.log('🔄 [Home] Génération du QR Code pour le PDF avec le token:', qrData.token.substring(0, 30) + '...');
+
+      const qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData.token)}&format=png&margin=1`;
+
+      console.log('✅ [Home] URL QR Code générée pour le PDF (identique à l\'app)');
+      console.log('🔑 [Home] Token complet:', qrData.token);
+      console.log('🌐 [Home] URL complète:', qrImageSrc);
 
       // Créer le HTML pour le PDF
       const htmlContent = `
@@ -480,7 +467,7 @@ export default function HomeScreen() {
 
             {/* Accès rapide */}
           <View style={styles.quickActions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickAction}
               onPress={() => router.push('/(tabs)/partners')}
               activeOpacity={0.7}
@@ -490,7 +477,7 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.quickActionText}>Partenaires</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickAction}
               onPress={() => router.push('/(tabs)/subscription')}
               activeOpacity={0.7}
@@ -576,16 +563,18 @@ export default function HomeScreen() {
                     ) : qrData?.token ? (
                       /* Priorité 3: Génération via API externe à partir du token */
                       <Image
-                        source={{ 
-                          uri: `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData.token)}&format=png&margin=1`
+                        source={{
+                          uri: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData.token)}&format=png&margin=1`
                         }}
                         style={styles.qrCodeImage}
                         resizeMode="contain"
                         onError={(error) => {
                           console.error('❌ [Home] Erreur lors du chargement du QR Code:', error);
+                          console.error('❌ [Home] Token utilisé:', qrData.token.substring(0, 50));
                         }}
                         onLoad={() => {
                           console.log('✅ [Home] QR Code chargé avec succès');
+                          console.log('✅ [Home] URL:', `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData.token)}`);
                         }}
                       />
                     ) : null}

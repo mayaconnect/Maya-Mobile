@@ -15,7 +15,7 @@ const subscriptionsApiCall = async <T>(endpoint: string, options: RequestInit = 
     headers.Authorization = `Bearer ${token}`;
   }
 
-  return apiCall<T>(endpoint, options, 0, SUBSCRIPTIONS_API_BASE_URL);
+  return apiCall<T>(endpoint, { ...options, headers }, 0, SUBSCRIPTIONS_API_BASE_URL);
 };
 
 export interface SubscriptionQueryParams {
@@ -185,6 +185,74 @@ export const SubscriptionsService = {
     await subscriptionsApiCall<void>(`/subscriptions/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  /**
+   * Vérifie si l'utilisateur connecté a un abonnement actif
+   * GET /api/Users/me/has-subscription
+   */
+  hasActiveSubscription: async (): Promise<boolean> => {
+    console.log('🔍 [Subscriptions Service] hasActiveSubscription appelé');
+
+    try {
+      const startTime = Date.now();
+      const response = await subscriptionsApiCall<{ hasSubscription: boolean }>('/Users/me/has-subscription');
+      const duration = Date.now() - startTime;
+
+      const hasSubscription = response?.hasSubscription ?? false;
+
+      console.log('✅ [Subscriptions Service] Vérification abonnement:', {
+        duration: duration + 'ms',
+        hasSubscription,
+        responseType: typeof response,
+      });
+
+      return hasSubscription;
+    } catch (error) {
+      console.error('❌ [Subscriptions Service] Erreur lors de la vérification de l\'abonnement:', error);
+
+      // Si l'erreur est 404 ou 401, considérer qu'il n'y a pas d'abonnement
+      if (error instanceof Error && (error.message.includes('404') || error.message.includes('401'))) {
+        console.log('ℹ️ [Subscriptions Service] Pas d\'abonnement actif (404/401)');
+        return false;
+      }
+
+      throw error;
+    }
+  },
+
+  /**
+   * Récupère l'abonnement actif de l'utilisateur connecté
+   * GET /api/Users/me/subscription
+   */
+  getMyActiveSubscription: async (): Promise<any | null> => {
+    console.log('🔍 [Subscriptions Service] getMyActiveSubscription appelé');
+
+    try {
+      const startTime = Date.now();
+      const response = await subscriptionsApiCall<any>('/Users/me/subscription');
+      const duration = Date.now() - startTime;
+
+      console.log('✅ [Subscriptions Service] Abonnement récupéré:', {
+        duration: duration + 'ms',
+        hasSubscription: !!response,
+        subscriptionId: response?.id,
+        isActive: response?.isActive,
+        planName: response?.planCode || response?.plan?.name,
+      });
+
+      return response || null;
+    } catch (error) {
+      console.error('❌ [Subscriptions Service] Erreur lors de la récupération de l\'abonnement:', error);
+
+      // Si l'erreur est 404 ou 401, cela signifie qu'il n'y a pas d'abonnement actif
+      if (error instanceof Error && (error.message.includes('404') || error.message.includes('401'))) {
+        console.log('ℹ️ [Subscriptions Service] Aucun abonnement actif trouvé (404/401)');
+        return null;
+      }
+
+      throw error;
+    }
   },
 };
 
