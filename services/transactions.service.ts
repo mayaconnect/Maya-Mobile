@@ -239,9 +239,14 @@ export const TransactionsService = {
 
   /**
    * Récupère le nombre de scans pour un partenaire (Partner)
-   * Optionnel: storeId, since (date)
+   * Optionnel: storeId, since (date de début), until (date de fin)
    */
-  getScanCount: async (partnerId?: string, storeId?: string, since?: string): Promise<string> => {
+  getScanCount: async (
+    partnerId?: string,
+    storeId?: string,
+    since?: string,
+    until?: string
+  ): Promise<string> => {
     const params = new URLSearchParams();
 
     if (partnerId) {
@@ -252,6 +257,9 @@ export const TransactionsService = {
     }
     if (since) {
       params.append('since', since);
+    }
+    if (until) {
+      params.append('until', until);
     }
 
     const query = params.toString();

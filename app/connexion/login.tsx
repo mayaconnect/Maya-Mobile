@@ -1,7 +1,7 @@
 import { AnimatedButton } from '@/components/common/animated-button';
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -214,10 +214,11 @@ export default function LoginScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
-                  <Ionicons name="mail" size={20} color={emailError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                  <Ionicons name="mail" size={20} color={emailError ? "#EF4444" : "rgba(255, 255, 255, 0.8)"} style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="votre@email.com"
+                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     value={email}
                     onChangeText={(text) => {
                       setEmail(text);
@@ -236,10 +237,11 @@ export default function LoginScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Mot de passe</Text>
                 <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
-                  <Ionicons name="lock-closed" size={20} color={passwordError ? "#DC2626" : "#9CA3AF"} style={styles.inputIcon as any} />
+                  <Ionicons name="lock-closed" size={20} color={passwordError ? "#EF4444" : "rgba(255, 255, 255, 0.8)"} style={styles.inputIcon as any} />
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
+                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     value={password}
                     onChangeText={(text) => {
                       setPassword(text);
@@ -249,7 +251,7 @@ export default function LoginScreen() {
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="rgba(255, 255, 255, 0.8)" />
                   </TouchableOpacity>
                 </View>
                 {passwordError ? (
@@ -355,6 +357,8 @@ const styles = StyleSheet.create<LoginStyles>({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'relative',
+    top: 20,
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
@@ -397,32 +401,48 @@ const styles = StyleSheet.create<LoginStyles>({
     marginTop: Spacing.xs,
   },
   placeholder: {
+    marginBottom: 0,
     width: 100,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 0,
+    paddingTop: 0,
   },
   card: {
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius['3xl'],
-    padding: Spacing['2xl'],
-    marginVertical: Spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backdropFilter: 'blur(20px)',
+    borderTopLeftRadius: BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    borderBottomLeftRadius: BorderRadius.lg,
+    borderBottomRightRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    paddingTop: Spacing.sm,
+    position: 'relative',
+    top: 33,
+    maxHeight: '85%',
     ...Shadows.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'black',
+    fontSize: 26,
+    fontWeight: Typography.weights.extrabold as any,
+    color: Colors.text.light,
     textAlign: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: Typography.sizes.xs,
+    color: 'rgba(255, 255, 255, 0.85)',
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
+    fontWeight: Typography.weights.medium as any,
   },
   socialButtons: {
     flexDirection: 'row',
@@ -449,14 +469,14 @@ const styles = StyleSheet.create<LoginStyles>({
     fontWeight: Typography.weights.medium as any,
   },
   googleButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    ...Shadows.sm,
+    paddingVertical: 11,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    ...Shadows.md,
   } as ViewStyle,
   googleButtonDisabled: {
     opacity: 0.6,
@@ -476,74 +496,91 @@ const styles = StyleSheet.create<LoginStyles>({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    
+    marginVertical: Spacing.sm,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   dividerText: {
     marginHorizontal: Spacing.md,
-    color: '#9CA3AF',
-    fontSize: Typography.sizes.sm,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold as any,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   inputContainer: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'black',
-    marginBottom: Spacing.xs,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold as any,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 6,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    ...Shadows.sm,
   },
   inputIcon: {
-    marginRight: 8,
+    marginRight: Spacing.xs,
   },
   input: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    fontSize: 16,
-    color: 'black',
+    paddingVertical: 11,
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.light,
+    fontWeight: Typography.weights.medium as any,
   },
   loginButton: {
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   skipLoginButton: {
     marginBottom: 20,
   },
   forgotPassword: {
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   forgotPasswordText: {
-    color: '#6B7280',
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium as any,
+    fontWeight: Typography.weights.semibold as any,
+    textDecorationLine: 'underline',
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
   },
   signupText: {
-    color: '#6B7280',
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
   },
   signupLink: {
-    color: '#EF4444',
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold as any,
+    marginLeft: Spacing.xs,
+    textDecorationLine: 'underline',
+    letterSpacing: -0.2,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -575,33 +612,34 @@ const styles = StyleSheet.create<LoginStyles>({
   },
   roleSelector: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 4,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   roleButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: 'white',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   roleButtonActive: {
     backgroundColor: '#8B2F3F',
-    borderColor: '#8B2F3F',
+    borderColor: 'rgba(139, 47, 63, 0.8)',
+    ...Shadows.md,
   },
   roleButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   roleButtonTextActive: {
     color: 'white',
-    fontWeight: '600',
+    fontWeight: Typography.weights.bold as any,
   },
 });

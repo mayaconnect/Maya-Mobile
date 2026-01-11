@@ -1,50 +1,78 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 
-export function PartnerStats() {
+interface PartnerStatsProps {
+  scanCounts: {
+    today: number;
+    week: number;
+    month: number;
+    total: number;
+  };
+  scanCountsLoading: boolean;
+}
+
+export function PartnerStats({ scanCounts, scanCountsLoading }: PartnerStatsProps) {
   return (
     <View style={styles.statsSection}>
       <Text style={styles.sectionTitle}>Statistiques détaillées</Text>
       
-      {/* Graphiques de revenus */}
+      {/* Statistiques de scans par période */}
       <View style={styles.statsCard}>
-        <Text style={styles.statsCardTitle}>Évolution des revenus</Text>
-        <View style={styles.chartContainer}>
-          <View style={styles.chartBars}>
-            {[65, 80, 45, 90, 70, 85, 95].map((height, index) => (
-              <View key={index} style={styles.chartBarWrapper}>
-                <View style={[styles.chartBar, { height: `${height}%` }]} />
-                <Text style={styles.chartLabel}>{['L', 'M', 'M', 'J', 'V', 'S', 'D'][index]}</Text>
-              </View>
-            ))}
+        <Text style={styles.statsCardTitle}>Statistiques des scans</Text>
+        <View style={styles.scanStatsGrid}>
+          <View style={styles.scanStatCard}>
+            <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+              <Ionicons name="today-outline" size={24} color={Colors.status.success} />
+            </View>
+            {scanCountsLoading ? (
+              <ActivityIndicator size="small" color={Colors.status.success} style={{ marginVertical: 8 }} />
+            ) : (
+              <Text style={styles.scanStatValue}>
+                {scanCounts.today.toLocaleString('fr-FR')}
+              </Text>
+            )}
+            <Text style={styles.scanStatLabel}>Aujourd&apos;hui</Text>
           </View>
-        </View>
-      </View>
-
-      {/* Statistiques par période */}
-      <View style={styles.periodStatsGrid}>
-        <View style={styles.periodStatCard}>
-          <View style={styles.periodStatHeader}>
-            <Ionicons name="calendar" size={18} color="#8B2F3F" />
-            <Text style={styles.periodStatLabel}>Cette semaine</Text>
+          <View style={styles.scanStatCard}>
+            <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+              <Ionicons name="calendar-outline" size={24} color="#3B82F6" />
+            </View>
+            {scanCountsLoading ? (
+              <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 8 }} />
+            ) : (
+              <Text style={styles.scanStatValue}>
+                {scanCounts.week.toLocaleString('fr-FR')}
+              </Text>
+            )}
+            <Text style={styles.scanStatLabel}>7 derniers jours</Text>
           </View>
-          <Text style={styles.periodStatValue}>142.50€</Text>
-          <View style={styles.periodStatTrend}>
-            <Ionicons name="trending-up" size={16} color="#10B981" />
-            <Text style={styles.periodStatTrendText}>+12% vs semaine dernière</Text>
+          <View style={styles.scanStatCard}>
+            <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(139, 47, 63, 0.15)' }]}>
+              <Ionicons name="calendar" size={24} color="#8B2F3F" />
+            </View>
+            {scanCountsLoading ? (
+              <ActivityIndicator size="small" color="#8B2F3F" style={{ marginVertical: 8 }} />
+            ) : (
+              <Text style={styles.scanStatValue}>
+                {scanCounts.month.toLocaleString('fr-FR')}
+              </Text>
+            )}
+            <Text style={styles.scanStatLabel}>30 derniers jours</Text>
           </View>
-        </View>
-        <View style={styles.periodStatCard}>
-          <View style={styles.periodStatHeader}>
-            <Ionicons name="calendar-outline" size={18} color="#8B2F3F" />
-            <Text style={styles.periodStatLabel}>Ce mois</Text>
-          </View>
-          <Text style={styles.periodStatValue}>587.30€</Text>
-          <View style={styles.periodStatTrend}>
-            <Ionicons name="trending-up" size={16} color="#10B981" />
-            <Text style={styles.periodStatTrendText}>+8% vs mois dernier</Text>
+          <View style={styles.scanStatCard}>
+            <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+              <Ionicons name="stats-chart" size={24} color={Colors.accent.orange} />
+            </View>
+            {scanCountsLoading ? (
+              <ActivityIndicator size="small" color={Colors.accent.orange} style={{ marginVertical: 8 }} />
+            ) : (
+              <Text style={styles.scanStatValue}>
+                {scanCounts.total.toLocaleString('fr-FR')}
+              </Text>
+            )}
+            <Text style={styles.scanStatLabel}>Total</Text>
           </View>
         </View>
       </View>
@@ -262,6 +290,43 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     textAlign: 'center',
     fontWeight: '500',
+  } as TextStyle,
+  scanStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  } as ViewStyle,
+  scanStatCard: {
+    flex: 1,
+    minWidth: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    alignItems: 'center',
+    ...Shadows.sm,
+  } as ViewStyle,
+  scanStatIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  scanStatValue: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '800',
+    color: Colors.text.light,
+    marginBottom: Spacing.xs,
+  } as TextStyle,
+  scanStatLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    fontWeight: '600',
+    textAlign: 'center',
   } as TextStyle,
   topClientItem: {
     flexDirection: 'row',

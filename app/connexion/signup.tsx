@@ -6,7 +6,7 @@ import { RegisterRequest } from '@/services/auth.service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -309,7 +309,7 @@ export default function SignupScreen() {
                   <View style={styles.progressBar}>
                     {steps.map((stepKey, index) => (
                       <View
-                        key={stepKey}
+                        {...{ key: `progress-${index}` } as any}
                         style={[
                           styles.progressSegment,
                           index <= currentStepIndex && styles.progressSegmentActive,
@@ -370,10 +370,11 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Prénom *</Text>
                         <View style={[styles.inputWrapper, firstNameError ? styles.inputError : null]}>
-                          <Ionicons name="person" size={20} color={firstNameError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                          <Ionicons name="person" size={20} color={firstNameError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Jean"
+                            placeholderTextColor="#9CA3AF"
                             value={firstName}
                             onChangeText={(text) => {
                               setFirstName(text);
@@ -391,10 +392,11 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Nom *</Text>
                         <View style={[styles.inputWrapper, lastNameError ? styles.inputError : null]}>
-                          <Ionicons name="person" size={20} color={lastNameError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                          <Ionicons name="person" size={20} color={lastNameError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Dupont"
+                            placeholderTextColor="#9CA3AF"
                             value={lastName}
                             onChangeText={(text) => {
                               setLastName(text);
@@ -413,10 +415,11 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Email *</Text>
                       <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
-                        <Ionicons name="mail" size={20} color={emailError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="mail" size={20} color={emailError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="votre@email.com"
+                          placeholderTextColor="#9CA3AF"
                           value={email}
                           onChangeText={(text) => {
                             setEmail(text);
@@ -435,10 +438,11 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Date de naissance *</Text>
                       <View style={[styles.inputWrapper, birthDateError ? styles.inputError : null]}>
-                        <Ionicons name="calendar" size={20} color={birthDateError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="calendar" size={20} color={birthDateError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="1990-01-15 ou 19900115"
+                          placeholderTextColor="#9CA3AF"
                           value={birthDate}
                           onChangeText={(text) => {
                             const formattedDate = formatBirthDate(text);
@@ -463,10 +467,11 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Mot de passe *</Text>
                       <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
-                        <Ionicons name="lock-closed" size={20} color={passwordError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="lock-closed" size={20} color={passwordError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="••••••••"
+                          placeholderTextColor="#9CA3AF"
                           value={password}
                           onChangeText={(text) => {
                             setPassword(text);
@@ -476,7 +481,7 @@ export default function SignupScreen() {
                           secureTextEntry={!showPassword}
                         />
                         <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={passwordError ? "#EF4444" : "#8B2F3F"} />
                         </TouchableOpacity>
                       </View>
                       {passwordError ? (
@@ -521,10 +526,11 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Confirmer le mot de passe *</Text>
                       <View style={[styles.inputWrapper, confirmError ? styles.inputError : null]}>
-                        <Ionicons name="lock-closed" size={20} color={confirmError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                        <Ionicons name="lock-closed" size={20} color={confirmError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="••••••••"
+                          placeholderTextColor="#9CA3AF"
                           value={confirmPassword}
                           onChangeText={(text) => {
                             setConfirmPassword(text);
@@ -534,7 +540,7 @@ export default function SignupScreen() {
                           secureTextEntry={!showConfirm}
                         />
                         <TouchableOpacity onPress={() => setShowConfirm((v) => !v)}>
-                          <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                          <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={confirmError ? "#EF4444" : "#8B2F3F"} />
                         </TouchableOpacity>
                       </View>
                       {confirmError ? (
@@ -554,10 +560,11 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Rue *</Text>
                       <View style={styles.inputWrapper}>
-                        <Ionicons name="location" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                        <Ionicons name="location" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="123 Rue de la Paix"
+                          placeholderTextColor="#9CA3AF"
                           value={street}
                           onChangeText={(text) => {
                             setStreet(text);
@@ -572,10 +579,11 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Ville *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="business" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="business" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Paris"
+                            placeholderTextColor="#9CA3AF"
                             value={city}
                             onChangeText={(text) => {
                               setCity(text);
@@ -590,10 +598,11 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Code postal *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="mail" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="75001"
+                            placeholderTextColor="#9CA3AF"
                             value={postalCode}
                             onChangeText={(text) => {
                               setPostalCode(text);
@@ -610,10 +619,11 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Région/État *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="map" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="map" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Île-de-France"
+                            placeholderTextColor="#9CA3AF"
                             value={state}
                             onChangeText={(text) => {
                               setState(text);
@@ -628,10 +638,11 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Pays *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="flag" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <Ionicons name="flag" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="France"
+                            placeholderTextColor="#9CA3AF"
                             value={country}
                             onChangeText={(text) => {
                               setCountry(text);
@@ -750,11 +761,13 @@ const styles = StyleSheet.create<SignupStyles>({
     paddingBottom: Spacing.sm,
   },
   backButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BorderRadius['2xl'],
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    ...Shadows.sm,
+    ...Shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   backButtonInner: {
     flexDirection: 'row',
@@ -779,45 +792,61 @@ const styles = StyleSheet.create<SignupStyles>({
     textShadowRadius: 4,
   },
   logoUnderline: {
-    width: 50,
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: BorderRadius.sm,
+    width: 60,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: BorderRadius.full,
     marginTop: Spacing.xs,
+    ...Shadows.sm,
   },
   placeholder: {
     width: 100,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    marginBottom: 0,
+    position: 'relative',
   },
   scrollView: {
-    flex: 1,
+    maxHeight: '95%',
+    position: 'relative',
+    top: 33,
   },
   scrollContent: {
-    paddingVertical: Spacing.lg,
+    flexGrow: 0,
   },
   card: {
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius['3xl'],
-    padding: Spacing['2xl'],
-    marginVertical: Spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backdropFilter: 'blur(20px)',
+    borderTopLeftRadius: BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    borderBottomLeftRadius: BorderRadius.lg,
+    borderBottomRightRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    
     ...Shadows.xl,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'black',
+    fontSize: 22,
+    fontWeight: Typography.weights.extrabold as any,
+    color: Colors.text.light,
     textAlign: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: 4,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.85)',
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
+    fontWeight: Typography.weights.medium as any,
   },
   stepProgress: {
     marginBottom: Spacing.lg,
@@ -825,64 +854,74 @@ const styles = StyleSheet.create<SignupStyles>({
   progressBar: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: Spacing.sm,
+    marginBottom: 8,
   },
   progressSegment: {
     flex: 1,
-    height: 6,
+    height: 4,
     borderRadius: BorderRadius.full,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   progressSegmentActive: {
-    backgroundColor: '#8B2F3F',
+    backgroundColor: Colors.text.light,
+    ...Shadows.sm,
   },
   stepLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   stepLabel: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.muted,
+    fontSize: Typography.sizes.xs,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontWeight: Typography.weights.medium as any,
+    letterSpacing: 0.3,
   },
   stepLabelActive: {
-    color: '#8B2F3F',
-    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+    fontWeight: Typography.weights.bold as any,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'black',
-    marginTop: 20,
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 8,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.text.light,
+    marginTop: Spacing.sm,
+    marginBottom: 6,
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 6,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'black',
-    marginBottom: 8,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
+    color: 'white',
+    marginBottom: Spacing.sm,
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    ...Shadows.sm,
   },
   inputIcon: {
-    marginRight: 8,
+    marginRight: Spacing.sm,
+    opacity: 0.6,
   },
   input: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: 'black',
+    paddingVertical: Spacing.md,
+    fontSize: Typography.sizes.base,
+    color: '#111827',
+    fontWeight: Typography.weights.medium as any,
   },
   submitButton: {
     marginTop: 10,
@@ -895,15 +934,24 @@ const styles = StyleSheet.create<SignupStyles>({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: Spacing.sm,
+    paddingTop: 6,
+    paddingBottom: Spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
   },
   switchAuthText: {
-    color: '#6B7280',
-    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
   },
   switchAuthLink: {
-    color: '#EF4444',
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold as any,
+    color: Colors.text.light,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold as any,
+    marginLeft: Spacing.xs,
+    textDecorationLine: 'underline',
+    letterSpacing: -0.2,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -911,27 +959,31 @@ const styles = StyleSheet.create<SignupStyles>({
     backgroundColor: '#FEE2E2',
     borderLeftWidth: 4,
     borderLeftColor: '#EF4444',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 10,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+    ...Shadows.sm,
   },
   errorBannerText: {
     flex: 1,
     color: '#991B1B',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
+    lineHeight: 20,
   },
   inputError: {
     borderColor: '#EF4444',
     borderWidth: 2,
     backgroundColor: '#FEF2F2',
+    ...Shadows.sm,
   },
   fieldError: {
     color: '#EF4444',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
+    fontSize: Typography.sizes.xs,
+    marginTop: Spacing.xs,
+    marginLeft: Spacing.xs,
+    fontWeight: Typography.weights.medium as any,
   },
   row: {
     flexDirection: 'row',
@@ -941,31 +993,35 @@ const styles = StyleSheet.create<SignupStyles>({
     flex: 1,
   },
   passwordCriteria: {
-    marginTop: 8,
-    padding: 12,
+    marginTop: Spacing.sm,
+    padding: Spacing.sm,
     backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
     borderColor: '#E5E7EB',
+    ...Shadows.sm,
   },
   criteriaTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semibold as any,
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 4,
+    letterSpacing: 0.2,
   },
   criteriaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
+    gap: Spacing.xs,
   },
   criteriaText: {
-    fontSize: 13,
-    marginLeft: 8,
+    fontSize: Typography.sizes.xs,
+    marginLeft: Spacing.xs,
+    fontWeight: Typography.weights.medium as any,
   },
   criteriaMet: {
     color: '#10B981',
-    fontWeight: '500',
+    fontWeight: Typography.weights.semibold as any,
   },
   criteriaNotMet: {
     color: '#6B7280',
@@ -973,56 +1029,56 @@ const styles = StyleSheet.create<SignupStyles>({
   navigationButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
   },
   backNavButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
     borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: Colors.primary[200],
-    backgroundColor: Colors.primary[50],
-    gap: Spacing.xs,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 4,
   },
   backNavButtonText: {
-    color: Colors.primary[600],
+    color: 'rgba(255, 255, 255, 0.9)',
     fontSize: Typography.sizes.sm,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semibold as any,
   },
   roleSelector: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 4,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   roleButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   roleButtonActive: {
     backgroundColor: '#8B2F3F',
-    borderColor: '#8B2F3F',
+    borderColor: 'rgba(139, 47, 63, 0.8)',
     ...Shadows.md,
   },
   roleButtonText: {
     fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium as any,
-    color: Colors.text.secondary,
+    fontWeight: Typography.weights.semibold as any,
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   roleButtonTextActive: {
     color: Colors.text.light,
-    fontWeight: Typography.weights.semibold as any,
+    fontWeight: Typography.weights.bold as any,
   },
 });
 

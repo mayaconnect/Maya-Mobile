@@ -75,6 +75,15 @@ export default function PartnerHomeScreen() {
   const [storeDetailLoading, setStoreDetailLoading] = useState(false);
   const [storeSearchQuery, setStoreSearchQuery] = useState('');
 
+  // États pour les statistiques de scans
+  const [scanCounts, setScanCounts] = useState({
+    today: 0,
+    week: 0,
+    month: 0,
+    total: 0,
+  });
+  const [scanCountsLoading, setScanCountsLoading] = useState(false);
+
   const handleScanQR = () => {
     console.log('📱 [Partner Home] Bouton Scanner QR cliqué');
 
@@ -388,8 +397,9 @@ export default function PartnerHomeScreen() {
           {
             text: 'OK',
             onPress: () => {
-              console.log('🔄 [QR VALIDATION] Rechargement des clients après validation...');
+              console.log('🔄 [QR VALIDATION] Rechargement des clients et statistiques après validation...');
               loadClients();
+              loadScanCounts(); // Recharger les statistiques de scans
             },
           },
         ]
@@ -698,6 +708,74 @@ export default function PartnerHomeScreen() {
     loadStores();
   }, [loadStores]);
 
+  // Charger les statistiques de scans
+  const loadScanCounts = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    console.log('📊 [Partner Home] Chargement des statistiques de scans...');
+    setScanCountsLoading(true);
+
+    try {
+      // Récupérer les infos utilisateur pour déterminer le partnerId
+      const userInfo = await AuthService.getCurrentUserInfo();
+      const partnerId = 
+        (userInfo as any).partnerId || 
+        (userInfo as any).partner?.id || 
+        (userInfo as any).partnerData?.id ||
+        userInfo.id;
+
+      const now = new Date();
+      
+      // Calculer les dates pour chaque période
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - 7);
+      const monthStart = new Date(now);
+      monthStart.setMonth(monthStart.getMonth() - 30);
+
+      // Charger les statistiques pour chaque période
+      const [todayCount, weekCount, monthCount, totalCount] = await Promise.all([
+        TransactionsService.getScanCount(partnerId, selectedStoreId, todayStart.toISOString()),
+        TransactionsService.getScanCount(partnerId, selectedStoreId, weekStart.toISOString()),
+        TransactionsService.getScanCount(partnerId, selectedStoreId, monthStart.toISOString()),
+        TransactionsService.getScanCount(partnerId, selectedStoreId),
+      ]);
+
+      setScanCounts({
+        today: parseInt(todayCount, 10) || 0,
+        week: parseInt(weekCount, 10) || 0,
+        month: parseInt(monthCount, 10) || 0,
+        total: parseInt(totalCount, 10) || 0,
+      });
+
+      console.log('✅ [Partner Home] Statistiques de scans chargées:', {
+        today: parseInt(todayCount, 10) || 0,
+        week: parseInt(weekCount, 10) || 0,
+        month: parseInt(monthCount, 10) || 0,
+        total: parseInt(totalCount, 10) || 0,
+      });
+    } catch (error) {
+      console.error('❌ [Partner Home] Erreur lors du chargement des statistiques de scans:', error);
+      setScanCounts({
+        today: 0,
+        week: 0,
+        month: 0,
+        total: 0,
+      });
+    } finally {
+      setScanCountsLoading(false);
+    }
+  }, [user, selectedStoreId]);
+
+  // Charger les statistiques au démarrage et quand le store sélectionné change
+  useEffect(() => {
+    if (stores.length > 0) {
+      loadScanCounts();
+    }
+  }, [loadScanCounts, stores.length]);
+
   // Afficher les détails d'un store
   const handleStoreSelect = async (store: any) => {
     console.log('🔍 [Partner Home] Affichage des détails du store:', store.id);
@@ -834,7 +912,12 @@ export default function PartnerHomeScreen() {
             />
           )}
 
-          {selectedTab === 'stats' && <PartnerStats />}
+          {selectedTab === 'stats' && (
+            <PartnerStats
+              scanCounts={scanCounts}
+              scanCountsLoading={scanCountsLoading}
+            />
+          )}
         </ScrollView>
 
         <PartnerBottomNav selectedTab={selectedTab} onTabChange={setSelectedTab} />

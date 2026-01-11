@@ -1,5 +1,4 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
-import { UserTransactionsHistory } from '@/components/home/user-transactions-history';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { QrService, QrTokenData } from '@/services/qr.service';
@@ -427,41 +426,41 @@ export default function HomeScreen() {
         >
             {/* Header de bienvenue */}
             <View style={styles.welcomeHeader}>
-              <LinearGradient
-                colors={['#1A0A0E', '#2D0F15', '#1A0A0E']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.welcomeGradient}
-              >
-                <View style={styles.welcomeContent}>
-                  <View style={styles.welcomeTextContainer}>
-                    <View style={styles.welcomeContainer}>
-                      <Text style={styles.welcomeText}>Bonjour,</Text>
-                      <View style={styles.nameBadge}>
-                        <Ionicons name="sparkles" size={16} color="#8B2F3F" />
-                        <Text style={styles.welcomeName}>
-                          {user?.firstName || 'Client'} {user?.lastName || ''}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.welcomeSubtitle}>Bienvenue sur votre tableau de bord</Text>
-                  </View>
+              <View style={styles.welcomeContent}>
+                <View style={styles.welcomeTextContainer}>
+                  <Text style={styles.welcomeText}>Bonjour 👋</Text>
+                  <Text style={styles.welcomeName}>
+                    {user?.firstName || 'Client'} {user?.lastName || ''}
+                  </Text>
+                  <Text style={styles.welcomeSubtitle}>Profitez de vos avantages Maya</Text>
                 </View>
-              </LinearGradient>
+                <TouchableOpacity 
+                  style={styles.profileButton}
+                  onPress={() => router.push('/(tabs)/profile')}
+                >
+                  <Ionicons name="person-circle-outline" size={40} color="rgba(255, 255, 255, 0.9)" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Statistiques en haut */}
             <View style={styles.statsContainer}>
               <View style={[styles.statCard, styles.savingsCard]}>
+                <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                  <Ionicons name="wallet" size={24} color="#10B981" />
+                </View>
                 <Text style={styles.statValue}>
                   {transactions.reduce((sum, t) => sum + (t.discountAmount || 0), 0).toFixed(2)} €
                 </Text>
-                <Text style={styles.statLabel}>ÉCONOMIES TOTALES</Text>
+                <Text style={styles.statLabel}>Économies</Text>
               </View>
 
               <View style={[styles.statCard, styles.visitsCard]}>
+                <View style={[styles.statIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                  <Ionicons name="checkmark-done" size={24} color="#F59E0B" />
+                </View>
                 <Text style={styles.statValue}>{transactions.length}</Text>
-                <Text style={styles.statLabel}>VISITES EFFECTUÉES</Text>
+                <Text style={styles.statLabel}>Visites</Text>
               </View>
             </View>
 
@@ -472,27 +471,45 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/partners')}
               activeOpacity={0.7}
             >
-              <View style={styles.quickActionIconContainer}>
-                <Ionicons name="storefront" size={24} color="#8B2F3F" />
+              <View style={[styles.quickActionIconBg, { backgroundColor: 'rgba(139, 47, 63, 0.15)' }]}>
+                <Ionicons name="storefront" size={26} color="#8B2F3F" />
               </View>
               <Text style={styles.quickActionText}>Partenaires</Text>
+              <Text style={styles.quickActionSubtext}>Découvrir les offres</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickAction}
               onPress={() => router.push('/(tabs)/subscription')}
               activeOpacity={0.7}
             >
-              <View style={styles.quickActionIconContainer}>
-                <Ionicons name="card" size={24} color={Colors.accent.gold} />
+              <View style={[styles.quickActionIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                <Ionicons name="card" size={26} color={Colors.accent.gold} />
               </View>
               <Text style={styles.quickActionText}>Abonnement</Text>
+              <Text style={styles.quickActionSubtext}>Gérer mon compte</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => router.push('/(tabs)/history')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIconBg, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+                <Ionicons name="time" size={26} color="#3B82F6" />
+              </View>
+              <Text style={styles.quickActionText}>Historique</Text>
+              <Text style={styles.quickActionSubtext}>Mes transactions</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.qrCard}>
             <View style={styles.qrCardHeader}>
-              <View>
-                <Text style={styles.qrTitle}>Votre QR Code Maya</Text>
-                <Text style={styles.qrSubtitle}>Présentez ce code chez tous nos partenaires</Text>
+              <View style={styles.qrHeaderLeft}>
+                <View style={styles.qrIconBadge}>
+                  <Ionicons name="qr-code" size={20} color="#8B2F3F" />
+                </View>
+                <View>
+                  <Text style={styles.qrTitle}>Mon QR Code</Text>
+                  <Text style={styles.qrSubtitle}>À présenter en caisse</Text>
+                </View>
               </View>
               <View style={styles.qrHeaderActions}>
                 <TouchableOpacity 
@@ -623,115 +640,138 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   welcomeHeader: {
     marginBottom: Spacing.xl,
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-    ...Shadows.lg,
-  } as ViewStyle,
-  welcomeGradient: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
   } as ViewStyle,
   welcomeContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   } as ViewStyle,
   welcomeTextContainer: {
     flex: 1,
   } as ViewStyle,
-  welcomeContainer: {
-    marginBottom: Spacing.xs,
-  } as ViewStyle,
   welcomeText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
+    fontSize: Typography.sizes.base,
+    color: 'rgba(255, 255, 255, 0.7)',
     fontWeight: Typography.weights.medium as any,
     marginBottom: 4,
   } as TextStyle,
-  nameBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  } as ViewStyle,
   welcomeName: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold as any,
+    fontSize: 32,
+    fontWeight: Typography.weights.extrabold as any,
     color: Colors.text.light,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
+    marginBottom: 4,
   } as TextStyle,
   welcomeSubtitle: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.secondary,
-    marginTop: Spacing.xs,
+    fontSize: Typography.sizes.sm,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: Typography.weights.medium as any,
   } as TextStyle,
+  profileButton: {
+    padding: 4,
+  } as ViewStyle,
   quickActions: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     marginBottom: Spacing.lg,
   } as ViewStyle,
   quickAction: {
     flex: 1,
-    backgroundColor: Colors.background.cardDark,
-    borderRadius: BorderRadius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     ...Shadows.md,
   } as ViewStyle,
-  quickActionText: {
-    marginTop: 6,
-    color: Colors.text.light,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold as any,
-  } as TextStyle,
-  quickActionIconContainer: {
-    width: 48,
-    height: 48,
+  quickActionIconBg: {
+    width: 52,
+    height: 52,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(139, 47, 63, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.sm,
   } as ViewStyle,
+  quickActionText: {
+    marginTop: 2,
+    color: Colors.text.light,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold as any,
+    textAlign: 'center',
+  } as TextStyle,
+  quickActionSubtext: {
+    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 10,
+    fontWeight: Typography.weights.medium as any,
+    textAlign: 'center',
+  } as TextStyle,
   qrCard: {
-    backgroundColor: Colors.background.cardDark,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: BorderRadius['2xl'],
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
-    ...Shadows.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Shadows.xl,
   } as ViewStyle,
   qrCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  } as ViewStyle,
+  qrHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  } as ViewStyle,
+  qrIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(139, 47, 63, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   } as ViewStyle,
   qrHeaderActions: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   } as ViewStyle,
   qrActionButton: {
-    padding: Spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BorderRadius.md,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   } as ViewStyle,
   qrReloadButton: {
-    padding: Spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BorderRadius.md,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   } as ViewStyle,
   qrTitle: {
-    fontSize: Typography.sizes.xl,
+    fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.bold as any,
     color: Colors.text.light,
-    marginBottom: Spacing.sm,
+    marginBottom: 2,
+    letterSpacing: -0.3,
   } as TextStyle,
   qrSubtitle: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.secondary,
+    fontSize: Typography.sizes.xs,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   qrLoadingContainer: {
     width: 180,
@@ -790,13 +830,13 @@ const styles = StyleSheet.create({
   qrCodeContainer: {
     backgroundColor: 'white',
     borderRadius: BorderRadius['2xl'],
-    padding: Spacing.lg,
-    borderWidth: 2,
+    padding: Spacing.xl,
+    borderWidth: 3,
     borderColor: '#8B2F3F',
-    ...Shadows.lg,
+    ...Shadows.xl,
     shadowColor: '#8B2F3F',
-    shadowOpacity: 0.3,
-    elevation: 8,
+    shadowOpacity: 0.4,
+    elevation: 10,
   } as ViewStyle,
   qrCodeImage: {
     width: 220,
@@ -815,7 +855,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   } as ViewStyle,
   statCard: {
     flex: 1,
@@ -823,21 +863,32 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    ...Shadows.md,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Shadows.lg,
+    alignItems: 'center',
+  } as ViewStyle,
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   savingsCard: {},
   visitsCard: {},
   statValue: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold as any,
+    fontSize: 28,
+    fontWeight: Typography.weights.extrabold as any,
     color: Colors.text.light,
-    marginBottom: Spacing.xs,
+    marginBottom: 4,
+    letterSpacing: -0.5,
   } as TextStyle,
   statLabel: {
     fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weights.medium as any,
-    letterSpacing: 0.5,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: Typography.weights.semibold as any,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   } as TextStyle,
 });
