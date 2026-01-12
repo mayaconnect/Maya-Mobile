@@ -949,7 +949,7 @@ export default function PartnerHomeScreen() {
   });
 
   return (
-    <NavigationTransition>
+    <NavigationTransition children={<></>}>
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}

@@ -23,7 +23,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Maya a besoin d'accéder à votre caméra pour scanner les codes QR.",
         "NSLocationWhenInUseUsageDescription": "Maya a besoin de votre localisation pour vous montrer les magasins à proximité.",
-        "NSPhotoLibraryUsageDescription": "Maya a besoin d'accéder à vos photos pour partager des contenus."
+        "NSPhotoLibraryUsageDescription": "Maya a besoin d'accéder à vos photos pour partager des contenus.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -70,7 +71,11 @@
       "reactCompiler": true
     },
     "extra": {
-      "googleClientId": "535870809549-kanp7rd1hmu5ubq88aejlg2pk78htjhi.apps.googleusercontent.com"
+      "googleClientId": "535870809549-kanp7rd1hmu5ubq88aejlg2pk78htjhi.apps.googleusercontent.com",
+      "router": {},
+      "eas": {
+        "projectId": "70138919-2611-4fa0-b38a-90919894c002"
+      }
     }
   }
 }

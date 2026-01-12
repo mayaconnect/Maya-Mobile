@@ -577,7 +577,7 @@ export default function PartnersScreen() {
   }, [partners]);
 
   return (
-    <NavigationTransition>
+    <NavigationTransition children={<></>}  >
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
@@ -1039,11 +1039,6 @@ export default function PartnersScreen() {
                           <Text style={styles.modalName} numberOfLines={2}>
                             {selectedPartner.name}
                           </Text>
-                          {selectedPartner.isVerified && (
-                            <View style={styles.modalVerifiedBadge}>
-                              <Ionicons name="checkmark-circle" size={20} color={Colors.accent.blue} />
-                            </View>
-                          )}
                         </View>
                         
                         <View style={styles.modalBadgesRow}>
@@ -1204,14 +1199,6 @@ export default function PartnersScreen() {
                           <Text style={styles.modalPromotionText}>
                             {selectedPartner.promotion.description}
                           </Text>
-                          {selectedPartner.promotion.validUntil && (
-                            <View style={styles.modalPromotionFooter}>
-                              <Ionicons name="time-outline" size={14} color={Colors.status.success} />
-                              <Text style={styles.modalPromotionValidity}>
-                                Valable jusqu'au {selectedPartner.promotion.validUntil}
-                              </Text>
-                            </View>
-                          )}
                         </LinearGradient>
                       </View>
                     )}

@@ -6,8 +6,12 @@ Ce guide vous explique comment publier l'application Maya sur les stores Apple A
 
 1. **Compte Expo** : Créez un compte sur [expo.dev](https://expo.dev)
 2. **EAS CLI** : Installez EAS CLI globalement
-   ```bash
+   ```powershell
    npm install -g eas-cli
+   ```
+   ⚠️ **Note** : Si vous rencontrez des erreurs avec `npm`, essayez avec `npx` :
+   ```powershell
+   npx eas-cli@latest login
    ```
 3. **Compte Apple Developer** (pour iOS) : 99$/an
 4. **Compte Google Play Developer** (pour Android) : 25$ (paiement unique)
@@ -16,14 +20,24 @@ Ce guide vous explique comment publier l'application Maya sur les stores Apple A
 
 ### 1. Se connecter à Expo
 
-```bash
+```powershell
 eas login
+```
+
+Si EAS CLI n'est pas installé globalement, utilisez :
+```powershell
+npx eas-cli@latest login
 ```
 
 ### 2. Initialiser le projet (si pas déjà fait)
 
-```bash
+```powershell
 eas build:configure
+```
+
+Ou avec npx :
+```powershell
+npx eas-cli@latest build:configure
 ```
 
 ### 3. Configurer les variables d'environnement
@@ -51,8 +65,13 @@ Sélectionnez :
 
 ### 2. Créer un build de production
 
-```bash
+```powershell
 eas build --platform ios --profile production
+```
+
+Ou avec npx :
+```powershell
+npx eas-cli@latest build --platform ios --profile production
 ```
 
 ### 3. Soumettre à l'App Store

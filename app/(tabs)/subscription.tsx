@@ -8,18 +8,18 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Linking,
-    Modal,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -443,7 +443,7 @@ export default function SubscriptionScreen() {
   };
 
   return (
-    <NavigationTransition>
+    <NavigationTransition children={<></>}>
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
@@ -765,7 +765,7 @@ export default function SubscriptionScreen() {
                   <View style={styles.feature}>
                     <Ionicons name="checkmark" size={16} color="#10B981" />
                     <Text style={styles.featureText}>10% de remise partout</Text>
-                  </View>
+                  </View>   
                   <View style={styles.feature}>
                     <Ionicons name="checkmark" size={16} color="#10B981" />
                     <Text style={styles.featureText}>Gestion familiale</Text>

@@ -81,7 +81,7 @@ export default function LoginScreen() {
 
 
   return (
-    <NavigationTransition direction="right">
+    <NavigationTransition direction="right" children={<></>}>
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
