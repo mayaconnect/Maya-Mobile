@@ -196,7 +196,7 @@ export function PartnerHistory({
             const clientName = transaction.clientName || transaction.customerName || 'Client';
             const amountGross = transaction.amountGross || transaction.amount || 0;
             const amountNet = transaction.amountNet || amountGross;
-            const discount = transaction.discountPercent || transaction.discount || 0;
+            const discount = transaction.avgDiscountPercent || transaction.discountPercent || transaction.discount || 0;
             const savings = transaction.discountAmount || 0;
             const personsCount = transaction.personsCount || 0;
 

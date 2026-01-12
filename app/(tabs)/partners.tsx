@@ -52,6 +52,7 @@ export default function PartnersScreen() {
   const [error, setError] = useState('');
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [showViewMenu, setShowViewMenu] = useState(false);
   
   // États pour la carte
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -99,16 +100,33 @@ export default function PartnersScreen() {
   }, []);
 
   const computePromotion = useCallback((dto: any) => {
+    // D'abord chercher une promotion active spécifique
     const promo = dto.activePromotion ?? dto.currentPromotion ?? dto.promotion;
-    if (!promo) {
-      return null;
+    
+    // Sinon, utiliser la réduction standard du magasin
+    // L'API utilise avgDiscountPercent, discountPercent ou discount
+    const discountPercent = dto.avgDiscountPercent ?? dto.discountPercent ?? dto.discount;
+    
+    // Si on a une promo active, l'utiliser
+    if (promo) {
+      return {
+        discount: promo.discountLabel ?? promo.discount ?? promo.title ?? (discountPercent ? `-${discountPercent}%` : 'Promo'),
+        description: promo.description ?? promo.details ?? 'Promotion disponible',
+        isActive: promo.isActive ?? true,
+      };
     }
-
-    return {
-      discount: promo.discountLabel ?? promo.discount ?? promo.title ?? 'Promo',
-      description: promo.description ?? promo.details ?? 'Promotion disponible',
-      isActive: promo.isActive ?? true,
-    };
+    
+    // Sinon, si le magasin a une réduction standard, l'afficher
+    if (discountPercent != null && discountPercent > 0) {
+      return {
+        discount: `-${discountPercent}%`,
+        description: `${discountPercent}% de réduction sur votre addition`,
+        isActive: true,
+      };
+    }
+    
+    // Sinon, pas de promotion
+    return null;
   }, []);
 
   const mapStore = useCallback((dto: any, index: number): PartnerUI => {
@@ -568,8 +586,101 @@ export default function PartnersScreen() {
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
-            <Text style={styles.title}>Explorer ton réseau</Text>
-            <Text style={styles.subtitle}>Afficheur intelligent des partenaires Maya</Text>
+            <View style={styles.headerContent}>
+              <View style={styles.headerTextContainer}>
+                <View style={styles.titleRow}>
+                  <Ionicons name="business" size={28} color="#F6C756" style={styles.titleIcon} />
+                  <Text style={styles.title}>Explorer</Text>
+                </View>
+                <Text style={styles.subtitle}>Trouvez vos partenaires Maya</Text>
+              </View>
+              <View style={styles.headerActions}>
+               
+                {/* Sélecteur de vue */}
+                <View style={styles.viewSelectorContainer}>
+                  <TouchableOpacity
+                    style={styles.viewSelectorButton}
+                    onPress={() => setShowViewMenu(!showViewMenu)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons 
+                      name={viewMode === 'grille' ? 'grid' : viewMode === 'liste' ? 'list' : 'map'} 
+                      size={20} 
+                      color={Colors.text.light} 
+                    />
+                    <Ionicons name="chevron-down" size={16} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+                  
+                  {showViewMenu && (
+                    <View style={styles.viewMenu}>
+                      <TouchableOpacity
+                        style={[styles.viewMenuItem, viewMode === 'grille' && styles.viewMenuItemActive]}
+                        onPress={() => {
+                          handleViewToggle('grille');
+                          setShowViewMenu(false);
+                        }}
+                      >
+                        <Ionicons 
+                          name="grid" 
+                          size={18} 
+                          color={viewMode === 'grille' ? Colors.text.light : Colors.text.secondary} 
+                        />
+                        <Text style={[styles.viewMenuText, viewMode === 'grille' && styles.viewMenuTextActive]}>
+                          Grille
+                        </Text>
+                        {viewMode === 'grille' && (
+                          <Ionicons name="checkmark" size={18} color={Colors.text.light} />
+                        )}
+                      </TouchableOpacity>
+                      
+                      <View style={styles.viewMenuDivider} />
+                      
+                      <TouchableOpacity
+                        style={[styles.viewMenuItem, viewMode === 'liste' && styles.viewMenuItemActive]}
+                        onPress={() => {
+                          handleViewToggle('liste');
+                          setShowViewMenu(false);
+                        }}
+                      >
+                        <Ionicons 
+                          name="list" 
+                          size={18} 
+                          color={viewMode === 'liste' ? Colors.text.light : Colors.text.secondary} 
+                        />
+                        <Text style={[styles.viewMenuText, viewMode === 'liste' && styles.viewMenuTextActive]}>
+                          Liste
+                        </Text>
+                        {viewMode === 'liste' && (
+                          <Ionicons name="checkmark" size={18} color={Colors.text.light} />
+                        )}
+                      </TouchableOpacity>
+                      
+                      <View style={styles.viewMenuDivider} />
+                      
+                      <TouchableOpacity
+                        style={[styles.viewMenuItem, viewMode === 'carte' && styles.viewMenuItemActive]}
+                        onPress={() => {
+                          handleViewToggle('carte');
+                          setShowViewMenu(false);
+                        }}
+                      >
+                        <Ionicons 
+                          name="map" 
+                          size={18} 
+                          color={viewMode === 'carte' ? Colors.text.light : Colors.text.secondary} 
+                        />
+                        <Text style={[styles.viewMenuText, viewMode === 'carte' && styles.viewMenuTextActive]}>
+                          Carte
+                        </Text>
+                        {viewMode === 'carte' && (
+                          <Ionicons name="checkmark" size={18} color={Colors.text.light} />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
           </View>
 
           {/* Recherche moderne */}
@@ -661,41 +772,6 @@ export default function PartnersScreen() {
 
         {/* Contenu principal */}
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-
-          {/* Toggle Vue */}
-          <View style={styles.viewToggleContainer}>
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'grille' && styles.viewToggleButtonActive]}
-              onPress={() => handleViewToggle('grille')}
-            >
-              <Ionicons 
-                name="grid" 
-                size={18} 
-                color={viewMode === 'grille' ? Colors.text.light : Colors.text.secondary} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'liste' && styles.viewToggleButtonActive]}
-              onPress={() => handleViewToggle('liste')}
-            >
-              <Ionicons 
-                name="list" 
-                size={18} 
-                color={viewMode === 'liste' ? Colors.text.light : Colors.text.secondary} 
-              />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'carte' && styles.viewToggleButtonActive]}
-              onPress={() => handleViewToggle('carte')}
-            >
-              <Ionicons 
-                name="map" 
-                size={18} 
-                color={viewMode === 'carte' ? Colors.text.light : Colors.text.secondary} 
-              />
-            </TouchableOpacity>
-          </View>
 
           {/* Contenu conditionnel : Grille, Liste ou Carte */}
           {viewMode === 'carte' ? (
@@ -1186,18 +1262,127 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.lg,
   } as ViewStyle,
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  } as ViewStyle,
+  headerTextContainer: {
+    flex: 1,
+  } as ViewStyle,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  titleIcon: {
+    marginBottom: 4,
+  } as TextStyle,
   title: {
     fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold as any,
+    fontWeight: '900',
     color: Colors.text.light,
-    marginBottom: Spacing.xs,
+    letterSpacing: -1,
   } as TextStyle,
   subtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: '500',
+    marginTop: 2,
+  } as TextStyle,
+  resultsBadge: {
+    backgroundColor: 'rgba(139, 47, 63, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(139, 47, 63, 0.5)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  } as ViewStyle,
+  resultsBadgeText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '900',
+    color: Colors.text.light,
+    letterSpacing: -0.5,
+  } as TextStyle,
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  viewSelectorContainer: {
+    position: 'relative',
+    zIndex: 10,
+  } as ViewStyle,
+  viewSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    ...Shadows.md,
+  } as ViewStyle,
+  viewMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: Spacing.xs,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.xs,
+    minWidth: 160,
+    ...Shadows.xl,
+    zIndex: 1000,
+  } as ViewStyle,
+  viewMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  } as ViewStyle,
+  viewMenuItemActive: {
+    backgroundColor: 'rgba(139, 47, 63, 0.3)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(139, 47, 63, 0.5)',
+  } as ViewStyle,
+  viewMenuText: {
+    flex: 1,
     fontSize: Typography.sizes.base,
+    fontWeight: '600',
     color: Colors.text.secondary,
   } as TextStyle,
+  viewMenuTextActive: {
+    color: Colors.text.light,
+    fontWeight: '700',
+  } as TextStyle,
+  viewMenuDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: Spacing.xs,
+  } as ViewStyle,
+  menuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
+  } as ViewStyle,
   // Section recherche moderne
   searchSection: {
     paddingHorizontal: Spacing.lg,
@@ -1210,34 +1395,33 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: BorderRadius.xl,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderWidth: 1.5,
-    borderColor: 'rgba(139, 47, 63, 0.3)',
-    shadowColor: '#8B2F3F',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: BorderRadius['2xl'],
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md + 2,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    ...Shadows.lg,
   } as ViewStyle,
   searchIconWrapper: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(139, 47, 63, 0.3)',
+    backgroundColor: 'rgba(139, 47, 63, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 47, 63, 0.4)',
+    marginRight: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(139, 47, 63, 0.5)',
+    ...Shadows.sm,
   } as ViewStyle,
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: Typography.sizes.base + 1,
     color: Colors.text.light,
     padding: 0,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: -0.2,
   } as TextStyle,
   clearBtn: {
     padding: 4,
@@ -1283,78 +1467,40 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     gap: Spacing.sm,
     paddingRight: Spacing.lg,
+    paddingVertical: Spacing.xs,
   } as ViewStyle,
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md + 2,
+    paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(139, 47, 63, 0.3)',
-    minHeight: 38,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    minHeight: 42,
+    gap: Spacing.xs + 2,
+    ...Shadows.sm,
   } as ViewStyle,
   categoryPillActive: {
-    backgroundColor: '#8B2F3F',
-    borderColor: '#8B2F3F',
-    shadowColor: '#8B2F3F',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    ...Shadows.lg,
   } as ViewStyle,
   categoryPillText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Typography.sizes.sm,
+    fontWeight: '700',
     color: Colors.text.secondary,
+    letterSpacing: 0.2,
   } as TextStyle,
   categoryPillTextActive: {
     color: 'white',
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   } as TextStyle,
   categoryIcon: {
-    marginRight: 2,
+    marginRight: 4,
   } as TextStyle,
   
-  // Toggle Vue
-  viewToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.full,
-    padding: 4,
-    alignSelf: 'flex-end',
-    marginBottom: Spacing.md,
-    marginRight: -Spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  } as ViewStyle,
-  viewToggleButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: BorderRadius.full,
-    minWidth: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  } as ViewStyle,
-  viewToggleButtonActive: {
-    backgroundColor: '#8B2F3F',
-    shadowColor: '#8B2F3F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  } as ViewStyle,
   
   // Grille
   partnersGrid: {

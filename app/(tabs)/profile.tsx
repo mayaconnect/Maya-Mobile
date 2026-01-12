@@ -143,8 +143,12 @@ export default function ProfileScreen() {
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
-            <Text style={styles.title}>Mon Profil</Text>
-            <Text style={styles.subtitle}>Gérez votre compte</Text>
+            <View style={styles.headerContent}>
+              <View>
+                <Text style={styles.title}>Mon Profil</Text>
+                <Text style={styles.subtitle}>Gérez votre compte et préférences</Text>
+              </View>
+            </View>
           </View>
 
           <ScrollView
@@ -164,63 +168,73 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <>
-              {/* Carte Profil */}
-              <View style={styles.profileCard}>
-                <View style={styles.avatarBadge}>
-                  {userInfo?.avatarBase64 ? (
-                    <Image 
-                      source={{ uri: `data:image/jpeg;base64,${userInfo.avatarBase64}` }}
-                      style={styles.avatarImage}
-                    />
-                  ) : (
-                    <Text style={styles.avatarInitials}>
-                      {userInfo ? `${userInfo.firstName?.charAt(0) || ''}${userInfo.lastName?.charAt(0) || ''}`.toUpperCase() : 'U'}
-                    </Text>
-                  )}
-                </View>
-                <View style={{ flex: 1 } as ViewStyle}>
-                  <View style={styles.userNameRow}>
-                    <Text style={styles.userName}>
-                      {userInfo ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur'}
-                    </Text>
-                    <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
-                      <Ionicons name="refresh" size={18} color={Colors.primary[600]} />
-                    </TouchableOpacity>
+              {/* Carte Profil avec gradient */}
+              <LinearGradient
+                colors={['rgba(139, 47, 63, 0.3)', 'rgba(139, 47, 63, 0.15)', 'rgba(139, 47, 63, 0.05)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.profileCard}
+              >
+                <View style={styles.profileHeader}>
+                  <View style={styles.avatarContainer}>
+                    {userInfo?.avatarBase64 ? (
+                      <Image 
+                        source={{ uri: `data:image/jpeg;base64,${userInfo.avatarBase64}` }}
+                        style={styles.avatarImage}
+                      />
+                    ) : (
+                      <LinearGradient
+                        colors={['#8B2F3F', '#A53F51']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.avatarBadge}
+                      >
+                        <Text style={styles.avatarInitials}>
+                          {userInfo ? `${userInfo.firstName?.charAt(0) || ''}${userInfo.lastName?.charAt(0) || ''}`.toUpperCase() : 'U'}
+                        </Text>
+                      </LinearGradient>
+                    )}
+                    <View style={styles.onlineIndicator} />
                   </View>
-                  <Text style={styles.userEmail}>{userInfo?.email || user?.email || 'Non connecté'}</Text>
-                  
-                  {userInfo?.birthDate && (
-                    <View style={styles.userInfoRow}>
-                      <Ionicons name="calendar" size={14} color={Colors.text.secondary} />
-                      <Text style={styles.userInfoText}>
-                        Né(e) le {new Date(userInfo.birthDate).toLocaleDateString('fr-FR')}
+                  <View style={styles.profileInfo}>
+                    <View style={styles.userNameRow}>
+                      <Text style={styles.userName}>
+                        {userInfo ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur'}
                       </Text>
+                      {hasSubscription && (
+                        <View style={styles.verifiedBadge}>
+                          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                        </View>
+                      )}
                     </View>
-                  )}
-
-                  {userInfo?.address && (
-                    <View style={styles.userInfoRow}>
-                      <Ionicons name="location" size={14} color={Colors.text.secondary} />
-                      <Text style={styles.userInfoText} numberOfLines={1}>
-                        {[
-                          userInfo.address.street,
-                          userInfo.address.postalCode,
-                          userInfo.address.city
-                        ].filter(Boolean).join(', ')}
-                      </Text>
+                    <View style={styles.emailRow}>
+                      <Ionicons name="mail" size={14} color={Colors.text.secondary} />
+                      <Text style={styles.userEmail}>{userInfo?.email || user?.email || 'Non connecté'}</Text>
                     </View>
-                  )}
-
-                  {hasSubscription && (
-                    <View style={styles.userMetaRow}>
-                      <View style={styles.familyChip}>
-                        <Ionicons name="checkmark-circle" size={14} color={Colors.status.success} />
-                        <Text style={styles.familyChipText}>Abonnement actif</Text>
-                      </View>
+                    
+                    {/* Informations rapides */}
+                    <View style={styles.quickInfoRow}>
+                      {userInfo?.birthDate && (
+                        <View style={styles.quickInfoTag}>
+                          <Ionicons name="calendar" size={12} color="#F6C756" />
+                          <Text style={styles.quickInfoText}>
+                            {new Date(userInfo.birthDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                          </Text>
+                        </View>
+                      )}
+                      {hasSubscription && (
+                        <View style={[styles.quickInfoTag, styles.subscriptionTag]}>
+                          <Ionicons name="sparkles" size={12} color="#10B981" />
+                          <Text style={[styles.quickInfoText, styles.subscriptionTagText]}>Abonné</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
+                  </View>
+                  <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+                    <Ionicons name="refresh-circle" size={28} color={Colors.primary[400]} />
+                  </TouchableOpacity>
                 </View>
-              </View>
+              </LinearGradient>
 
               {/* Informations personnelles */}
               {userInfo && (
@@ -495,18 +509,25 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.lg,
     marginBottom: Spacing.sm,
+  } as ViewStyle,
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   } as ViewStyle,
   title: {
     fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold as any,
+    fontWeight: '900',
     color: Colors.text.light,
     marginBottom: Spacing.xs,
+    letterSpacing: -1,
   } as TextStyle,
   subtitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
+    fontWeight: '500',
   } as TextStyle,
   content: {
     flex: 1,
@@ -516,46 +537,120 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing['2xl'],
   } as ViewStyle,
   profileCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: BorderRadius['2xl'],
     padding: Spacing.xl,
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.lg,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
     marginHorizontal: Spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    ...Shadows.md,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    ...Shadows.xl,
     maxWidth: '100%',
+    overflow: 'hidden',
+  } as ViewStyle,
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.lg,
+  } as ViewStyle,
+  avatarContainer: {
+    position: 'relative',
   } as ViewStyle,
   avatarBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.primary[100],
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    ...Shadows.sm,
+    ...Shadows.lg,
+  } as ViewStyle,
+  avatarImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  } as ViewStyle,
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 20,
+    height: 20,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#10B981',
+    borderWidth: 3,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
   } as ViewStyle,
   avatarInitials: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: '700',
-    color: Colors.secondary[600],
+    fontSize: Typography.sizes['3xl'],
+    fontWeight: '900',
+    color: Colors.text.light,
+    letterSpacing: -1,
   } as TextStyle,
-  userName: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: 'bold' as any,
-    color: Colors.text.primary,
+  profileInfo: {
+    flex: 1,
+    gap: Spacing.xs,
+  } as ViewStyle,
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.xs,
+  } as ViewStyle,
+  userName: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '900',
+    color: Colors.text.light,
+    letterSpacing: -0.5,
   } as TextStyle,
-  userEmail: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.secondary,
+  verifiedBadge: {
+    marginLeft: 4,
+  } as ViewStyle,
+  emailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.sm,
+  } as ViewStyle,
+  userEmail: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
   } as TextStyle,
+  quickInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flexWrap: 'wrap',
+  } as ViewStyle,
+  quickInfoTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  } as ViewStyle,
+  quickInfoText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    fontWeight: '700',
+  } as TextStyle,
+  subscriptionTag: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  } as ViewStyle,
+  subscriptionTagText: {
+    color: '#10B981',
+  } as TextStyle,
+  refreshButton: {
+    padding: Spacing.xs,
+  } as ViewStyle,
   userMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -575,14 +670,14 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   } as TextStyle,
   sectionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.xl,
     marginBottom: Spacing.lg,
     marginHorizontal: Spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    ...Shadows.sm,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Shadows.md,
     maxWidth: '100%',
   } as ViewStyle,
   sectionHeader: {
@@ -593,9 +688,10 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   sectionTitle: {
     fontSize: Typography.sizes.xl,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text.light,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
+    letterSpacing: -0.3,
   } as TextStyle,
   ghostButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
@@ -695,53 +791,59 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   } as TextStyle,
   separator: {
-    height: 1,
-    backgroundColor: Colors.primary[100],
+    height: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: Spacing.sm,
   } as ViewStyle,
   menuSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: BorderRadius['2xl'],
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: Spacing.xs,
     marginHorizontal: Spacing.sm,
     marginBottom: Spacing.lg,
-    ...Shadows.sm,
+    ...Shadows.md,
+    overflow: 'hidden',
   } as ViewStyle,
   logoutContainer: {
     paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
     marginHorizontal: Spacing.sm,
   } as ViewStyle,
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    backgroundColor: '#FEF2F2',
-    ...Shadows.sm,
+    paddingVertical: Spacing.md + 4,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 2,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    gap: Spacing.sm,
+    ...Shadows.md,
   } as ViewStyle,
   logoutText: {
-    marginLeft: Spacing.sm,
     color: '#EF4444',
-    fontWeight: '600',
+    fontWeight: '800',
+    fontSize: Typography.sizes.base,
+    letterSpacing: 0.3,
   } as TextStyle,
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.md + 2,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   } as ViewStyle,
   menuText: {
     flex: 1,
     fontSize: Typography.sizes.base,
-    color: Colors.text.primary,
+    color: Colors.text.light,
     marginLeft: Spacing.md,
+    fontWeight: '600',
   } as TextStyle,
   loadingContainer: {
     alignItems: 'center',
@@ -783,21 +885,24 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   infoRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    alignItems: 'flex-start',
+    paddingVertical: Spacing.md,
     gap: Spacing.md,
   } as ViewStyle,
   infoLabel: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.muted,
-    minWidth: 120,
-    fontWeight: Typography.weights.medium as any,
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    minWidth: 100,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   } as TextStyle,
   infoValue: {
     fontSize: Typography.sizes.base,
     color: Colors.text.light,
-    fontWeight: Typography.weights.medium as any,
+    fontWeight: '600',
     flex: 1,
+    lineHeight: 22,
   } as TextStyle,
   loadingSection: {
     flexDirection: 'row',

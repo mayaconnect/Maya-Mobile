@@ -87,12 +87,7 @@ export const apiCall = async <T>(
   const contentType = response.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
     const jsonData = await response.json();
-    console.log('✅ [API Call] Réponse JSON parsée:', {
-      type: typeof jsonData,
-      isArray: Array.isArray(jsonData),
-      keys: jsonData && typeof jsonData === 'object' ? Object.keys(jsonData) : undefined,
-      data: JSON.stringify(jsonData, null, 2),
-    });
+   
     return jsonData as T;
   }
 

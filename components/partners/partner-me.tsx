@@ -1,5 +1,6 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -37,23 +38,81 @@ export function PartnerMe({
 
   return (
     <View style={styles.container}>
-      {/* Bloc "Moi" / profil partenaire */}
-      <View style={styles.profileCard}>
-        <View style={styles.profileAvatar}>
-          <Ionicons name="person" size={28} color={Colors.primary[600]} />
+      {/* Bloc "Moi" / profil partenaire avec gradient */}
+      <LinearGradient
+        colors={['rgba(139, 47, 63, 0.3)', 'rgba(139, 47, 63, 0.15)', 'rgba(139, 47, 63, 0.05)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.profileCard}
+      >
+        <View style={styles.profileHeader}>
+          <View style={styles.profileAvatarContainer}>
+            <LinearGradient
+              colors={['#8B2F3F', '#A53F51']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.profileAvatar}
+            >
+              <Ionicons name="person" size={32} color={Colors.text.light} />
+            </LinearGradient>
+            <View style={styles.onlineIndicator} />
+          </View>
+          <View style={styles.profileInfo}>
+            <View style={styles.nameRow}>
+              <Text style={styles.profileName}>{fullName}</Text>
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+              </View>
+            </View>
+            {user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
+            {user?.companyName && (
+              <View style={styles.companyBadge}>
+                <Ionicons name="business" size={14} color="#F6C756" />
+                <Text style={styles.profileCompany}>{user.companyName}</Text>
+              </View>
+            )}
+          </View>
         </View>
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{fullName}</Text>
-          {user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
-          {user?.companyName && (
-            <Text style={styles.profileCompany}>{user.companyName}</Text>
-          )}
-        </View>
-      </View>
+        
+        {/* Statistiques rapides */}
+        {stores.length > 0 && (
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="storefront" size={20} color="#F6C756" />
+              <Text style={styles.statValue}>{stores.length}</Text>
+              <Text style={styles.statLabel}>Magasin{stores.length > 1 ? 's' : ''}</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Ionicons name="checkmark-done-circle" size={20} color="#10B981" />
+              <Text style={styles.statValue}>{stores.filter(s => s.isActive).length}</Text>
+              <Text style={styles.statLabel}>Actif{stores.filter(s => s.isActive).length > 1 ? 's' : ''}</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Ionicons name="location" size={20} color="#2DD9FF" />
+              <Text style={styles.statValue}>
+                {new Set(stores.map(s => s.city || s.address?.city).filter(Boolean)).size}
+              </Text>
+              <Text style={styles.statLabel}>Ville{new Set(stores.map(s => s.city || s.address?.city).filter(Boolean)).size > 1 ? 's' : ''}</Text>
+            </View>
+          </View>
+        )}
+      </LinearGradient>
 
       {/* Magasins du partenaire */}
       <View style={styles.storesSection}>
-        <Text style={styles.sectionTitle}>Mes magasins</Text>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleContainer}>
+            <Ionicons name="storefront" size={24} color="#8B2F3F" />
+            <Text style={styles.sectionTitle}>Mes magasins</Text>
+          </View>
+          {stores.length > 0 && (
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{stores.length}</Text>
+            </View>
+          )}
+        </View>
 
         {/* Barre de recherche */}
         <View style={styles.searchContainer}>
@@ -158,82 +217,126 @@ export function PartnerMe({
                   key={store.id}
                   style={styles.storeCard}
                   onPress={() => onStoreSelect(store)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.storeCardContent}>
-                    {/* Icône du magasin avec badge de statut */}
-                    <View style={styles.storeIconContainer}>
-                      <View style={[styles.storeIcon, { backgroundColor: `${iconColor}15` }]}>
-                        <Ionicons name={iconName as any} size={32} color={iconColor} />
-                      </View>
-                      {store.isOpen !== undefined && (
-                        <View
-                          style={[
-                            styles.storeStatusIndicator,
-                            store.isOpen ? styles.storeStatusOpen : styles.storeStatusClosed,
-                          ]}
-                        />
-                      )}
-                    </View>
-
-                    {/* Informations du magasin */}
-                    <View style={styles.storeDetails}>
-                      <View style={styles.storeHeader}>
-                        <View style={styles.storeTitleContainer}>
-                          <Text style={styles.storeName} numberOfLines={1}>
-                            {store.name || partner?.name || 'Magasin sans nom'}
-                          </Text>
-                          {store.category && (
-                            <View style={[styles.categoryBadge, { backgroundColor: `${iconColor}20` }]}>
-                              <Text style={[styles.categoryText, { color: iconColor }]}>
-                                {store.category}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <Ionicons
-                          name="chevron-forward-circle"
-                          size={24}
-                          color="rgba(255, 255, 255, 0.3)"
-                        />
-                      </View>
-
-                      {/* Adresse */}
-                      <View style={styles.storeAddressContainer}>
-                        <Ionicons name="location" size={16} color={Colors.text.secondary} />
-                        <Text style={styles.storeAddress} numberOfLines={2}>
-                          {addressString}
-                        </Text>
-                      </View>
-
-                      {/* Badge de statut en bas */}
-                      {store.isOpen !== undefined && (
-                        <View style={styles.storeFooter}>
+                  <LinearGradient
+                    colors={[`${iconColor}08`, 'rgba(255, 255, 255, 0.05)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.storeCardGradient}
+                  >
+                    <View style={styles.storeCardContent}>
+                      {/* Icône du magasin avec badge de statut et effet lumineux */}
+                      <View style={styles.storeIconContainer}>
+                        <LinearGradient
+                          colors={[iconColor, `${iconColor}CC`]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.storeIcon}
+                        >
+                          <Ionicons name={iconName as any} size={36} color="#FFFFFF" />
+                        </LinearGradient>
+                        {store.isOpen !== undefined && (
                           <View
                             style={[
-                              styles.statusBadge,
-                              store.isOpen ? styles.statusBadgeOpen : styles.statusBadgeClosed,
+                              styles.storeStatusIndicator,
+                              store.isOpen ? styles.storeStatusOpen : styles.storeStatusClosed,
                             ]}
+                          />
+                        )}
+                      </View>
+
+                      {/* Informations du magasin */}
+                      <View style={styles.storeDetails}>
+                        <View style={styles.storeHeader}>
+                          <View style={styles.storeTitleContainer}>
+                            <View style={styles.storeNameRow}>
+                              <Text style={styles.storeName} numberOfLines={1}>
+                                {store.name || partner?.name || 'Magasin sans nom'}
+                              </Text>
+                              {store.isActive && (
+                                <View style={styles.activeBadge}>
+                                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                </View>
+                              )}
+                            </View>
+                            {store.category && (
+                              <View style={[styles.categoryBadge, { backgroundColor: `${iconColor}25`, borderColor: `${iconColor}50` }]}>
+                                <Text style={[styles.categoryText, { color: iconColor }]}>
+                                  {store.category}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          <TouchableOpacity 
+                            style={styles.actionButton}
+                            onPress={() => onStoreSelect(store)}
                           >
+                            <Ionicons
+                              name="arrow-forward-circle"
+                              size={28}
+                              color={iconColor}
+                            />
+                          </TouchableOpacity>
+                        </View>
+
+                        {/* Adresse avec icône stylisée */}
+                        <View style={styles.storeAddressContainer}>
+                          <View style={[styles.addressIconWrapper, { backgroundColor: `${iconColor}15` }]}>
+                            <Ionicons name="location" size={14} color={iconColor} />
+                          </View>
+                          <Text style={styles.storeAddress} numberOfLines={2}>
+                            {addressString}
+                          </Text>
+                        </View>
+
+                        {/* Informations additionnelles */}
+                        {(store.avgDiscountPercent || store.phone) && (
+                          <View style={styles.storeInfoRow}>
+                            {store.avgDiscountPercent && (
+                              <View style={styles.infoTag}>
+                                <Ionicons name="pricetag" size={12} color="#F6C756" />
+                                <Text style={styles.infoTagText}>-{store.avgDiscountPercent}%</Text>
+                              </View>
+                            )}
+                            {store.phone && (
+                              <View style={styles.infoTag}>
+                                <Ionicons name="call" size={12} color="#2DD9FF" />
+                                <Text style={styles.infoTagText}>Tel</Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+
+                        {/* Badge de statut en bas */}
+                        {store.isOpen !== undefined && (
+                          <View style={styles.storeFooter}>
                             <View
                               style={[
-                                styles.statusDot,
-                                { backgroundColor: store.isOpen ? '#10B981' : Colors.status.error },
-                              ]}
-                            />
-                            <Text
-                              style={[
-                                styles.statusText,
-                                { color: store.isOpen ? '#10B981' : Colors.status.error },
+                                styles.statusBadge,
+                                store.isOpen ? styles.statusBadgeOpen : styles.statusBadgeClosed,
                               ]}
                             >
-                              {store.isOpen ? 'Ouvert maintenant' : 'Fermé'}
-                            </Text>
+                              <View
+                                style={[
+                                  styles.statusDot,
+                                  { backgroundColor: store.isOpen ? '#10B981' : Colors.status.error },
+                                ]}
+                              />
+                              <Text
+                                style={[
+                                  styles.statusText,
+                                  { color: store.isOpen ? '#10B981' : Colors.status.error },
+                                ]}
+                              >
+                                {store.isOpen ? 'Ouvert maintenant' : 'Fermé'}
+                              </Text>
+                            </View>
                           </View>
-                        </View>
-                      )}
+                        )}
+                      </View>
                     </View>
-                  </View>
+                  </LinearGradient>
                 </TouchableOpacity>
               );
             })}
@@ -249,52 +352,150 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   } as ViewStyle,
   profileCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+    ...Shadows.xl,
+    overflow: 'hidden',
+  } as ViewStyle,
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
     marginBottom: Spacing.lg,
-    ...Shadows.md,
+  } as ViewStyle,
+  profileAvatarContainer: {
+    position: 'relative',
+    marginRight: Spacing.lg,
   } as ViewStyle,
   profileAvatar: {
-    width: 56,
-    height: 56,
+    width: 72,
+    height: 72,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.md,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Shadows.lg,
+  } as ViewStyle,
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#10B981',
+    borderWidth: 3,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
   } as ViewStyle,
   profileInfo: {
     flex: 1,
   } as ViewStyle,
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
   profileName: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '700',
+    fontSize: Typography.sizes.xl,
+    fontWeight: '800',
     color: Colors.text.light,
-    marginBottom: 4,
+    letterSpacing: -0.5,
   } as TextStyle,
+  verifiedBadge: {
+    marginLeft: 4,
+  } as ViewStyle,
   profileEmail: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
-    marginBottom: 2,
+    marginBottom: Spacing.xs,
   } as TextStyle,
+  companyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(246, 199, 86, 0.15)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-start',
+  } as ViewStyle,
   profileCompany: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.primary[200],
-    fontWeight: '600',
+    fontSize: Typography.sizes.xs,
+    color: '#F6C756',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   } as TextStyle,
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
+  statItem: {
+    alignItems: 'center',
+    gap: Spacing.xs,
+    flex: 1,
+  } as ViewStyle,
+  statValue: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '900',
+    color: Colors.text.light,
+    letterSpacing: -1,
+  } as TextStyle,
+  statLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  } as TextStyle,
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
   storesSection: {
     marginBottom: Spacing.lg,
   } as ViewStyle,
-  sectionTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: Colors.text.light,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: Spacing.md,
+  } as ViewStyle,
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  sectionTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '800',
+    color: Colors.text.light,
+    letterSpacing: -0.5,
+  } as TextStyle,
+  countBadge: {
+    backgroundColor: 'rgba(139, 47, 63, 0.3)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(139, 47, 63, 0.5)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    minWidth: 32,
+    alignItems: 'center',
+  } as ViewStyle,
+  countBadgeText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '900',
+    color: Colors.text.light,
+    letterSpacing: -0.3,
   } as TextStyle,
   searchContainer: {
     flexDirection: 'row',
@@ -343,41 +544,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   } as TextStyle,
   storeCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.lg,
+    borderRadius: BorderRadius['3xl'],
     marginBottom: Spacing.lg,
-    ...Shadows.lg,
+    ...Shadows.xl,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  } as ViewStyle,
+  storeCardGradient: {
+    padding: Spacing.lg,
   } as ViewStyle,
   storeCardContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.md,
+    gap: Spacing.lg,
   } as ViewStyle,
   storeIconContainer: {
     position: 'relative',
   } as ViewStyle,
   storeIcon: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     borderRadius: BorderRadius['2xl'],
-    backgroundColor: Colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
-    ...Shadows.sm,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    ...Shadows.lg,
   } as ViewStyle,
   storeStatusIndicator: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 20,
-    height: 20,
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
     borderRadius: BorderRadius.full,
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    ...Shadows.md,
+    borderWidth: 4,
+    borderColor: 'rgba(0, 0, 0, 0.3)',
+    ...Shadows.xl,
   } as ViewStyle,
   storeStatusOpen: {
     backgroundColor: '#10B981',
@@ -399,29 +604,49 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.xs,
   } as ViewStyle,
+  storeNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  } as ViewStyle,
   storeName: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '800',
+    fontWeight: '900',
     color: Colors.text.light,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
+    flex: 1,
   } as TextStyle,
+  activeBadge: {
+    marginLeft: 4,
+  } as ViewStyle,
+  actionButton: {
+    padding: Spacing.xs,
+  } as ViewStyle,
   categoryBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.md,
+    paddingVertical: 5,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1.5,
     alignSelf: 'flex-start',
   } as ViewStyle,
   categoryText: {
     fontSize: Typography.sizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   } as TextStyle,
   storeAddressContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
     paddingTop: Spacing.xs,
+  } as ViewStyle,
+  addressIconWrapper: {
+    width: 24,
+    height: 24,
+    borderRadius: BorderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   } as ViewStyle,
   storeAddress: {
     fontSize: Typography.sizes.sm,
@@ -429,36 +654,63 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
   } as TextStyle,
-  storeFooter: {
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  storeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     marginTop: Spacing.xs,
+  } as ViewStyle,
+  infoTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  } as ViewStyle,
+  infoTagText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.light,
+    fontWeight: '700',
+  } as TextStyle,
+  storeFooter: {
+    paddingTop: Spacing.md,
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    marginTop: Spacing.md,
   } as ViewStyle,
   statusBadge: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.xs + 2,
     borderRadius: BorderRadius.full,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
     alignSelf: 'flex-start',
+    borderWidth: 1.5,
   } as ViewStyle,
   statusBadgeOpen: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
   } as ViewStyle,
   statusBadgeClosed: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
   } as ViewStyle,
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 10,
+    height: 10,
     borderRadius: BorderRadius.full,
+    ...Shadows.sm,
   } as ViewStyle,
   statusText: {
     fontSize: Typography.sizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   } as TextStyle,
 });
 

@@ -71,17 +71,11 @@ export const QrService = {
       if (existing) {
         const expiry = new Date(existing.expiresAt).getTime();
         const timeUntilExpiry = expiry - Date.now();
-        console.log('📦 [QR Service] Token en cache trouvé', {
-          token: existing.token.substring(0, 20) + '...',
-          expiresAt: existing.expiresAt,
-          timeUntilExpiry: Math.round(timeUntilExpiry / 1000) + 's',
-        });
+      
 
         if (expiry > Date.now() + 60 * 1000) {
-          console.log('✅ [QR Service] Utilisation du token en cache (valide)');
           return existing;
         } else {
-          console.log('⏰ [QR Service] Token en cache expiré, génération d\'un nouveau');
         }
       } else {
         console.log('📦 [QR Service] Aucun token en cache');
@@ -90,9 +84,7 @@ export const QrService = {
       console.log('🔄 [QR Service] Refresh forcé demandé');
     }
 
-    // Générer un nouveau token via l'API
-    console.log('🌐 [QR Service] Appel API: POST /api/qr/issue-token-frontend');
-    console.log('🌐 [QR Service] Base URL:', QR_API_BASE_URL);
+   
 
     let response: any;
     try {
@@ -214,12 +206,7 @@ export const QrService = {
 
     const expiry = new Date(cached.expiresAt).getTime();
     const isExpired = expiry <= Date.now();
-    console.log('📦 [QR Service] Token en cache trouvé', {
-      token: cached.token.substring(0, 20) + '...',
-      expiresAt: cached.expiresAt,
-      isExpired,
-      timeUntilExpiry: isExpired ? 'expiré' : Math.round((expiry - Date.now()) / 1000) + 's',
-    });
+  
 
     if (isExpired) {
       console.log('🗑️ [QR Service] Token expiré, suppression du cache');
@@ -241,12 +228,9 @@ export const QrService = {
    * Récupère le QR Code actuel avec token et image base64 (Client)
    */
   getCurrentQrCode: async (): Promise<QrCodeResponse> => {
-    console.log('🔍 [QR Service] getCurrentQrCode appelé');
-    console.log('🌐 [QR Service] Appel API: GET /api/qr/current');
-    console.log('🌐 [QR Service] Base URL:', QR_API_BASE_URL);
+   
 
     const token = await AuthService.getAccessToken();
-    console.log('🔑 [QR Service] Token d\'authentification:', token ? token.substring(0, 20) + '...' : 'Aucun');
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -254,7 +238,6 @@ export const QrService = {
 
     if (token) {
       headers.Authorization = `Bearer ${token}`;
-      console.log('✅ [QR Service] Header Authorization ajouté');
     } else {
       console.warn('⚠️ [QR Service] Aucun token d\'authentification disponible');
     }
@@ -267,13 +250,7 @@ export const QrService = {
     }, 0, QR_API_BASE_URL);
       const duration = Date.now() - startTime;
 
-      console.log('✅ [QR Service] Réponse API reçue', {
-        duration: duration + 'ms',
-        hasToken: !!response?.token,
-        hasExpiresAt: !!response?.expiresAt,
-        hasImageBase64: !!response?.imageBase64,
-        hasQrCodeUrl: !!response?.qrCodeUrl,
-      });
+      
 
       if (response) {
         console.log('📄 [QR Service] Contenu de la réponse:', {
@@ -336,7 +313,8 @@ export const QrService = {
     storeId?: string,
     operatorUserId?: string,
     amountGross: number = 0,
-    personsCount: number = 0
+    personsCount: number = 0,
+    discountPercent: number = 10
   ): Promise<any> => {
     console.log('✅ [QR Service] validateQrToken appelé');
     
@@ -352,7 +330,6 @@ export const QrService = {
       const tokenMatch = qrToken.match(/Token:\s*([^\s\n]+)/);
       if (tokenMatch && tokenMatch[1]) {
         cleanToken = tokenMatch[1].trim();
-        console.log('🧹 [QR Service] Token nettoyé depuis le texte partagé');
       }
     }
 
@@ -361,7 +338,6 @@ export const QrService = {
       const parts = cleanToken.split(':');
       if (parts.length > 1) {
         cleanToken = parts[parts.length - 1].trim();
-        console.log('🧹 [QR Service] Token extrait depuis le format avec préfixe');
       }
     }
 
@@ -372,6 +348,9 @@ export const QrService = {
       hasPartnerId: !!partnerId,
       hasStoreId: !!storeId,
       hasOperatorUserId: !!operatorUserId,
+      amountGross,
+      personsCount,
+      discountPercent,
     });
 
     // Récupérer le token d'authentification
@@ -431,22 +410,12 @@ export const QrService = {
       qrToken: cleanToken,
       amountGross: amountGross ?? 0,
       personsCount: personsCount ?? 0,
+      discountPercent: discountPercent ?? 10, // Réduction spécifique du magasin
     };
 
-    console.log('📤 [QR Service] Body de la requête complet:', {
-      hasQrToken: !!requestBody.qrToken,
-      qrTokenLength: requestBody.qrToken.length,
-      hasPartnerId: !!requestBody.partnerId,
-      hasStoreId: !!requestBody.storeId,
-      hasOperatorUserId: !!requestBody.operatorUserId,
-      amountGross: requestBody.amountGross,
-      personsCount: requestBody.personsCount,
-      bodyPreview: JSON.stringify(requestBody, null, 2),
-    });
+    
 
-    console.log('🌐 [QR Service] Appel API: POST /api/qr/validate');
-    console.log('🌐 [QR Service] Base URL:', QR_API_BASE_URL);
-    console.log('🌐 [QR Service] URL complète:', `${QR_API_BASE_URL}/qr/validate`);
+    
 
     try {
       const startTime = Date.now();
@@ -462,14 +431,6 @@ export const QrService = {
       );
       const duration = Date.now() - startTime;
 
-      console.log('✅ [QR Service] Validation réussie (200 OK)', {
-        duration: duration + 'ms',
-        status: '200 OK',
-        hasResponse: !!response,
-        responseType: typeof response,
-        responseKeys: response ? Object.keys(response) : [],
-        fullResponse: JSON.stringify(response, null, 2),
-      });
 
       return response;
     } catch (error) {

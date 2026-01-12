@@ -24,12 +24,7 @@ const storesApiCall = async <T>(endpoint: string, options: RequestInit = {}): Pr
     headers,
   };
 
-  console.log('📤 [Stores Service] Options de requête:', {
-    method: finalOptions.method || 'GET',
-    hasBody: !!finalOptions.body,
-    hasAuth: !!headers.Authorization,
-    headers: Object.keys(headers),
-  });
+ 
 
   return apiCall<T>(endpoint, finalOptions, 0, STORES_API_BASE_URL);
 };
@@ -58,22 +53,14 @@ export const StoresService = {
    * Récupère les magasins liés à l'utilisateur connecté via la route /stores/me (auth)
    */
   getMyStores: async (): Promise<StoreSearchResponse> => {
-    console.log('🔍 [Stores Service] getMyStores appelé');
-    console.log('🌐 [Stores Service] Appel API: GET /api/stores/me');
-    console.log('🌐 [Stores Service] Base URL:', STORES_API_BASE_URL);
+    
 
     try {
       const startTime = Date.now();
       const response = await storesApiCall<any>('/stores/me');
       const duration = Date.now() - startTime;
 
-      console.log('✅ [Stores Service] Réponse API /stores/me reçue', {
-        duration: duration + 'ms',
-        responseType: typeof response,
-        isArray: Array.isArray(response),
-        hasItems: !!response?.items,
-        hasData: !!response?.data,
-      });
+      
 
       let result: StoreSearchResponse;
 

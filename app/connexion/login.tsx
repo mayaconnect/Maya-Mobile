@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -101,7 +102,12 @@ export default function LoginScreen() {
             <View style={styles.placeholder} />
           </View>
 
-          <View style={styles.content}>
+          <ScrollView 
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.card}>
               <Text style={styles.title}>Connexion</Text>
               <Text style={styles.subtitle}>Accédez à votre espace d&apos;économies en un instant</Text>
@@ -289,8 +295,7 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
-        
+          </ScrollView>
         </SafeAreaView>
       </LinearGradient>
     </NavigationTransition>
@@ -308,7 +313,8 @@ type LoginStyles = {
   appName: TextStyle;
   logoUnderline: ViewStyle;
   placeholder: ViewStyle;
-  content: ViewStyle;
+  scrollContainer: ViewStyle;
+  scrollContent: ViewStyle;
   card: ViewStyle;
   title: TextStyle;
   subtitle: TextStyle;
@@ -404,24 +410,22 @@ const styles = StyleSheet.create<LoginStyles>({
     marginBottom: 0,
     width: 100,
   },
-  content: {
+  scrollContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 0,
-    paddingTop: 0,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     backdropFilter: 'blur(20px)',
-    borderTopLeftRadius: BorderRadius['3xl'],
-    borderTopRightRadius: BorderRadius['3xl'],
-    borderBottomLeftRadius: BorderRadius.lg,
-    borderBottomRightRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    paddingTop: Spacing.sm,
-    position: 'relative',
-    top: 33,
-    maxHeight: '85%',
+    borderRadius: BorderRadius['3xl'],
+    padding: Spacing.xl,
+    paddingTop: Spacing.lg,
     ...Shadows.xl,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',

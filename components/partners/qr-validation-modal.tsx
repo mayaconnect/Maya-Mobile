@@ -26,6 +26,7 @@ interface QrValidationModalProps {
   operatorUserId: string;
   qrToken: string;
   storeName?: string;
+  discountPercent?: number;
   isValidating?: boolean;
 }
 
@@ -38,10 +39,22 @@ export function QrValidationModal({
   operatorUserId,
   qrToken,
   storeName,
+  discountPercent,
   isValidating = false,
 }: QrValidationModalProps) {
   const [amountGross, setAmountGross] = useState('');
   const [personsCount, setPersonsCount] = useState('1');
+
+  // Calculer le montant net et l'économie
+  const calculateAmounts = () => {
+    const amount = parseFloat(amountGross) || 0;
+    const discount = discountPercent ?? 10;
+    const discountAmount = (amount * discount) / 100;
+    const amountNet = amount - discountAmount;
+    return { amount, discountAmount, amountNet };
+  };
+
+  const { amount, discountAmount, amountNet } = calculateAmounts();
 
   const handleValidate = () => {
     // Validation des champs
@@ -158,6 +171,30 @@ export function QrValidationModal({
                   <Text style={styles.hint}>Montant total avant réduction</Text>
                 </View>
 
+                {/* Affichage de la réduction et montant net */}
+                {amount > 0 && (
+                  <View style={styles.calculationCard}>
+                    <View style={styles.calculationRow}>
+                      <View style={styles.calculationLabel}>
+                        <Ionicons name="pricetag" size={16} color="#10B981" />
+                        <Text style={styles.calculationLabelText}>Réduction</Text>
+                      </View>
+                      <View style={styles.calculationValue}>
+                        <Text style={styles.discountPercent}>-{discountPercent ?? 10}%</Text>
+                        <Text style={styles.discountAmount}>-{discountAmount.toFixed(2)}€</Text>
+                      </View>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.calculationRow}>
+                      <View style={styles.calculationLabel}>
+                        <Ionicons name="cash" size={16} color="#8B2F3F" />
+                        <Text style={styles.calculationLabelText}>Montant net</Text>
+                      </View>
+                      <Text style={styles.amountNetValue}>{amountNet.toFixed(2)}€</Text>
+                    </View>
+                  </View>
+                )}
+
                 {/* Nombre de personnes */}
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>
@@ -199,7 +236,7 @@ export function QrValidationModal({
               <View style={styles.noteContainer}>
                 <Ionicons name="information-circle" size={20} color="#3B82F6" />
                 <Text style={styles.noteText}>
-                  La réduction sera automatiquement calculée selon le plan d'abonnement du client.
+                  Une réduction de {discountPercent ?? 10}% sera appliquée sur le montant total pour le client.
                 </Text>
               </View>
             </ScrollView>
@@ -385,7 +422,7 @@ const styles = StyleSheet.create({
   inputIcon: {
     marginRight: Spacing.md,
     opacity: 0.8,
-  } as ViewStyle,
+  } as TextStyle,
   input: {
     flex: 1,
     fontSize: Typography.sizes['2xl'],
@@ -453,6 +490,56 @@ const styles = StyleSheet.create({
     color: Colors.text.light,
     paddingVertical: 0,
     textAlign: 'center',
+    letterSpacing: -0.5,
+  } as TextStyle,
+  calculationCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+    ...Shadows.md,
+  } as ViewStyle,
+  calculationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  } as ViewStyle,
+  calculationLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  } as ViewStyle,
+  calculationLabelText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    fontWeight: '600',
+  } as TextStyle,
+  calculationValue: {
+    alignItems: 'flex-end',
+  } as ViewStyle,
+  discountPercent: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '800',
+    color: '#10B981',
+    letterSpacing: -0.5,
+  } as TextStyle,
+  discountAmount: {
+    fontSize: Typography.sizes.sm,
+    color: '#10B981',
+    fontWeight: '600',
+    marginTop: 2,
+  } as TextStyle,
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: Spacing.md,
+  } as ViewStyle,
+  amountNetValue: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: '800',
+    color: '#8B2F3F',
     letterSpacing: -0.5,
   } as TextStyle,
   noteContainer: {

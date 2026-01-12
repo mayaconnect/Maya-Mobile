@@ -48,6 +48,7 @@ export default function PartnerHomeScreen() {
     storeId: string;
     operatorUserId: string;
     storeName?: string;
+    discountPercent?: number;
   } | null>(null);
 
   // États pour les clients
@@ -248,6 +249,9 @@ export default function PartnerHomeScreen() {
           id: s.id,
           name: s.name || s.partner?.name || 'N/A',
           partnerId: s.partnerId || s.partner?.id,
+          avgDiscountPercent: s.avgDiscountPercent,
+          discountPercent: s.discountPercent,
+          discount: s.discount,
         })),
       });
 
@@ -294,6 +298,21 @@ export default function PartnerHomeScreen() {
       const finalOperatorUserId = operatorUserId!;
 
       console.log('✅ [QR SCAN] Tous les paramètres sont présents');
+      
+      // Récupérer le discountPercent du store
+      console.log('🔍 [QR SCAN] Détails du store actif:', {
+        storeId: activeStore?.id,
+        storeName: activeStore?.name,
+        avgDiscountPercent: activeStore?.avgDiscountPercent,
+        discountPercent: activeStore?.discountPercent,
+        discount: activeStore?.discount,
+        allKeys: activeStore ? Object.keys(activeStore) : [],
+      });
+      
+      const discountPercent = activeStore?.avgDiscountPercent || activeStore?.discountPercent || activeStore?.discount || 10;
+      
+      console.log('✅ [QR SCAN] Réduction calculée:', discountPercent);
+      
       console.log('📤 [QR SCAN] Paramètres préparés pour le modal:', {
         qrToken: qrToken.substring(0, 30) + '...',
         qrTokenLength: qrToken.length,
@@ -301,6 +320,7 @@ export default function PartnerHomeScreen() {
         storeId: finalStoreId.substring(0, 20) + '...',
         operatorUserId: finalOperatorUserId.substring(0, 20) + '...',
         storeName: activeStore?.name || activeStore?.partner?.name || 'N/A',
+        discountPercent,
       });
 
       // Préparer les données pour le modal de validation
@@ -310,6 +330,7 @@ export default function PartnerHomeScreen() {
         storeId: finalStoreId,
         operatorUserId: finalOperatorUserId,
         storeName: activeStore?.name || activeStore?.partner?.name,
+        discountPercent,
       });
 
       // Ouvrir le modal de validation
@@ -349,6 +370,11 @@ export default function PartnerHomeScreen() {
     setValidatingQR(true);
 
     try {
+      // Trouver le magasin pour obtenir son discountPercent
+      const store = stores.find(s => s.id === qrValidationData.storeId || s.storeId === qrValidationData.storeId);
+      // L'API utilise avgDiscountPercent, discountPercent ou discount
+      const discountPercent = store?.avgDiscountPercent || store?.discountPercent || store?.discount || 10; // Fallback à 10% si non trouvé
+
       console.log('═══════════════════════════════════════════════════════════');
       console.log('🌐 [QR VALIDATION] Début de la validation avec montant et personnes');
       console.log('═══════════════════════════════════════════════════════════');
@@ -359,6 +385,8 @@ export default function PartnerHomeScreen() {
         operatorUserId: qrValidationData.operatorUserId.substring(0, 20) + '...',
         amountGross,
         personsCount,
+        discountPercent,
+        storeName: store?.name || 'Magasin inconnu',
       });
 
       const validationStartTime = Date.now();
@@ -369,7 +397,8 @@ export default function PartnerHomeScreen() {
         qrValidationData.storeId,
         qrValidationData.operatorUserId,
         amountGross,
-        personsCount
+        personsCount,
+        discountPercent
       );
 
       const validationDuration = Date.now() - validationStartTime;
@@ -537,14 +566,19 @@ export default function PartnerHomeScreen() {
       const now = new Date();
 
       if (filterPeriod === 'today') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        // Début de la journée en heure locale, pas UTC
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        startDate = todayStart.toISOString();
+        console.log('📅 Filtre TODAY - startDate:', startDate, 'Date actuelle:', now.toISOString());
       } else if (filterPeriod === 'week') {
         const weekAgo = new Date(now);
         weekAgo.setDate(weekAgo.getDate() - 7);
+        weekAgo.setHours(0, 0, 0, 0);
         startDate = weekAgo.toISOString();
       } else if (filterPeriod === 'month') {
         const monthAgo = new Date(now);
         monthAgo.setMonth(monthAgo.getMonth() - 1);
+        monthAgo.setHours(0, 0, 0, 0);
         startDate = monthAgo.toISOString();
       }
 
@@ -679,15 +713,36 @@ export default function PartnerHomeScreen() {
         return;
       }
 
-      // 3) Utiliser directement ces stores (ce sont déjà ceux du partner/operator)
-      setStoresError(null);
-      setStores(userStores);
+      // 3) Charger les détails complets de chaque store pour avoir avgDiscountPercent
+      console.log('🔄 [Partner Home] Chargement des détails complets des stores...');
+      const storesWithDetails = await Promise.all(
+        userStores.map(async (store: any) => {
+          try {
+            const storeDetails = await StoresService.getStoreById(store.id);
+            console.log(`✅ [Partner Home] Store ${store.name} chargé:`, {
+              id: storeDetails.id,
+              avgDiscountPercent: storeDetails.avgDiscountPercent,
+            });
+            return storeDetails;
+          } catch (error) {
+            console.warn(`⚠️ [Partner Home] Impossible de charger les détails du store ${store.id}:`, error);
+            // En cas d'erreur, utiliser les données de base
+            return store;
+          }
+        })
+      );
 
-      console.log('✅ [Partner Home] Stores du partenaire chargés depuis /auth/me:', {
-        count: userStores.length,
-        preview: userStores.slice(0, 3).map((s: any) => ({
+      setStoresError(null);
+      setStores(storesWithDetails);
+
+      console.log('✅ [Partner Home] Stores du partenaire chargés avec détails complets:', {
+        count: storesWithDetails.length,
+        preview: storesWithDetails.slice(0, 3).map((s: any) => ({
           id: s.id,
           name: s.name || s.partner?.name,
+          avgDiscountPercent: s.avgDiscountPercent,
+          discountPercent: s.discountPercent,
+          discount: s.discount,
         })),
       });
     } catch (error) {
@@ -784,9 +839,49 @@ export default function PartnerHomeScreen() {
     setStoreDetailLoading(true);
 
     try {
+      // Charger les détails du store
       const storeDetails = await StoresService.getStoreById(store.id);
       console.log('✅ [Partner Home] Détails du store récupérés:', storeDetails);
-      setSelectedStore(storeDetails);
+      
+      // Charger les statistiques du store
+      try {
+        // Filtrer les transactions pour ce store spécifique
+        const storeTransactions = transactions.filter(
+          t => t.storeId === store.id || t.store?.id === store.id
+        );
+        
+        // Calculer les statistiques
+        const totalScans = storeTransactions.length;
+        const totalRevenue = storeTransactions.reduce((sum, t) => sum + (t.amountGross || 0), 0);
+        
+        // Compter les clients uniques
+        const uniqueClientIds = new Set(
+          storeTransactions
+            .map(t => t.clientId || t.customerId || t.client?.id || t.customer?.id)
+            .filter(Boolean)
+        );
+        const clientsCount = uniqueClientIds.size;
+        
+        console.log('📊 [Partner Home] Statistiques du store calculées:', {
+          totalScans,
+          totalRevenue: totalRevenue.toFixed(2),
+          clientsCount,
+        });
+        
+        // Enrichir les détails avec les statistiques
+        const enrichedStore = {
+          ...storeDetails,
+          totalScans,
+          totalRevenue,
+          clientsCount,
+        };
+        
+        setSelectedStore(enrichedStore);
+      } catch (statsError) {
+        console.warn('⚠️ [Partner Home] Erreur lors du calcul des statistiques:', statsError);
+        // Continuer quand même avec les détails de base
+        setSelectedStore(storeDetails);
+      }
     } catch (error) {
       console.error('❌ [Partner Home] Erreur lors du chargement des détails:', error);
       Alert.alert('Erreur', 'Impossible de charger les détails du store');
@@ -827,9 +922,31 @@ export default function PartnerHomeScreen() {
     return matchesSearch;
   });
 
-  // Statistiques basées sur les clients et les scans (à adapter selon tes besoins)
-  const totalRevenue = 0; // L'API clients ne fournit pas les montants
-  const todayRevenue = 0; // L'API clients ne fournit pas les montants
+  // Calculer les statistiques à partir des transactions
+  const totalRevenue = transactions.reduce((sum, transaction) => {
+    return sum + (transaction.amountGross || transaction.amount || 0);
+  }, 0);
+
+  // Calculer le revenu d'aujourd'hui en comparant les dates correctement
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  
+  const todayRevenue = transactions.reduce((sum, transaction) => {
+    const transactionDate = new Date(transaction.createdAt || transaction.date || transaction.transactionDate);
+    // Vérifier si la transaction est d'aujourd'hui
+    if (transactionDate >= todayStart) {
+      return sum + (transaction.amountGross || transaction.amount || 0);
+    }
+    return sum;
+  }, 0);
+
+  console.log('💰 Statistiques calculées:', {
+    totalRevenue,
+    todayRevenue,
+    todayStart: todayStart.toISOString(),
+    transactionsCount: transactions.length,
+    transactionsDates: transactions.map(t => new Date(t.createdAt || t.date || t.transactionDate).toISOString()),
+  });
 
   return (
     <NavigationTransition>
@@ -952,22 +1069,40 @@ export default function PartnerHomeScreen() {
         />
 
         {/* Modal de validation QR avec montant et personnes */}
-        {qrValidationData && (
-          <QrValidationModal
-            visible={showQRValidationModal}
-            onClose={() => {
-              setShowQRValidationModal(false);
-              setQrValidationData(null);
-            }}
-            onValidate={handleValidateQR}
-            partnerId={qrValidationData.partnerId}
-            storeId={qrValidationData.storeId}
-            operatorUserId={qrValidationData.operatorUserId}
-            qrToken={qrValidationData.qrToken}
-            storeName={qrValidationData.storeName}
-            isValidating={validatingQR}
-          />
-        )}
+        {qrValidationData && (() => {
+          // Récupérer le discountPercent du store en temps réel pour le modal
+          const currentStore = stores.find(s => s.id === qrValidationData.storeId || s.storeId === qrValidationData.storeId);
+          const currentDiscount = qrValidationData.discountPercent || 
+                                  currentStore?.avgDiscountPercent || 
+                                  currentStore?.discountPercent || 
+                                  currentStore?.discount || 
+                                  10;
+          
+          console.log('🎯 [Partner Home] Modal discount calculé:', {
+            fromQrData: qrValidationData.discountPercent,
+            fromStore: currentStore?.avgDiscountPercent || currentStore?.discountPercent,
+            final: currentDiscount,
+            storeName: currentStore?.name,
+          });
+          
+          return (
+            <QrValidationModal
+              visible={showQRValidationModal}
+              onClose={() => {
+                setShowQRValidationModal(false);
+                setQrValidationData(null);
+              }}
+              onValidate={handleValidateQR}
+              partnerId={qrValidationData.partnerId}
+              storeId={qrValidationData.storeId}
+              operatorUserId={qrValidationData.operatorUserId}
+              qrToken={qrValidationData.qrToken}
+              storeName={qrValidationData.storeName}
+              discountPercent={currentDiscount}
+              isValidating={validatingQR}
+            />
+          );
+        })()}
         </LinearGradient>
       </NavigationTransition>
     );
