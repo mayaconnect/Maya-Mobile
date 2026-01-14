@@ -159,10 +159,39 @@ jobs:
         run: npm ci
 
       - name: 🔧 Select Xcode 16.1
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+          xcodebuild -version
 
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
+
+      - name: 🔧 Modify Podfile for Release builds
+        run: |
+          cd ios
+
+          echo "🔧 Limiting dev-only dependencies to Debug configuration"
+
+          # Use CocoaPods :configurations to limit dev pods to Debug only
+          sed -i '' "s/pod 'expo-dev-launcher'/pod 'expo-dev-launcher', :configurations => ['Debug']/" Podfile
+          sed -i '' "s/pod 'expo-dev-menu'/pod 'expo-dev-menu', :configurations => ['Debug']/" Podfile
+          sed -i '' "s/pod 'expo-dev-menu-interface'/pod 'expo-dev-menu-interface', :configurations => ['Debug']/" Podfile
+
+          echo "✅ Dev dependencies limited to Debug configuration"
+
+          # Insert custom build settings into the existing post_install hook
+          sed -i '' '/post_install do |installer|/a\
+          \  # Custom build settings\
+          \  installer.pods_project.targets.each do |target|\
+          \    target.build_configurations.each do |config|\
+          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
+          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
+          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
+          \    end\
+          \  end\
+          ' Podfile
+
+          echo "✅ Podfile modified for Release builds"
 
       - name: 🔧 Fix iOS nullability issues
         run: |
@@ -175,8 +204,8 @@ jobs:
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
           if [ -n "$PROJECT_FILE" ]; then
             echo "📱 Found Xcode project at: $PROJECT_FILE"
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' "$PROJECT_FILE"
-            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 17.0"
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$PROJECT_FILE"
+            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 13.4"
             # Verify the change
             echo "🔍 Verification:"
             grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
@@ -185,33 +214,91 @@ jobs:
             exit 1
           fi
 
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: 🧹 Clean Xcode Derived Data
+        run: rm -rf ~/Library/Developer/Xcode/DerivedData
+
       - name: 📦 Install CocoaPods dependencies
         working-directory: ios
         run: |
           pod install
           echo "✅ CocoaPods dependencies installed"
 
-      - name: 🔧 Fix iOS nullability issues in Pods
+      - name: 🔧 Set deployment target for all Pods
         run: |
-          chmod +x scripts/fix-ios-nullability.sh
-          bash scripts/fix-ios-nullability.sh
+          cd ios
+          echo "Setting IPHONEOS_DEPLOYMENT_TARGET for all Pods to 13.4"
+          find Pods -name "project.pbxproj" -type f | while read -r file; do
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$file"
+          done
+          echo "✅ All Pods deployment targets updated"
+
+      - name: 🗑️ Force remove dev dependencies
+        run: |
+          cd ios
+          echo "🗑️ Forcefully removing dev-only dependencies"
+
+          # Remove expo-dev-launcher completely
+          if [ -d "Pods/expo-dev-launcher" ]; then
+            echo "Removing expo-dev-launcher pod"
+            rm -rf Pods/expo-dev-launcher
+          fi
+
+          # Remove expo-dev-menu
+          if [ -d "Pods/expo-dev-menu" ]; then
+            echo "Removing expo-dev-menu pod"
+            rm -rf Pods/expo-dev-menu
+          fi
+
+          # Remove expo-dev-menu-interface
+          if [ -d "Pods/expo-dev-menu-interface" ]; then
+            echo "Removing expo-dev-menu-interface pod"
+            rm -rf Pods/expo-dev-menu-interface
+          fi
+
+          # Disable the problematic bundle target in Pods project
+          PODS_PROJECT="Pods/Pods.xcodeproj/project.pbxproj"
+          if [ -f "$PODS_PROJECT" ]; then
+            echo "Disabling expo-dev-launcher-EXDevLauncher target"
+
+            # Remove all references to expo-dev-launcher bundle target
+            sed -i '' '/expo-dev-launcher-EXDevLauncher/d' "$PODS_PROJECT"
+            sed -i '' '/expo-dev-launcher.*EXDevLauncher\.bundle/d' "$PODS_PROJECT"
+            sed -i '' '/CompileAssetCatalog.*expo-dev-launcher/d' "$PODS_PROJECT"
+
+            echo "✅ Bundle target references removed"
+          fi
+
+          # Clean Manifest.lock to remove references
+          if [ -f "Pods/Manifest.lock" ]; then
+            echo "Cleaning Manifest.lock"
+            sed -i '' '/expo-dev-launcher/d' Pods/Manifest.lock
+            sed -i '' '/expo-dev-menu/d' Pods/Manifest.lock
+          fi
+
+          # Clean Podfile.lock
+          if [ -f "Podfile.lock" ]; then
+            echo "Cleaning Podfile.lock"
+            sed -i '' '/expo-dev-launcher/d' Podfile.lock
+            sed -i '' '/expo-dev-menu/d' Podfile.lock
+          fi
+
+          echo "✅ Dev dependencies forcefully removed"
 
       - name: 🔧 Disable Swift 6 strict concurrency checking
         run: |
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
           if [ -n "$PROJECT_FILE" ]; then
             echo "📱 Disabling strict concurrency checking in: $PROJECT_FILE"
-            # Add SWIFT_STRICT_CONCURRENCY = minimal after each buildSettings opening
             awk '/buildSettings = \{/ {print; print "\t\t\t\tSWIFT_STRICT_CONCURRENCY = minimal;"; next}1' "$PROJECT_FILE" > "$PROJECT_FILE.tmp"
             mv "$PROJECT_FILE.tmp" "$PROJECT_FILE"
             echo "✅ Swift strict concurrency checking disabled"
           fi
-
-      - name: 💎 Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: true
 
       - name: 🔐 Setup App Store Connect API Key
         run: |

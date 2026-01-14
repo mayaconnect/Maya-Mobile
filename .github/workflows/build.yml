@@ -251,22 +251,74 @@ jobs:
           done
           echo "✅ All Pods deployment targets updated"
 
-      - name: 🔍 Verify dev dependencies excluded
+      - name: 🗑️ Force remove dev dependencies
         run: |
           cd ios
-          echo "🔍 Verifying that dev dependencies were excluded from pod install"
+          echo "🗑️ Forcefully removing dev-only dependencies"
 
+          # Remove expo-dev-launcher completely
           if [ -d "Pods/expo-dev-launcher" ]; then
-            echo "⚠️ Warning: expo-dev-launcher was still installed"
-          else
-            echo "✅ expo-dev-launcher correctly excluded from Release build"
+            echo "Removing expo-dev-launcher pod"
+            rm -rf Pods/expo-dev-launcher
           fi
 
+          # Remove expo-dev-menu
           if [ -d "Pods/expo-dev-menu" ]; then
-            echo "⚠️ Warning: expo-dev-menu was still installed"
-          else
-            echo "✅ expo-dev-menu correctly excluded from Release build"
+            echo "Removing expo-dev-menu pod"
+            rm -rf Pods/expo-dev-menu
           fi
+
+          # Remove expo-dev-menu-interface
+          if [ -d "Pods/expo-dev-menu-interface" ]; then
+            echo "Removing expo-dev-menu-interface pod"
+            rm -rf Pods/expo-dev-menu-interface
+          fi
+
+          # Disable the problematic bundle target in Pods project
+          PODS_PROJECT="Pods/Pods.xcodeproj/project.pbxproj"
+          if [ -f "$PODS_PROJECT" ]; then
+            echo "Disabling expo-dev-launcher-EXDevLauncher target"
+
+            # Remove all references to expo-dev-launcher bundle target
+            sed -i '' '/expo-dev-launcher-EXDevLauncher/d' "$PODS_PROJECT"
+            sed -i '' '/expo-dev-launcher.*EXDevLauncher\.bundle/d' "$PODS_PROJECT"
+            sed -i '' '/CompileAssetCatalog.*expo-dev-launcher/d' "$PODS_PROJECT"
+
+            echo "✅ Bundle target references removed"
+          fi
+
+          # Clean Manifest.lock to remove references
+          if [ -f "Pods/Manifest.lock" ]; then
+            echo "Cleaning Manifest.lock"
+            sed -i '' '/expo-dev-launcher/d' Pods/Manifest.lock
+            sed -i '' '/expo-dev-menu/d' Pods/Manifest.lock
+          fi
+
+          # Clean Podfile.lock
+          if [ -f "Podfile.lock" ]; then
+            echo "Cleaning Podfile.lock"
+            sed -i '' '/expo-dev-launcher/d' Podfile.lock
+            sed -i '' '/expo-dev-menu/d' Podfile.lock
+          fi
+
+          echo "✅ Dev dependencies forcefully removed"
+
+      - name: 🔄 Clean workspace references
+        run: |
+          cd ios
+          echo "🔄 Cleaning workspace references to removed pods"
+
+          # Clean workspace xcuserdata
+          rm -rf Pods/Pods.xcodeproj/xcuserdata
+          rm -rf *.xcworkspace/xcuserdata
+
+          # Verify the workspace still references the main project
+          if [ -f "maya.xcworkspace/contents.xcworkspacedata" ]; then
+            echo "Workspace contents:"
+            cat maya.xcworkspace/contents.xcworkspacedata
+          fi
+
+          echo "✅ Workspace cleaned"
 
       - name: 🔍 List available schemes
         run: |
