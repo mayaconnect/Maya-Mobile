@@ -137,6 +137,27 @@ jobs:
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
+      - name: 🔧 Fix iOS nullability issues
+        run: |
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+
+      - name: 🔧 Set iOS deployment target in Xcode project
+        run: |
+          # Find the Xcode project file dynamically
+          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
+          if [ -n "$PROJECT_FILE" ]; then
+            echo "📱 Found Xcode project at: $PROJECT_FILE"
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' "$PROJECT_FILE"
+            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 17.0"
+            # Verify the change
+            echo "🔍 Verification:"
+            grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
+          else
+            echo "⚠️ Warning: Could not find Xcode project.pbxproj file"
+            exit 1
+          fi
+
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
