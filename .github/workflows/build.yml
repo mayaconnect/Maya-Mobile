@@ -154,8 +154,8 @@ jobs:
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
           if [ -n "$PROJECT_FILE" ]; then
             echo "📱 Found Xcode project at: $PROJECT_FILE"
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' "$PROJECT_FILE"
-            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 17.0"
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 15.1/g' "$PROJECT_FILE"
+            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 15.1"
             # Verify the change
             echo "🔍 Verification:"
             grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
@@ -163,11 +163,6 @@ jobs:
             echo "⚠️ Warning: Could not find Xcode project.pbxproj file"
             exit 1
           fi
-
-      - name: 🔧 Exclude expo-dev-client from production build
-        run: |
-          chmod +x scripts/exclude-dev-client.sh
-          bash scripts/exclude-dev-client.sh
 
       - name: 📦 Install CocoaPods dependencies
         working-directory: ios
@@ -219,6 +214,7 @@ jobs:
             -workspace maya.xcworkspace \
             -scheme Maya \
             -configuration Release \
+            -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \

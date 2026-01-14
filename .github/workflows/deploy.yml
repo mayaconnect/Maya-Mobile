@@ -57,6 +57,7 @@ jobs:
         run: |
           cp -r /tmp/fastlane-backup/fastlane android/
           echo "Fastlane configuration restored"
+          ls -la android/fastlane/
 
       - name: 🔧 Set gradlew permissions
         working-directory: android
@@ -172,32 +173,17 @@ jobs:
         run: |
           # Find the Xcode project file dynamically
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
-          if [ -n "$PROJECT_FILE" ] && [ -f "$PROJECT_FILE" ]; then
+          if [ -n "$PROJECT_FILE" ]; then
             echo "📱 Found Xcode project at: $PROJECT_FILE"
-            # Backup the project file
-            cp "$PROJECT_FILE" "$PROJECT_FILE.backup"
-            # Set deployment target
             sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' "$PROJECT_FILE"
             echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 17.0"
             # Verify the change
             echo "🔍 Verification:"
-            if grep -q "IPHONEOS_DEPLOYMENT_TARGET = 17.0" "$PROJECT_FILE"; then
-              echo "✅ Deployment target successfully set to 17.0"
-              grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
-            else
-              echo "⚠️ Deployment target may not have been set correctly"
-            fi
+            grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
           else
-            echo "❌ Error: Could not find Xcode project.pbxproj file"
-            echo "Looking for project files in ios directory:"
-            find ios -name "*.xcodeproj" -type d || echo "No Xcode projects found"
+            echo "⚠️ Warning: Could not find Xcode project.pbxproj file"
             exit 1
           fi
-
-      - name: 🔧 Exclude expo-dev-client from production build
-        run: |
-          chmod +x scripts/exclude-dev-client.sh
-          bash scripts/exclude-dev-client.sh
 
       - name: 📦 Install CocoaPods dependencies
         working-directory: ios

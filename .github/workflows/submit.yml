@@ -173,11 +173,6 @@ jobs:
             exit 1
           fi
 
-      - name: 🔧 Exclude expo-dev-client from production build
-        run: |
-          chmod +x scripts/exclude-dev-client.sh
-          bash scripts/exclude-dev-client.sh
-
       - name: 📦 Install CocoaPods dependencies
         working-directory: ios
         run: |
