@@ -208,12 +208,12 @@ jobs:
       - name: 🏗️ Build iOS (without signing for check)
         run: |
           cd ios
-          # Build for iOS without specifying destination to avoid platform version issues
+          # Build for iOS with generic destination
           xcodebuild clean build \
             -workspace maya.xcworkspace \
             -scheme Maya \
             -configuration Release \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             ONLY_ACTIVE_ARCH=NO \
