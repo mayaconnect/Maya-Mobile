@@ -145,10 +145,38 @@ jobs:
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
-      - name: 🔧 Modify existing post_install hook in Podfile
+      - name: 🔧 Modify Podfile for Release builds
         run: |
           cd ios
-          # Insert our custom code into the existing post_install hook
+
+          # First, exclude expo-dev-launcher and expo-dev-menu from Release builds
+          echo "🔧 Excluding dev-only dependencies from Release builds"
+
+          # Comment out or skip expo-dev-launcher and related dev dependencies for Release
+          cat > podfile_modifier.rb << 'RUBY'
+# Read the Podfile
+podfile_content = File.read('Podfile')
+
+# Add conditional logic to skip dev dependencies in Release
+modified = podfile_content.gsub(
+  /(pod\s+['"]expo-dev-launcher['"])/,
+  "pod 'expo-dev-launcher' if ENV['CONFIGURATION'] != 'Release' # \\1"
+).gsub(
+  /(pod\s+['"]expo-dev-menu['"])/,
+  "pod 'expo-dev-menu' if ENV['CONFIGURATION'] != 'Release' # \\1"
+).gsub(
+  /(pod\s+['"]expo-dev-menu-interface['"])/,
+  "pod 'expo-dev-menu-interface' if ENV['CONFIGURATION'] != 'Release' # \\1"
+)
+
+File.write('Podfile', modified)
+puts "✅ Dev dependencies made conditional"
+RUBY
+
+          ruby podfile_modifier.rb
+          rm podfile_modifier.rb
+
+          # Now insert our custom build settings into the existing post_install hook
           sed -i '' '/post_install do |installer|/a\
           \  # Custom build settings\
           \  installer.pods_project.targets.each do |target|\
@@ -159,7 +187,8 @@ jobs:
           \    end\
           \  end\
           ' Podfile
-          echo "✅ Post install hook modified in Podfile"
+
+          echo "✅ Podfile modified for Release builds"
 
       - name: 🔧 Fix iOS nullability issues
         run: |
@@ -217,8 +246,11 @@ jobs:
         run: gem install xcpretty
 
       - name: 📱 Install CocoaPods dependencies
+        env:
+          CONFIGURATION: Release
         run: |
           cd ios
+          echo "Installing pods for Release configuration (skipping dev dependencies)"
           pod install
 
       - name: 🔧 Set deployment target for all Pods
@@ -230,31 +262,21 @@ jobs:
           done
           echo "✅ All Pods deployment targets updated"
 
-      - name: 🔧 Exclude expo-dev-launcher from Release build
+      - name: 🔍 Verify dev dependencies excluded
         run: |
           cd ios
+          echo "🔍 Verifying that dev dependencies were excluded from pod install"
 
-          # Remove the problematic assets entirely
-          DEV_LAUNCHER_ASSETS="Pods/expo-dev-launcher/ios/Assets.xcassets"
-          if [ -d "$DEV_LAUNCHER_ASSETS" ]; then
-            echo "🗑️ Removing expo-dev-launcher assets completely"
-            rm -rf "$DEV_LAUNCHER_ASSETS"
-            echo "✅ Assets removed"
+          if [ -d "Pods/expo-dev-launcher" ]; then
+            echo "⚠️ Warning: expo-dev-launcher was still installed"
+          else
+            echo "✅ expo-dev-launcher correctly excluded from Release build"
           fi
 
-          # Find and modify Pods project to skip expo-dev-launcher-EXDevLauncher target
-          PODS_PROJECT="Pods/Pods.xcodeproj/project.pbxproj"
-          if [ -f "$PODS_PROJECT" ]; then
-            echo "🔧 Disabling expo-dev-launcher-EXDevLauncher bundle target"
-
-            # Find the expo-dev-launcher-EXDevLauncher native target and comment it out
-            # This prevents the asset compilation from running
-            sed -i '' '/expo-dev-launcher-EXDevLauncher.*PBXNativeTarget/,/^[[:space:]]*};/{
-              s/^/\/\* /
-              s/$/  *\//
-            }' "$PODS_PROJECT" 2>/dev/null || echo "Could not modify target"
-
-            echo "✅ expo-dev-launcher target disabled"
+          if [ -d "Pods/expo-dev-menu" ]; then
+            echo "⚠️ Warning: expo-dev-menu was still installed"
+          else
+            echo "✅ expo-dev-menu correctly excluded from Release build"
           fi
 
       - name: 🔍 List available schemes
