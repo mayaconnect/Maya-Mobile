@@ -205,6 +205,18 @@ jobs:
           cd ios
           pod install
 
+      - name: 🔧 Remove expo-dev-launcher assets for Release build
+        run: |
+          DEV_LAUNCHER_ASSETS="ios/Pods/expo-dev-launcher/ios/Assets.xcassets"
+          if [ -d "$DEV_LAUNCHER_ASSETS" ]; then
+            echo "🗑️ Removing expo-dev-launcher assets to prevent build issues"
+            rm -rf "$DEV_LAUNCHER_ASSETS"
+            mkdir -p "$DEV_LAUNCHER_ASSETS"
+            echo "✅ Assets removed successfully"
+          else
+            echo "⚠️ expo-dev-launcher assets directory not found, skipping"
+          fi
+
       - name: 🔍 List available schemes
         run: |
           cd ios
