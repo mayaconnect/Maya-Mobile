@@ -40,8 +40,10 @@ build/
 # BUT keep fastlane configuration
 android/*
 !android/fastlane/
+!android/fastlane/**
 ios/*
 !ios/fastlane/
+!ios/fastlane/**
 
 # Fastlane
 fastlane/report.xml
