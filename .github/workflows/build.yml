@@ -145,25 +145,21 @@ jobs:
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
-      - name: 🔧 Add post_install hook to Podfile
+      - name: 🔧 Modify existing post_install hook in Podfile
         run: |
           cd ios
-          # Add post_install hook to fix common issues
-          cat >> Podfile << 'EOF'
-
-          post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              target.build_configurations.each do |config|
-                # Set minimum deployment target
-                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'
-                # Disable warnings
-                config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
-                config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
-              end
-            end
-          end
-          EOF
-          echo "✅ Post install hook added to Podfile"
+          # Insert our custom code into the existing post_install hook
+          sed -i '' '/post_install do |installer|/a\
+          \  # Custom build settings\
+          \  installer.pods_project.targets.each do |target|\
+          \    target.build_configurations.each do |config|\
+          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
+          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
+          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
+          \    end\
+          \  end\
+          ' Podfile
+          echo "✅ Post install hook modified in Podfile"
 
       - name: 🔧 Fix iOS nullability issues
         run: |
