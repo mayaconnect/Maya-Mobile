@@ -32,6 +32,7 @@ platform :ios do
       workspace: "maya.xcworkspace",
       scheme: "Maya",
       export_method: "app-store",
+      destination: "generic/platform=iOS",
       export_options: {
         provisioningProfiles: {
           "com.maya.app" => "match AppStore com.maya.app"
