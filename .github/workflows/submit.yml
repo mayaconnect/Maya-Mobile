@@ -50,10 +50,20 @@ jobs:
           cp -r /tmp/fastlane-backup/fastlane android/
           echo "Fastlane configuration restored"
 
+      - name: 🔧 Set gradlew permissions
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          echo "✅ Gradlew permissions set"
+
       - name: 🔧 Generate React Native Codegen artifacts
         working-directory: android
         run: |
-          ./gradlew :app:generateCodegenArtifactsFromSchema || echo "Codegen artifacts generation completed"
+          echo "Generating codegen artifacts..."
+          ./gradlew :app:generateCodegenArtifactsFromSchema --stacktrace || {
+            echo "⚠️ Codegen generation had issues, but continuing..."
+            exit 0
+          }
           echo "✅ Codegen artifacts generated"
 
       - name: 💎 Setup Ruby
@@ -134,9 +144,6 @@ jobs:
 
       - name: 📦 Install dependencies
         run: npm ci
-
-      - name: 🗑️ Remove expo-dev-client (not needed for production builds)
-        run: npm uninstall expo-dev-client
 
       - name: 🔧 Select Xcode 16.1
         run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer

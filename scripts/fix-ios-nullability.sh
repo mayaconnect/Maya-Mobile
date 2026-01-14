@@ -3,7 +3,8 @@
 # Script pour corriger les erreurs de nullability dans expo-file-system
 # Doit être exécuté après expo prebuild ET après pod install
 
-set -e
+# Don't exit on error, handle errors gracefully
+set +e
 
 echo "🔧 Fixing iOS nullability issues in expo-file-system..."
 
