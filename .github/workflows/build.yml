@@ -145,6 +145,26 @@ jobs:
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
+      - name: 🔧 Add post_install hook to Podfile
+        run: |
+          cd ios
+          # Add post_install hook to fix common issues
+          cat >> Podfile << 'EOF'
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                # Set minimum deployment target
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'
+                # Disable warnings
+                config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+                config.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+              end
+            end
+          end
+          EOF
+          echo "✅ Post install hook added to Podfile"
+
       - name: 🔧 Fix iOS nullability issues
         run: |
           chmod +x scripts/fix-ios-nullability.sh
@@ -205,14 +225,32 @@ jobs:
           cd ios
           pod install
 
-      - name: 🔧 Remove expo-dev-launcher assets for Release build
+      - name: 🔧 Set deployment target for all Pods
+        run: |
+          cd ios
+          echo "Setting IPHONEOS_DEPLOYMENT_TARGET for all Pods to 13.4"
+          find Pods -name "project.pbxproj" -type f | while read -r file; do
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$file"
+          done
+          echo "✅ All Pods deployment targets updated"
+
+      - name: 🔧 Fix expo-dev-launcher assets for Release build
         run: |
           DEV_LAUNCHER_ASSETS="ios/Pods/expo-dev-launcher/ios/Assets.xcassets"
           if [ -d "$DEV_LAUNCHER_ASSETS" ]; then
-            echo "🗑️ Removing expo-dev-launcher assets to prevent build issues"
+            echo "🔧 Creating minimal Contents.json for expo-dev-launcher assets"
+            # Remove problematic assets and create minimal valid asset catalog
             rm -rf "$DEV_LAUNCHER_ASSETS"
             mkdir -p "$DEV_LAUNCHER_ASSETS"
-            echo "✅ Assets removed successfully"
+            cat > "$DEV_LAUNCHER_ASSETS/Contents.json" << 'EOF'
+{
+  "info" : {
+    "version" : 1,
+    "author" : "xcode"
+  }
+}
+EOF
+            echo "✅ Minimal asset catalog created"
           else
             echo "⚠️ expo-dev-launcher assets directory not found, skipping"
           fi
@@ -224,10 +262,12 @@ jobs:
           xcodebuild -list -workspace maya.xcworkspace
 
       - name: 🏗️ Build iOS (without signing for check)
+        env:
+          SKIP_SIMULATOR_AVAILABILITY_CHECK: "1"
         run: |
           cd ios
           # Build for iOS device only (avoid simulator runtime issues)
-          set -o pipefail && xcodebuild clean build \
+          xcodebuild clean build \
             -workspace maya.xcworkspace \
             -scheme Maya \
             -configuration Release \
@@ -237,8 +277,18 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             ONLY_ACTIVE_ARCH=NO \
+            SKIP_INSTALL=NO \
             -allowProvisioningUpdates \
-            | xcpretty
+            OTHER_LDFLAGS='$(inherited)' 2>&1 | tee build.log
+
+          # Check for build failures
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ Build failed. Last 100 lines of output:"
+            tail -100 build.log
+            exit 1
+          fi
+
+          echo "✅ Build succeeded"
 
       - name: ✅ Build successful
         run: echo "✅ iOS build completed successfully!"
