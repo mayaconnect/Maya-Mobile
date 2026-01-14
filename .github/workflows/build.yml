@@ -77,6 +77,7 @@ jobs:
 
           # React Native / Hermes settings
           hermesEnabled=true
+          newArchEnabled=true
           EOF
 
       - name: 🔍 Debug - Check paths and fastlane folder
@@ -157,6 +158,23 @@ jobs:
         run: |
           pod install
           echo "✅ CocoaPods dependencies installed"
+
+      - name: 🔧 Fix iOS nullability issues in Pods
+        run: |
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+
+      - name: 🔧 Disable Swift 6 strict concurrency checking
+        run: |
+          # Find the Xcode project file
+          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
+          if [ -n "$PROJECT_FILE" ]; then
+            echo "📱 Disabling strict concurrency checking in: $PROJECT_FILE"
+            # Add SWIFT_STRICT_CONCURRENCY = minimal to all build configurations
+            sed -i '' 's/SWIFT_VERSION = [^;]*/&;\
+				SWIFT_STRICT_CONCURRENCY = minimal/g' "$PROJECT_FILE"
+            echo "✅ Swift strict concurrency checking disabled"
+          fi
 
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1

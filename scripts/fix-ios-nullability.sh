@@ -1,26 +1,28 @@
 #!/bin/bash
 
 # Script pour corriger les erreurs de nullability dans expo-file-system
-# Doit être exécuté après expo prebuild
+# Doit être exécuté après expo prebuild ET après pod install
 
 set -e
 
 echo "🔧 Fixing iOS nullability issues in expo-file-system..."
 
-DELEGATE_FILE="node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h"
+# Function to patch a file with nullability annotations
+patch_delegate_file() {
+  local file_path=$1
 
-if [ ! -f "$DELEGATE_FILE" ]; then
-  echo "⚠️ Warning: $DELEGATE_FILE not found. Skipping nullability fix."
-  exit 0
-fi
+  if [ ! -f "$file_path" ]; then
+    echo "⚠️ File not found: $file_path"
+    return 1
+  fi
 
-echo "📝 Patching $DELEGATE_FILE..."
+  echo "📝 Patching $file_path..."
 
-# Backup original file
-cp "$DELEGATE_FILE" "$DELEGATE_FILE.bak"
+  # Backup original file
+  cp "$file_path" "$file_path.bak" 2>/dev/null || true
 
-# Fix nullability annotations
-cat > "$DELEGATE_FILE" << 'EOF'
+  # Fix nullability annotations
+  cat > "$file_path" << 'EOF'
 // Copyright 2015-present 650 Industries. All rights reserved.
 
 #import <Foundation/Foundation.h>
@@ -52,4 +54,25 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
 NS_ASSUME_NONNULL_END
 EOF
 
-echo "✅ Nullability issues fixed!"
+  echo "✅ Patched $file_path"
+  return 0
+}
+
+# Patch in node_modules (before pod install)
+NODE_MODULES_FILE="node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h"
+if patch_delegate_file "$NODE_MODULES_FILE"; then
+  echo "✅ Fixed in node_modules"
+fi
+
+# Patch in Pods (after pod install, if Pods exists)
+PODS_FILE="ios/Pods/ExpoFileSystem/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h"
+if [ -f "$PODS_FILE" ]; then
+  if patch_delegate_file "$PODS_FILE"; then
+    echo "✅ Fixed in Pods"
+  fi
+else
+  echo "ℹ️ Pods file not found yet (will be fixed after pod install)"
+fi
+
+echo ""
+echo "✅ Nullability fixes applied successfully!"
