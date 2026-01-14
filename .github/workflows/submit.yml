@@ -101,7 +101,7 @@ jobs:
     if: |
       github.event.inputs.platform == 'ios' ||
       github.event.inputs.platform == 'both'
-    runs-on: macos-14
+    runs-on: macos-15  # macOS 15 has Xcode 16.x
 
     steps:
       - name: 📥 Checkout code
@@ -116,6 +116,9 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      - name: 🔧 Select Xcode 16.1
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
@@ -124,7 +127,6 @@ jobs:
         with:
           ruby-version: '3.2'
           bundler-cache: true
-          working-directory: ios
 
       - name: 🔐 Setup App Store Connect API Key
         run: |
