@@ -239,17 +239,9 @@ jobs:
           DEV_LAUNCHER_ASSETS="ios/Pods/expo-dev-launcher/ios/Assets.xcassets"
           if [ -d "$DEV_LAUNCHER_ASSETS" ]; then
             echo "🔧 Creating minimal Contents.json for expo-dev-launcher assets"
-            # Remove problematic assets and create minimal valid asset catalog
             rm -rf "$DEV_LAUNCHER_ASSETS"
             mkdir -p "$DEV_LAUNCHER_ASSETS"
-            cat > "$DEV_LAUNCHER_ASSETS/Contents.json" << 'EOF'
-{
-  "info" : {
-    "version" : 1,
-    "author" : "xcode"
-  }
-}
-EOF
+            echo '{"info":{"version":1,"author":"xcode"}}' > "$DEV_LAUNCHER_ASSETS/Contents.json"
             echo "✅ Minimal asset catalog created"
           else
             echo "⚠️ expo-dev-launcher assets directory not found, skipping"
