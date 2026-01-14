@@ -78,6 +78,9 @@ jobs:
           org.gradle.configureondemand=true
           android.useAndroidX=true
           android.enableJetifier=true
+
+          # React Native / Hermes settings
+          hermesEnabled=true
           EOF
 
       - name: 🔑 Create Google Play service account JSON
@@ -157,6 +160,12 @@ jobs:
             echo "⚠️ Warning: Could not find Xcode project.pbxproj file"
             exit 1
           fi
+
+      - name: 📦 Install CocoaPods dependencies
+        working-directory: ios
+        run: |
+          pod install
+          echo "✅ CocoaPods dependencies installed"
 
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1
