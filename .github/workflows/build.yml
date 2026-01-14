@@ -202,28 +202,6 @@ jobs:
             exit 1
           fi
 
-      - name: 📦 Install CocoaPods dependencies
-        working-directory: ios
-        run: |
-          pod install
-          echo "✅ CocoaPods dependencies installed"
-
-      - name: 🔧 Fix iOS nullability issues in Pods
-        run: |
-          chmod +x scripts/fix-ios-nullability.sh
-          bash scripts/fix-ios-nullability.sh
-
-      - name: 🔧 Disable Swift 6 strict concurrency checking
-        run: |
-          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
-          if [ -n "$PROJECT_FILE" ]; then
-            echo "📱 Disabling strict concurrency checking in: $PROJECT_FILE"
-            # Add SWIFT_STRICT_CONCURRENCY = minimal after each buildSettings opening
-            awk '/buildSettings = \{/ {print; print "\t\t\t\tSWIFT_STRICT_CONCURRENCY = minimal;"; next}1' "$PROJECT_FILE" > "$PROJECT_FILE.tmp"
-            mv "$PROJECT_FILE.tmp" "$PROJECT_FILE"
-            echo "✅ Swift strict concurrency checking disabled"
-          fi
-
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -237,10 +215,25 @@ jobs:
         run: gem install xcpretty
 
       - name: 📱 Install CocoaPods dependencies
+        working-directory: ios
         run: |
-          cd ios
           echo "Installing pods (dev dependencies configured for Debug only)"
           pod install --verbose
+
+      - name: 🔧 Fix iOS nullability issues in Pods
+        run: |
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+
+      - name: 🔧 Disable Swift 6 strict concurrency checking
+        run: |
+          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
+          if [ -n "$PROJECT_FILE" ]; then
+            echo "📱 Disabling strict concurrency checking in: $PROJECT_FILE"
+            awk '/buildSettings = \{/ {print; print "\t\t\t\tSWIFT_STRICT_CONCURRENCY = minimal;"; next}1' "$PROJECT_FILE" > "$PROJECT_FILE.tmp"
+            mv "$PROJECT_FILE.tmp" "$PROJECT_FILE"
+            echo "✅ Swift strict concurrency checking disabled"
+          fi
 
       - name: 🔧 Set deployment target for all Pods
         run: |
@@ -251,74 +244,32 @@ jobs:
           done
           echo "✅ All Pods deployment targets updated"
 
-      - name: 🗑️ Force remove dev dependencies
+      - name: 🔧 Remove problematic asset catalogs
         run: |
           cd ios
-          echo "🗑️ Forcefully removing dev-only dependencies"
+          echo "🔧 Removing problematic asset catalogs that cause build failures"
 
-          # Remove expo-dev-launcher completely
-          if [ -d "Pods/expo-dev-launcher" ]; then
-            echo "Removing expo-dev-launcher pod"
-            rm -rf Pods/expo-dev-launcher
+          # Simply remove the Assets.xcassets folder from expo-dev-launcher
+          # This is the simplest and most effective solution
+          if [ -d "Pods/expo-dev-launcher/ios/Assets.xcassets" ]; then
+            echo "Removing expo-dev-launcher Assets.xcassets"
+            rm -rf Pods/expo-dev-launcher/ios/Assets.xcassets
+            echo "✅ expo-dev-launcher assets removed"
           fi
 
-          # Remove expo-dev-menu
-          if [ -d "Pods/expo-dev-menu" ]; then
-            echo "Removing expo-dev-menu pod"
-            rm -rf Pods/expo-dev-menu
+          if [ -d "Pods/expo-dev-menu/ios/Assets.xcassets" ]; then
+            echo "Removing expo-dev-menu Assets.xcassets"
+            rm -rf Pods/expo-dev-menu/ios/Assets.xcassets
+            echo "✅ expo-dev-menu assets removed"
           fi
 
-          # Remove expo-dev-menu-interface
-          if [ -d "Pods/expo-dev-menu-interface" ]; then
-            echo "Removing expo-dev-menu-interface pod"
-            rm -rf Pods/expo-dev-menu-interface
+          # Verify the assets are gone
+          echo "🔍 Verifying asset removal:"
+          if [ ! -d "Pods/expo-dev-launcher/ios/Assets.xcassets" ]; then
+            echo "✅ expo-dev-launcher assets confirmed removed"
           fi
 
-          # Disable the problematic bundle target in Pods project
-          PODS_PROJECT="Pods/Pods.xcodeproj/project.pbxproj"
-          if [ -f "$PODS_PROJECT" ]; then
-            echo "Disabling expo-dev-launcher-EXDevLauncher target"
-
-            # Remove all references to expo-dev-launcher bundle target
-            sed -i '' '/expo-dev-launcher-EXDevLauncher/d' "$PODS_PROJECT"
-            sed -i '' '/expo-dev-launcher.*EXDevLauncher\.bundle/d' "$PODS_PROJECT"
-            sed -i '' '/CompileAssetCatalog.*expo-dev-launcher/d' "$PODS_PROJECT"
-
-            echo "✅ Bundle target references removed"
-          fi
-
-          # Clean Manifest.lock to remove references
-          if [ -f "Pods/Manifest.lock" ]; then
-            echo "Cleaning Manifest.lock"
-            sed -i '' '/expo-dev-launcher/d' Pods/Manifest.lock
-            sed -i '' '/expo-dev-menu/d' Pods/Manifest.lock
-          fi
-
-          # Clean Podfile.lock
-          if [ -f "Podfile.lock" ]; then
-            echo "Cleaning Podfile.lock"
-            sed -i '' '/expo-dev-launcher/d' Podfile.lock
-            sed -i '' '/expo-dev-menu/d' Podfile.lock
-          fi
-
-          echo "✅ Dev dependencies forcefully removed"
-
-      - name: 🔄 Clean workspace references
-        run: |
-          cd ios
-          echo "🔄 Cleaning workspace references to removed pods"
-
-          # Clean workspace xcuserdata
-          rm -rf Pods/Pods.xcodeproj/xcuserdata
-          rm -rf *.xcworkspace/xcuserdata
-
-          # Verify the workspace still references the main project
-          if [ -f "maya.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "Workspace contents:"
-            cat maya.xcworkspace/contents.xcworkspacedata
-          fi
-
-          echo "✅ Workspace cleaned"
+          echo "✅ Problematic asset catalogs removed"
 
       - name: 🔍 List available schemes
         run: |
