@@ -119,13 +119,10 @@ const normalizeBaseUrl = (raw?: string | null) => {
   return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed;
 };
 
-const DEFAULT_DEV_API_BASE = 'https://3262206c5ce6.ngrok-free.app/api/v1';
 const ENV_API_BASE = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
 
 export const API_BASE_URL =
-  ENV_API_BASE ??
-  (__DEV__ ? DEFAULT_DEV_API_BASE : 'https://ton-api-production.com/api/v1'); // Mode production
-
+  ENV_API_BASE
 // Fonction utilitaire pour enlever le mot de passe d'un utilisateur
 const removePassword = (user: User): PublicUser => {
   const { password, ...userWithoutPassword } = user;

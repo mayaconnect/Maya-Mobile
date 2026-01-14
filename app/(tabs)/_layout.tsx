@@ -4,9 +4,15 @@ import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 
 export default function TabLayout() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  // Attendre que le chargement soit terminé avant de rediriger
+  if (loading) {
+    return null; // Ou un écran de chargement
+  }
+  
   if (!user) {
-    return <Redirect href="/login" />;
+    return <Redirect href="/connexion/login" />;
   }
 
   // Vérifier si l'utilisateur est un partenaire ou un opérateur

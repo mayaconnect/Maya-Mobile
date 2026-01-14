@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../auth.service';
+import { API_BASE_URL, AuthService } from '../auth.service';
 
 export const apiCall = async <T>(
   endpoint: string,
@@ -9,12 +9,27 @@ export const apiCall = async <T>(
   const baseUrl = baseUrlOverride ?? API_BASE_URL;
   const url = `${baseUrl}${endpoint}`;
 
+  // Récupérer le token d'authentification si disponible
+  const token = await AuthService.getAccessToken();
+  
+  // Construire les headers par défaut
+  const defaultHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  
+  // Ajouter le header Authorization si un token est présent et qu'il n'est pas déjà dans les headers
+  if (token && !defaultHeaders.Authorization) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`;
+    console.log('🔑 [API Call] Token d\'authentification ajouté automatiquement');
+  } else if (!token) {
+    console.warn('⚠️ [API Call] Aucun token d\'authentification disponible');
+  }
+
   // S'assurer que les headers sont correctement passés
   const finalOptions: RequestInit = {
     ...options,
-    headers: {
-      ...options.headers,
-    },
+    headers: defaultHeaders,
   };
 
   console.log('🌐 [API Call] Requête:', {

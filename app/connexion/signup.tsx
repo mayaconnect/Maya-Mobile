@@ -76,7 +76,7 @@ export default function SignupScreen() {
   const [addressError, setAddressError] = useState('');
   const [step, setStep] = useState<SignupStep>('personal');
   
-  const { signUp } = useAuth();
+  const { signUp, user } = useAuth();
   const steps: SignupStep[] = ['personal', 'security', 'address'];
   const currentStepIndex = steps.indexOf(step);
   const isLastStep = step === 'address';
@@ -250,7 +250,16 @@ export default function SignupScreen() {
       console.log('Données envoyées à l\'API:', JSON.stringify(registerData, null, 2));
 
       await signUp(registerData);
-      router.replace('/(tabs)/home');
+      
+      // Attendre un court délai pour que l'état utilisateur soit mis à jour
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Rediriger selon le rôle de l'utilisateur
+      if (role === 'partners') {
+        router.replace('/(tabs)/partner-home');
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error);
       if (error instanceof Error) {
@@ -269,7 +278,7 @@ export default function SignupScreen() {
   };
 
   return (
-    <NavigationTransition direction="right">
+    <NavigationTransition direction="right" children={<></>}>
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
@@ -291,9 +300,14 @@ export default function SignupScreen() {
             <View style={styles.placeholder} />
           </View>
 
-          <View style={styles.content}>
-            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-              <View style={styles.card}>
+          <View style={styles.keyboardAvoidingView}>
+            <ScrollView 
+              style={styles.scrollView} 
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+            <View style={styles.card}>
                 <Text style={styles.title}>Créer un compte</Text>
                 <Text style={styles.subtitle}>Inscrivez-vous pour commencer à économiser</Text>
 
@@ -699,7 +713,7 @@ type SignupStyles = {
   appName: TextStyle;
   logoUnderline: ViewStyle;
   placeholder: ViewStyle;
-  content: ViewStyle;
+  keyboardAvoidingView: ViewStyle;
   scrollView: ViewStyle;
   scrollContent: ViewStyle;
   card: ViewStyle;
@@ -802,21 +816,17 @@ const styles = StyleSheet.create<SignupStyles>({
   placeholder: {
     width: 100,
   },
-  content: {
+  keyboardAvoidingView: {
     flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'flex-end',
     paddingHorizontal: 0,
     paddingBottom: 0,
-    marginBottom: 0,
-    position: 'relative',
-  },
-  scrollView: {
-    maxHeight: '95%',
-    position: 'relative',
-    top: 33,
-  },
-  scrollContent: {
-    flexGrow: 0,
   },
   card: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
@@ -826,8 +836,11 @@ const styles = StyleSheet.create<SignupStyles>({
     borderBottomLeftRadius: BorderRadius.lg,
     borderBottomRightRadius: BorderRadius.lg,
     padding: Spacing.lg,
-    
+    position: 'relative',
+    top: 33,
+    maxHeight: '95%',
     ...Shadows.xl,
+    borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   title: {

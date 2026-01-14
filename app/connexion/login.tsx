@@ -185,38 +185,7 @@ export default function LoginScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Rôle</Text>
-                <View style={styles.roleSelector}>
-                  <TouchableOpacity
-                    style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
-                    onPress={() => setRole('client')}
-                  >
-                    <Ionicons 
-                      name="person" 
-                      size={18} 
-                      color={role === 'client' ? 'white' : '#6B7280'} 
-                    />
-                    <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
-                      Client
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.roleButton, role === 'partners' && styles.roleButtonActive]}
-                    onPress={() => setRole('partners')}
-                  >
-                    <Ionicons 
-                      name="storefront" 
-                      size={18} 
-                      color={role === 'partners' ? 'white' : '#6B7280'} 
-                    />
-                    <Text style={[styles.roleButtonText, role === 'partners' && styles.roleButtonTextActive]}>
-                      Partenaire
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
+             
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>

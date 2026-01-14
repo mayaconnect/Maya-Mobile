@@ -1,6 +1,7 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
+import { AuthService } from '@/services/auth.service';
 import { QrService, QrTokenData } from '@/services/qr.service';
 import { TransactionsService } from '@/services/transactions.service';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,8 +105,18 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!user?.email?.toLowerCase().includes('partner')) {
-      loadQrToken();
+    const checkAuthAndLoadQr = async () => {
+      // Vérifier que l'utilisateur est authentifié avant de charger le QR code
+      const isAuthenticated = await AuthService.isAuthenticated();
+      if (isAuthenticated && !user?.email?.toLowerCase().includes('partner')) {
+        // Petit délai pour s'assurer que le token est bien disponible
+        await new Promise(resolve => setTimeout(resolve, 200));
+        loadQrToken();
+      }
+    };
+    
+    if (user) {
+      checkAuthAndLoadQr();
     }
   }, [loadQrToken, user]);
 

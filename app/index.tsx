@@ -40,29 +40,7 @@ export default function Index() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Rediriger automatiquement si l'utilisateur est connecté
-  useEffect(() => {
-    if (!loading && user) {
-      // Vérifier si l'utilisateur est un partenaire ou opérateur
-      const isPartnerOrOperator = user?.email?.toLowerCase().includes('partner') ||
-                                   user?.email?.toLowerCase().includes('partenaire') ||
-                                   user?.email?.toLowerCase().includes('operator') ||
-                                   user?.email?.toLowerCase().includes('opérateur') ||
-                                   (user as any)?.role === 'partner' ||
-                                   (user as any)?.role === 'operator' ||
-                                   (user as any)?.role === 'opérateur' ||
-                                   (user as any)?.isPartner === true ||
-                                   (user as any)?.isOperator === true;
-
-      if (isPartnerOrOperator) {
-        router.replace('/(tabs)/partner-home');
-      } else {
-        router.replace('/(tabs)/home');
-      }
-    }
-  }, [user, loading]);
-
-  // Si l'utilisateur est connecté, rediriger
+  // Si l'utilisateur est connecté, rediriger immédiatement vers la page home
   if (!loading && user) {
     // Vérifier si l'utilisateur est un partenaire ou opérateur
     const isPartnerOrOperator = user?.email?.toLowerCase().includes('partner') ||
@@ -72,6 +50,7 @@ export default function Index() {
                                  (user as any)?.role === 'partner' ||
                                  (user as any)?.role === 'operator' ||
                                  (user as any)?.role === 'opérateur' ||
+                                 (user as any)?.role === 'partners' ||
                                  (user as any)?.isPartner === true ||
                                  (user as any)?.isOperator === true;
 
