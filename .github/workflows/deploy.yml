@@ -83,9 +83,8 @@ jobs:
           echo "Service account configured"
 
       - name: 🚀 Deploy to Google Play Internal Testing
-        run: |
-          cd android
-          bundle exec fastlane internal
+        working-directory: android
+        run: bundle exec fastlane internal
         env:
           SUPPLY_JSON_KEY: ./fastlane/google-play-service-account.json
 
@@ -147,9 +146,8 @@ jobs:
           echo "App Store Connect API Key configured"
 
       - name: 📜 Setup Match certificates
-        run: |
-          cd ios
-          bundle exec fastlane match appstore --readonly
+        working-directory: ios
+        run: bundle exec fastlane match appstore --readonly
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
@@ -157,9 +155,8 @@ jobs:
           FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
 
       - name: 🚀 Build and Deploy to TestFlight
-        run: |
-          cd ios
-          bundle exec fastlane beta
+        working-directory: ios
+        run: bundle exec fastlane beta
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

@@ -73,9 +73,8 @@ jobs:
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/fastlane/google-play-service-account.json
 
       - name: 🚀 Deploy to Google Play Production
-        run: |
-          cd android
-          bundle exec fastlane production
+        working-directory: android
+        run: bundle exec fastlane production
         env:
           SUPPLY_JSON_KEY: ./fastlane/google-play-service-account.json
 
@@ -135,18 +134,16 @@ jobs:
           chmod 600 ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
       - name: 📜 Setup Match certificates
-        run: |
-          cd ios
-          bundle exec fastlane match appstore --readonly
+        working-directory: ios
+        run: bundle exec fastlane match appstore --readonly
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
 
       - name: 🚀 Deploy to App Store
-        run: |
-          cd ios
-          bundle exec fastlane release
+        working-directory: ios
+        run: bundle exec fastlane release
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

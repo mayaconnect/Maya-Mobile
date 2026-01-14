@@ -65,9 +65,8 @@ jobs:
           echo "✅ Matchfile created"
 
       - name: 🎫 Initialize Match and Create Certificates
+        working-directory: ios
         run: |
-          cd ios
-
           echo "🔐 Initializing Match..."
 
           # Match va créer automatiquement:
