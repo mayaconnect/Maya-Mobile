@@ -122,7 +122,7 @@ jobs:
   # ==========================================
   build-ios:
     name: 🍎 Build iOS (Check Only)
-    runs-on: macos-15  # macOS 15 has Xcode 16.x
+    runs-on: macos-14  # macOS 14 has Xcode 15.x (more stable)
 
     steps:
       - name: 📥 Checkout code
@@ -137,8 +137,8 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🔧 Select Xcode 16.1
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+      - name: 🔧 Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
@@ -154,8 +154,8 @@ jobs:
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
           if [ -n "$PROJECT_FILE" ]; then
             echo "📱 Found Xcode project at: $PROJECT_FILE"
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 15.1/g' "$PROJECT_FILE"
-            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 15.1"
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$PROJECT_FILE"
+            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 13.4"
             # Verify the change
             echo "🔍 Verification:"
             grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
