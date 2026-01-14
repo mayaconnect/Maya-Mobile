@@ -175,13 +175,12 @@ jobs:
 
       - name: 🔧 Disable Swift 6 strict concurrency checking
         run: |
-          # Find the Xcode project file
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
           if [ -n "$PROJECT_FILE" ]; then
             echo "📱 Disabling strict concurrency checking in: $PROJECT_FILE"
-            # Add SWIFT_STRICT_CONCURRENCY = minimal to all build configurations
-            sed -i '' 's/SWIFT_VERSION = [^;]*/&;\
-				SWIFT_STRICT_CONCURRENCY = minimal/g' "$PROJECT_FILE"
+            # Add SWIFT_STRICT_CONCURRENCY = minimal after each buildSettings opening
+            awk '/buildSettings = \{/ {print; print "\t\t\t\tSWIFT_STRICT_CONCURRENCY = minimal;"; next}1' "$PROJECT_FILE" > "$PROJECT_FILE.tmp"
+            mv "$PROJECT_FILE.tmp" "$PROJECT_FILE"
             echo "✅ Swift strict concurrency checking disabled"
           fi
 
