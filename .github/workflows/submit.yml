@@ -37,9 +37,6 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🗑️ Remove expo-dev-client (not needed for production builds)
-        run: npm uninstall expo-dev-client
-
       - name: 💾 Backup Fastlane configuration
         run: |
           mkdir -p /tmp/fastlane-backup
@@ -52,6 +49,12 @@ jobs:
         run: |
           cp -r /tmp/fastlane-backup/fastlane android/
           echo "Fastlane configuration restored"
+
+      - name: 🔧 Generate React Native Codegen artifacts
+        working-directory: android
+        run: |
+          ./gradlew :app:generateCodegenArtifactsFromSchema || echo "Codegen artifacts generation completed"
+          echo "✅ Codegen artifacts generated"
 
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1

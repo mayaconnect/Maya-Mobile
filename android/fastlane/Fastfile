@@ -5,7 +5,7 @@ platform :android do
   desc "Build APK for testing"
   lane :build_apk do
     gradle(
-      task: "clean assembleRelease",
+      task: "assembleRelease",
       project_dir: "./"
     )
   end
@@ -13,16 +13,16 @@ platform :android do
   desc "Build AAB for Google Play"
   lane :build_aab do
     gradle(
-      task: "clean bundleRelease",
+      task: "bundleRelease",
       project_dir: "./"
     )
   end
 
   desc "Deploy to Google Play Internal Testing"
   lane :internal do
-    # Build
+    # Build (without clean to preserve codegen artifacts)
     gradle(
-      task: "clean bundleRelease",
+      task: "bundleRelease",
       project_dir: "./"
     )
 
@@ -39,7 +39,7 @@ platform :android do
   desc "Deploy to Google Play Beta Testing"
   lane :beta do
     gradle(
-      task: "clean bundleRelease",
+      task: "bundleRelease",
       project_dir: "./"
     )
 
@@ -55,7 +55,7 @@ platform :android do
   desc "Deploy to Google Play Production"
   lane :production do
     gradle(
-      task: "clean bundleRelease",
+      task: "bundleRelease",
       project_dir: "./"
     )
 
