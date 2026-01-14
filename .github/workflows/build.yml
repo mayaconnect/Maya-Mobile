@@ -149,14 +149,23 @@ jobs:
         run: |
           cd ios
 
-          echo "🔧 Excluding dev-only dependencies from Release builds"
+          echo "🔧 Limiting dev-only dependencies to Debug configuration"
 
-          # Make expo-dev-launcher conditional on non-Release builds
-          sed -i '' "s/pod 'expo-dev-launcher'/pod 'expo-dev-launcher' if ENV['CONFIGURATION'] != 'Release' #/" Podfile
-          sed -i '' "s/pod 'expo-dev-menu'/pod 'expo-dev-menu' if ENV['CONFIGURATION'] != 'Release' #/" Podfile
-          sed -i '' "s/pod 'expo-dev-menu-interface'/pod 'expo-dev-menu-interface' if ENV['CONFIGURATION'] != 'Release' #/" Podfile
+          # Use CocoaPods :configurations to limit dev pods to Debug only
+          # This is the standard way to exclude pods from Release builds
+          sed -i '' "s/pod 'expo-dev-launcher'/pod 'expo-dev-launcher', :configurations => ['Debug']/" Podfile
+          sed -i '' "s/pod 'expo-dev-menu'/pod 'expo-dev-menu', :configurations => ['Debug']/" Podfile
+          sed -i '' "s/pod 'expo-dev-menu-interface'/pod 'expo-dev-menu-interface', :configurations => ['Debug']/" Podfile
 
-          echo "✅ Dev dependencies made conditional"
+          # Also update any use_expo_modules_with_flags calls
+          sed -i '' "/use_expo_modules_with_flags/a\\
+          \\  # Exclude dev-only dependencies from Release\\
+          \\  pod 'expo-dev-client', :configurations => ['Debug']
+          " Podfile || true
+
+          echo "✅ Dev dependencies limited to Debug configuration"
+          echo "Modified Podfile (first 50 lines):"
+          head -50 Podfile
 
           # Insert custom build settings into the existing post_install hook
           sed -i '' '/post_install do |installer|/a\
@@ -228,12 +237,10 @@ jobs:
         run: gem install xcpretty
 
       - name: 📱 Install CocoaPods dependencies
-        env:
-          CONFIGURATION: Release
         run: |
           cd ios
-          echo "Installing pods for Release configuration (skipping dev dependencies)"
-          pod install
+          echo "Installing pods (dev dependencies configured for Debug only)"
+          pod install --verbose
 
       - name: 🔧 Set deployment target for all Pods
         run: |
