@@ -1,47 +1,110 @@
-import { NavigationTransition } from '@/components/navigation-transition';
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import React from 'react';
+import { NavigationTransition } from '@/components/common/navigation-transition';
+import { SavingsByCategory } from '@/components/home/savings-by-category';
+import { UserTransactionsHistory } from '@/components/home/user-transactions-history';
+import { Colors, Spacing, Typography } from '@/constants/design-system';
+import { useAuth } from '@/hooks/use-auth';
+import { TransactionsService } from '@/services/transactions.service';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HistoryScreen() {
-  const transactions = [
-    { id: 1, partner: 'Café des Arts', amount: '2.50€', discount: '10%', date: 'Aujourd\'hui' },
-    { id: 2, partner: 'Bistro Le Marché', amount: '15.30€', discount: '15%', date: 'Hier' },
-    { id: 3, partner: 'Boutique Mode', amount: '45.00€', discount: '20%', date: 'Il y a 2 jours' },
-  ];
+  const { user } = useAuth();
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTransactions = useCallback(async () => {
+    if (!user?.id) {
+      setError('Utilisateur non connecté');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('📊 [History] Chargement des transactions pour l\'utilisateur:', user.id);
+
+      const response = await TransactionsService.getUserTransactions(user.id, {
+        page: 1,
+        pageSize: 100,
+      });
+
+      console.log('✅ [History] Transactions chargées:', response.items.length);
+
+      setTransactions(response.items || []);
+    } catch (err) {
+      console.error('❌ [History] Erreur lors du chargement:', err);
+
+      let errorMessage = 'Impossible de charger l\'historique';
+      if (err instanceof Error) {
+        if (err.message.includes('401')) {
+          errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+        } else if (err.message.includes('403')) {
+          errorMessage = 'Accès refusé.';
+        } else if (err.message.includes('404')) {
+          errorMessage = 'Aucune transaction trouvée.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.id) {
+      loadTransactions();
+    }
+  }, [user, loadTransactions]);
 
   return (
     <NavigationTransition>
-      <View style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
+      <LinearGradient
+        colors={Colors.gradients.primary}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.container}
+      >
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
           <View style={styles.header}>
-            <Text style={styles.title}>Historique</Text>
-            <Text style={styles.subtitle}>Vos économies récentes</Text>
+            <Text style={styles.title}>Historique des visites</Text>
+            <Text style={styles.subtitle}>
+              {loading ? 'Chargement...' : transactions.length > 0
+                ? `${transactions.length} visite${transactions.length > 1 ? 's' : ''}`
+                : 'Aucune visite'}
+            </Text>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {transactions.map((transaction) => (
-              <TouchableOpacity key={transaction.id} style={styles.transactionCard}>
-                <View style={styles.transactionInfo}>
-                  <Text style={styles.partnerName}>{transaction.partner}</Text>
-                  <Text style={styles.date}>{transaction.date}</Text>
-                </View>
-                <View style={styles.transactionAmount}>
-                  <Text style={styles.amount}>{transaction.amount}</Text>
-                  <Text style={styles.discount}>-{transaction.discount}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Économies par catégorie */}
+            {user?.id && <SavingsByCategory userId={user.id} />}
+
+            {/* Historique des transactions */}
+            <UserTransactionsHistory
+              transactions={transactions}
+              transactionsLoading={loading}
+              transactionsError={error}
+              onRefresh={loadTransactions}
+            />
           </ScrollView>
         </SafeAreaView>
-      </View>
+      </LinearGradient>
     </NavigationTransition>
   );
 }
@@ -49,7 +112,8 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.light,
+    width: '100%',
+    height: '100%',
   },
   safeArea: {
     flex: 1,
@@ -61,53 +125,19 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Typography.sizes['3xl'],
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.text.light,
     marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
-    flex: 1,
     paddingHorizontal: Spacing.lg,
-  },
-  transactionCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.sm,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  partnerName: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
-  },
-  date: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-  },
-  transactionAmount: {
-    alignItems: 'flex-end',
-  },
-  amount: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.xs,
-  },
-  discount: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.status.success,
-    fontWeight: Typography.weights.semibold,
+    paddingBottom: Spacing.xl,
   },
 });

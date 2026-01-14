@@ -1,0 +1,153 @@
+name: Build Check with Fastlane
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+
+jobs:
+  # ==========================================
+  # BUILD ANDROID - Vérification du build
+  # ==========================================
+  build-android:
+    name: 🤖 Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔨 Generate Android native folder
+        run: npx expo prebuild --platform android --clean
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: 🔐 Create dummy keystore for build check
+        run: |
+          # Créer un keystore temporaire juste pour vérifier que le build fonctionne
+          keytool -genkey -v -keystore android/app/dummy.keystore \
+            -alias dummy -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass dummy123 -keypass dummy123 \
+            -dname "CN=DummyBuild, OU=Dev, O=Maya, L=City, S=State, C=US"
+
+      - name: ⚙️ Create gradle.properties for build check
+        run: |
+          cat << EOF > android/gradle.properties
+          MAYA_UPLOAD_STORE_FILE=dummy.keystore
+          MAYA_UPLOAD_KEY_ALIAS=dummy
+          MAYA_UPLOAD_STORE_PASSWORD=dummy123
+          MAYA_UPLOAD_KEY_PASSWORD=dummy123
+
+          # Gradle settings
+          org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
+          org.gradle.configureondemand=true
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+
+      - name: 🏗️ Build Android APK with Fastlane
+        run: |
+          cd android
+          bundle exec fastlane build_apk
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-build-check
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 7
+
+      - name: ✅ Build successful
+        run: echo "✅ Android build completed successfully!"
+
+  # ==========================================
+  # BUILD iOS - Vérification du build
+  # ==========================================
+  build-ios:
+    name: 🍎 Build iOS (Check Only)
+    runs-on: macos-14
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔨 Generate iOS native folder
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: ios
+
+      - name: 📱 Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install
+
+      - name: 🏗️ Build iOS (without signing for check)
+        run: |
+          cd ios
+          xcodebuild clean build \
+            -workspace maya.xcworkspace \
+            -scheme maya \
+            -configuration Release \
+            -sdk iphonesimulator \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: ✅ Build successful
+        run: echo "✅ iOS build completed successfully!"
+
+  # ==========================================
+  # SUMMARY
+  # ==========================================
+  build-summary:
+    name: 📊 Build Summary
+    needs: [build-android, build-ios]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📊 Display build results
+        run: |
+          echo "======================================"
+          echo "🔍 BUILD CHECK RESULTS"
+          echo "======================================"
+          echo ""
+          echo "Android Build: ${{ needs.build-android.result }}"
+          echo "iOS Build: ${{ needs.build-ios.result }}"
+          echo ""
+          if [ "${{ needs.build-android.result }}" == "success" ] && [ "${{ needs.build-ios.result }}" == "success" ]; then
+            echo "✅ All builds passed!"
+          else
+            echo "❌ Some builds failed. Check logs above."
+            exit 1
+          fi

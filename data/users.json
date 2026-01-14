@@ -1,0 +1,19 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "email": "test@maya.com",
+      "password": "test123",
+      "name": "Utilisateur Test",
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "email": "marie@example.com",
+      "password": "marie2025",
+      "name": "Marie Dupont",
+      "createdAt": "2025-01-15T10:30:00.000Z"
+    }
+  ]
+}
+

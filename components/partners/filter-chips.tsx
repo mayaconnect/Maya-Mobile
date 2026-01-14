@@ -7,6 +7,7 @@ import {
     Text,
     TextStyle,
     TouchableOpacity,
+    View,
     ViewStyle,
 } from 'react-native';
 
@@ -16,6 +17,7 @@ interface Filter {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   backgroundColor: string;
+  count?: number;
 }
 
 interface FilterChipsProps {
@@ -37,74 +39,102 @@ const filters: Filter[] = [
     label: 'Restaurant',
     icon: 'restaurant',
     color: Colors.accent.orange,
-    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+    backgroundColor: Colors.accent.orange + '20',
   },
   {
     id: 'Café',
     label: 'Café',
     icon: 'cafe',
     color: '#fbbf24',
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    backgroundColor: '#fbbf2420',
   },
   {
     id: 'Shop',
-    label: 'Sh',
+    label: 'Shopping',
     icon: 'bag',
     color: Colors.secondary[600],
-    backgroundColor: 'rgba(147, 51, 234, 0.1)',
+    backgroundColor: Colors.secondary[600] + '20',
+  },
+  {
+    id: 'Promotions',
+    label: 'Promos',
+    icon: 'gift',
+    color: Colors.status.success,
+    backgroundColor: Colors.status.success + '20',
   },
 ];
 
 export function FilterChips({ selectedFilter, onFilterChange, style }: FilterChipsProps) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.container, style]}
-      style={styles.scrollView}
-    >
-      {filters.map((filter) => {
-        const isSelected = selectedFilter === filter.id;
-        
-        return (
-          <TouchableOpacity
-            key={filter.id}
-            style={[
-              styles.chip,
-              isSelected ? styles.chipSelected : styles.chipUnselected,
-              { backgroundColor: isSelected ? filter.backgroundColor : 'transparent' }
-            ]}
-            onPress={() => onFilterChange(filter.id)}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={filter.icon}
-              size={16}
-              color={isSelected ? filter.color : Colors.text.secondary}
-            />
-            <Text
+    <View style={styles.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        style={styles.scrollView}
+      >
+        {filters.map((filter) => {
+          const isSelected = selectedFilter === filter.id;
+          
+          return (
+            <TouchableOpacity
+              key={filter.id}
               style={[
-                styles.chipText,
-                {
-                  color: isSelected ? filter.color : Colors.text.secondary,
-                  fontWeight: isSelected ? '600' : '400',
+                styles.chip,
+                isSelected ? styles.chipSelected : styles.chipUnselected,
+                { 
+                  backgroundColor: isSelected ? filter.backgroundColor : Colors.background.light,
+                  borderColor: isSelected ? filter.color : Colors.primary[200],
                 }
               ]}
+              onPress={() => onFilterChange(filter.id)}
+              activeOpacity={0.7}
             >
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+              <Ionicons
+                name={filter.icon}
+                size={16}
+                color={isSelected ? filter.color : Colors.text.secondary}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  {
+                    color: isSelected ? filter.color : Colors.text.secondary,
+                    fontWeight: isSelected ? '600' : '500',
+                  }
+                ]}
+              >
+                {filter.label}
+              </Text>
+              {filter.count !== undefined && (
+                <View style={[
+                  styles.countBadge,
+                  { backgroundColor: isSelected ? filter.color + '20' : Colors.primary[100] }
+                ]}>
+                  <Text style={[
+                    styles.countText,
+                    { color: isSelected ? filter.color : Colors.text.secondary }
+                  ]}>
+                    {filter.count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    marginBottom: Spacing.md,
+  } as ViewStyle,
   scrollView: {
     flexGrow: 0,
   } as ViewStyle,
-  container: {
+  scrollContent: {
     flexDirection: 'row',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
@@ -115,19 +145,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    borderWidth: 1.5,
     gap: Spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   } as ViewStyle,
   chipSelected: {
-    borderColor: 'transparent',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   } as ViewStyle,
   chipUnselected: {
-    borderColor: Colors.primary[200],
     backgroundColor: Colors.background.light,
   } as ViewStyle,
   chipText: {
     fontSize: Typography.sizes.sm,
     textAlign: 'center',
+  } as TextStyle,
+  countBadge: {
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    minWidth: 20,
+    alignItems: 'center',
+  } as ViewStyle,
+  countText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '600',
   } as TextStyle,
 });

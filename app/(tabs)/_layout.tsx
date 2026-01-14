@@ -1,17 +1,42 @@
+import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 
 export default function TabLayout() {
+  const { user, loading } = useAuth();
+  
+  // Attendre que le chargement soit terminé avant de rediriger
+  if (loading) {
+    return null; // Ou un écran de chargement
+  }
+  
+  if (!user) {
+    return <Redirect href="/connexion/login" />;
+  }
+
+  // Vérifier si l'utilisateur est un partenaire ou un opérateur
+  const isPartner = user?.email?.toLowerCase().includes('partner') || 
+                    user?.email?.toLowerCase().includes('partenaire') ||
+                    user?.email?.toLowerCase().includes('operator') ||
+                    user?.email?.toLowerCase().includes('opérateur') ||
+                    (user as any)?.role === 'partner' ||
+                    (user as any)?.role === 'operator' ||
+                    (user as any)?.role === 'opérateur' ||
+                    (user as any)?.isPartner === true ||
+                    (user as any)?.isOperator === true;
+
   return (
     <Tabs
       initialRouteName="home"
       screenOptions={{
-        tabBarActiveTintColor: '#8B5CF6',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: '#8B2F3F',
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: 'white',
+        tabBarStyle: isPartner ? {
+          display: 'none', // Masquer la barre de navigation pour les partenaires
+        } : {
+          backgroundColor: '#1A0A0E',
           borderTopWidth: 0,
           paddingBottom: 12,
           paddingTop: 12,
@@ -23,14 +48,19 @@ export default function TabLayout() {
           elevation: 8,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
+          position: 'absolute',
+          left: 8,
+          right: 8,
+          bottom: 8,
         },
+        sceneStyle: { paddingBottom: 0 },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: '600',
-          marginTop: 4,
+          marginTop: 2,
         },
         tabBarIconStyle: {
-          marginTop: 2,
+          marginTop: 0,
         },
       }}>
       <Tabs.Screen
@@ -75,12 +105,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Histoire',
+          title: 'Historique',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons 
-              name={focused ? "time" : "time-outline"} 
-              size={24} 
-              color={color} 
+            <Ionicons
+              name={focused ? "receipt" : "receipt-outline"}
+              size={24}
+              color={color}
             />
           ),
         }}
@@ -96,6 +126,18 @@ export default function TabLayout() {
               color={color} 
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="partner-home"
+        options={{
+          href: null, // Cacher de la barre de navigation
+        }}
+      />
+      <Tabs.Screen
+        name="stores-map"
+        options={{
+          href: null, // Cacher de la barre de navigation
         }}
       />
     </Tabs>

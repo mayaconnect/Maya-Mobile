@@ -1,93 +1,79 @@
-// Direction Artistique Maya - Système de design cohérent
-
 export const Colors = {
-  // Couleurs principales
   primary: {
-    50: '#f0f9ff',
-    100: '#e0f2fe',
-    200: '#bae6fd',
-    300: '#7dd3fc',
-    400: '#38bdf8',
-    500: '#0ea5e9',
-    600: '#0284c7',
-    700: '#0369a1',
-    800: '#075985',
-    900: '#0c4a6e',
+    50: '#f2f5ff',
+    100: '#dfe5ff',
+    200: '#bcc7ff',
+    300: '#8e9fff',
+    400: '#6178ff',
+    500: '#3C4BFF',
+    600: '#2e38d6',
+    700: '#242cb0',
+    800: '#1a2086',
+    900: '#12175f',
   },
-  
-  // Couleurs secondaires (violet)
   secondary: {
-    50: '#faf5ff',
-    100: '#f3e8ff',
-    200: '#e9d5ff',
-    300: '#d8b4fe',
-    400: '#c084fc',
-    500: '#a855f7',
-    600: '#9333ea',
-    700: '#7c3aed',
-    800: '#6b21a8',
-    900: '#581c87',
+    50: '#edfff8',
+    100: '#caffee',
+    200: '#9bffde',
+    300: '#68ffd0',
+    400: '#3fffc1',
+    500: '#27EFA1',
+    600: '#1ec180',
+    700: '#159663',
+    800: '#0d6b46',
+    900: '#06412a',
   },
-  
-  // Couleurs d'accent
   accent: {
-    gold: '#fbbf24',
-    emerald: '#10b981',
-    rose: '#f43f5e',
-    cyan: '#06b6d4',
-    orange: '#f97316',
+    gold: '#F6C756',
+    emerald: '#27efa1',
+    rose: '#FF6B6B',
+    cyan: '#2DD9FF',
+    orange: '#FF9F68',
   },
-  
-  // Gradients cohérents basés sur la palette principale
   gradients: {
-    primary: ['#667eea', '#764ba2'], // Bleu-violet principal
-    secondary: ['#667eea', '#8b5cf6'], // Variation violette
-    success: ['#4facfe', '#667eea'], // Bleu-cyan vers bleu principal
-    warning: ['#f093fb', '#667eea'], // Rose vers bleu principal
-    info: ['#a8edea', '#667eea'], // Turquoise vers bleu principal
-    dark: ['#2c3e50', '#667eea'], // Sombre vers bleu principal
+    primary: ['#1A0A0E', '#2D0F15', '#4A0E1F', '#6B1F2F', '#8B2F3F'] as const,
+    dark: ['#1A0A0E', '#2D0F15', '#3A0F1A'] as const,
+    card: ['#2D1B1F', '#3D2B2F', '#4D3B3F'] as const,
+    blue: ['#1E3A8A', '#3B82F6', '#60A5FA'] as const,
+    success: ['#10B981', '#27EFA1', '#34D399'] as const,
+    warning: ['#EF4444', '#FF6B6B', '#F87171'] as const,
+    info: ['#3C4BFF', '#6366F1', '#818CF8'] as const,
   },
-  
-  // Couleurs de fond
   background: {
-    light: '#ffffff',
-    dark: '#1a1a1a',
-    card: '#ffffff',
-    overlay: 'rgba(0, 0, 0, 0.5)',
+    light: '#1A0A0E',
+    dark: '#1A0A0E',
+    surface: '#2D1B1F',
+    card: '#F5F5F5', // Gris clair pour les cartes de login
+    cardDark: '#2D1B1F', // Sombre pour les cartes dans l'app
+    overlay: 'rgba(0,0,0,0.7)',
   },
-  
-  // Couleurs de texte
   text: {
-    primary: '#1f2937',
-    secondary: '#6b7280',
-    light: '#ffffff',
-    muted: '#9ca3af',
+    primary: '#FFFFFF',
+    secondary: 'rgba(255,255,255,0.7)',
+    light: '#FFFFFF',
+    muted: 'rgba(255,255,255,0.5)',
+    dark: '#0F172A', // Pour le texte sur fond clair
   },
-  
-  // Couleurs d'état
   status: {
-    success: '#10b981',
-    error: '#ef4444',
-    warning: '#f59e0b',
-    info: '#3b82f6',
+    success: '#27EFA1',
+    error: '#FF6B6B',
+    warning: '#FF9F68',
+    info: '#3C4BFF',
   },
-};
+} as const;
 
 export const Typography = {
-  // Tailles de police
   sizes: {
     xs: 12,
     sm: 14,
     base: 16,
     lg: 18,
-    xl: 20,
-    '2xl': 24,
-    '3xl': 30,
-    '4xl': 36,
-    '5xl': 48,
+    xl: 22,
+    '2xl': 30,
+    '3xl': 38,
+    '4xl': 48,
+    '5xl': 60,
   },
-  
-  // Poids de police
   weights: {
     light: '300',
     normal: '400',
@@ -96,64 +82,62 @@ export const Typography = {
     bold: '700',
     extrabold: '800',
   },
-  
-  // Espacement des lettres
   letterSpacing: {
-    tight: -0.5,
+    tight: -0.6,
     normal: 0,
-    wide: 0.5,
-    wider: 1,
+    wide: 0.4,
+    wider: 0.75,
   },
-};
+} as const;
 
 export const Spacing = {
-  xs: 4,
-  sm: 8,
+  xs: 6,
+  sm: 12,
   md: 16,
   lg: 24,
   xl: 32,
-  '2xl': 40,
-  '3xl': 48,
-  '4xl': 64,
+  '2xl': 44,
+  '3xl': 60,
+  '4xl': 84,
 };
 
 export const BorderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
+  sm: 12,
+  md: 16,
+  lg: 22,
+  xl: 28,
+  '2xl': 36,
+  '3xl': 44,
   full: 9999,
 };
 
 export const Shadows = {
   sm: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
   },
-  lg: {
+  md: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.25,
     shadowRadius: 16,
-    elevation: 8,
+    elevation: 10,
+  },
+  lg: {
+    shadowColor: '#8B2F3F',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 16,
   },
   xl: {
-    shadowColor: '#000',
+    shadowColor: '#8B2F3F',
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.25,
-    shadowRadius: 25,
-    elevation: 20,
+    shadowOpacity: 0.45,
+    shadowRadius: 36,
+    elevation: 24,
   },
 };
