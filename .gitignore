@@ -23,6 +23,9 @@ yarn-error.log
 # TypeScript
 *.tsbuildinfo
 
+# Script backups
+*.bak
+
 # IDE
 .vscode/
 .idea/

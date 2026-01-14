@@ -134,6 +134,11 @@ jobs:
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
+      - name: 🔧 Fix iOS nullability issues
+        run: |
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
