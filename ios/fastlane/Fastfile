@@ -30,7 +30,7 @@ platform :ios do
     # Build the app
     build_app(
       workspace: "maya.xcworkspace",
-      scheme: "maya",
+      scheme: "Maya",
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {

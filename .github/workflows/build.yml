@@ -114,12 +114,18 @@ jobs:
           cd ios
           pod install
 
+      - name: 🔍 List available schemes
+        run: |
+          cd ios
+          echo "📋 Available schemes in workspace:"
+          xcodebuild -list -workspace maya.xcworkspace
+
       - name: 🏗️ Build iOS (without signing for check)
         run: |
           cd ios
           xcodebuild clean build \
             -workspace maya.xcworkspace \
-            -scheme maya \
+            -scheme Maya \
             -configuration Release \
             -sdk iphonesimulator \
             CODE_SIGNING_ALLOWED=NO \
