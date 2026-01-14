@@ -1,0 +1,209 @@
+name: Deploy to TestFlight & Google Play
+
+on:
+  # Déploiement automatique sur push vers master
+  push:
+    branches:
+      - master
+      - main
+
+  # Déploiement manuel depuis l'interface GitHub
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to deploy'
+        required: true
+        type: choice
+        options:
+          - both
+          - android
+          - ios
+        default: 'both'
+
+jobs:
+  # ==========================================
+  # JOB ANDROID - Build et Deploy sur Google Play
+  # ==========================================
+  deploy-android:
+    name: 🤖 Android → Google Play
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.platform == 'android' || github.event.inputs.platform == 'both'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔨 Generate Android native folder
+        run: npx expo prebuild --platform android --clean
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: 🔐 Setup Android keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
+          echo "Keystore created successfully"
+
+      - name: ⚙️ Create gradle.properties
+        run: |
+          cat << EOF > android/gradle.properties
+          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
+          MAYA_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
+          MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+
+          # Gradle settings
+          org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
+          org.gradle.configureondemand=true
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+          echo "Gradle properties configured"
+
+      - name: 🔑 Create Google Play service account JSON
+        run: |
+          mkdir -p android/fastlane
+          echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/fastlane/google-play-service-account.json
+          echo "Service account configured"
+
+      - name: 🚀 Deploy to Google Play Internal Testing
+        run: |
+          cd android
+          bundle exec fastlane internal
+        env:
+          SUPPLY_JSON_KEY: ./fastlane/google-play-service-account.json
+
+      - name: 📤 Upload Android artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: ✅ Android deployment success
+        if: success()
+        run: |
+          echo "✅ Android app successfully deployed to Google Play Internal Testing!"
+          echo "📱 Go to Google Play Console to test: https://play.google.com/console/"
+
+  # ==========================================
+  # JOB iOS - Build et Deploy sur TestFlight
+  # ==========================================
+  deploy-ios:
+    name: 🍎 iOS → TestFlight
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both'))
+    runs-on: macos-14
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔨 Generate iOS native folder
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: ios
+
+      - name: 🔐 Setup App Store Connect API Key
+        run: |
+          mkdir -p ios/fastlane/keys
+          echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          chmod 600 ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          echo "App Store Connect API Key configured"
+
+      - name: 📜 Setup Match certificates
+        run: |
+          cd ios
+          bundle exec fastlane match appstore --readonly
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
+
+      - name: 🚀 Build and Deploy to TestFlight
+        run: |
+          cd ios
+          bundle exec fastlane beta
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+
+      - name: 📤 Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-release-ipa
+          path: ios/*.ipa
+          retention-days: 30
+
+      - name: ✅ iOS deployment success
+        if: success()
+        run: |
+          echo "✅ iOS app successfully deployed to TestFlight!"
+          echo "📱 Go to App Store Connect to test: https://appstoreconnect.apple.com/"
+
+  # ==========================================
+  # JOB NOTIFICATION - Résumé final
+  # ==========================================
+  notify-success:
+    name: 📢 Deployment Summary
+    needs: [deploy-android, deploy-ios]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📊 Deployment Summary
+        run: |
+          echo "======================================"
+          echo "🎉 DEPLOYMENT COMPLETED"
+          echo "======================================"
+          echo ""
+          echo "Android Status: ${{ needs.deploy-android.result }}"
+          echo "iOS Status: ${{ needs.deploy-ios.result }}"
+          echo ""
+          if [ "${{ needs.deploy-android.result }}" == "success" ]; then
+            echo "✅ Android: https://play.google.com/console/"
+          fi
+          if [ "${{ needs.deploy-ios.result }}" == "success" ]; then
+            echo "✅ iOS: https://appstoreconnect.apple.com/"
+          fi
+          echo ""
+          echo "======================================"

@@ -1,0 +1,68 @@
+default_platform(:android)
+
+platform :android do
+
+  desc "Build APK for testing"
+  lane :build_apk do
+    gradle(
+      task: "clean assembleRelease",
+      project_dir: "android/"
+    )
+  end
+
+  desc "Build AAB for Google Play"
+  lane :build_aab do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+  end
+
+  desc "Deploy to Google Play Internal Testing"
+  lane :internal do
+    # Build
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+
+    # Upload to Google Play
+    upload_to_play_store(
+      track: 'internal',
+      aab: 'android/app/build/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
+    )
+  end
+
+  desc "Deploy to Google Play Beta Testing"
+  lane :beta do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+
+    upload_to_play_store(
+      track: 'beta',
+      aab: 'android/app/build/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
+    )
+  end
+
+  desc "Deploy to Google Play Production"
+  lane :production do
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+
+    upload_to_play_store(
+      track: 'production',
+      aab: 'android/app/build/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+end
