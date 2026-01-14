@@ -149,34 +149,16 @@ jobs:
         run: |
           cd ios
 
-          # First, exclude expo-dev-launcher and expo-dev-menu from Release builds
           echo "🔧 Excluding dev-only dependencies from Release builds"
 
-          # Comment out or skip expo-dev-launcher and related dev dependencies for Release
-          cat > podfile_modifier.rb << 'RUBY'
-# Read the Podfile
-podfile_content = File.read('Podfile')
+          # Make expo-dev-launcher conditional on non-Release builds
+          sed -i '' "s/pod 'expo-dev-launcher'/pod 'expo-dev-launcher' if ENV['CONFIGURATION'] != 'Release' #/" Podfile
+          sed -i '' "s/pod 'expo-dev-menu'/pod 'expo-dev-menu' if ENV['CONFIGURATION'] != 'Release' #/" Podfile
+          sed -i '' "s/pod 'expo-dev-menu-interface'/pod 'expo-dev-menu-interface' if ENV['CONFIGURATION'] != 'Release' #/" Podfile
 
-# Add conditional logic to skip dev dependencies in Release
-modified = podfile_content.gsub(
-  /(pod\s+['"]expo-dev-launcher['"])/,
-  "pod 'expo-dev-launcher' if ENV['CONFIGURATION'] != 'Release' # \\1"
-).gsub(
-  /(pod\s+['"]expo-dev-menu['"])/,
-  "pod 'expo-dev-menu' if ENV['CONFIGURATION'] != 'Release' # \\1"
-).gsub(
-  /(pod\s+['"]expo-dev-menu-interface['"])/,
-  "pod 'expo-dev-menu-interface' if ENV['CONFIGURATION'] != 'Release' # \\1"
-)
+          echo "✅ Dev dependencies made conditional"
 
-File.write('Podfile', modified)
-puts "✅ Dev dependencies made conditional"
-RUBY
-
-          ruby podfile_modifier.rb
-          rm podfile_modifier.rb
-
-          # Now insert our custom build settings into the existing post_install hook
+          # Insert custom build settings into the existing post_install hook
           sed -i '' '/post_install do |installer|/a\
           \  # Custom build settings\
           \  installer.pods_project.targets.each do |target|\
