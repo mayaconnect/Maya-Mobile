@@ -6,7 +6,7 @@ platform :android do
   lane :build_apk do
     gradle(
       task: "clean assembleRelease",
-      project_dir: "android/"
+      project_dir: "./"
     )
   end
 
@@ -14,7 +14,7 @@ platform :android do
   lane :build_aab do
     gradle(
       task: "clean bundleRelease",
-      project_dir: "android/"
+      project_dir: "./"
     )
   end
 
@@ -23,13 +23,13 @@ platform :android do
     # Build
     gradle(
       task: "clean bundleRelease",
-      project_dir: "android/"
+      project_dir: "./"
     )
 
     # Upload to Google Play
     upload_to_play_store(
       track: 'internal',
-      aab: 'android/app/build/outputs/bundle/release/app-release.aab',
+      aab: 'app/build/outputs/bundle/release/app-release.aab',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -40,12 +40,12 @@ platform :android do
   lane :beta do
     gradle(
       task: "clean bundleRelease",
-      project_dir: "android/"
+      project_dir: "./"
     )
 
     upload_to_play_store(
       track: 'beta',
-      aab: 'android/app/build/outputs/bundle/release/app-release.aab',
+      aab: 'app/build/outputs/bundle/release/app-release.aab',
       skip_upload_screenshots: true,
       skip_upload_images: true,
       skip_upload_metadata: true
@@ -56,12 +56,12 @@ platform :android do
   lane :production do
     gradle(
       task: "clean bundleRelease",
-      project_dir: "android/"
+      project_dir: "./"
     )
 
     upload_to_play_store(
       track: 'production',
-      aab: 'android/app/build/outputs/bundle/release/app-release.aab'
+      aab: 'app/build/outputs/bundle/release/app-release.aab'
     )
   end
 
