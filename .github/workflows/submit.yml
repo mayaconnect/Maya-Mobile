@@ -37,6 +37,9 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      - name: 🗑️ Remove expo-dev-client (not needed for production builds)
+        run: npm uninstall expo-dev-client
+
       - name: 💾 Backup Fastlane configuration
         run: |
           mkdir -p /tmp/fastlane-backup
@@ -133,11 +136,6 @@ jobs:
 
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
-
-      - name: 🔧 Fix iOS nullability issues
-        run: |
-          chmod +x scripts/fix-ios-nullability.sh
-          bash scripts/fix-ios-nullability.sh
 
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1
