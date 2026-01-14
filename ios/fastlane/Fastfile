@@ -27,7 +27,7 @@ platform :ios do
     # Increment build number
     increment_build
 
-    # Build the app
+    # Build the app (no clean needed, expo prebuild already does --clean)
     build_app(
       workspace: "maya.xcworkspace",
       scheme: "Maya",
@@ -37,8 +37,7 @@ platform :ios do
         provisioningProfiles: {
           "com.maya.app" => "match AppStore com.maya.app"
         }
-      },
-      clean: true
+      }
     )
   end
 
