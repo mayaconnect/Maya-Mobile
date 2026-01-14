@@ -58,10 +58,20 @@ jobs:
           cp -r /tmp/fastlane-backup/fastlane android/
           echo "Fastlane configuration restored"
 
+      - name: 🔧 Set gradlew permissions
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          echo "✅ Gradlew permissions set"
+
       - name: 🔧 Generate React Native Codegen artifacts
         working-directory: android
         run: |
-          ./gradlew :app:generateCodegenArtifactsFromSchema || echo "Codegen artifacts generation completed"
+          echo "Generating codegen artifacts..."
+          ./gradlew :app:generateCodegenArtifactsFromSchema --stacktrace || {
+            echo "⚠️ Codegen generation had issues, but continuing..."
+            exit 0
+          }
           echo "✅ Codegen artifacts generated"
 
       - name: 💎 Setup Ruby
@@ -146,9 +156,6 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🗑️ Remove expo-dev-client (not needed for production builds)
-        run: npm uninstall expo-dev-client
-
       - name: 🔧 Select Xcode 16.1
         run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
 
@@ -164,15 +171,25 @@ jobs:
         run: |
           # Find the Xcode project file dynamically
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
-          if [ -n "$PROJECT_FILE" ]; then
+          if [ -n "$PROJECT_FILE" ] && [ -f "$PROJECT_FILE" ]; then
             echo "📱 Found Xcode project at: $PROJECT_FILE"
+            # Backup the project file
+            cp "$PROJECT_FILE" "$PROJECT_FILE.backup"
+            # Set deployment target
             sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 17.0/g' "$PROJECT_FILE"
             echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 17.0"
             # Verify the change
             echo "🔍 Verification:"
-            grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
+            if grep -q "IPHONEOS_DEPLOYMENT_TARGET = 17.0" "$PROJECT_FILE"; then
+              echo "✅ Deployment target successfully set to 17.0"
+              grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
+            else
+              echo "⚠️ Deployment target may not have been set correctly"
+            fi
           else
-            echo "⚠️ Warning: Could not find Xcode project.pbxproj file"
+            echo "❌ Error: Could not find Xcode project.pbxproj file"
+            echo "Looking for project files in ios directory:"
+            find ios -name "*.xcodeproj" -type d || echo "No Xcode projects found"
             exit 1
           fi
 
