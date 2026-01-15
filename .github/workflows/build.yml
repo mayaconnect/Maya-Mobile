@@ -134,8 +134,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: 📦 Install dependencies
-        run: npm ci
+      - name: 📦 Install dependencies (excluding dev dependencies for Release)
+        run: npm ci --omit=dev
 
       - name: 🔧 Select Xcode 16.1
         run: |
@@ -144,42 +144,6 @@ jobs:
 
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
-
-      - name: 🔧 Modify Podfile for Release builds
-        run: |
-          cd ios
-
-          echo "🔧 Limiting dev-only dependencies to Debug configuration"
-
-          # Use CocoaPods :configurations to limit dev pods to Debug only
-          # This is the standard way to exclude pods from Release builds
-          sed -i '' "s/pod 'expo-dev-launcher'/pod 'expo-dev-launcher', :configurations => ['Debug']/" Podfile
-          sed -i '' "s/pod 'expo-dev-menu'/pod 'expo-dev-menu', :configurations => ['Debug']/" Podfile
-          sed -i '' "s/pod 'expo-dev-menu-interface'/pod 'expo-dev-menu-interface', :configurations => ['Debug']/" Podfile
-
-          # Also update any use_expo_modules_with_flags calls
-          sed -i '' "/use_expo_modules_with_flags/a\\
-          \\  # Exclude dev-only dependencies from Release\\
-          \\  pod 'expo-dev-client', :configurations => ['Debug']
-          " Podfile || true
-
-          echo "✅ Dev dependencies limited to Debug configuration"
-          echo "Modified Podfile (first 50 lines):"
-          head -50 Podfile
-
-          # Insert custom build settings into the existing post_install hook
-          sed -i '' '/post_install do |installer|/a\
-          \  # Custom build settings\
-          \  installer.pods_project.targets.each do |target|\
-          \    target.build_configurations.each do |config|\
-          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
-          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
-          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
-          \    end\
-          \  end\
-          ' Podfile
-
-          echo "✅ Podfile modified for Release builds"
 
       - name: 🔧 Fix iOS nullability issues
         run: |
@@ -214,10 +178,29 @@ jobs:
       - name: 📦 Install xcpretty for clean build output
         run: gem install xcpretty
 
+      - name: 🔧 Configure Podfile build settings
+        working-directory: ios
+        run: |
+          echo "🔧 Adding custom build settings to Podfile post_install hook"
+
+          # Insert custom build settings into the existing post_install hook
+          sed -i '' '/post_install do |installer|/a\
+          \  # Custom build settings\
+          \  installer.pods_project.targets.each do |target|\
+          \    target.build_configurations.each do |config|\
+          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
+          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
+          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
+          \    end\
+          \  end\
+          ' Podfile
+
+          echo "✅ Podfile configured"
+
       - name: 📱 Install CocoaPods dependencies
         working-directory: ios
         run: |
-          echo "Installing pods (dev dependencies configured for Debug only)"
+          echo "Installing pods"
           pod install --verbose
 
       - name: 🔧 Fix iOS nullability issues in Pods
@@ -244,33 +227,6 @@ jobs:
           done
           echo "✅ All Pods deployment targets updated"
 
-      - name: 🔧 Remove problematic asset catalogs
-        run: |
-          cd ios
-          echo "🔧 Removing problematic asset catalogs that cause build failures"
-
-          # Simply remove the Assets.xcassets folder from expo-dev-launcher
-          # This is the simplest and most effective solution
-          if [ -d "Pods/expo-dev-launcher/ios/Assets.xcassets" ]; then
-            echo "Removing expo-dev-launcher Assets.xcassets"
-            rm -rf Pods/expo-dev-launcher/ios/Assets.xcassets
-            echo "✅ expo-dev-launcher assets removed"
-          fi
-
-          if [ -d "Pods/expo-dev-menu/ios/Assets.xcassets" ]; then
-            echo "Removing expo-dev-menu Assets.xcassets"
-            rm -rf Pods/expo-dev-menu/ios/Assets.xcassets
-            echo "✅ expo-dev-menu assets removed"
-          fi
-
-          # Verify the assets are gone
-          echo "🔍 Verifying asset removal:"
-          if [ ! -d "Pods/expo-dev-launcher/ios/Assets.xcassets" ]; then
-            echo "✅ expo-dev-launcher assets confirmed removed"
-          fi
-
-          echo "✅ Problematic asset catalogs removed"
-
       - name: 🔍 List available schemes
         run: |
           cd ios
@@ -283,7 +239,6 @@ jobs:
         run: |
           cd ios
           # Build for iOS device only (avoid simulator runtime issues)
-          # Skip building the expo-dev-launcher bundle target that causes asset catalog issues
           xcodebuild clean build \
             -workspace maya.xcworkspace \
             -scheme Maya \
@@ -297,30 +252,10 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             SKIP_INSTALL=NO \
             -allowProvisioningUpdates \
-            OTHER_LDFLAGS='$(inherited)' 2>&1 | tee build.log
-
-          # Check for build failures
-          BUILD_EXIT_CODE=${PIPESTATUS[0]}
-          if [ $BUILD_EXIT_CODE -ne 0 ]; then
-            echo "❌ Build failed with exit code $BUILD_EXIT_CODE"
-            echo "Last 150 lines of output:"
-            tail -150 build.log
-
-            # Check if failure is only due to expo-dev-launcher asset catalog
-            if grep -q "expo-dev-launcher.*Assets.xcassets" build.log && \
-               grep -q "CompileAssetCatalog.*failed" build.log; then
-              echo "⚠️ Build failed only on expo-dev-launcher assets (dev-only dependency)"
-              echo "Checking if main app compiled successfully..."
-
-              if grep -q "BUILD SUCCEEDED" build.log || \
-                 grep -q "Compiling.*Maya.*succeeded" build.log; then
-                echo "✅ Main app compiled successfully, ignoring dev launcher asset issue"
-                exit 0
-              fi
-            fi
-
+            OTHER_LDFLAGS='$(inherited)' | xcpretty || {
+            echo "❌ Build failed"
             exit 1
-          fi
+          }
 
           echo "✅ Build succeeded"
 
