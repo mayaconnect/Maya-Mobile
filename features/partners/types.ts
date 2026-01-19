@@ -39,5 +39,3 @@ export interface PartnerListResponse {
   totalCount?: number;
 }
 
-export type PartnerViewMode = 'grille' | 'liste' | 'carte';
-

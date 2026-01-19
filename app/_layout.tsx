@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { LoadingScreen } from '@/components/common/loading-screen';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AppProvider } from '@/contexts/app-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 
@@ -39,10 +40,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <RootLayoutNav />
-        <StatusBar style="auto" />
-      </AuthProvider>
+      <AppProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+          <StatusBar style="auto" />
+        </AuthProvider>
+      </AppProvider>
     </ThemeProvider>
   );
 }

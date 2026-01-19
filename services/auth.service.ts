@@ -121,8 +121,8 @@ const normalizeBaseUrl = (raw?: string | null) => {
 
 const ENV_API_BASE = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
 
-export const API_BASE_URL =
-  ENV_API_BASE
+export const API_BASE_URL = ENV_API_BASE || 'https://fc554a95db2c.ngrok-free.app/api/v1';
+
 // Fonction utilitaire pour enlever le mot de passe d'un utilisateur
 const removePassword = (user: User): PublicUser => {
   const { password, ...userWithoutPassword } = user;

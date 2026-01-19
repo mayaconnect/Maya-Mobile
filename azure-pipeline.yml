@@ -27,6 +27,22 @@ steps:
   - script: npx expo-doctor
     displayName: "Expo doctor"
 
+  - script: npm run lint
+    displayName: "ESLint - Code Quality Check"
+    continueOnError: false
+
+  - script: npm run format:check
+    displayName: "Prettier - Code Formatting Check"
+    continueOnError: false
+
+  - script: npm run type-check
+    displayName: "TypeScript - Type Checking"
+    continueOnError: false
+
+  - script: npm run test:ci
+    displayName: "Jest - Run Tests & Coverage"
+    continueOnError: false
+
   - script: |
       eas build --platform all --profile production --non-interactive
     displayName: "EAS Build (Android + iOS)"
