@@ -1,5 +1,5 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { QrTokenData } from '@/services/qr.service';
+import { QrTokenData } from '@/features/home/services/qrApi';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -7,10 +7,10 @@ import {
   Image,
   StyleSheet,
   Text,
+  TextStyle,
   TouchableOpacity,
   View,
   ViewStyle,
-  TextStyle,
 } from 'react-native';
 
 interface HomeQRCodeCardProps {

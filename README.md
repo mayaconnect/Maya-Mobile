@@ -1,50 +1,119 @@
-# Welcome to your Expo app 👋
+# Maya Mobile App 🚀
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application mobile React Native/Expo pour la gestion de partenaires commerciaux et de transactions.
 
-## Get started
+## 🎯 Fonctionnalités
 
-1. Install dependencies
+- ✅ Authentification sécurisée
+- ✅ Gestion des partenaires et magasins
+- ✅ Scanner QR code
+- ✅ Transactions et historique
+- ✅ Abonnements
+- ✅ Interface moderne et optimisée
 
-   ```bash
-   npm install
-   ```
+## 🚀 Démarrage Rapide
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Installation
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Démarrage
 
-## Learn more
+```bash
+npm start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Ou utilisez les commandes spécifiques :
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run android    # Android
+npm run ios        # iOS
+npm run web        # Web
+```
 
-## Join the community
+## 📚 Documentation
 
-Join our community of developers creating universal apps.
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Architecture complète de l'application
+- **[README_ARCHITECTURE.md](./README_ARCHITECTURE.md)** - Guide d'utilisation de l'architecture
+- **[OPTIMIZATION.md](./OPTIMIZATION.md)** - Guide d'optimisation et performance
+- **[OPTIMIZATIONS_SUMMARY.md](./OPTIMIZATIONS_SUMMARY.md)** - Résumé des optimisations
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 🛠️ Scripts Disponibles
+
+```bash
+npm run lint              # Linter le code
+npm run lint:fix          # Corriger automatiquement les erreurs
+npm run format            # Formater le code
+npm run format:check      # Vérifier le formatage
+npm run type-check        # Vérifier les types TypeScript
+npm run test              # Lancer les tests
+npm run test:watch        # Tests en mode watch
+npm run test:coverage     # Tests avec couverture
+```
+
+## 🏗️ Architecture
+
+L'application suit une architecture modulaire avec :
+
+- **Features** : Organisation par domaine métier
+- **Services** : Logique métier et appels API
+- **Components** : Composants réutilisables
+- **Hooks** : Hooks personnalisés
+- **Utils** : Utilitaires partagés
+- **Config** : Configuration centralisée
+
+Voir [ARCHITECTURE.md](./ARCHITECTURE.md) pour plus de détails.
+
+## ⚡ Optimisations
+
+L'application inclut de nombreuses optimisations :
+
+- ✅ Cache intelligent pour les données API
+- ✅ Hooks optimisés avec memoization
+- ✅ Debounce/throttle pour les interactions
+- ✅ Monitoring réseau
+- ✅ Error boundaries
+- ✅ Composants optimisés
+
+Voir [OPTIMIZATION.md](./OPTIMIZATION.md) pour plus de détails.
+
+## 🧪 Tests
+
+```bash
+npm run test              # Lancer tous les tests
+npm run test:watch        # Mode watch
+npm run test:coverage     # Avec couverture de code
+```
+
+## 📦 Structure du Projet
+
+```
+maya-mobile-app/
+├── app/                  # Routes (Expo Router)
+├── components/           # Composants réutilisables
+├── features/             # Features par domaine métier
+├── services/             # Services métier et API
+├── hooks/                # Hooks React personnalisés
+├── utils/                # Utilitaires
+├── config/               # Configuration
+├── contexts/             # Contextes React
+└── types/                # Types TypeScript
+```
+
+## 🔐 Configuration
+
+Créez un fichier `.env` à la racine :
+
+```env
+EXPO_PUBLIC_API_BASE_URL=https://api.example.com
+```
+
+## 📝 Contribution
+
+Voir [SETUP_IMPROVEMENTS.md](./SETUP_IMPROVEMENTS.md) pour les conventions de code et les outils de développement.
+
+## 📄 Licence
+
+Private - Tous droits réservés

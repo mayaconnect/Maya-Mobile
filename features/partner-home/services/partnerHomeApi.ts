@@ -1,11 +1,11 @@
-import { StoresService } from '@/services/stores.service';
-import { TransactionsService } from '@/services/transactions.service';
+import { StoresApi } from '@/features/stores-map/services/storesApi';
+import { TransactionsApi } from '@/features/home/services/transactionsApi';
 import { PartnerStore, PartnerTransaction, PartnerStats } from '../types';
 
 export const PartnerHomeApi = {
   getMyStores: async (): Promise<PartnerStore[]> => {
     try {
-      const response = await StoresService.getMyStores();
+      const response = await StoresApi.getMyStores();
       return response.items as PartnerStore[];
     } catch (error) {
       console.error('Erreur lors de la récupération des stores:', error);
@@ -18,7 +18,7 @@ export const PartnerHomeApi = {
     filters: { page?: number; pageSize?: number; storeId?: string } = {}
   ): Promise<PartnerTransaction[]> => {
     try {
-      const response = await TransactionsService.getPartnerTransactions(partnerId, filters);
+      const response = await TransactionsApi.getPartnerTransactions(partnerId, filters);
       return response.items as PartnerTransaction[];
     } catch (error) {
       console.error('Erreur lors de la récupération des transactions partenaire:', error);
@@ -28,7 +28,7 @@ export const PartnerHomeApi = {
 
   getPartnerStats: async (partnerId: string): Promise<PartnerStats> => {
     try {
-      const transactions = await TransactionsService.getPartnerTransactions(partnerId, {
+      const transactions = await TransactionsApi.getPartnerTransactions(partnerId, {
         page: 1,
         pageSize: 1000,
       });

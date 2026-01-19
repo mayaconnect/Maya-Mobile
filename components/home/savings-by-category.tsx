@@ -1,5 +1,5 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { SavingsByCategoryResponse, TransactionsService } from '@/services/transactions.service';
+import { SavingsByCategoryResponse, TransactionsApi } from '@/features/home/services/transactionsApi';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
@@ -8,7 +8,7 @@ interface SavingsByCategoryProps {
   userId: string;
 }
 
-export function SavingsByCategory({ userId }: SavingsByCategoryProps) {
+export const SavingsByCategory = React.memo(function SavingsByCategory({ userId }: SavingsByCategoryProps) {
   const [savings, setSavings] = useState<SavingsByCategoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function SavingsByCategory({ userId }: SavingsByCategoryProps) {
 
       console.log('📊 [SavingsByCategory] Chargement des économies par catégorie pour l\'utilisateur:', userId);
 
-      const response = await TransactionsService.getUserSavingsByCategory(userId);
+      const response = await TransactionsApi.getUserSavingsByCategory(userId);
 
       console.log('✅ [SavingsByCategory] Économies reçues:', {
         count: response.length,
@@ -211,7 +211,7 @@ export function SavingsByCategory({ userId }: SavingsByCategoryProps) {
       </ScrollView>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

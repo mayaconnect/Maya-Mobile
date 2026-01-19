@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { Partner } from '../types';
-import { StoresService } from '@/services/stores.service';
+import { StoresApi } from '@/features/stores-map/services/storesApi';
 
 export const usePartnerMap = () => {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -79,7 +79,7 @@ export const usePartnerMap = () => {
         currentLocation = { latitude: 48.8566, longitude: 2.3522 };
       }
 
-      const response = await StoresService.searchStores({
+      const response = await StoresApi.searchStores({
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
         radiusKm: 50,

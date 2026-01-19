@@ -3,7 +3,7 @@ import { SavingsByCategory } from '@/components/home/savings-by-category';
 import { UserTransactionsHistory } from '@/components/home/user-transactions-history';
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
-import { TransactionsService } from '@/services/transactions.service';
+import { TransactionsApi } from '@/features/home/services/transactionsApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
@@ -29,7 +29,7 @@ export default function HistoryScreen() {
 
       console.log('📊 [History] Chargement des transactions pour l\'utilisateur:', user.id);
 
-      const response = await TransactionsService.getUserTransactions(user.id, {
+      const response = await TransactionsApi.getUserTransactions(user.id, {
         page: 1,
         pageSize: 100,
       });

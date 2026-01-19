@@ -1,12 +1,12 @@
-import { ClientService } from '@/services/client.service';
-import { SubscriptionsService } from '@/services/subscriptions.service';
-import { PaymentService } from '@/services/payment.service';
+import { ProfileApi } from '@/features/profile/services/profileApi';
 import { ActiveSubscription } from '../types';
+import { PaymentApi } from './paymentApi';
+import { SubscriptionsApi } from './subscriptionsApi';
 
 export const SubscriptionApi = {
   hasActiveSubscription: async (): Promise<boolean> => {
     try {
-      return await ClientService.hasActiveSubscription();
+      return await ProfileApi.hasActiveSubscription();
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'abonnement:', error);
       throw error;
@@ -15,7 +15,7 @@ export const SubscriptionApi = {
 
   getMySubscription: async (): Promise<ActiveSubscription | null> => {
     try {
-      const subscription = await ClientService.getMySubscription();
+      const subscription = await ProfileApi.getMySubscription();
       return subscription as ActiveSubscription | null;
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'abonnement:', error);
@@ -25,11 +25,11 @@ export const SubscriptionApi = {
 
   createCheckoutSession: async (planId: string, billingCycle: 'monthly' | 'annual'): Promise<string> => {
     try {
-      const session = await PaymentService.createCheckoutSession({
+      const session = await PaymentApi.createCheckoutSession({
         planId,
         billingCycle,
       });
-      return session.sessionId || session.id || '';
+      return session.sessionId || '';
     } catch (error) {
       console.error('Erreur lors de la création de la session de paiement:', error);
       throw error;
@@ -38,7 +38,7 @@ export const SubscriptionApi = {
 
   getSubscriptionPlans: async () => {
     try {
-      return await SubscriptionsService.getPlans();
+      return await SubscriptionsApi.getPlans();
     } catch (error) {
       console.error('Erreur lors de la récupération des plans:', error);
       throw error;

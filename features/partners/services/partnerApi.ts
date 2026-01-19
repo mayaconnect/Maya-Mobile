@@ -1,43 +1,13 @@
-import { API_BASE_URL, AuthService } from '@/services/auth.service';
+import { API_BASE_URL } from '@/services/auth.service';
+import { ApiClient } from '@/services/shared/api-client';
 import { PartnerListResponse, PartnerQueryParams } from '../types';
 
 const PARTNER_API_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/i, '/api');
 
-const partnerApiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  const token = await AuthService.getAccessToken();
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> | undefined),
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${PARTNER_API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new Error(`HTTP ${response.status}: ${errorText}`);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return (await response.json()) as T;
-  }
-
-  return (await response.text()) as T;
-};
-
 export const PartnerApi = {
+  /**
+   * Récupère la liste des partenaires avec filtres optionnels
+   */
   getPartners: async (filters: PartnerQueryParams = {}): Promise<PartnerListResponse> => {
     const params = new URLSearchParams();
 
@@ -60,7 +30,9 @@ export const PartnerApi = {
     const query = params.toString();
     const endpoint = `/partners${query ? `?${query}` : ''}`;
 
-    const response = await partnerApiCall<any>(endpoint);
+    const response = await ApiClient.get<any>(endpoint, {
+      baseUrlOverride: PARTNER_API_BASE_URL,
+    });
 
     if (Array.isArray(response)) {
       return {
@@ -97,11 +69,17 @@ export const PartnerApi = {
     };
   },
 
+  /**
+   * Récupère un partenaire par son ID
+   */
   getPartnerById: async (id: string): Promise<any> => {
     if (!id) {
       throw new Error('Partner ID requis');
     }
-    return partnerApiCall<any>(`/partners/${id}`);
+
+    return ApiClient.get<any>(`/partners/${id}`, {
+      baseUrlOverride: PARTNER_API_BASE_URL,
+    });
   },
 };
 

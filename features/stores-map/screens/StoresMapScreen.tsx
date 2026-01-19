@@ -1,7 +1,7 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { NeoCard } from '@/components/neo/NeoCard';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { StoresService } from '@/services/stores.service';
+import { StoresApi } from '@/features/stores-map/services/storesApi';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -113,7 +113,7 @@ export default function StoresMapScreen() {
         radiusKm: 50,
       });
 
-      const response = await StoresService.searchStores({
+      const response = await StoresApi.searchStores({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
         radiusKm: 50,

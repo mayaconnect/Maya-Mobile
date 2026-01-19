@@ -1,7 +1,7 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { PaymentService } from '@/services/payment.service';
-import { SubscriptionsService } from '@/services/subscriptions.service';
+import { PaymentApi } from '@/features/subscription/services/paymentApi';
+import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -100,11 +100,11 @@ export default function SubscriptionScreen() {
       setIsLoadingSubscription(true);
       console.log('🔍 [Subscription Page] Chargement de l\'abonnement actif...');
 
-      const hasSub = await SubscriptionsService.hasActiveSubscription();
+      const hasSub = await SubscriptionsApi.hasActiveSubscription();
       setHasActiveSubscription(hasSub);
 
       if (hasSub) {
-        const sub = await SubscriptionsService.getMyActiveSubscription();
+        const sub = await SubscriptionsApi.getMyActiveSubscription();
         setActiveSubscription(sub);
         console.log('✅ [Subscription Page] Abonnement actif chargé:', sub);
       } else {
@@ -135,10 +135,10 @@ export default function SubscriptionScreen() {
   // Vérifier la disponibilité des méthodes de paiement
   useEffect(() => {
     const checkPaymentMethods = async () => {
-      const applePay = await PaymentService.isApplePayAvailable();
-      const googlePay = await PaymentService.isGooglePayAvailable();
-      setApplePayAvailable(applePay);
-      setGooglePayAvailable(googlePay);
+      // TODO: Implémenter isApplePayAvailable et isGooglePayAvailable dans PaymentApi si nécessaire
+      // Pour l'instant, on désactive ces fonctionnalités
+      setApplePayAvailable(false);
+      setGooglePayAvailable(false);
     };
     checkPaymentMethods();
   }, []);
@@ -154,7 +154,7 @@ export default function SubscriptionScreen() {
         retries,
       });
 
-      statusResult = await PaymentService.checkPaymentSessionStatus(sessionId);
+      statusResult = await PaymentApi.checkPaymentSessionStatus(sessionId);
       
       console.log('📊 [Subscription] Statut du paiement récupéré:', {
         status: statusResult.status,
@@ -357,12 +357,10 @@ export default function SubscriptionScreen() {
         cancelUrl 
       });
 
-      const checkoutSession = await PaymentService.createCheckoutSession(
-        planCode,
-        successUrl,
-        cancelUrl,
-        billingCycle
-      );
+      const checkoutSession = await PaymentApi.createCheckoutSession({
+        planId: planCode,
+        billingCycle,
+      });
 
       console.log('✅ [Subscription] Session de checkout créée:', {
         hasUrl: !!checkoutSession?.url,

@@ -1,60 +1,8 @@
-import { API_BASE_URL, AuthService } from './auth.service';
-import { apiCall } from './shared/api';
+import { API_BASE_URL } from '@/services/auth.service';
+import { ApiClient } from '@/services/shared/api-client';
+import { log } from '@/utils/logger';
 
 const TRANSACTIONS_API_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/i, '/api');
-
-const transactionsApiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-  try {
-    const token = await AuthService.getAccessToken();
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> | undefined),
-    };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    // Passer les headers dans les options
-    const finalOptions: RequestInit = {
-      ...options,
-      headers: {
-        ...options.headers,
-        ...headers,
-      },
-    };
-
-    return await apiCall<T>(endpoint, finalOptions, 0, TRANSACTIONS_API_BASE_URL);
-  } catch (error) {
-    // Si erreur 401, essayer de rafraîchir le token
-    if (error instanceof Error && error.message.includes('401')) {
-      console.log('🔄 [Transactions] Token expiré, tentative de rafraîchissement...');
-      try {
-        // Essayer de rafraîchir le token
-        const refreshedToken = await AuthService.getAccessToken();
-        if (refreshedToken) {
-          const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${refreshedToken}`,
-            ...(options.headers as Record<string, string> | undefined),
-          };
-          const retryOptions: RequestInit = {
-            ...options,
-            headers: {
-              ...options.headers,
-              ...headers,
-            },
-          };
-          return await apiCall<T>(endpoint, retryOptions, 0, TRANSACTIONS_API_BASE_URL);
-        }
-      } catch (refreshError) {
-        console.error('❌ [Transactions] Impossible de rafraîchir le token:', refreshError);
-      }
-    }
-    throw error;
-  }
-};
 
 export interface TransactionQueryParams {
   page?: number;
@@ -79,10 +27,9 @@ export interface SavingsByCategoryResponse {
   transactionCount: number;
 }
 
-export const TransactionsService = {
+export const TransactionsApi = {
   /**
    * Récupère les transactions d'un partenaire (Partner)
-   * Optionnel: storeId, pagination
    */
   getPartnerTransactions: async (
     partnerId: string,
@@ -113,7 +60,9 @@ export const TransactionsService = {
     const query = params.toString();
     const endpoint = `/transactions/partner/${partnerId}${query ? `?${query}` : ''}`;
 
-    const response = await transactionsApiCall<any>(endpoint);
+    const response = await ApiClient.get<any>(endpoint, {
+      baseUrlOverride: TRANSACTIONS_API_BASE_URL,
+    });
 
     if (Array.isArray(response)) {
       return {
@@ -152,11 +101,7 @@ export const TransactionsService = {
       throw new Error('User ID requis');
     }
 
-    console.log('📊 [Transactions Service] getUserTransactions appelé:', {
-      userId,
-      userIdLength: userId.length,
-      filters,
-    });
+    log.info('Récupération des transactions utilisateur', { userId, filters });
 
     const params = new URLSearchParams();
 
@@ -176,14 +121,8 @@ export const TransactionsService = {
     const query = params.toString();
     const endpoint = `/transactions/user/${userId}${query ? `?${query}` : ''}`;
 
-    console.log('🌐 [Transactions Service] Appel API:', endpoint);
-
-    const response = await transactionsApiCall<any>(endpoint);
-    
-    console.log('✅ [Transactions Service] Réponse reçue:', {
-      isArray: Array.isArray(response),
-      hasItems: !!response?.items,
-      itemsCount: Array.isArray(response) ? response.length : response?.items?.length || 0,
+    const response = await ApiClient.get<any>(endpoint, {
+      baseUrlOverride: TRANSACTIONS_API_BASE_URL,
     });
 
     if (Array.isArray(response)) {
@@ -228,7 +167,9 @@ export const TransactionsService = {
     const query = params.toString();
     const endpoint = `/transactions/store/${storeId}/scancount${query ? `?${query}` : ''}`;
 
-    const response = await transactionsApiCall<number | { count: number }>(endpoint);
+    const response = await ApiClient.get<number | { count: number }>(endpoint, {
+      baseUrlOverride: TRANSACTIONS_API_BASE_URL,
+    });
 
     if (typeof response === 'number') {
       return response;
@@ -239,7 +180,6 @@ export const TransactionsService = {
 
   /**
    * Récupère le nombre de scans pour un partenaire (Partner)
-   * Optionnel: storeId, since (date de début), until (date de fin)
    */
   getScanCount: async (
     partnerId?: string,
@@ -265,7 +205,9 @@ export const TransactionsService = {
     const query = params.toString();
     const endpoint = `/transactions/scancount${query ? `?${query}` : ''}`;
 
-    const response = await transactionsApiCall<string | number | { count: number }>(endpoint);
+    const response = await ApiClient.get<string | number | { count: number }>(endpoint, {
+      baseUrlOverride: TRANSACTIONS_API_BASE_URL,
+    });
 
     if (typeof response === 'string') {
       return response;
@@ -284,7 +226,6 @@ export const TransactionsService = {
 
   /**
    * Récupère les transactions filtrées avec détails (scans détaillés)
-   * Optionnel: partnerId, storeId, operatorUserId, customerUserId, since, until, page, pageSize
    */
   getFilteredTransactions: async (filters: {
     partnerId?: string;
@@ -334,7 +275,9 @@ export const TransactionsService = {
     const query = params.toString();
     const endpoint = `/transactions/filtered${query ? `?${query}` : ''}`;
 
-    const response = await transactionsApiCall<any>(endpoint);
+    const response = await ApiClient.get<any>(endpoint, {
+      baseUrlOverride: TRANSACTIONS_API_BASE_URL,
+    });
 
     if (Array.isArray(response)) {
       return {
@@ -364,7 +307,6 @@ export const TransactionsService = {
 
   /**
    * Récupère les économies d'un utilisateur par période (auth)
-   * Période: day|week|month|year
    */
   getUserSavings: async (userId: string, period: SavingsPeriod): Promise<number> => {
     if (!userId) {
@@ -374,8 +316,11 @@ export const TransactionsService = {
       throw new Error('Période invalide. Doit être: day, week, month, ou year');
     }
 
-    const response = await transactionsApiCall<number | { savings: number; total: number }>(
+    const response = await ApiClient.get<number | { savings: number; total: number }>(
       `/transactions/user/${userId}/savings/${period}`,
+      {
+        baseUrlOverride: TRANSACTIONS_API_BASE_URL,
+      }
     );
 
     if (typeof response === 'number') {
@@ -393,11 +338,12 @@ export const TransactionsService = {
       throw new Error('User ID requis');
     }
 
-    const response = await transactionsApiCall<any>(
+    const response = await ApiClient.get<any>(
       `/transactions/user/${userId}/savings/by-category`,
+      {
+        baseUrlOverride: TRANSACTIONS_API_BASE_URL,
+      }
     );
-
-    console.log('📊 [Transactions Service] Réponse brute getUserSavingsByCategory:', response);
 
     // Si la réponse est un tableau direct
     if (Array.isArray(response)) {
@@ -417,7 +363,7 @@ export const TransactionsService = {
         try {
           data = JSON.parse(data);
         } catch (e) {
-          console.error('❌ [Transactions Service] Erreur lors du parsing de data:', e);
+          log.error('Erreur lors du parsing de data', e as Error);
           return [];
         }
       }

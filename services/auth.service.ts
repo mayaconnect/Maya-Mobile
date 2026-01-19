@@ -65,7 +65,6 @@ export interface ApiResponse<T> {
 // Clé pour AsyncStorage
 const STORAGE_KEY = '@maya_users';
 const TOKEN_STORAGE_KEY = '@maya_tokens';
-const USER_STORAGE_KEY = '@maya_current_user';
 
 // Cache en mémoire pour les performances
 let usersCache: User[] | null = null;
@@ -78,33 +77,18 @@ interface TokenData {
   userId: string;
 }
 
-// Fonctions de gestion des tokens
-const saveTokens = async (tokens: TokenData): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
-    console.log('💾 Tokens sauvegardés localement');
-  } catch (error) {
-    console.error('❌ Erreur lors de la sauvegarde des tokens:', error);
-  }
-};
+// Import des fonctions de gestion des tokens depuis le module dédié
+import { USER_STORAGE_KEY } from './auth/auth.config';
+import { requestPasswordReset, requestPasswordResetCode, resetPassword, verifyPasswordResetCode } from './auth/auth.password-reset';
+import { clearTokens as clearTokensModule, getTokens, saveTokens } from './auth/auth.tokens';
 
-const getTokens = async (): Promise<TokenData | null> => {
-  try {
-    const tokensJson = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
-    return tokensJson ? JSON.parse(tokensJson) : null;
-  } catch (error) {
-    console.error('❌ Erreur lors de la récupération des tokens:', error);
-    return null;
-  }
-};
-
+// Wrapper pour clearTokens qui nettoie aussi USER_STORAGE_KEY
 const clearTokens = async (): Promise<void> => {
+  await clearTokensModule();
   try {
-    await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
     await AsyncStorage.removeItem(USER_STORAGE_KEY);
-    console.log('🗑️ Tokens supprimés');
   } catch (error) {
-    console.error('❌ Erreur lors de la suppression des tokens:', error);
+    console.error('❌ Erreur lors de la suppression de l\'utilisateur:', error);
   }
 };
 
@@ -604,63 +588,7 @@ export const AuthService = {
    * POST /api/v1/auth/request-password-reset
    * @param email - Email de l'utilisateur
    */
-  requestPasswordReset: async (email: string): Promise<void> => {
-    console.log('🔐 [Auth Service] requestPasswordReset appelé');
-    console.log('📋 [Auth Service] Paramètres:', { email });
-    console.log('🌐 [Auth Service] Appel API: POST /api/v1/auth/request-password-reset');
-    
-    try {
-      const startTime = Date.now();
-      await apiCall('/auth/request-password-reset', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-      });
-      const duration = Date.now() - startTime;
-
-      console.log('✅ [Auth Service] Email vérifié, procédure de reset démarrée', {
-        duration: duration + 'ms',
-      });
-    } catch (error) {
-      console.error('❌ [Auth Service] Erreur lors de la vérification de l\'email:', error);
-      
-      // Analyser le type d'erreur pour donner un message approprié
-      if (error instanceof Error) {
-        const errorMessage = error.message.toLowerCase();
-        
-        // Erreur 500 : problème serveur (priorité haute)
-        if (errorMessage.includes('http 500') || errorMessage.includes('500') || 
-            errorMessage.includes('server error') || errorMessage.includes('server_error') ||
-            errorMessage.includes('unexpected error') || errorMessage.includes('unexpected error occurred')) {
-          throw new Error('Erreur serveur. Veuillez réessayer plus tard.');
-        }
-        
-        // Erreur 404 ou 400 : email non trouvé
-        if (errorMessage.includes('http 404') || errorMessage.includes('404') || 
-            errorMessage.includes('http 400') || errorMessage.includes('400') ||
-            errorMessage.includes('not found') || errorMessage.includes('bad request')) {
-          throw new Error('Adresse email inconnue');
-        }
-        
-        // Erreur de timeout
-        if (errorMessage.includes('timeout') || errorMessage.includes('TIMEOUT_ERROR')) {
-          throw new Error('Le serveur met trop de temps à répondre. Veuillez réessayer.');
-        }
-        
-        // Autres erreurs liées à l'email : email non trouvé
-        if (errorMessage.includes('email') && (errorMessage.includes('inconnu') || 
-            errorMessage.includes('unknown') || errorMessage.includes('not found') ||
-            errorMessage.includes('n\'existe pas') || errorMessage.includes('does not exist'))) {
-          throw new Error('Adresse email inconnue');
-        }
-        
-        // Pour les autres erreurs, propager le message original
-        throw error;
-      }
-      
-      // Si ce n'est pas une Error, créer une erreur générique
-      throw new Error('Erreur lors de la vérification de l\'email');
-    }
-  },
+  requestPasswordReset,
 
   /**
    * Étape 2 - Envoyer un code de réinitialisation
@@ -669,50 +597,7 @@ export const AuthService = {
    * @param phoneNumber - Numéro de téléphone (pour SMS, optionnel)
    * @param channel - Canal d'envoi ('email' ou 'sms')
    */
-  requestPasswordResetCode: async (
-    email: string,
-    phoneNumber?: string,
-    channel: 'email' | 'sms' = 'email'
-  ): Promise<void> => {
-    console.log('🔐 [Auth Service] requestPasswordResetCode appelé');
-    console.log('📋 [Auth Service] Paramètres:', {
-      email,
-      phoneNumber: phoneNumber ? phoneNumber.substring(0, 3) + '***' : 'non fourni',
-      channel,
-    });
-    console.log('🌐 [Auth Service] Appel API: POST /api/v1/auth/request-password-reset-code');
-    
-    try {
-      const startTime = Date.now();
-      const payload: Record<string, string> = {
-        email,
-        channel,
-      };
-
-      if (phoneNumber) {
-        payload.phoneNumber = phoneNumber;
-      }
-
-      await apiCall('/auth/request-password-reset-code', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      const duration = Date.now() - startTime;
-
-      console.log(`✅ [Auth Service] Code de reset envoyé via ${channel}`, {
-        duration: duration + 'ms',
-      });
-    } catch (error) {
-      console.error('❌ [Auth Service] Erreur lors de l\'envoi du code:', error);
-      if (error instanceof Error) {
-        console.error('❌ [Auth Service] Détails de l\'erreur:', {
-          message: error.message,
-          name: error.name,
-        });
-      }
-      throw new Error('Impossible d\'envoyer le code de vérification');
-    }
-  },
+  requestPasswordResetCode,
 
   /**
    * Vérifier le code de réinitialisation (étape 3)
@@ -721,48 +606,7 @@ export const AuthService = {
    * @param code - Code de vérification reçu
    * @returns Token de réinitialisation (si l'API le retourne, sinon undefined)
    */
-  verifyPasswordResetCode: async (email: string, code: string): Promise<string | undefined> => {
-    console.log('🔐 [Auth Service] verifyPasswordResetCode appelé');
-    console.log('📋 [Auth Service] Paramètres:', {
-      email,
-      codeLength: code.length,
-      codePreview: code.substring(0, 2) + '...',
-    });
-    console.log('🌐 [Auth Service] Appel API: POST /api/v1/auth/verify-password-reset-code');
-    
-    try {
-      const startTime = Date.now();
-      const response = await apiCall<any>('/auth/verify-password-reset-code', {
-        method: 'POST',
-        body: JSON.stringify({ email, code }),
-      });
-      const duration = Date.now() - startTime;
-
-      console.log('✅ [Auth Service] Code de reset vérifié', {
-        duration: duration + 'ms',
-        hasToken: !!response?.token,
-        responseKeys: response ? Object.keys(response) : [],
-      });
-
-      // Si l'API retourne un token, le retourner pour l'étape suivante
-      if (response?.token) {
-        console.log('🔑 [Auth Service] Token de réinitialisation reçu');
-        return response.token;
-      }
-
-      console.log('✅ [Auth Service] Code vérifié avec succès (pas de token retourné)');
-      return undefined;
-    } catch (error) {
-      console.error('❌ [Auth Service] Code invalide:', error);
-      if (error instanceof Error) {
-        console.error('❌ [Auth Service] Détails de l\'erreur:', {
-          message: error.message,
-          name: error.name,
-        });
-      }
-      throw new Error('Code de vérification invalide');
-    }
-  },
+  verifyPasswordResetCode,
 
   /**
    * Réinitialiser le mot de passe
@@ -770,37 +614,7 @@ export const AuthService = {
    * @param newPassword - Nouveau mot de passe
    * @returns Confirmation de la réinitialisation
    */
-  resetPassword: async (token: string, newPassword: string): Promise<void> => {
-    console.log('🔐 [Auth Service] resetPassword appelé');
-    console.log('📋 [Auth Service] Paramètres:', {
-      tokenLength: token.length,
-      tokenPreview: token.substring(0, 20) + '...',
-      passwordLength: newPassword.length,
-    });
-    console.log('🌐 [Auth Service] Appel API: POST /api/v1/auth/reset-password');
-    
-    try {
-      const startTime = Date.now();
-      await apiCall('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ token, newPassword }),
-      });
-      const duration = Date.now() - startTime;
-
-      console.log('✅ [Auth Service] Mot de passe réinitialisé avec succès', {
-        duration: duration + 'ms',
-      });
-    } catch (error) {
-      console.error('❌ [Auth Service] Erreur lors de la réinitialisation:', error);
-      if (error instanceof Error) {
-        console.error('❌ [Auth Service] Détails de l\'erreur:', {
-          message: error.message,
-          name: error.name,
-        });
-      }
-      throw new Error('Impossible de réinitialiser le mot de passe');
-    }
-  },
+  resetPassword,
   getAccessToken: async (): Promise<string | null> => {
     const tokens = await getTokens();
     return tokens?.accessToken ?? null;

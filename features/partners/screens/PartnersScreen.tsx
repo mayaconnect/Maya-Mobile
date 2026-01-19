@@ -1,7 +1,6 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
-import { PartnerCard } from '@/components/partners/partner-card';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { StoresService } from '@/services/stores.service';
+import { StoresApi } from '@/features/stores-map/services/storesApi';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
@@ -14,21 +13,19 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TextStyle,
     TouchableOpacity,
     View,
-    ViewStyle,
+    ViewStyle
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
-import { Partner, PartnerViewMode } from '../types';
-import { mapStoreToPartner } from '../utils/partnerMapper';
-import { PartnersHeader } from '../components/PartnersHeader';
-import { PartnersSearchSection } from '../components/PartnersSearchSection';
 import { PartnersGridView } from '../components/PartnersGridView';
+import { PartnersHeader } from '../components/PartnersHeader';
 import { PartnersListView } from '../components/PartnersListView';
 import { PartnersMapView } from '../components/PartnersMapView';
+import { PartnersSearchSection } from '../components/PartnersSearchSection';
+import { Partner, PartnerViewMode } from '../types';
+import { mapStoreToPartner } from '../utils/partnerMapper';
 
 type PartnerUI = Partner;
 
@@ -72,7 +69,7 @@ export default function PartnersScreen() {
       setLoading(true);
       setError('');
       try {
-        const response = await StoresService.searchStores();
+        const response = await StoresApi.searchStores();
         if (!isMounted) {
           return;
         }
@@ -285,7 +282,7 @@ export default function PartnersScreen() {
         radiusKm: 50,
       });
 
-      const response = await StoresService.searchStores({
+      const response = await StoresApi.searchStores({
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
         radiusKm: 50,
@@ -447,7 +444,7 @@ export default function PartnersScreen() {
     setDetailLoading(true);
 
     try {
-      const detailDto = await StoresService.getStoreById(partner.id);
+      const detailDto = await StoresApi.getStoreById(partner.id);
       const mapped = mapStore(detailDto, 0);
       setSelectedPartner(mapped);
     } catch (err) {

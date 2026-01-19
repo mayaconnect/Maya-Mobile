@@ -1,11 +1,11 @@
-import { QrService } from '@/services/qr.service';
-import { TransactionsService } from '@/services/transactions.service';
+import { QrApi } from './qrApi';
+import { TransactionsApi } from './transactionsApi';
 import { QrTokenData, Transaction, SavingsByCategory } from '../types';
 
 export const HomeApi = {
   getQrCode: async (): Promise<QrTokenData | null> => {
     try {
-      const response = await QrService.getQrToken();
+      const response = await QrApi.issueQrToken();
       return response;
     } catch (error) {
       console.error('Erreur lors de la récupération du QR code:', error);
@@ -15,7 +15,7 @@ export const HomeApi = {
 
   getUserTransactions: async (userId: string, page: number = 1, pageSize: number = 10): Promise<Transaction[]> => {
     try {
-      const response = await TransactionsService.getUserTransactions(userId, {
+      const response = await TransactionsApi.getUserTransactions(userId, {
         page,
         pageSize,
       });
@@ -28,7 +28,7 @@ export const HomeApi = {
 
   getSavingsByCategory: async (userId: string, period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<SavingsByCategory[]> => {
     try {
-      const response = await TransactionsService.getSavingsByCategory(userId, period);
+      const response = await TransactionsApi.getUserSavingsByCategory(userId);
       return response || [];
     } catch (error) {
       console.error('Erreur lors de la récupération des économies par catégorie:', error);

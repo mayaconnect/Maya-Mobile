@@ -3,8 +3,8 @@ import { DebugUsersViewer } from '@/components/debug-users-viewer';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthService } from '@/services/auth.service';
-import { ClientService } from '@/services/client.service';
-import { SubscriptionsService } from '@/services/subscriptions.service';
+import { ProfileApi } from '@/features/profile/services/profileApi';
+import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -60,12 +60,12 @@ export default function ProfileScreen() {
         setSubscriptionLoading(true);
         try {
           // D'abord vérifier si l'utilisateur a un abonnement
-          const hasSub = await SubscriptionsService.hasActiveSubscription();
+          const hasSub = await SubscriptionsApi.hasActiveSubscription();
           console.log('📦 [Profile] Vérification abonnement:', hasSub);
 
           if (hasSub) {
             // Si oui, récupérer les détails complets
-            const sub = await SubscriptionsService.getMyActiveSubscription();
+            const sub = await SubscriptionsApi.getMyActiveSubscription();
 
             if (sub) {
               console.log('✅ [Profile] Abonnement actif récupéré:', {

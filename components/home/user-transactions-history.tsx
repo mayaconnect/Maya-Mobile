@@ -10,7 +10,7 @@ interface UserTransactionsHistoryProps {
   onRefresh: () => void;
 }
 
-export function UserTransactionsHistory({
+export const UserTransactionsHistory = React.memo(function UserTransactionsHistory({
   transactions,
   transactionsLoading,
   transactionsError,
@@ -154,7 +154,7 @@ export function UserTransactionsHistory({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

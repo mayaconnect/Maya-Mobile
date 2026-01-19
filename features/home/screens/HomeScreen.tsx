@@ -2,8 +2,8 @@ import { NavigationTransition } from '@/components/common/navigation-transition'
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthService } from '@/services/auth.service';
-import { QrService, QrTokenData } from '@/services/qr.service';
-import { TransactionsService } from '@/services/transactions.service';
+import { QrApi, QrTokenData } from '@/features/home/services/qrApi';
+import { TransactionsApi } from '@/features/home/services/transactionsApi';
 import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -54,7 +54,7 @@ export default function HomeScreen() {
     setQrError(null);
     try {
       // Récupérer le QR Code complet avec l'image
-      const qrCode = await QrService.getCurrentQrCode();
+      const qrCode = await QrApi.getCurrentQrCode();
       console.log('✅ [Home] QR Code récupéré:', {
         hasToken: !!qrCode.token,
         hasImage: !!qrCode.imageBase64,
@@ -80,7 +80,7 @@ export default function HomeScreen() {
       console.error('Erreur lors du chargement du QR Code:', error);
       // Fallback sur issueQrToken si getCurrentQrCode échoue
       try {
-        const token = await QrService.issueQrToken(forceRefresh);
+        const token = await QrApi.issueQrToken(forceRefresh);
         if (token?.token) {
           setQrData(token);
           setQrCodeResponse(null); // Réinitialiser pour forcer l'utilisation du fallback
@@ -161,7 +161,7 @@ export default function HomeScreen() {
 
       console.log('📊 [Home] Chargement des transactions pour l\'utilisateur:', user.id);
 
-      const response = await TransactionsService.getUserTransactions(user.id, {
+      const response = await TransactionsApi.getUserTransactions(user.id, {
         page: 1,
         pageSize: 10, // Limiter à 10 dernières transactions
       });
