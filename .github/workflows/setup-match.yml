@@ -18,7 +18,7 @@ on:
 jobs:
   setup-match:
     name: 🔐 Initialize Match & Create iOS Certificates (API Key)
-    runs-on: macos-15  # macOS 15 has Xcode 16.x
+    runs-on: macos-15 # macOS 15 has Xcode 16.x
 
     steps:
       - name: 📥 Checkout code
@@ -27,29 +27,43 @@ jobs:
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       # ------------------------------
       #  Node & dépendances JS
       # ------------------------------
       - name: 📦 Install dependencies
-        run: npm ci
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
 
       - name: 🗑️ Remove expo-dev-client (not needed for production builds)
-        run: npm uninstall expo-dev-client
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm uninstall expo-dev-client
 
       # ------------------------------
       #  iOS native project (Expo)
       # ------------------------------
       - name: 🔧 Select Xcode 16.1
-        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
 
       - name: 🔨 Generate iOS native folder
-        run: npx expo prebuild --platform ios --clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform ios --clean
 
       - name: 🔧 Fix iOS nullability issues
+        shell: bash
         run: |
+          set -euo pipefail
           chmod +x scripts/fix-ios-nullability.sh
           bash scripts/fix-ios-nullability.sh
 
@@ -59,7 +73,7 @@ jobs:
       - name: 💎 Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: "3.2"
           bundler-cache: true
 
       # ------------------------------
@@ -68,38 +82,30 @@ jobs:
       #  - Génère ios/fastlane/keys/api_key.json au format attendu par fastlane
       # ------------------------------
       - name: 🔐 Create App Store Connect API Key files (p8 + api_key.json)
+        shell: bash
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
         run: |
+          set -euo pipefail
+
           mkdir -p ios/fastlane/keys
 
           # 1) Écrire le fichier .p8 à partir du secret base64
-          echo "$APP_STORE_CONNECT_KEY_BASE64" | base64 -d > "ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          chmod 600 "ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          p8_path="ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          echo "${APP_STORE_CONNECT_KEY_BASE64}" | base64 -d > "${p8_path}"
+          chmod 600 "${p8_path}"
 
-          # 2) Échapper le contenu pour JSON (remplace les sauts de ligne par \n)
-          KEY_ESCAPED=$(python3 - << 'PY'
-            import json
-            import os
-            from pathlib import Path
+                    # 2) Créer api_key.json pour fastlane via key_filepath (plus robuste que "key")
+          api_key_json="ios/fastlane/keys/api_key.json"
 
-            key_id = os.environ["APP_STORE_CONNECT_KEY_ID"]
-            path = Path(f"ios/fastlane/keys/AuthKey_{key_id}.p8")
-            text = path.read_text()
-
-            # json.dumps renvoie une chaîne avec des guillemets autour, on les retire
-            print(json.dumps(text)[1:-1])
-
-          
-
-          # 3) Créer api_key.json pour fastlane (champs attendus : key_id, issuer_id, key)
-          cat > ios/fastlane/keys/api_key.json << EOF
+          cat > "${api_key_json}" <<EOF
           {
             "key_id": "${APP_STORE_CONNECT_KEY_ID}",
             "issuer_id": "${APP_STORE_CONNECT_ISSUER_ID}",
-            "key": "$KEY_ESCAPED"
+            "key_filepath": "ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8",
+            "in_house": false
           }
           EOF
 
@@ -109,8 +115,11 @@ jobs:
       #  Matchfile (configuration de fastlane match)
       # ------------------------------
       - name: 📝 Create Matchfile (no Apple ID required)
+        shell: bash
         run: |
-          cat << EOF > ios/fastlane/Matchfile
+          set -euo pipefail
+
+          cat > ios/fastlane/Matchfile <<EOF
           git_url("${{ secrets.MATCH_GIT_URL }}")
           storage_mode("git")
           type("appstore")
@@ -118,6 +127,7 @@ jobs:
           team_id("${{ github.event.inputs.team_id }}")
           api_key_path("fastlane/keys/api_key.json")
           EOF
+
           echo "✅ Matchfile created"
 
       # ------------------------------
@@ -125,27 +135,28 @@ jobs:
       # ------------------------------
       - name: 🎫 Initialize Match and Create Certificates (API Key)
         working-directory: ios
-        run: |
-          echo "🔐 Initializing Match with App Store Connect API Key..."
-
-          bundle exec fastlane match appstore \
-            --verbose \
-            --force
-
-          echo "✅ Match initialized successfully!"
-          echo "✅ Certificates and profiles stored in: ${{ secrets.MATCH_GIT_URL }}"
+        shell: bash
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+
+          echo "🔐 Initializing Match with App Store Connect API Key..."
+          bundle exec fastlane match appstore --verbose --force
+
+          echo "✅ Match initialized successfully!"
+          echo "✅ Certificates and profiles stored in: ${{ secrets.MATCH_GIT_URL }}"
 
       # ------------------------------
       #  Résumé
       # ------------------------------
       - name: ✅ Success - Match is ready!
+        shell: bash
         run: |
+          set -euo pipefail
+
           echo "======================================"
           echo "🎉 MATCH SETUP COMPLETED!"
           echo "======================================"
