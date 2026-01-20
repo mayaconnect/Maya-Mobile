@@ -95,24 +95,35 @@ jobs:
           # 1) Écrire le fichier .p8 à partir du secret base64
           p8_path="ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           echo "${APP_STORE_CONNECT_KEY_BASE64}" | base64 -d > "${p8_path}"
-          chmod 600 "${p8_path}"
+          chmod 600 "p8_path"
 
-                    # 2) Créer api_key.json pour fastlane via key_filepath (plus robuste que "key")
-          api_key_json="ios/fastlane/keys/api_key.json"
+          KEY_ESCAPED="$(python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
 
-          cat > "${api_key_json}" <<EOF
+          key_id = os.environ['APP_STORE_CONNECT_KEY_ID']
+          p = Path(f'ios/fastlane/keys/AuthKey_{key_id}.p8')
+          text = p.read_text(encoding='utf-8')
+
+          # json.dumps ajoute des guillemets autour, on les retire pour injecter dans JSON
+          print(json.dumps(text)[1:-1])
+          PY
+          )"
+
+          # 3) Créer api_key.json pour fastlane (key_id, issuer_id, key)
+          cat > ios/fastlane/keys/api_key.json <<EOF
           {
             "key_id": "${APP_STORE_CONNECT_KEY_ID}",
             "issuer_id": "${APP_STORE_CONNECT_ISSUER_ID}",
-            "key_filepath": "ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8",
-            "in_house": false
+            "key": "${KEY_ESCAPED}"
           }
           EOF
 
           echo "✅ API Key files created"
 
       # ------------------------------
-      #  Matchfile (configuration de fastlane match)
+      # Matchfile (configuration de fastlane match)
       # ------------------------------
       - name: 📝 Create Matchfile (no Apple ID required)
         shell: bash
@@ -131,7 +142,7 @@ jobs:
           echo "✅ Matchfile created"
 
       # ------------------------------
-      #  Initialisation de match (création certs + profiles)
+      # Initialisation de match
       # ------------------------------
       - name: 🎫 Initialize Match and Create Certificates (API Key)
         working-directory: ios
@@ -150,7 +161,7 @@ jobs:
           echo "✅ Certificates and profiles stored in: ${{ secrets.MATCH_GIT_URL }}"
 
       # ------------------------------
-      #  Résumé
+      # Résumé
       # ------------------------------
       - name: ✅ Success - Match is ready!
         shell: bash
