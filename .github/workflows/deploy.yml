@@ -42,8 +42,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: 📦 Install dependencies
-        run: npm ci
+      - name: 📦 Install dependencies (excluding dev dependencies for Release)
+        run: npm ci --omit=dev
 
       - name: 💾 Backup Fastlane configuration
         run: |
@@ -155,8 +155,8 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: 📦 Install dependencies
-        run: npm ci
+      - name: 📦 Install dependencies (excluding dev dependencies for Release)
+        run: npm ci --omit=dev
 
       - name: 🔧 Select Xcode 16.1
         run: |
@@ -165,33 +165,6 @@ jobs:
 
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
-
-      - name: 🔧 Modify Podfile for Release builds
-        run: |
-          cd ios
-
-          echo "🔧 Limiting dev-only dependencies to Debug configuration"
-
-          # Use CocoaPods :configurations to limit dev pods to Debug only
-          sed -i '' "s/pod 'expo-dev-launcher'/pod 'expo-dev-launcher', :configurations => ['Debug']/" Podfile
-          sed -i '' "s/pod 'expo-dev-menu'/pod 'expo-dev-menu', :configurations => ['Debug']/" Podfile
-          sed -i '' "s/pod 'expo-dev-menu-interface'/pod 'expo-dev-menu-interface', :configurations => ['Debug']/" Podfile
-
-          echo "✅ Dev dependencies limited to Debug configuration"
-
-          # Insert custom build settings into the existing post_install hook
-          sed -i '' '/post_install do |installer|/a\
-          \  # Custom build settings\
-          \  installer.pods_project.targets.each do |target|\
-          \    target.build_configurations.each do |config|\
-          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
-          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
-          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
-          \    end\
-          \  end\
-          ' Podfile
-
-          echo "✅ Podfile modified for Release builds"
 
       - name: 🔧 Fix iOS nullability issues
         run: |
@@ -223,6 +196,25 @@ jobs:
       - name: 🧹 Clean Xcode Derived Data
         run: rm -rf ~/Library/Developer/Xcode/DerivedData
 
+      - name: 🔧 Configure Podfile build settings
+        working-directory: ios
+        run: |
+          echo "🔧 Adding custom build settings to Podfile post_install hook"
+
+          # Insert custom build settings into the existing post_install hook
+          sed -i '' '/post_install do |installer|/a\
+          \  # Custom build settings\
+          \  installer.pods_project.targets.each do |target|\
+          \    target.build_configurations.each do |config|\
+          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
+          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
+          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
+          \    end\
+          \  end\
+          ' Podfile
+
+          echo "✅ Podfile configured"
+
       - name: 📦 Install CocoaPods dependencies
         working-directory: ios
         run: |
@@ -237,33 +229,6 @@ jobs:
             sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$file"
           done
           echo "✅ All Pods deployment targets updated"
-
-      - name: 🔧 Remove problematic asset catalogs
-        run: |
-          cd ios
-          echo "🔧 Removing problematic asset catalogs that cause build failures"
-
-          # Simply remove the Assets.xcassets folder from expo-dev-launcher
-          # This is the simplest and most effective solution
-          if [ -d "Pods/expo-dev-launcher/ios/Assets.xcassets" ]; then
-            echo "Removing expo-dev-launcher Assets.xcassets"
-            rm -rf Pods/expo-dev-launcher/ios/Assets.xcassets
-            echo "✅ expo-dev-launcher assets removed"
-          fi
-
-          if [ -d "Pods/expo-dev-menu/ios/Assets.xcassets" ]; then
-            echo "Removing expo-dev-menu Assets.xcassets"
-            rm -rf Pods/expo-dev-menu/ios/Assets.xcassets
-            echo "✅ expo-dev-menu assets removed"
-          fi
-
-          # Verify the assets are gone
-          echo "🔍 Verifying asset removal:"
-          if [ ! -d "Pods/expo-dev-launcher/ios/Assets.xcassets" ]; then
-            echo "✅ expo-dev-launcher assets confirmed removed"
-          fi
-
-          echo "✅ Problematic asset catalogs removed"
 
       - name: 🔧 Disable Swift 6 strict concurrency checking
         run: |
