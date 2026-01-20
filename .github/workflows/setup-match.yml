@@ -131,6 +131,7 @@ jobs:
           type("appstore")
           app_identifier(["com.maya.connect"])
           api_key_path("fastlane/keys/api_key.json")
+          readonly(true)
           EOF
 
           echo "✅ Matchfile created"
@@ -149,7 +150,7 @@ jobs:
           set -euo pipefail
 
           echo "🔐 Initializing Match with App Store Connect API Key..."
-          bundle exec fastlane match appstore --verbose --force
+          bundle exec fastlane match appstore --verbose --force --skip_certificate_matching
 
           echo "✅ Match initialized successfully!"
           echo "✅ Certificates and profiles stored in: ${{ secrets.MATCH_GIT_URL }}"
