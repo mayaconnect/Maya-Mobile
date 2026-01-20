@@ -18,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.maya.app",
+      "bundleIdentifier": "com.maya.connect",
       "buildNumber": "1.0.0",
       "deploymentTarget": "13.4",
       "infoPlist": {
@@ -29,7 +29,7 @@
       }
     },
     "android": {
-      "package": "com.maya.app",
+      "package": "com.maya.connect",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

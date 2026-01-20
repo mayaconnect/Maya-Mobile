@@ -96,6 +96,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           FASTLANE_APPLE_ID: ${{ github.event.inputs.apple_id }}
           FASTLANE_TEAM_ID: ${{ github.event.inputs.team_id }}
+          FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
 
       - name: ✅ Success - Match is ready!
         run: |
