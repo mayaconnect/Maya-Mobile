@@ -9,11 +9,6 @@ name: Setup Match (One-Time iOS Certificates) - API Key Only
 
 on:
   workflow_dispatch:
-    inputs:
-      team_id:
-        description: "Your Apple Team ID"
-        required: true
-        type: string
 
 jobs:
   setup-match:
@@ -125,7 +120,7 @@ jobs:
       # ------------------------------
       # Matchfile (configuration de fastlane match)
       # ------------------------------
-      - name: 📝 Create Matchfile (no Apple ID required)
+      - name: 📝 Create Matchfile (API Key only)
         shell: bash
         run: |
           set -euo pipefail
@@ -134,8 +129,7 @@ jobs:
           git_url("${{ secrets.MATCH_GIT_URL }}")
           storage_mode("git")
           type("appstore")
-          app_identifier(["com.maya.app"])
-          team_id("${{ github.event.inputs.team_id }}")
+          app_identifier(["com.maya.connect"])
           api_key_path("fastlane/keys/api_key.json")
           EOF
 
