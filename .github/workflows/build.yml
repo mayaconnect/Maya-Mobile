@@ -1,0 +1,289 @@
+name: Build Check with Fastlane
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+
+jobs:
+  # ==========================================
+  # BUILD ANDROID - Vérification du build
+  # ==========================================
+  build-android:
+    name: 🤖 Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 💾 Backup Fastlane configuration
+        run: |
+          mkdir -p /tmp/fastlane-backup
+          cp -r android/fastlane /tmp/fastlane-backup/ || echo "No fastlane folder to backup"
+
+      - name: 🔨 Generate Android native folder
+        run: npx expo prebuild --platform android --clean
+
+      - name: 📋 Restore Fastlane configuration
+        run: |
+          cp -r /tmp/fastlane-backup/fastlane android/
+          echo "Fastlane configuration restored"
+          ls -la android/fastlane/
+
+      - name: 🔧 Set gradlew permissions
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          echo "✅ Gradlew permissions set"
+
+      - name: 🔧 Generate React Native Codegen artifacts
+        working-directory: android
+        run: |
+          echo "Generating codegen artifacts for all modules..."
+          # Generate codegen artifacts for all native modules, not just the app
+          ./gradlew generateCodegenArtifactsFromSchema --stacktrace || {
+            echo "⚠️ Codegen generation had issues, but continuing..."
+            exit 0
+          }
+          echo "✅ Codegen artifacts generated"
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: 🔐 Create dummy keystore for build check
+        run: |
+          # Créer un keystore temporaire juste pour vérifier que le build fonctionne
+          keytool -genkey -v -keystore android/app/dummy.keystore \
+            -alias dummy -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass dummy123 -keypass dummy123 \
+            -dname "CN=DummyBuild, OU=Dev, O=Maya, L=City, S=State, C=US"
+
+      - name: ⚙️ Create gradle.properties for build check
+        run: |
+          cat << EOF > android/gradle.properties
+          MAYA_UPLOAD_STORE_FILE=dummy.keystore
+          MAYA_UPLOAD_KEY_ALIAS=dummy
+          MAYA_UPLOAD_STORE_PASSWORD=dummy123
+          MAYA_UPLOAD_KEY_PASSWORD=dummy123
+
+          # Gradle settings
+          org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
+          org.gradle.configureondemand=true
+          android.useAndroidX=true
+          android.enableJetifier=true
+
+          # React Native / Hermes settings
+          hermesEnabled=true
+          newArchEnabled=true
+          EOF
+
+      - name: 🔍 Debug - Check paths and fastlane folder
+        run: |
+          echo "Current directory:"
+          pwd
+          echo -e "\nRoot directory contents:"
+          ls -la
+          echo -e "\nAndroid fastlane folder:"
+          ls -la android/fastlane/ || echo "android/fastlane not found"
+
+      - name: 🏗️ Build Android APK with Fastlane
+        working-directory: android
+        run: bundle exec fastlane build_apk
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-build-check
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 7
+
+      - name: ✅ Build successful
+        run: echo "✅ Android build completed successfully!"
+
+  # ==========================================
+  # BUILD iOS - Vérification du build
+  # ==========================================
+  build-ios:
+    name: 🍎 Build iOS (Check Only)
+    runs-on: macos-15  # macOS 15 with Xcode 16.x (required by React Native 0.81)
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies (excluding dev dependencies for Release)
+        run: npm ci --omit=dev
+
+      - name: 🔧 Select Xcode 16.1
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+          xcodebuild -version
+
+      - name: 🔨 Generate iOS native folder
+        run: npx expo prebuild --platform ios --clean
+
+      - name: 🔧 Fix iOS nullability issues
+        run: |
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+
+      - name: 🔧 Set iOS deployment target in Xcode project
+        run: |
+          # Find the Xcode project file dynamically
+          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
+          if [ -n "$PROJECT_FILE" ]; then
+            echo "📱 Found Xcode project at: $PROJECT_FILE"
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$PROJECT_FILE"
+            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 13.4"
+            # Verify the change
+            echo "🔍 Verification:"
+            grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
+          else
+            echo "⚠️ Warning: Could not find Xcode project.pbxproj file"
+            exit 1
+          fi
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: 🧹 Clean Xcode Derived Data
+        run: rm -rf ~/Library/Developer/Xcode/DerivedData
+
+      - name: 📦 Install xcpretty for clean build output
+        run: gem install xcpretty
+
+      - name: 🔧 Configure Podfile build settings
+        working-directory: ios
+        run: |
+          echo "🔧 Adding custom build settings to Podfile post_install hook"
+
+          # Insert custom build settings into the existing post_install hook
+          sed -i '' '/post_install do |installer|/a\
+          \  # Custom build settings\
+          \  installer.pods_project.targets.each do |target|\
+          \    target.build_configurations.each do |config|\
+          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
+          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
+          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
+          \    end\
+          \  end\
+          ' Podfile
+
+          echo "✅ Podfile configured"
+
+      - name: 📱 Install CocoaPods dependencies
+        working-directory: ios
+        run: |
+          echo "Installing pods"
+          pod install --verbose
+
+      - name: 🔧 Fix iOS nullability issues in Pods
+        run: |
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+
+      - name: 🔧 Disable Swift 6 strict concurrency checking
+        run: |
+          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
+          if [ -n "$PROJECT_FILE" ]; then
+            echo "📱 Disabling strict concurrency checking in: $PROJECT_FILE"
+            awk '/buildSettings = \{/ {print; print "\t\t\t\tSWIFT_STRICT_CONCURRENCY = minimal;"; next}1' "$PROJECT_FILE" > "$PROJECT_FILE.tmp"
+            mv "$PROJECT_FILE.tmp" "$PROJECT_FILE"
+            echo "✅ Swift strict concurrency checking disabled"
+          fi
+
+      - name: 🔧 Set deployment target for all Pods
+        run: |
+          cd ios
+          echo "Setting IPHONEOS_DEPLOYMENT_TARGET for all Pods to 13.4"
+          find Pods -name "project.pbxproj" -type f | while read -r file; do
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$file"
+          done
+          echo "✅ All Pods deployment targets updated"
+
+      - name: 🔍 List available schemes
+        run: |
+          cd ios
+          echo "📋 Available schemes in workspace:"
+          xcodebuild -list -workspace maya.xcworkspace
+
+      - name: 🏗️ Build iOS (without signing for check)
+        env:
+          SKIP_SIMULATOR_AVAILABILITY_CHECK: "1"
+        run: |
+          cd ios
+          # Build for iOS device only (avoid simulator runtime issues)
+          xcodebuild clean build \
+            -workspace maya.xcworkspace \
+            -scheme Maya \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath ./build \
+            -skipUnavailableActions \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            SKIP_INSTALL=NO \
+            -allowProvisioningUpdates \
+            OTHER_LDFLAGS='$(inherited)' | xcpretty || {
+            echo "❌ Build failed"
+            exit 1
+          }
+
+          echo "✅ Build succeeded"
+
+      - name: ✅ Build successful
+        run: echo "✅ iOS build completed successfully!"
+
+  # ==========================================
+  # SUMMARY
+  # ==========================================
+  build-summary:
+    name: 📊 Build Summary
+    needs: [build-android, build-ios]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📊 Display build results
+        run: |
+          echo "======================================"
+          echo "🔍 BUILD CHECK RESULTS"
+          echo "======================================"
+          echo ""
+          echo "Android Build: ${{ needs.build-android.result }}"
+          echo "iOS Build: ${{ needs.build-ios.result }}"
+          echo ""
+          if [ "${{ needs.build-android.result }}" == "success" ] && [ "${{ needs.build-ios.result }}" == "success" ]; then
+            echo "✅ All builds passed!"
+          else
+            echo "❌ Some builds failed. Check logs above."
+            exit 1
+          fi

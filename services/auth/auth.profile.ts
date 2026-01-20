@@ -5,8 +5,9 @@
 import { apiCall } from '@/services/shared/api';
 import { log } from '@/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { USER_STORAGE_KEY } from './auth.config';
+import { API_BASE_URL, USER_STORAGE_KEY } from './auth.config';
 import { PublicUser } from './auth.types';
+import { getTokens } from './auth.tokens';
 
 /**
  * Met à jour le profil de l'utilisateur actuel (PUT /auth/me)
@@ -44,7 +45,6 @@ export async function uploadAvatar(imageUri: string): Promise<PublicUser> {
     log.info('Début de l\'upload d\'avatar', { imageUri: imageUri.substring(0, 50) + '...' });
 
     // Récupérer le token d'authentification
-    const { getTokens } = await import('./auth.tokens');
     const tokens = await getTokens();
     
     if (!tokens?.accessToken) {
@@ -72,9 +72,6 @@ export async function uploadAvatar(imageUri: string): Promise<PublicUser> {
 
     // Appel API avec FormData
     // Important: Ne pas mettre Content-Type pour FormData, le navigateur le fait automatiquement
-    const { apiCall } = await import('@/services/shared/api');
-    const { API_BASE_URL } = await import('./auth.config');
-    
     const url = `${API_BASE_URL}/auth/upload-avatar`;
     
     log.debug('Appel API upload-avatar', { url, filename });
@@ -171,18 +168,24 @@ export async function uploadAvatar(imageUri: string): Promise<PublicUser> {
     // Format 5: { url: "..." } - L'API retourne juste l'URL, on doit récupérer les infos utilisateur
     else if (responseData?.url && typeof responseData.url === 'string') {
       log.info('L\'API a retourné l\'URL de l\'avatar, récupération des informations utilisateur complètes', { 
-        avatarUrl: responseData.url 
+        avatarUrl: responseData.url,
       });
+
       // Récupérer les informations utilisateur complètes après l'upload
-      // Utiliser AuthService.getCurrentUserInfo depuis auth.service.ts
-      const { AuthService } = await import('../auth.service');
       try {
-        userData = await AuthService.getCurrentUserInfo();
-        log.debug('Informations utilisateur récupérées après upload', { userId: userData?.id });
+        const meResponse = await apiCall<any>('/auth/me', {
+          method: 'GET',
+        });
+
+        const maybeUser: PublicUser | undefined = meResponse?.user ?? meResponse;
+        if (maybeUser && maybeUser.id) {
+          userData = maybeUser;
+          log.debug('Informations utilisateur récupérées après upload', { userId: userData.id });
+        } else {
+          throw new Error('Aucune donnée utilisateur dans la réponse /auth/me');
+        }
       } catch (fetchError) {
-        log.error('Erreur lors de la récupération des informations utilisateur', fetchError as Error);
-        // Si on ne peut pas récupérer les infos, on peut quand même considérer l'upload comme réussi
-        // mais on doit retourner une erreur car on n'a pas les données utilisateur
+        log.error('Erreur lors de la récupération des informations utilisateur après upload', fetchError as Error);
         throw new Error('Upload réussi mais impossible de récupérer les informations utilisateur mises à jour');
       }
     }
