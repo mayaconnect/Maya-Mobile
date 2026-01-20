@@ -1,17 +1,13 @@
-name: Setup Match (One-Time iOS Certificates)
+name: Setup Match (One-Time iOS Certificates) - API Key Only
 
-# ⚠️ CE WORKFLOW S'EXÉCUTE UNE SEULE FOIS POUR INITIALISER MATCH
-# Après l'exécution réussie, vous pouvez le supprimer ou le désactiver
+# ⚠️ Exécuter une seule fois pour initialiser Match avec API Key uniquement
+# Pas besoin d'Apple ID / mot de passe / 2FA
 
 on:
   workflow_dispatch:
     inputs:
-      apple_id:
-        description: 'Your Apple ID email'
-        required: true
-        type: string
       team_id:
-        description: 'Your Apple Team ID'
+        description: "Your Apple Team ID"
         required: true
         type: string
 
@@ -53,51 +49,55 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
 
-      - name: 🔐 Setup App Store Connect API Key
+      - name: 🔐 Create App Store Connect API Key files (p8 + api_key.json)
         run: |
           mkdir -p ios/fastlane/keys
-          echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-          chmod 600 ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-          echo "✅ API Key configured"
 
-      - name: 📝 Create Matchfile
+          # 1) Write .p8 from base64 secret
+          echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > "ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
+          chmod 600 "ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
+
+          # 2) Create api_key.json for fastlane
+          cat > ios/fastlane/keys/api_key.json << EOF
+          {
+            "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
+            "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
+            "key_filepath": "ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8",
+            "in_house": false
+          }
+          EOF
+
+          echo "✅ API Key files created"
+
+      - name: 📝 Create Matchfile (no Apple ID required)
         run: |
           cat << EOF > ios/fastlane/Matchfile
           git_url("${{ secrets.MATCH_GIT_URL }}")
           storage_mode("git")
           type("appstore")
           app_identifier(["com.maya.app"])
-          username("${{ github.event.inputs.apple_id }}")
           team_id("${{ github.event.inputs.team_id }}")
+          api_key_path("fastlane/keys/api_key.json")
           EOF
           echo "✅ Matchfile created"
 
-      - name: 🎫 Initialize Match and Create Certificates
+      - name: 🎫 Initialize Match and Create Certificates (API Key)
         working-directory: ios
         run: |
-          echo "🔐 Initializing Match..."
-
-          # Match va créer automatiquement:
-          # - Distribution Certificate
-          # - Provisioning Profile
-          # Et les stocker dans votre repository privé
+          echo "🔐 Initializing Match with App Store Connect API Key..."
 
           bundle exec fastlane match appstore \
             --verbose \
-            --force_for_new_devices
+            --force
 
           echo "✅ Match initialized successfully!"
-          echo "✅ Certificates created and stored in: ${{ secrets.MATCH_GIT_URL }}"
+          echo "✅ Certificates and profiles stored in: ${{ secrets.MATCH_GIT_URL }}"
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          FASTLANE_APPLE_ID: ${{ github.event.inputs.apple_id }}
-          FASTLANE_TEAM_ID: ${{ github.event.inputs.team_id }}
-          FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
-          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
 
       - name: ✅ Success - Match is ready!
         run: |
@@ -110,8 +110,7 @@ jobs:
           echo "✅ Everything stored in: ${{ secrets.MATCH_GIT_URL }}"
           echo ""
           echo "📋 Next steps:"
-          echo "1. Your iOS certificates are now ready"
-          echo "2. The deploy.yml workflow can now build iOS"
-          echo "3. You can disable or delete this workflow"
+          echo "1. The deploy workflow can now build iOS"
+          echo "2. You can disable or delete this workflow"
           echo ""
           echo "======================================"
