@@ -95,7 +95,7 @@ jobs:
           # 1) Écrire le fichier .p8 à partir du secret base64
           p8_path="ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           echo "${APP_STORE_CONNECT_KEY_BASE64}" | base64 -d > "${p8_path}"
-          chmod 600 "p8_path"
+          chmod 600 "${p8_path}"
 
           KEY_ESCAPED="$(python3 - <<'PY'
           import json
