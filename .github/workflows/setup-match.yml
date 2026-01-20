@@ -57,13 +57,15 @@ jobs:
           echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > "ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
           chmod 600 "ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
 
-          # 2) Create api_key.json for fastlane
+          # 2) Read key content
+          KEY_CONTENT=$(cat "ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8")
+
+          # 3) Create api_key.json for fastlane (expects fields: key_id, issuer_id, key)
           cat > ios/fastlane/keys/api_key.json << EOF
           {
             "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
             "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
-            "key_filepath": "ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8",
-            "in_house": false
+            "key": "$KEY_CONTENT"
           }
           EOF
 
