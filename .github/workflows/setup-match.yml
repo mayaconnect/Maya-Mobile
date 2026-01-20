@@ -69,15 +69,6 @@ jobs:
           app_identifier(["com.maya.app"])
           username("${{ github.event.inputs.apple_id }}")
           team_id("${{ github.event.inputs.team_id }}")
-
-          # Utiliser la clé API App Store Connect (évite les problèmes de 2FA / mot de passe)
-          app_store_connect_api_key(
-            key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
-            issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
-            key_content: ENV["APP_STORE_CONNECT_KEY_BASE64"],
-            duration: 1200,
-            in_house: false
-          )
           EOF
           echo "✅ Matchfile created"
 
@@ -106,6 +97,7 @@ jobs:
           FASTLANE_APPLE_ID: ${{ github.event.inputs.apple_id }}
           FASTLANE_TEAM_ID: ${{ github.event.inputs.team_id }}
           FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
+          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
 
       - name: ✅ Success - Match is ready!
         run: |
