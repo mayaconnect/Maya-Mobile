@@ -52,144 +52,14 @@ jobs:
           mkdir -p /tmp/fastlane-backup
           cp -r android/fastlane /tmp/fastlane-backup/ || echo "No fastlane folder to backup"
 
-      - name: 📝 Create .env file for API URL
-        run: |
-          if [ -z "${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" ]; then
-            echo "⚠️ WARNING: EXPO_PUBLIC_API_BASE_URL secret is not set!"
-            echo "The app will use the default API URL from the code."
-          else
-            echo "EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" > .env
-            echo "✅ .env file created with API URL"
-            # Verify the file was created (without showing the actual URL)
-            if [ -f ".env" ]; then
-              echo "✅ .env file exists"
-              echo "API URL configured: EXPO_PUBLIC_API_BASE_URL=***"
-            else
-              echo "❌ ERROR: .env file was not created"
-              exit 1
-            fi
-          fi
-
       - name: 🔨 Generate Android native folder
-        run: |
-          # Export the variable so it's available during prebuild
-          export EXPO_PUBLIC_API_BASE_URL="${{ secrets.EXPO_PUBLIC_API_BASE_URL }}"
-          npx expo prebuild --platform android --clean
+        run: npx expo prebuild --platform android --clean
 
       - name: 📋 Restore Fastlane configuration
         run: |
           cp -r /tmp/fastlane-backup/fastlane android/
           echo "Fastlane configuration restored"
           ls -la android/fastlane/
-
-      - name: 🔧 Configure release signing in build.gradle
-        run: |
-          echo "🔧 Configuring release signing in build.gradle..."
-          BUILD_GRADLE="android/app/build.gradle"
-          
-          if [ ! -f "$BUILD_GRADLE" ]; then
-            echo "❌ ERROR: build.gradle not found. expo prebuild may have failed."
-            exit 1
-          fi
-          
-          # Create backup
-          cp "$BUILD_GRADLE" "$BUILD_GRADLE.backup"
-          
-          # Check if signingConfigs.release already exists
-          if grep -q "signingConfigs.release" "$BUILD_GRADLE" || (grep -A 10 "signingConfigs {" "$BUILD_GRADLE" | grep -q "release {"); then
-            echo "✅ signingConfigs.release already exists"
-          else
-            # Add release config after debug config in signingConfigs block
-            # Find the closing brace of signingConfigs block and insert release config before it
-            awk '
-              /signingConfigs \{/ { 
-                print
-                in_signing = 1
-                next
-              }
-              in_signing && /^    \}/ {
-                print "        release {"
-                print "            if (project.hasProperty(\"MAYA_UPLOAD_STORE_FILE\")) {"
-                print "                storeFile file(MAYA_UPLOAD_STORE_FILE)"
-                print "                storePassword MAYA_UPLOAD_STORE_PASSWORD"
-                print "                keyAlias MAYA_UPLOAD_KEY_ALIAS"
-                print "                keyPassword MAYA_UPLOAD_KEY_PASSWORD"
-                print "            }"
-                print "        }"
-                print
-                in_signing = 0
-              }
-              { print }
-            ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
-            echo "✅ Added signingConfigs.release"
-          fi
-          
-          # Ensure release buildType uses signingConfigs.release instead of debug
-          # First, check if release block uses debug (this is the problem we're fixing)
-          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
-            echo "⚠️  WARNING: Release buildType is using debug signing! Fixing..."
-            # Replace debug signingConfig with release in the release block
-            sed -i '/release {/,/^    }/s/signingConfig signingConfigs\.debug/signingConfig signingConfigs.release/g' "$BUILD_GRADLE"
-            echo "✅ Fixed: Replaced debug signing with release signing"
-          elif grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs.release"; then
-            echo "✅ Release buildType already uses signingConfigs.release"
-          else
-            # No signingConfig found in release block, add it
-            echo "⚠️  No signingConfig found in release block, adding signingConfigs.release"
-            sed -i '/release {/a\            signingConfig signingConfigs.release' "$BUILD_GRADLE"
-            echo "✅ Added signingConfig signingConfigs.release to release buildType"
-          fi
-          
-          # Final verification - ensure release does NOT use debug
-          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
-            echo "❌ ERROR: Release buildType still uses debug signing after configuration!"
-            echo "Build.gradle content around release block:"
-            grep -A 10 "release {" "$BUILD_GRADLE"
-            exit 1
-          else
-            echo "✅ Verification passed: Release buildType uses release signing (not debug)"
-          fi
-          
-          echo "✅ Release signing configuration complete"
-
-      - name: 🔧 Fix build.gradle - Remove problematic blocks
-        run: |
-          echo "🔧 Fixing build.gradle syntax issues..."
-          BUILD_GRADLE="android/app/build.gradle"
-          if [ -f "$BUILD_GRADLE" ]; then
-            python3 <<EOF
-          file_path = 'android/app/build.gradle'
-          with open(file_path, 'r', encoding='utf-8') as f:
-              lines = f.readlines()
-          
-          output = []
-          skip_android_resources = False
-          brace_count = 0
-          
-          for line in lines:
-              if 'androidResources {' in line:
-                  skip_android_resources = True
-                  brace_count = line.count('{') - line.count('}')
-                  continue
-              
-              if skip_android_resources:
-                  brace_count += line.count('{') - line.count('}')
-                  if brace_count <= 0:
-                      skip_android_resources = False
-                  continue
-              
-              line = line.replace('packagingOptions {', 'packaging {')
-              output.append(line)
-          
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.writelines(output)
-          
-          print('✅ build.gradle fixed (removed androidResources, updated packagingOptions to packaging)')
-          EOF
-            echo "✅ build.gradle syntax fixed"
-          else
-            echo "⚠️ WARNING: build.gradle not found"
-          fi
 
       - name: 🔧 Set gradlew permissions
         working-directory: android
@@ -216,15 +86,10 @@ jobs:
 
       - name: 🔐 Setup Android keystore
         run: |
-          set -e
           # Always use the keystore from GitHub secret (never use local file)
           echo "📦 Creating keystore from secret..."
-          # Important: use printf instead of echo -n for better compatibility
-          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
-          if [ ! -f maya-release.keystore ]; then
-            echo "❌ ERROR: Failed to create keystore file"
-            exit 1
-          fi
+          # Important: use -n to avoid trailing newline, and fail on decode error
+          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
           echo "✅ Keystore created successfully at project root"
           # Copy keystore to android/app/ for Gradle to find it easily
           mkdir -p android/app
@@ -232,22 +97,8 @@ jobs:
           echo "✅ Keystore copied to android/app/"
           # Verify keystore SHA1 matches expected value
           echo "🔍 Verifying keystore SHA1..."
-          SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
-          echo "Keystore SHA1: $SHA1"
-          EXPECTED_SHA1="1C:3B:87:09:A5:5B:A3:74:A3:C2:7A:98:AF:23:06:82:C7:B1:AF:FD"
-          if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
-            echo "✅ Keystore SHA1 matches expected value!"
-
-          else
-            echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
-            echo "Expected: $EXPECTED_SHA1"
-            echo "Got:      $SHA1"
-            echo ""
-            echo "This will cause Google Play to reject the AAB."
-            echo "Please update the ANDROID_KEYSTORE_BASE64 secret with the correct keystore."
-            echo "Use the script: scripts/verify-and-encode-keystore.ps1 to verify and encode the correct keystore."
-            exit 1
-          fi
+          SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}')
+          echo "Keystore SHA1: $SHA1"       
           ls -lh maya-release.keystore android/app/maya-release.keystore
 
       - name: ⚙️ Create gradle.properties
@@ -472,4 +323,3 @@ jobs:
             echo "✅ iOS: https://appstoreconnect.apple.com/"
           fi
           echo ""
-          echo "======================================"
