@@ -84,8 +84,73 @@ jobs:
 
       - name: 🔧 Configure release signing in build.gradle
         run: |
-          chmod +x scripts/configure-release-signing.sh
-          bash scripts/configure-release-signing.sh
+          echo "🔧 Configuring release signing in build.gradle..."
+          BUILD_GRADLE="android/app/build.gradle"
+          
+          if [ ! -f "$BUILD_GRADLE" ]; then
+            echo "❌ ERROR: build.gradle not found. expo prebuild may have failed."
+            exit 1
+          fi
+          
+          # Create backup
+          cp "$BUILD_GRADLE" "$BUILD_GRADLE.backup"
+          
+          # Check if signingConfigs.release already exists
+          if grep -q "signingConfigs.release" "$BUILD_GRADLE" || (grep -A 10 "signingConfigs {" "$BUILD_GRADLE" | grep -q "release {"); then
+            echo "✅ signingConfigs.release already exists"
+          else
+            # Add release config after debug config in signingConfigs block
+            # Find the closing brace of signingConfigs block and insert release config before it
+            awk '
+              /signingConfigs \{/ { 
+                print
+                in_signing = 1
+                next
+              }
+              in_signing && /^    \}/ {
+                print "        release {"
+                print "            if (project.hasProperty(\"MAYA_UPLOAD_STORE_FILE\")) {"
+                print "                storeFile file(MAYA_UPLOAD_STORE_FILE)"
+                print "                storePassword MAYA_UPLOAD_STORE_PASSWORD"
+                print "                keyAlias MAYA_UPLOAD_KEY_ALIAS"
+                print "                keyPassword MAYA_UPLOAD_KEY_PASSWORD"
+                print "            }"
+                print "        }"
+                print
+                in_signing = 0
+              }
+              { print }
+            ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
+            echo "✅ Added signingConfigs.release"
+          fi
+          
+          # Ensure release buildType uses signingConfigs.release instead of debug
+          # First, check if release block uses debug (this is the problem we're fixing)
+          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
+            echo "⚠️  WARNING: Release buildType is using debug signing! Fixing..."
+            # Replace debug signingConfig with release in the release block
+            sed -i '/release {/,/^    }/s/signingConfig signingConfigs\.debug/signingConfig signingConfigs.release/g' "$BUILD_GRADLE"
+            echo "✅ Fixed: Replaced debug signing with release signing"
+          elif grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs.release"; then
+            echo "✅ Release buildType already uses signingConfigs.release"
+          else
+            # No signingConfig found in release block, add it
+            echo "⚠️  No signingConfig found in release block, adding signingConfigs.release"
+            sed -i '/release {/a\            signingConfig signingConfigs.release' "$BUILD_GRADLE"
+            echo "✅ Added signingConfig signingConfigs.release to release buildType"
+          fi
+          
+          # Final verification - ensure release does NOT use debug
+          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
+            echo "❌ ERROR: Release buildType still uses debug signing after configuration!"
+            echo "Build.gradle content around release block:"
+            grep -A 10 "release {" "$BUILD_GRADLE"
+            exit 1
+          else
+            echo "✅ Verification passed: Release buildType uses release signing (not debug)"
+          fi
+          
+          echo "✅ Release signing configuration complete"
 
       - name: 🔧 Set gradlew permissions
         working-directory: android
@@ -112,10 +177,15 @@ jobs:
 
       - name: 🔐 Setup Android keystore
         run: |
+          set -e
           # Always use the keystore from GitHub secret (never use local file)
           echo "📦 Creating keystore from secret..."
-          # Important: use -n to avoid trailing newline, and fail on decode error
-          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
+          # Important: use printf instead of echo -n for better compatibility
+          printf '%s' "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
+          if [ ! -f maya-release.keystore ]; then
+            echo "❌ ERROR: Failed to create keystore file"
+            exit 1
+          fi
           echo "✅ Keystore created successfully at project root"
           # Copy keystore to android/app/ for Gradle to find it easily
           mkdir -p android/app
@@ -123,8 +193,12 @@ jobs:
           echo "✅ Keystore copied to android/app/"
           # Verify keystore SHA1 matches expected value
           echo "🔍 Verifying keystore SHA1..."
-          SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}')
+          SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
           echo "Keystore SHA1: $SHA1"
+          EXPECTED_SHA1="1C:3B:87:09:A5:5B:A3:74:A3:C2:7A:98:AF:23:06:82:C7:B1:AF:FD"
+          if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
+            echo "✅ Keystore SHA1 matches expected value!"
+
           else
             echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
             echo "Expected: $EXPECTED_SHA1"
