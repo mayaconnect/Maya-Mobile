@@ -152,25 +152,32 @@ jobs:
           
           echo "✅ Release signing configuration complete"
 
-      - name: 🔧 Fix build.gradle - Remove androidResources block
+      - name: 🔧 Fix build.gradle - Remove problematic blocks
         run: |
-          echo "🔧 Removing problematic androidResources block from build.gradle..."
+          echo "🔧 Fixing build.gradle syntax issues..."
           BUILD_GRADLE="android/app/build.gradle"
           if [ -f "$BUILD_GRADLE" ]; then
-            # Remove the androidResources block that causes syntax errors
-            # Using awk to remove lines between androidResources { and the closing }
+            # Remove both androidResources and packagingOptions blocks that cause syntax errors
             awk '
               /androidResources \{/ { 
-                skip = 1
+                skip_android = 1
                 next
               }
-              skip && /^    \}$/ {
-                skip = 0
+              skip_android && /^    \}$/ {
+                skip_android = 0
                 next
               }
-              !skip { print }
+              /packagingOptions \{/ {
+                skip_packaging = 1
+                next
+              }
+              skip_packaging && /^    \}$/ {
+                skip_packaging = 0
+                next
+              }
+              !skip_android && !skip_packaging { print }
             ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
-            echo "✅ androidResources block removed"
+            echo "✅ build.gradle fixed (removed androidResources and packagingOptions blocks)"
           else
             echo "⚠️ WARNING: build.gradle not found"
           fi
