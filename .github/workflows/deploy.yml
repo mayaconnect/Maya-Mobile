@@ -120,7 +120,7 @@ jobs:
           echo "🔍 Verifying keystore SHA1..."
           SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}')
           echo "Keystore SHA1: $SHA1"
-          EXPECTED_SHA1="ED:B2:B3:D9:9F:A1:FA:60:28:CD:27:3E:BF:18:3E:A1:EC:E0:88:27"
+          EXPECTED_SHA1=" 1C:3B:87:09:A5:5B:A3:74:A3:C2:7A:98:AF:23:06:82:C7:B1:AF:FD"
           if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
             echo "✅ Keystore SHA1 matches expected value!"
           else
