@@ -1,0 +1,96 @@
+default_platform(:ios)
+
+platform :ios do
+
+  desc "Setup certificates and provisioning profiles with Match"
+  lane :setup_certificates do
+    match(
+      type: "appstore",
+      readonly: true,
+      git_url: ENV["MATCH_GIT_URL"],
+      git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTHORIZATION"]
+    )
+  end
+
+  desc "Increment build number"
+  lane :increment_build do
+    increment_build_number(
+      xcodeproj: "maya.xcodeproj"
+    )
+  end
+
+  desc "Build iOS app for App Store"
+  lane :build do
+    # Get certificates
+    setup_certificates
+
+    # Increment build number
+    increment_build
+
+    # Build the app (no clean needed, expo prebuild already does --clean)
+    build_app(
+      workspace: "maya.xcworkspace",
+      scheme: "Maya",
+      export_method: "app-store",
+      destination: "generic/platform=iOS",
+      export_options: {
+        provisioningProfiles: {
+          "com.maya.app" => "match AppStore com.maya.app"
+        }
+      }
+    )
+  end
+
+  desc "Upload to TestFlight"
+  lane :beta do
+    # Setup API Key for authentication
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+      key_filepath: "./fastlane/keys/AuthKey_#{ENV['APP_STORE_CONNECT_KEY_ID']}.p8",
+      in_house: false
+    )
+
+    # Build the app
+    build
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      distribute_external: false,
+      notify_external_testers: false
+    )
+
+    puts "✅ Successfully uploaded to TestFlight!"
+    puts "🔗 Check status at: https://appstoreconnect.apple.com/"
+  end
+
+  desc "Deploy to App Store"
+  lane :release do
+    # Setup API Key
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
+      key_filepath: "./fastlane/keys/AuthKey_#{ENV['APP_STORE_CONNECT_KEY_ID']}.p8",
+      in_house: false
+    )
+
+    # Build the app
+    build
+
+    # Upload to App Store
+    upload_to_app_store(
+      api_key: api_key,
+      skip_metadata: false,
+      skip_screenshots: false,
+      submit_for_review: false,
+      automatic_release: false
+    )
+
+    puts "✅ Successfully uploaded to App Store!"
+    puts "🔗 Complete submission at: https://appstoreconnect.apple.com/"
+  end
+
+end
