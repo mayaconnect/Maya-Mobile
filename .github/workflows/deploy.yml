@@ -52,8 +52,29 @@ jobs:
           mkdir -p /tmp/fastlane-backup
           cp -r android/fastlane /tmp/fastlane-backup/ || echo "No fastlane folder to backup"
 
+      - name: 📝 Create .env file for API URL
+        run: |
+          if [ -z "${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" ]; then
+            echo "⚠️ WARNING: EXPO_PUBLIC_API_BASE_URL secret is not set!"
+            echo "The app will use the default API URL from the code."
+          else
+            echo "EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" > .env
+            echo "✅ .env file created with API URL"
+            # Verify the file was created (without showing the actual URL)
+            if [ -f ".env" ]; then
+              echo "✅ .env file exists"
+              echo "API URL configured: EXPO_PUBLIC_API_BASE_URL=***"
+            else
+              echo "❌ ERROR: .env file was not created"
+              exit 1
+            fi
+          fi
+
       - name: 🔨 Generate Android native folder
-        run: npx expo prebuild --platform android --clean
+        run: |
+          # Export the variable so it's available during prebuild
+          export EXPO_PUBLIC_API_BASE_URL="${{ secrets.EXPO_PUBLIC_API_BASE_URL }}"
+          npx expo prebuild --platform android --clean
 
       - name: 📋 Restore Fastlane configuration
         run: |
