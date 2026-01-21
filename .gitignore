@@ -93,5 +93,4 @@ expo-env.d.ts
 
 # Android
 android/app/maya-release.keystore
-maya-release.keystore
 *.keystore
