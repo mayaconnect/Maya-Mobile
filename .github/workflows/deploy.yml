@@ -93,10 +93,11 @@ jobs:
             # Important: use -n to avoid trailing newline, and fail on decode error
             echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
             echo "✅ Keystore created successfully at project root"
+          fi
+          # Copy keystore to android/app/ for Gradle to find it easily
           mkdir -p android/app
-          # Important: use -n to avoid trailing newline, and fail on decode error
-          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
-          echo "Keystore created successfully"
+          cp maya-release.keystore android/app/maya-release.keystore
+          echo "✅ Keystore copied to android/app/"
           # Verify keystore SHA1 matches expected value
           echo "🔍 Verifying keystore SHA1..."
           SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}')
@@ -105,24 +106,21 @@ jobs:
           if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
             echo "✅ Keystore SHA1 matches expected value!"
           else
-            echo "⚠️ WARNING: Keystore SHA1 does NOT match expected value!"
+            echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
             echo "Expected: $EXPECTED_SHA1"
             echo "Got:      $SHA1"
-            echo "This may cause Google Play to reject the AAB."
+            echo ""
+            echo "This will cause Google Play to reject the AAB."
+            echo "Please update the ANDROID_KEYSTORE_BASE64 secret with the correct keystore."
+            echo "Use the script: scripts/verify-and-encode-keystore.ps1 to verify and encode the correct keystore."
+            exit 1
           fi
-          # Copy keystore to android/app/ for Gradle to find it easily
-          mkdir -p android/app
-          cp maya-release.keystore android/app/maya-release.keystore
-          echo "✅ Keystore copied to android/app/"
           ls -lh maya-release.keystore android/app/maya-release.keystore
 
       - name: ⚙️ Create gradle.properties
         run: |
           cat << EOF > android/gradle.properties
           MAYA_UPLOAD_STORE_FILE=maya-release.keystore
-          MAYA_UPLOAD_STORE_FILE=../../maya-release.keystore
-
-          MAYA_UPLOAD_STORE_FILE=app/maya-release.keystore
           MAYA_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
