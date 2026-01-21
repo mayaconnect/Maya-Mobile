@@ -26,6 +26,8 @@ jobs:
   # ==========================================
   deploy-android:
     name: 🤖 Android → Google Play
+    env:
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' &&
@@ -141,6 +143,8 @@ jobs:
   # ==========================================
   deploy-ios:
     name: 🍎 iOS → TestFlight
+    env:
+      _EXPO_PUBLIC_API_BASE_URL: ${{ vars._EXPO_PUBLIC_API_BASE_URL }}
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' &&
