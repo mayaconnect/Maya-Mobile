@@ -152,6 +152,29 @@ jobs:
           
           echo "✅ Release signing configuration complete"
 
+      - name: 🔧 Fix build.gradle - Remove androidResources block
+        run: |
+          echo "🔧 Removing problematic androidResources block from build.gradle..."
+          BUILD_GRADLE="android/app/build.gradle"
+          if [ -f "$BUILD_GRADLE" ]; then
+            # Remove the androidResources block that causes syntax errors
+            # Using awk to remove lines between androidResources { and the closing }
+            awk '
+              /androidResources \{/ { 
+                skip = 1
+                next
+              }
+              skip && /^    \}$/ {
+                skip = 0
+                next
+              }
+              !skip { print }
+            ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
+            echo "✅ androidResources block removed"
+          else
+            echo "⚠️ WARNING: build.gradle not found"
+          fi
+
       - name: 🔧 Set gradlew permissions
         working-directory: android
         run: |
