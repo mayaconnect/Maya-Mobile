@@ -106,10 +106,14 @@ jobs:
           if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
             echo "✅ Keystore SHA1 matches expected value!"
           else
-            echo "⚠️ WARNING: Keystore SHA1 does NOT match expected value!"
+            echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
             echo "Expected: $EXPECTED_SHA1"
             echo "Got:      $SHA1"
-            echo "This may cause Google Play to reject the AAB."
+            echo ""
+            echo "This will cause Google Play to reject the AAB."
+            echo "Please update the ANDROID_KEYSTORE_BASE64 secret with the correct keystore."
+            echo "Use the script: scripts/verify-and-encode-keystore.ps1 to verify and encode the correct keystore."
+            exit 1
           fi
           ls -lh maya-release.keystore android/app/maya-release.keystore
 
