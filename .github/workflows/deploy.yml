@@ -86,14 +86,11 @@ jobs:
 
       - name: 🔐 Setup Android keystore
         run: |
-          if [ -f "maya-release.keystore" ]; then
-            echo "✅ Keystore already exists at project root, using existing file"
-          else
-            echo "📦 Creating keystore from secret..."
-            # Important: use -n to avoid trailing newline, and fail on decode error
-            echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
-            echo "✅ Keystore created successfully at project root"
-          fi
+          # Always use the keystore from GitHub secret (never use local file)
+          echo "📦 Creating keystore from secret..."
+          # Important: use -n to avoid trailing newline, and fail on decode error
+          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
+          echo "✅ Keystore created successfully at project root"
           # Copy keystore to android/app/ for Gradle to find it easily
           mkdir -p android/app
           cp maya-release.keystore android/app/maya-release.keystore
