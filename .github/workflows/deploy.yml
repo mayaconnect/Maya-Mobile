@@ -94,11 +94,16 @@ jobs:
             echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
             echo "✅ Keystore created successfully at project root"
           fi
+          # Copy keystore to android/app/ for Gradle to find it easily
+          mkdir -p android/app
+          cp maya-release.keystore android/app/maya-release.keystore
+          echo "✅ Keystore copied to android/app/"
+          ls -lh maya-release.keystore android/app/maya-release.keystore
 
       - name: ⚙️ Create gradle.properties
         run: |
           cat << EOF > android/gradle.properties
-          MAYA_UPLOAD_STORE_FILE=../../maya-release.keystore
+          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
           MAYA_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
