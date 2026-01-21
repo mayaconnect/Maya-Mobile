@@ -84,7 +84,9 @@ jobs:
 
       - name: 🔐 Setup Android keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
+          mkdir -p android/app
+          # Important: use -n to avoid trailing newline, and fail on decode error
+          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
           echo "Keystore created successfully"
 
       - name: ⚙️ Create gradle.properties
