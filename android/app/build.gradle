@@ -128,7 +128,7 @@ android {
             crunchPngs enablePngCrunchInRelease.toBoolean()
         }
     }
-    packaging {
+    packagingOptions {
         jniLibs {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
