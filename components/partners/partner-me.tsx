@@ -61,13 +61,13 @@ export function PartnerMe({
             <View style={styles.nameRow}>
               <Text style={styles.profileName}>{fullName}</Text>
               <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                <Ionicons name="checkmark-circle" size={18} color={Colors.primary[500]} />
               </View>
             </View>
             {user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
             {user?.companyName && (
               <View style={styles.companyBadge}>
-                <Ionicons name="business" size={14} color="#F6C756" />
+                <Ionicons name="business" size={14} color={Colors.primary[500]} />
                 <Text style={styles.profileCompany}>{user.companyName}</Text>
               </View>
             )}
@@ -78,19 +78,19 @@ export function PartnerMe({
         {stores.length > 0 && (
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Ionicons name="storefront" size={20} color="#F6C756" />
+              <Ionicons name="storefront" size={20} color={Colors.primary[600]} />
               <Text style={styles.statValue}>{stores.length}</Text>
               <Text style={styles.statLabel}>Magasin{stores.length > 1 ? 's' : ''}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Ionicons name="checkmark-done-circle" size={20} color="#10B981" />
+              <Ionicons name="checkmark-done-circle" size={20} color={Colors.primary[500]} />
               <Text style={styles.statValue}>{stores.filter(s => s.isActive).length}</Text>
               <Text style={styles.statLabel}>Actif{stores.filter(s => s.isActive).length > 1 ? 's' : ''}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Ionicons name="location" size={20} color="#2DD9FF" />
+              <Ionicons name="location" size={20} color={Colors.primary[600]} />
               <Text style={styles.statValue}>
                 {new Set(stores.map(s => s.city || s.address?.city).filter(Boolean)).size}
               </Text>
@@ -198,19 +198,15 @@ export function PartnerMe({
               };
 
               const getCategoryColor = (category: string | undefined): string => {
-                if (!category) return Colors.primary[600];
-                const cat = category.toLowerCase();
-                if (cat.includes('restaurant') || cat.includes('food')) return '#F59E0B';
-                if (cat.includes('shop') || cat.includes('magasin')) return '#8B5CF6';
-                if (cat.includes('café') || cat.includes('coffee')) return '#D97706';
-                if (cat.includes('bar')) return '#DC2626';
-                if (cat.includes('sport')) return '#10B981';
-                if (cat.includes('beauty') || cat.includes('beauté')) return '#EC4899';
-                return Colors.primary[600];
+                return '#FFFFFF';
+              };
+              const getCategoryBackgroundColor = (category: string | undefined): string => {
+                return '#1F1F1F1';
               };
 
               const iconName = getCategoryIcon(store.category);
               const iconColor = getCategoryColor(store.category);
+              const categoryBackgroundColor = getCategoryBackgroundColor(store.category);
 
               return (
                 <TouchableOpacity
@@ -234,7 +230,7 @@ export function PartnerMe({
                           end={{ x: 1, y: 1 }}
                           style={styles.storeIcon}
                         >
-                          <Ionicons name={iconName as any} size={36} color="#FFFFFF" />
+                          <Ionicons name={iconName as any} size={42} color={categoryBackgroundColor} />
                         </LinearGradient>
                         {store.isOpen !== undefined && (
                           <View
@@ -256,7 +252,7 @@ export function PartnerMe({
                               </Text>
                               {store.isActive && (
                                 <View style={styles.activeBadge}>
-                                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                  <Ionicons name="checkmark-circle" size={16} color={Colors.primary[500]} />
                                 </View>
                               )}
                             </View>
@@ -295,13 +291,13 @@ export function PartnerMe({
                           <View style={styles.storeInfoRow}>
                             {store.avgDiscountPercent && (
                               <View style={styles.infoTag}>
-                                <Ionicons name="pricetag" size={12} color="#F6C756" />
+                                <Ionicons name="pricetag" size={12} color={Colors.primary[500]} />
                                 <Text style={styles.infoTagText}>-{store.avgDiscountPercent}%</Text>
                               </View>
                             )}
                             {store.phone && (
                               <View style={styles.infoTag}>
-                                <Ionicons name="call" size={12} color="#2DD9FF" />
+                                <Ionicons name="call" size={12} color={Colors.primary[600]} />
                                 <Text style={styles.infoTagText}>Tel</Text>
                               </View>
                             )}
@@ -320,13 +316,13 @@ export function PartnerMe({
                               <View
                                 style={[
                                   styles.statusDot,
-                                  { backgroundColor: store.isOpen ? '#10B981' : Colors.status.error },
+                                  { backgroundColor: store.isOpen ? Colors.primary[500] : Colors.status.error },
                                 ]}
                               />
                               <Text
                                 style={[
                                   styles.statusText,
-                                  { color: store.isOpen ? '#10B981' : Colors.status.error },
+                                  { color: store.isOpen ? Colors.primary[500] : Colors.status.error },
                                 ]}
                               >
                                 {store.isOpen ? 'Ouvert maintenant' : 'Fermé'}
@@ -387,7 +383,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: BorderRadius.full,
-    backgroundColor: '#10B981',
+    backgroundColor: Colors.primary[500],
     borderWidth: 3,
     borderColor: 'rgba(0, 0, 0, 0.2)',
   } as ViewStyle,
@@ -418,7 +414,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: 'rgba(246, 199, 86, 0.15)',
+    backgroundColor: 'rgba(139, 47, 63, 0.15)',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: BorderRadius.md,
@@ -426,7 +422,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   profileCompany: {
     fontSize: Typography.sizes.xs,
-    color: '#F6C756',
+    color: Colors.primary[500],
     fontWeight: '700',
     letterSpacing: 0.3,
   } as TextStyle,
@@ -544,51 +540,54 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   } as TextStyle,
   storeCard: {
-    borderRadius: BorderRadius['3xl'],
-    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius['2xl'],
+    marginBottom: Spacing.xl,
     ...Shadows.xl,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    elevation: 8,
   } as ViewStyle,
   storeCardGradient: {
-    padding: Spacing.lg,
+    padding: Spacing.xl,
   } as ViewStyle,
   storeCardContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.lg,
+    gap: Spacing.xl,
   } as ViewStyle,
   storeIconContainer: {
     position: 'relative',
   } as ViewStyle,
   storeIcon: {
-    width: 72,
-    height: 72,
+    width: 88,
+    height: 88,
     borderRadius: BorderRadius['2xl'],
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    ...Shadows.lg,
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    ...Shadows.xl,
+    elevation: 6,
   } as ViewStyle,
   storeStatusIndicator: {
     position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 24,
-    height: 24,
+    top: -8,
+    right: -8,
+    width: 28,
+    height: 28,
     borderRadius: BorderRadius.full,
     borderWidth: 4,
-    borderColor: 'rgba(0, 0, 0, 0.3)',
+    borderColor: 'rgba(0, 0, 0, 0.4)',
     ...Shadows.xl,
+    elevation: 8,
   } as ViewStyle,
   storeStatusOpen: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#10B981' as ColorValue,
   } as ViewStyle,
   storeStatusClosed: {
-    backgroundColor: Colors.status.error,
+    backgroundColor: '#EF4444' as ColorValue,
   } as ViewStyle,
   storeDetails: {
     flex: 1,
@@ -610,11 +609,15 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   } as ViewStyle,
   storeName: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.xl,
     fontWeight: '900',
     color: Colors.text.light,
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     flex: 1,
+    lineHeight: 24,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   } as TextStyle,
   activeBadge: {
     marginLeft: 4,
@@ -623,16 +626,18 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
   } as ViewStyle,
   categoryBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
     borderRadius: BorderRadius.full,
-    borderWidth: 1.5,
+    borderWidth: 2,
     alignSelf: 'flex-start',
+    ...Shadows.sm,
+    elevation: 3,
   } as ViewStyle,
   categoryText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontSize: Typography.sizes.sm,
+    fontWeight: '900',
+    letterSpacing: 1,
     textTransform: 'uppercase',
   } as TextStyle,
   storeAddressContainer: {
@@ -642,17 +647,22 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xs,
   } as ViewStyle,
   addressIconWrapper: {
-    width: 24,
-    height: 24,
-    borderRadius: BorderRadius.md,
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Shadows.sm,
   } as ViewStyle,
   storeAddress: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 22,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   } as TextStyle,
   storeInfoRow: {
     flexDirection: 'row',

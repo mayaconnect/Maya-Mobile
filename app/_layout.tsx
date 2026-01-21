@@ -6,8 +6,11 @@ import 'react-native-reanimated';
 import { LoadingScreen } from '@/components/common/loading-screen';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AppProvider } from '@/contexts/app-context';
+import { offlineSync } from '@/utils/offline-sync';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
+import { useEffect } from 'react';
 
 
 function RootLayoutNav() {
@@ -37,12 +40,26 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   useFonts(Ionicons.font);
 
+  // Initialiser la synchronisation offline au démarrage
+  useEffect(() => {
+    offlineSync.initialize().catch((error) => {
+      console.error('Erreur lors de l\'initialisation de la synchronisation offline:', error);
+    });
+
+    // Cleanup au démontage
+    return () => {
+      offlineSync.cleanup();
+    };
+  }, []);
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
-        <RootLayoutNav />
-        <StatusBar style="auto" />
-      </AuthProvider>
+      <AppProvider>
+        <AuthProvider>
+          <RootLayoutNav />
+          <StatusBar style="auto" />
+        </AuthProvider>
+      </AppProvider>
     </ThemeProvider>
   );
 }

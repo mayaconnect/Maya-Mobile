@@ -174,7 +174,7 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
                     )}
                     {selectedStore.clientsCount !== undefined && (
                       <View style={styles.statCard}>
-                        <Ionicons name="people" size={24} color="#2DD9FF" />
+                        <Ionicons name="people" size={24} color={Colors.primary[600]} />
                         <Text style={styles.statValue}>{selectedStore.clientsCount}</Text>
                         <Text style={styles.statLabel}>Clients</Text>
                       </View>

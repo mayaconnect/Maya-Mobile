@@ -92,8 +92,8 @@ export function PartnerOverview({
               <Text style={styles.scanCountLabel}>Aujourd&apos;hui</Text>
             </View>
             <View style={styles.scanCountCard}>
-              <View style={[styles.scanCountIcon, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-                <Ionicons name="calendar-outline" size={20} color={Colors.accent.blue} />
+              <View style={[styles.scanCountIcon, { backgroundColor: 'rgba(139, 47, 63, 0.15)' }]}>
+                <Ionicons name="calendar-outline" size={20} color={Colors.primary[600]} />
               </View>
               <Text style={styles.scanCountValue}>
                 {scanCountsLoading ? '-' : scanCounts.week.toLocaleString('fr-FR')}

@@ -131,7 +131,6 @@ jobs:
           type("appstore")
           app_identifier(["com.maya.connect"])
           api_key_path("fastlane/keys/api_key.json")
-          EOF
 
           echo "✅ Matchfile created"
 
@@ -174,4 +173,4 @@ jobs:
           echo "1. The deploy workflow can now build iOS"
           echo "2. You can disable or delete this workflow"
           echo ""
-          echo "======================================"
+

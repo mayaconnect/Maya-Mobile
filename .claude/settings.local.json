@@ -10,6 +10,7 @@
       "Bash(powershell -Command:*)",
       "Bash(timeout /t 3 /nobreak)",
       "Bash(nul)",
+      "Bash(npm test:*)"
       "Bash(npx expo:*)",
       "Bash(ruby --version:*)",
       "Bash(gem --version:*)",
