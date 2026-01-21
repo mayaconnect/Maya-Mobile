@@ -82,6 +82,11 @@ jobs:
           echo "Fastlane configuration restored"
           ls -la android/fastlane/
 
+      - name: 🔧 Configure release signing in build.gradle
+        run: |
+          chmod +x scripts/configure-release-signing.sh
+          bash scripts/configure-release-signing.sh
+
       - name: 🔧 Set gradlew permissions
         working-directory: android
         run: |
