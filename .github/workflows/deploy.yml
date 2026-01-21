@@ -93,12 +93,30 @@ jobs:
             # Important: use -n to avoid trailing newline, and fail on decode error
             echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
             echo "✅ Keystore created successfully at project root"
+          mkdir -p android/app
+          # Important: use -n to avoid trailing newline, and fail on decode error
+          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
+          echo "Keystore created successfully"
+          # Verify keystore SHA1 matches expected value
+          echo "🔍 Verifying keystore SHA1..."
+          SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}')
+          echo "Keystore SHA1: $SHA1"
+          EXPECTED_SHA1="ED:B2:B3:D9:9F:A1:FA:60:28:CD:27:3E:BF:18:3E:A1:EC:E0:88:27"
+          if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
+            echo "✅ Keystore SHA1 matches expected value!"
+          else
+            echo "⚠️ WARNING: Keystore SHA1 does NOT match expected value!"
+            echo "Expected: $EXPECTED_SHA1"
+            echo "Got:      $SHA1"
+            echo "This may cause Google Play to reject the AAB."
           fi
 
       - name: ⚙️ Create gradle.properties
         run: |
           cat << EOF > android/gradle.properties
           MAYA_UPLOAD_STORE_FILE=../../maya-release.keystore
+
+          MAYA_UPLOAD_STORE_FILE=app/maya-release.keystore
           MAYA_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
