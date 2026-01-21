@@ -157,27 +157,36 @@ jobs:
           echo "🔧 Fixing build.gradle syntax issues..."
           BUILD_GRADLE="android/app/build.gradle"
           if [ -f "$BUILD_GRADLE" ]; then
-            # Remove both androidResources and packagingOptions blocks that cause syntax errors
-            awk '
-              /androidResources \{/ { 
-                skip_android = 1
-                next
-              }
-              skip_android && /^    \}$/ {
-                skip_android = 0
-                next
-              }
-              /packagingOptions \{/ {
-                skip_packaging = 1
-                next
-              }
-              skip_packaging && /^    \}$/ {
-                skip_packaging = 0
-                next
-              }
-              !skip_android && !skip_packaging { print }
-            ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
-            echo "✅ build.gradle fixed (removed androidResources and packagingOptions blocks)"
+            python3 <<EOF
+          file_path = 'android/app/build.gradle'
+          with open(file_path, 'r', encoding='utf-8') as f:
+              lines = f.readlines()
+          
+          output = []
+          skip_android_resources = False
+          brace_count = 0
+          
+          for line in lines:
+              if 'androidResources {' in line:
+                  skip_android_resources = True
+                  brace_count = line.count('{') - line.count('}')
+                  continue
+              
+              if skip_android_resources:
+                  brace_count += line.count('{') - line.count('}')
+                  if brace_count <= 0:
+                      skip_android_resources = False
+                  continue
+              
+              line = line.replace('packagingOptions {', 'packaging {')
+              output.append(line)
+          
+          with open(file_path, 'w', encoding='utf-8') as f:
+              f.writelines(output)
+          
+          print('✅ build.gradle fixed (removed androidResources, updated packagingOptions to packaging)')
+          EOF
+            echo "✅ build.gradle syntax fixed"
           else
             echo "⚠️ WARNING: build.gradle not found"
           fi
