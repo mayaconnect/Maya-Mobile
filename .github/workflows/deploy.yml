@@ -86,15 +86,19 @@ jobs:
 
       - name: 🔐 Setup Android keystore
         run: |
-          mkdir -p android/app
-          # Important: use -n to avoid trailing newline, and fail on decode error
-          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
-          echo "Keystore created successfully"
+          if [ -f "maya-release.keystore" ]; then
+            echo "✅ Keystore already exists at project root, using existing file"
+          else
+            echo "📦 Creating keystore from secret..."
+            # Important: use -n to avoid trailing newline, and fail on decode error
+            echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
+            echo "✅ Keystore created successfully at project root"
+          fi
 
       - name: ⚙️ Create gradle.properties
         run: |
           cat << EOF > android/gradle.properties
-          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
+          MAYA_UPLOAD_STORE_FILE=../../maya-release.keystore
           MAYA_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
