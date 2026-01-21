@@ -198,6 +198,7 @@ jobs:
           EXPECTED_SHA1="1C:3B:87:09:A5:5B:A3:74:A3:C2:7A:98:AF:23:06:82:C7:B1:AF:FD"
           if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
             echo "✅ Keystore SHA1 matches expected value!"
+
           else
             echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
             echo "Expected: $EXPECTED_SHA1"
