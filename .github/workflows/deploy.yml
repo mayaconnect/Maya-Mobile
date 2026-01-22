@@ -26,8 +26,6 @@ jobs:
   # ==========================================
   deploy-android:
     name: 🤖 Android → Google Play
-    env:
-      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' &&
@@ -60,417 +58,6 @@ jobs:
           cp -r /tmp/fastlane-backup/fastlane android/
           echo "Fastlane configuration restored"
           ls -la android/fastlane/
-
-      - name: 🔧 Fix build.gradle - Remove problematic blocks
-        run: |
-          echo "🔧 Fixing build.gradle syntax issues..."
-          BUILD_GRADLE="android/app/build.gradle"
-          if [ -f "$BUILD_GRADLE" ]; then
-            echo "📄 First 30 lines of build.gradle:"
-            head -n 30 "$BUILD_GRADLE" || true
-            echo ""
-            
-            python3 <<'PYTHON_EOF'
-          import re
-
-          file_path = 'android/app/build.gradle'
-
-          with open(file_path, 'r', encoding='utf-8') as f:
-              content = f.read()
-
-          print('🔍 Analyzing build.gradle...')
-
-          # Function to find matching closing brace
-          def find_closing_brace(text, start_pos):
-              """Find the position of the closing brace that matches the opening brace at start_pos"""
-              brace_count = 0
-              i = start_pos
-              while i < len(text):
-                  if text[i] == '{':
-                      brace_count += 1
-                  elif text[i] == '}':
-                      brace_count -= 1
-                      if brace_count == 0:
-                          return i
-                  i += 1
-              return -1
-
-          # Remove androidResources blocks (using proper brace matching)
-          pattern = r'androidResources\s*\{'
-          matches = list(re.finditer(pattern, content))
-          if matches:
-              print(f'🚫 Found {len(matches)} androidResources block(s)')
-              # Remove blocks in reverse order to preserve positions
-              for match in reversed(matches):
-                  brace_pos = content.index('{', match.start())
-                  end_pos = find_closing_brace(content, brace_pos)
-                  if end_pos != -1:
-                      # Remove the entire block including the keyword
-                      content = content[:match.start()] + content[end_pos + 1:]
-
-          # Remove packaging/packagingOptions blocks (using proper brace matching)
-          pattern = r'(packagingOptions|packaging)\s*\{'
-          matches = list(re.finditer(pattern, content))
-          if matches:
-              print(f'🚫 Found {len(matches)} packaging block(s)')
-              # Remove blocks in reverse order to preserve positions
-              for match in reversed(matches):
-                  brace_pos = content.index('{', match.start())
-                  end_pos = find_closing_brace(content, brace_pos)
-                  if end_pos != -1:
-                      # Remove the entire block including the keyword
-                      content = content[:match.start()] + content[end_pos + 1:]
-
-          # Handle duplicate buildTypes blocks - use line-by-line approach for better detection
-          lines = content.splitlines(keepends=True)
-          output_lines = []
-          skip_block = False
-          brace_count = 0
-          buildtypes_count = 0
-          block_start_line = 0
-          in_android_block = False
-          android_brace_level = 0
-          removed_blocks = []
-
-          for i, line in enumerate(lines, 1):
-              stripped = line.strip()
-              
-              # Track if we're inside android block
-              if 'android {' in stripped or 'android{' in stripped:
-                  in_android_block = True
-                  android_brace_level = stripped.count('{') - stripped.count('}')
-                  output_lines.append(line)
-                  continue
-              
-              if in_android_block:
-                  android_brace_level += line.count('{') - line.count('}')
-                  if android_brace_level <= 0:
-                      in_android_block = False
-              
-              # Detect buildTypes blocks
-              if 'buildTypes' in stripped and '{' in line:
-                  buildtypes_count += 1
-                  
-                  # If buildTypes is outside android block, remove it
-                  if not in_android_block:
-                      print(f'🚫 Found buildTypes OUTSIDE android block at line {i}, removing it')
-                      skip_block = True
-                      removed_blocks.append(f'buildTypes outside android (line {i})')
-                      brace_count = line.count('{') - line.count('}')
-                      block_start_line = i
-                      continue
-                  
-                  # If it's a duplicate inside android block, keep only the first
-                  if buildtypes_count > 1:
-                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
-                      skip_block = True
-                      removed_blocks.append(f'duplicate buildTypes (line {i})')
-                      brace_count = line.count('{') - line.count('}')
-                      block_start_line = i
-                      continue
-                  else:
-                      print(f'✅ Keeping first buildTypes block at line {i} (inside android block)')
-              
-              # If we're inside a problematic block, count braces
-              if skip_block:
-                  brace_count += line.count('{') - line.count('}')
-                  if brace_count <= 0:
-                      print(f'✅ Finished removing block at line {i} (started at line {block_start_line})')
-                      skip_block = False
-                      block_start_line = 0
-                  continue
-              
-              # Keep all other lines
-              output_lines.append(line)
-          
-          content = ''.join(output_lines)
-          
-          # Verify we have exactly one buildTypes block inside android
-          buildtypes_inside_android = 0
-          in_android = False
-          android_braces = 0
-          for line in content.splitlines():
-              if 'android {' in line or 'android{' in line:
-                  in_android = True
-                  android_braces = line.count('{') - line.count('}')
-              elif in_android:
-                  android_braces += line.count('{') - line.count('}')
-                  if android_braces <= 0:
-                      in_android = False
-                  elif 'buildTypes' in line and '{' in line:
-                      buildtypes_inside_android += 1
-          
-          if buildtypes_inside_android == 1:
-              print(f'✅ Verified: Exactly 1 buildTypes block inside android block')
-          elif buildtypes_inside_android > 1:
-              print(f'⚠️ WARNING: Found {buildtypes_inside_android} buildTypes blocks inside android block')
-          else:
-              print(f'⚠️ WARNING: No buildTypes block found inside android block!')
-
-          # Clean up extra blank lines
-          content = re.sub(r'\n\n\n+', '\n\n', content)
-
-          # Verify brace balance
-          open_braces = content.count('{')
-          close_braces = content.count('}')
-          print(f'📊 Final brace count: {open_braces} open, {close_braces} close')
-
-          if open_braces != close_braces:
-              print(f'❌ ERROR: Brace mismatch! Difference: {open_braces - close_braces}')
-              exit(1)
-
-          # Verify buildTypes count
-          final_buildtypes = len(re.findall(r'buildTypes\s*\{', content))
-          print(f'✅ Final buildTypes count: {final_buildtypes}')
-
-          if final_buildtypes != 1:
-              print(f'⚠️ WARNING: Expected 1 buildTypes block, found {final_buildtypes}')
-
-          # Write the fixed content
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.write(content)
-
-          print('✅ build.gradle fixed successfully')
-          PYTHON_EOF
-            
-            echo "✅ build.gradle syntax fixed"
-            
-            # Validate Gradle syntax
-            echo "🔍 Validating Gradle syntax..."
-            cd android
-            echo "Running: ./gradlew tasks --dry-run"
-            if ./gradlew tasks --dry-run 2>&1 | tee /tmp/gradle-validation.log; then
-              echo "✅ Gradle syntax validation passed"
-            else
-              echo "❌ ERROR: Gradle syntax validation failed"
-              echo ""
-              echo "=== Full Gradle error output ==="
-              cat /tmp/gradle-validation.log || true
-              echo ""
-              echo "=== build.gradle content (first 50 lines) ==="
-              head -n 50 app/build.gradle || true
-              echo ""
-              echo "=== build.gradle content (lines 100-200) ==="
-              sed -n '100,200p' app/build.gradle || true
-              echo ""
-              echo "=== Checking for common issues ==="
-              echo "Number of '{' in build.gradle: $(grep -o '{' app/build.gradle | wc -l)"
-              echo "Number of '}' in build.gradle: $(grep -o '}' app/build.gradle | wc -l)"
-              echo "Number of 'buildTypes {' in build.gradle: $(grep -c 'buildTypes {' app/build.gradle || echo 0)"
-              echo "Number of 'androidResources' in build.gradle: $(grep -c 'androidResources' app/build.gradle || echo 0)"
-              echo "Number of 'packaging' in build.gradle: $(grep -c 'packaging' app/build.gradle || echo 0)"
-              cd ..
-              exit 1
-            fi
-            cd ..
-          else
-            echo "❌ ERROR: build.gradle not found"
-            exit 1
-          fi
-
-      - name: 🔧 Configure release signing in build.gradle
-        run: |
-          echo "🔧 Configuring release signing in build.gradle..."
-          BUILD_GRADLE="android/app/build.gradle"
-          
-          if [ ! -f "$BUILD_GRADLE" ]; then
-            echo "❌ ERROR: build.gradle not found. expo prebuild may have failed."
-            exit 1
-          fi
-          
-          # Create backup
-          cp "$BUILD_GRADLE" "$BUILD_GRADLE.backup"
-          
-          # Check if signingConfigs.release already exists
-          if grep -q "signingConfigs.release" "$BUILD_GRADLE" || (grep -A 10 "signingConfigs {" "$BUILD_GRADLE" | grep -q "release {"); then
-            echo "✅ signingConfigs.release already exists"
-          else
-            # Add release config after debug config in signingConfigs block
-            awk '
-              /signingConfigs \{/ { 
-                print
-                in_signing = 1
-                next
-              }
-              in_signing && /^    \}/ {
-                print "        release {"
-                print "            if (project.hasProperty(\"MAYA_UPLOAD_STORE_FILE\")) {"
-                print "                storeFile file(MAYA_UPLOAD_STORE_FILE)"
-                print "                storePassword MAYA_UPLOAD_STORE_PASSWORD"
-                print "                keyAlias MAYA_UPLOAD_KEY_ALIAS"
-                print "                keyPassword MAYA_UPLOAD_KEY_PASSWORD"
-                print "            }"
-                print "        }"
-                print
-                in_signing = 0
-              }
-              { print }
-            ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
-            echo "✅ Added signingConfigs.release"
-          fi
-          
-          # Ensure release buildType uses signingConfigs.release instead of debug
-          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
-            echo "⚠️  WARNING: Release buildType is using debug signing! Fixing..."
-            sed -i '/release {/,/^    }/s/signingConfig signingConfigs\.debug/signingConfig signingConfigs.release/g' "$BUILD_GRADLE"
-            echo "✅ Fixed: Replaced debug signing with release signing"
-          elif grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs.release"; then
-            echo "✅ Release buildType already uses signingConfigs.release"
-          else
-            echo "⚠️  No signingConfig found in release block, adding signingConfigs.release"
-            sed -i '/release {/a\            signingConfig signingConfigs.release' "$BUILD_GRADLE"
-            echo "✅ Added signingConfig signingConfigs.release to release buildType"
-          fi
-          
-          # Final verification - ensure release does NOT use debug
-          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
-            echo "❌ ERROR: Release buildType still uses debug signing after configuration!"
-            echo "Build.gradle content around release block:"
-            grep -A 10 "release {" "$BUILD_GRADLE"
-            exit 1
-          else
-            echo "✅ Verification passed: Release buildType uses release signing (not debug)"
-          fi
-          
-          echo "✅ Release signing configuration complete"
-          
-          # Verify build.gradle is still valid after signing configuration
-          echo "🔍 Verifying build.gradle syntax after signing configuration..."
-          cd android
-          if ./gradlew tasks --dry-run > /dev/null 2>&1; then
-            echo "✅ build.gradle syntax is still valid after signing configuration"
-          else
-            echo "⚠️ WARNING: build.gradle syntax error after signing configuration!"
-            echo "This might be caused by the awk script. Re-running fix script..."
-            cd ..
-            # Re-run the fix script
-            python3 <<'PYTHON_EOF'
-          import re
-
-          file_path = 'android/app/build.gradle'
-
-          with open(file_path, 'r', encoding='utf-8') as f:
-              content = f.read()
-
-          print('🔍 Re-analyzing build.gradle after signing configuration...')
-
-          # Function to find matching closing brace
-          def find_closing_brace(text, start_pos):
-              brace_count = 0
-              i = start_pos
-              while i < len(text):
-                  if text[i] == '{':
-                      brace_count += 1
-                  elif text[i] == '}':
-                      brace_count -= 1
-                      if brace_count == 0:
-                          return i
-                  i += 1
-              return -1
-
-          # Remove androidResources blocks
-          pattern = r'androidResources\s*\{'
-          matches = list(re.finditer(pattern, content))
-          if matches:
-              print(f'🚫 Found {len(matches)} androidResources block(s)')
-              for match in reversed(matches):
-                  brace_pos = content.index('{', match.start())
-                  end_pos = find_closing_brace(content, brace_pos)
-                  if end_pos != -1:
-                      content = content[:match.start()] + content[end_pos + 1:]
-
-          # Remove packaging blocks
-          pattern = r'(packagingOptions|packaging)\s*\{'
-          matches = list(re.finditer(pattern, content))
-          if matches:
-              print(f'🚫 Found {len(matches)} packaging block(s)')
-              for match in reversed(matches):
-                  brace_pos = content.index('{', match.start())
-                  end_pos = find_closing_brace(content, brace_pos)
-                  if end_pos != -1:
-                      content = content[:match.start()] + content[end_pos + 1:]
-
-          # Handle duplicate buildTypes blocks
-          lines = content.splitlines(keepends=True)
-          output_lines = []
-          skip_block = False
-          brace_count = 0
-          buildtypes_count = 0
-          block_start_line = 0
-          in_android_block = False
-          android_brace_level = 0
-
-          for i, line in enumerate(lines, 1):
-              stripped = line.strip()
-              
-              if 'android {' in stripped or 'android{' in stripped:
-                  in_android_block = True
-                  android_brace_level = stripped.count('{') - stripped.count('}')
-                  output_lines.append(line)
-                  continue
-              
-              if in_android_block:
-                  android_brace_level += line.count('{') - line.count('}')
-                  if android_brace_level <= 0:
-                      in_android_block = False
-              
-              if 'buildTypes' in stripped and '{' in line:
-                  buildtypes_count += 1
-                  
-                  if not in_android_block:
-                      print(f'🚫 Found buildTypes OUTSIDE android block at line {i}, removing it')
-                      skip_block = True
-                      brace_count = line.count('{') - line.count('}')
-                      block_start_line = i
-                      continue
-                  
-                  if buildtypes_count > 1:
-                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
-                      skip_block = True
-                      brace_count = line.count('{') - line.count('}')
-                      block_start_line = i
-                      continue
-                  else:
-                      print(f'✅ Keeping first buildTypes block at line {i}')
-              
-              if skip_block:
-                  brace_count += line.count('{') - line.count('}')
-                  if brace_count <= 0:
-                      print(f'✅ Finished removing block at line {i}')
-                      skip_block = False
-                      block_start_line = 0
-                  continue
-              
-              output_lines.append(line)
-          
-          content = ''.join(output_lines)
-          
-          # Verify brace balance
-          open_braces = content.count('{')
-          close_braces = content.count('}')
-          print(f'📊 Final brace count: {open_braces} open, {close_braces} close')
-
-          if open_braces != close_braces:
-              print(f'❌ ERROR: Brace mismatch! Difference: {open_braces - close_braces}')
-              exit(1)
-
-          # Write the fixed content
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.write(content)
-
-          print('✅ build.gradle re-fixed after signing configuration')
-          PYTHON_EOF
-            cd android
-            # Verify again
-            if ./gradlew tasks --dry-run > /dev/null 2>&1; then
-              echo "✅ build.gradle syntax is now valid after re-fix"
-            else
-              echo "❌ ERROR: build.gradle still has syntax errors after re-fix"
-              ./gradlew tasks --dry-run 2>&1 | head -50 || true
-              exit 1
-            fi
-          fi
-          cd ..
 
       - name: 🔧 Set gradlew permissions
         working-directory: android
@@ -591,211 +178,62 @@ jobs:
             echo "✅ Additional Gradle settings added"
           fi
 
+      - name: 🔧 Generate React Native Codegen artifacts
+        working-directory: android
+        run: |
+          echo "Generating codegen artifacts for all modules..."
+          # Generate codegen artifacts for all native modules, not just the app
+          ./gradlew generateCodegenArtifactsFromSchema --stacktrace || {
+            echo "⚠️ Codegen generation had issues, but continuing..."
+            exit 0
+          }
+          echo "✅ Codegen artifacts generated"
+
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: 🔐 Setup Android keystore
+        run: |
+          mkdir -p android/app
+          # Important: use -n to avoid trailing newline, and fail on decode error
+          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
+          echo "Keystore created successfully"
+
+      - name: ⚙️ Create gradle.properties
+        run: |
+          cat << EOF > android/gradle.properties
+          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
+          MAYA_UPLOAD_KEY_ALIAS=${{ secrets.MAYA_UPLOAD_KEY_ALIAS }}
+          MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.MAYA_UPLOAD_STORE_PASSWORD }}
+          MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.MAYA_UPLOAD_KEY_PASSWORD }}
+
+          # Gradle settings
+          org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
+          org.gradle.configureondemand=true
+          android.useAndroidX=true
+          android.enableJetifier=true
+
+          # React Native / Hermes settings
+          hermesEnabled=true
+          newArchEnabled=true
+          EOF
+          echo "Gradle properties configured"
+
       - name: 🔑 Create Google Play service account JSON
         run: |
           mkdir -p android/fastlane
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/fastlane/google-play-service-account.json
           echo "Service account configured"
 
-      - name: ✅ Final build.gradle verification before build
-        run: |
-          echo "🔍 Final verification of build.gradle before build..."
-          cd android
-          
-          # Check for problematic blocks one more time
-          if grep -q "androidResources" app/build.gradle; then
-            echo "⚠️ WARNING: androidResources block still present!"
-          fi
-          
-          if grep -c "buildTypes {" app/build.gradle | grep -v "^1$"; then
-            echo "⚠️ WARNING: Multiple buildTypes blocks detected!"
-            echo "Number of buildTypes blocks: $(grep -c 'buildTypes {' app/build.gradle || echo 0)"
-          fi
-          
-          # Final syntax check
-          echo "Running final Gradle syntax check..."
-          if ./gradlew tasks --dry-run --stacktrace > /tmp/final-gradle-check.log 2>&1; then
-            echo "✅ Final syntax check passed - build.gradle is ready for build"
-          else
-            echo "❌ ERROR: Final syntax check failed!"
-            echo "=== Error output ==="
-            cat /tmp/final-gradle-check.log | head -100 || true
-            echo ""
-            echo "=== build.gradle around problematic area ==="
-            # Try to find the error line from the log
-            ERROR_LINE=$(grep -o "line: [0-9]*" /tmp/final-gradle-check.log | head -1 | grep -o "[0-9]*" || echo "135")
-            echo "Checking around line $ERROR_LINE:"
-            START_LINE=$((ERROR_LINE - 10))
-            END_LINE=$((ERROR_LINE + 20))
-            sed -n "${START_LINE},${END_LINE}p" app/build.gradle || true
-            exit 1
-          fi
-          cd ..
-
-      - name: ✅ Verify signing configuration before build
-        run: |
-          echo "🔍 Verifying signing configuration..."
-          
-          # Check keystore file exists
-          if [ ! -f "android/app/maya-release.keystore" ]; then
-            echo "❌ ERROR: Keystore file not found at android/app/maya-release.keystore"
-            exit 1
-          fi
-          echo "✅ Keystore file exists: $(ls -lh android/app/maya-release.keystore)"
-          
-          # Check gradle.properties has signing config
-          if [ ! -f "android/gradle.properties" ]; then
-            echo "❌ ERROR: gradle.properties not found!"
-            exit 1
-          fi
-          
-          echo "📋 Checking gradle.properties for signing properties:"
-          if grep -q "MAYA_UPLOAD_STORE_FILE" android/gradle.properties; then
-            echo "✅ MAYA_UPLOAD_STORE_FILE found"
-            STORE_FILE=$(grep "MAYA_UPLOAD_STORE_FILE" android/gradle.properties | cut -d'=' -f2)
-            echo "   Value: $STORE_FILE"
-          else
-            echo "❌ ERROR: MAYA_UPLOAD_STORE_FILE not found in gradle.properties"
-            exit 1
-          fi
-          
-          if grep -q "MAYA_UPLOAD_STORE_PASSWORD" android/gradle.properties; then
-            echo "✅ MAYA_UPLOAD_STORE_PASSWORD found (hidden)"
-          else
-            echo "❌ ERROR: MAYA_UPLOAD_STORE_PASSWORD not found in gradle.properties"
-            exit 1
-          fi
-          
-          if grep -q "MAYA_UPLOAD_KEY_ALIAS" android/gradle.properties; then
-            echo "✅ MAYA_UPLOAD_KEY_ALIAS found"
-            KEY_ALIAS=$(grep "MAYA_UPLOAD_KEY_ALIAS" android/gradle.properties | cut -d'=' -f2)
-            echo "   Value: $KEY_ALIAS"
-          else
-            echo "❌ ERROR: MAYA_UPLOAD_KEY_ALIAS not found in gradle.properties"
-            exit 1
-          fi
-          
-          if grep -q "MAYA_UPLOAD_KEY_PASSWORD" android/gradle.properties; then
-            echo "✅ MAYA_UPLOAD_KEY_PASSWORD found (hidden)"
-          else
-            echo "❌ ERROR: MAYA_UPLOAD_KEY_PASSWORD not found in gradle.properties"
-            exit 1
-          fi
-          
-          # Verify build.gradle has signingConfigs.release
-          if grep -q "signingConfigs.release" android/app/build.gradle || grep -A 10 "signingConfigs {" android/app/build.gradle | grep -q "release {"; then
-            echo "✅ signingConfigs.release found in build.gradle"
-          else
-            echo "❌ ERROR: signingConfigs.release not found in build.gradle"
-            exit 1
-          fi
-          
-          # Verify release buildType uses signingConfigs.release
-          if grep -A 10 "release {" android/app/build.gradle | grep -q "signingConfig signingConfigs.release"; then
-            echo "✅ release buildType uses signingConfigs.release"
-          else
-            echo "❌ ERROR: release buildType does not use signingConfigs.release"
-            echo "Release block content:"
-            grep -A 10 "release {" android/app/build.gradle || true
-            exit 1
-          fi
-          
-          echo "✅ All signing configuration checks passed!"
-
       - name: 🚀 Deploy to Google Play Internal Testing
         working-directory: android
         run: bundle exec fastlane internal
         env:
           SUPPLY_JSON_KEY: ./fastlane/google-play-service-account.json
-
-      - name: 🔍 Verify AAB signature (prevent debug signature)
-        run: |
-          echo "🔍 Verifying AAB signature to ensure it's NOT signed with debug keystore..."
-          AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
-          
-          if [ ! -f "$AAB_PATH" ]; then
-            echo "❌ ERROR: AAB file not found at $AAB_PATH"
-            exit 1
-          fi
-          
-          echo "✅ AAB file found, verifying signature..."
-          
-          # Get expected SHA1 from secrets
-          EXPECTED_SHA1="${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 || secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}"
-          
-          if [ -z "$EXPECTED_SHA1" ]; then
-            echo "⚠️ WARNING: No expected SHA1 provided, skipping AAB signature verification"
-            echo "To enable verification, set MAYA_UPLOAD_EXPECTED_SHA1 or ANDROID_KEYSTORE_EXPECTED_SHA1 secret"
-            exit 0
-          fi
-          
-          # Try to extract SHA1 from AAB using jarsigner or apksigner
-          CERT_SHA1=""
-          
-          if command -v apksigner >/dev/null 2>&1; then
-            echo "Using apksigner to verify signature..."
-            # Note: apksigner works with APK, not AAB directly
-            # We'll use jarsigner instead for AAB
-            CERT_SHA1=$(jarsigner -verify -verbose -certs "$AAB_PATH" 2>&1 | grep -i "SHA1" | head -1 | sed 's/.*SHA1: //' | awk '{print $1}' || echo "")
-          elif command -v jarsigner >/dev/null 2>&1; then
-            echo "Using jarsigner to verify signature..."
-            # Extract certificate info from AAB
-            CERT_SHA1=$(jarsigner -verify -verbose -certs "$AAB_PATH" 2>&1 | grep -i "SHA1" | head -1 | sed 's/.*SHA1: //' | awk '{print $1}' || echo "")
-          fi
-          
-          if [ -z "$CERT_SHA1" ]; then
-            # Try alternative method: extract and check META-INF
-            echo "Trying alternative method to verify signature..."
-            TEMP_DIR=$(mktemp -d)
-            unzip -q "$AAB_PATH" -d "$TEMP_DIR" 2>/dev/null || true
-            
-            if [ -d "$TEMP_DIR/META-INF" ]; then
-              echo "✅ AAB is signed (META-INF folder found)"
-              # Try to get SHA1 from certificate files
-              if [ -f "$TEMP_DIR/META-INF/*.RSA" ] || [ -f "$TEMP_DIR/META-INF/*.DSA" ] || [ -f "$TEMP_DIR/META-INF/*.EC" ]; then
-                CERT_FILE=$(find "$TEMP_DIR/META-INF" -name "*.RSA" -o -name "*.DSA" -o -name "*.EC" | head -1)
-                if [ -n "$CERT_FILE" ]; then
-                  CERT_SHA1=$(keytool -printcert -file "$CERT_FILE" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
-                fi
-              fi
-            else
-              echo "❌ ERROR: AAB is not signed! Missing META-INF folder"
-              rm -rf "$TEMP_DIR"
-              exit 1
-            fi
-            rm -rf "$TEMP_DIR"
-          fi
-          
-          if [ -n "$CERT_SHA1" ]; then
-            echo "AAB Certificate SHA1: $CERT_SHA1"
-            echo "Expected SHA1: $EXPECTED_SHA1"
-            
-            # Normalize SHA1 format (remove colons and convert to uppercase for comparison)
-            CERT_SHA1_NORMALIZED=$(echo "$CERT_SHA1" | tr -d ':' | tr '[:lower:]' '[:upper:]')
-            EXPECTED_SHA1_NORMALIZED=$(echo "$EXPECTED_SHA1" | tr -d ':' | tr '[:lower:]' '[:upper:]')
-            
-            if [ "$CERT_SHA1_NORMALIZED" = "$EXPECTED_SHA1_NORMALIZED" ]; then
-              echo "✅ AAB is correctly signed with the release keystore!"
-            else
-              # Check if it's the debug keystore (common debug SHA1 pattern)
-              if echo "$CERT_SHA1" | grep -qi "61:ED:37:7E:85:D3"; then
-                echo "❌ ERROR: AAB is signed with DEBUG keystore!"
-                echo "This will be rejected by Google Play."
-                echo "Expected release SHA1: $EXPECTED_SHA1"
-                echo "Got debug SHA1: $CERT_SHA1"
-                exit 1
-              else
-                echo "⚠️ WARNING: AAB SHA1 does not match expected release keystore"
-                echo "Expected: $EXPECTED_SHA1"
-                echo "Got:      $CERT_SHA1"
-                echo "Continuing, but this may cause issues with Google Play..."
-              fi
-            fi
-          else
-            echo "⚠️ WARNING: Could not extract SHA1 from AAB signature"
-            echo "AAB file exists and appears to be signed, but signature verification was skipped"
-            echo "This is not ideal but continuing..."
-          fi
 
       - name: 📤 Upload Android artifact
         uses: actions/upload-artifact@v4
@@ -816,8 +254,6 @@ jobs:
   # ==========================================
   deploy-ios:
     name: 🍎 iOS → TestFlight
-    env:
-      _EXPO_PUBLIC_API_BASE_URL: ${{ vars._EXPO_PUBLIC_API_BASE_URL }}
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' &&
