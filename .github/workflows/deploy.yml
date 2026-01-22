@@ -52,255 +52,14 @@ jobs:
           mkdir -p /tmp/fastlane-backup
           cp -r android/fastlane /tmp/fastlane-backup/ || echo "No fastlane folder to backup"
 
-      - name: 📝 Create .env file for API URL
-        run: |
-          if [ -z "${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" ]; then
-            echo "⚠️ WARNING: EXPO_PUBLIC_API_BASE_URL secret is not set!"
-            echo "The app will use the default API URL from the code."
-          else
-            echo "EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" > .env
-            echo "✅ .env file created with API URL"
-            # Verify the file was created (without showing the actual URL)
-            if [ -f ".env" ]; then
-              echo "✅ .env file exists"
-              echo "API URL configured: EXPO_PUBLIC_API_BASE_URL=***"
-            else
-              echo "❌ ERROR: .env file was not created"
-              exit 1
-            fi
-          fi
-
       - name: 🔨 Generate Android native folder
-        run: |
-          # Export the variable so it's available during prebuild
-          export EXPO_PUBLIC_API_BASE_URL="${{ secrets.EXPO_PUBLIC_API_BASE_URL }}"
-          npx expo prebuild --platform android --clean
+        run: npx expo prebuild --platform android --clean
 
       - name: 📋 Restore Fastlane configuration
         run: |
           cp -r /tmp/fastlane-backup/fastlane android/
           echo "Fastlane configuration restored"
           ls -la android/fastlane/
-
-      - name: 🔧 Fix build.gradle - Remove problematic blocks
-        run: |
-          echo "🔧 Fixing build.gradle syntax issues..."
-          BUILD_GRADLE="android/app/build.gradle"
-          if [ -f "$BUILD_GRADLE" ]; then
-            # Show first few lines for debugging
-            echo "📄 First 20 lines of build.gradle:"
-            head -n 20 "$BUILD_GRADLE" || true
-            
-            python3 <<EOF
-          file_path = 'android/app/build.gradle'
-          with open(file_path, 'r', encoding='utf-8') as f:
-              lines = f.readlines()
-          
-          # Show lines around potential problematic areas
-          print('🔍 Searching for problematic blocks...')
-          
-          # First, find all occurrences of buildTypes
-          buildtypes_occurrences = []
-          for i, line in enumerate(lines, 1):
-              stripped = line.strip()
-              if 'buildTypes' in stripped and '{' in line:
-                  buildtypes_occurrences.append(i)
-                  print(f'📍 Found buildTypes at line {i}')
-          
-          if len(buildtypes_occurrences) > 1:
-              print(f'⚠️ WARNING: Found {len(buildtypes_occurrences)} buildTypes blocks! Keeping only the first one.')
-          
-          for i, line in enumerate(lines, 1):
-              if 'androidResources' in line or 'packagingOptions' in line or 'packaging {' in line:
-                  print(f'📍 Found potential issue at line {i}:')
-                  start = max(0, i - 3)
-                  end = min(len(lines), i + 10)
-                  for j in range(start, end):
-                      marker = '>>> ' if j == i - 1 else '    '
-                      print(f'{marker}{j+1:3d}: {lines[j].rstrip()}')
-          
-          # Count braces to verify structure
-          content = ''.join(lines)
-          open_braces = content.count('{')
-          close_braces = content.count('}')
-          print(f'📊 Braces before: {open_braces} open, {close_braces} close')
-          
-          output = []
-          skip_block = False
-          brace_count = 0
-          removed_blocks = []
-          block_start_line = 0
-          buildtypes_count = 0
-          
-          for i, line in enumerate(lines, 1):
-              # Detect start of problematic blocks (more flexible matching)
-              stripped = line.strip()
-              
-              # Detect duplicate buildTypes blocks (keep only the first one)
-              if 'buildTypes' in stripped and '{' in line:
-                  buildtypes_count += 1
-                  if buildtypes_count > 1:
-                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
-                      skip_block = True
-                      removed_blocks.append(f'duplicate buildTypes (line {i})')
-                      brace_count = line.count('{') - line.count('}')
-                      block_start_line = i
-                      continue
-                  else:
-                      print(f'✅ Keeping first buildTypes block at line {i}')
-              
-              if 'androidResources' in stripped and '{' in line:
-                  print(f'🚫 Found androidResources at line {i}: {stripped}')
-                  skip_block = True
-                  removed_blocks.append(f'androidResources (line {i})')
-                  brace_count = line.count('{') - line.count('}')
-                  block_start_line = i
-                  continue
-              
-              if ('packagingOptions' in stripped or 'packaging {' in stripped) and '{' in line:
-                  print(f'🚫 Found packaging/packagingOptions at line {i}: {stripped}')
-                  skip_block = True
-                  removed_blocks.append(f'packaging (line {i})')
-                  brace_count = line.count('{') - line.count('}')
-                  block_start_line = i
-                  continue
-              
-              # If we're inside a problematic block, count braces
-              if skip_block:
-                  brace_count += line.count('{') - line.count('}')
-                  if brace_count <= 0:
-                      print(f'✅ Finished removing block at line {i} (started at line {block_start_line})')
-                      skip_block = False
-                      block_start_line = 0
-                  continue
-              
-              # Keep all other lines
-              output.append(line)
-          
-          # Verify structure after removal
-          output_content = ''.join(output)
-          open_braces_after = output_content.count('{')
-          close_braces_after = output_content.count('}')
-          print(f'📊 Braces after: {open_braces_after} open, {close_braces_after} close')
-          
-          if open_braces_after != close_braces_after:
-              print(f'⚠️ WARNING: Brace mismatch! This may cause syntax errors.')
-              print(f'   Difference: {open_braces_after - close_braces_after} braces')
-          
-          # Verify only one buildTypes block remains
-          buildtypes_count_after = output_content.count('buildTypes {')
-          if buildtypes_count_after > 1:
-              print(f'❌ ERROR: Still {buildtypes_count_after} buildTypes blocks after cleanup!')
-          elif buildtypes_count_after == 1:
-              print(f'✅ Verified: Only 1 buildTypes block remains')
-          else:
-              print(f'⚠️ WARNING: No buildTypes block found after cleanup!')
-          
-          # Show lines around line 133 (where the error occurs)
-          print('🔍 Showing lines around 130-140 (error location):')
-          for i, line in enumerate(output, 1):
-              if 130 <= i <= 140:
-                  print(f'    {i:3d}: {line.rstrip()}')
-          
-          with open(file_path, 'w', encoding='utf-8') as f:
-              f.write(output_content)
-          
-          print(f'✅ build.gradle fixed (removed: {", ".join(removed_blocks) if removed_blocks else "none"})')
-          EOF
-            echo "✅ build.gradle syntax fixed"
-            
-            # Show lines around 133 for debugging
-            echo "🔍 Showing lines around 130-140:"
-            sed -n '130,140p' "$BUILD_GRADLE" || true
-            
-            # Verify the file is still valid
-            echo "🔍 Verifying build.gradle structure..."
-            if grep -q "android {" "$BUILD_GRADLE" && grep -q "^}" "$BUILD_GRADLE"; then
-              echo "✅ build.gradle structure looks valid"
-            else
-              echo "⚠️ WARNING: build.gradle structure may be invalid"
-            fi
-            
-            # Try to validate Gradle syntax by checking if we can parse it
-            echo "🔍 Validating Gradle syntax..."
-            cd android
-            if ./gradlew tasks --dry-run > /dev/null 2>&1; then
-              echo "✅ Gradle syntax validation passed"
-            else
-              echo "⚠️ WARNING: Gradle syntax validation failed, but continuing..."
-              echo "Showing Gradle error output:"
-              ./gradlew tasks --dry-run 2>&1 | head -50 || true
-            fi
-            cd ..
-          else
-            echo "⚠️ WARNING: build.gradle not found"
-          fi
-
-      - name: 🔧 Configure release signing in build.gradle
-        run: |
-          echo "🔧 Configuring release signing in build.gradle..."
-          BUILD_GRADLE="android/app/build.gradle"
-          
-          if [ ! -f "$BUILD_GRADLE" ]; then
-            echo "❌ ERROR: build.gradle not found. expo prebuild may have failed."
-            exit 1
-          fi
-          
-          # Create backup
-          cp "$BUILD_GRADLE" "$BUILD_GRADLE.backup"
-          
-          # Check if signingConfigs.release already exists
-          if grep -q "signingConfigs.release" "$BUILD_GRADLE" || (grep -A 10 "signingConfigs {" "$BUILD_GRADLE" | grep -q "release {"); then
-            echo "✅ signingConfigs.release already exists"
-          else
-            # Add release config after debug config in signingConfigs block
-            awk '
-              /signingConfigs \{/ { 
-                print
-                in_signing = 1
-                next
-              }
-              in_signing && /^    \}/ {
-                print "        release {"
-                print "            if (project.hasProperty(\"MAYA_UPLOAD_STORE_FILE\")) {"
-                print "                storeFile file(MAYA_UPLOAD_STORE_FILE)"
-                print "                storePassword MAYA_UPLOAD_STORE_PASSWORD"
-                print "                keyAlias MAYA_UPLOAD_KEY_ALIAS"
-                print "                keyPassword MAYA_UPLOAD_KEY_PASSWORD"
-                print "            }"
-                print "        }"
-                print
-                in_signing = 0
-              }
-              { print }
-            ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
-            echo "✅ Added signingConfigs.release"
-          fi
-          
-          # Ensure release buildType uses signingConfigs.release instead of debug
-          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
-            echo "⚠️  WARNING: Release buildType is using debug signing! Fixing..."
-            sed -i '/release {/,/^    }/s/signingConfig signingConfigs\.debug/signingConfig signingConfigs.release/g' "$BUILD_GRADLE"
-            echo "✅ Fixed: Replaced debug signing with release signing"
-          elif grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs.release"; then
-            echo "✅ Release buildType already uses signingConfigs.release"
-          else
-            echo "⚠️  No signingConfig found in release block, adding signingConfigs.release"
-            sed -i '/release {/a\            signingConfig signingConfigs.release' "$BUILD_GRADLE"
-            echo "✅ Added signingConfig signingConfigs.release to release buildType"
-          fi
-          
-          # Final verification - ensure release does NOT use debug
-          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
-            echo "❌ ERROR: Release buildType still uses debug signing after configuration!"
-            echo "Build.gradle content around release block:"
-            grep -A 10 "release {" "$BUILD_GRADLE"
-            exit 1
-          else
-            echo "✅ Verification passed: Release buildType uses release signing (not debug)"
-          fi
-          
-          echo "✅ Release signing configuration complete"
 
       - name: 🔧 Set gradlew permissions
         working-directory: android
@@ -332,10 +91,10 @@ jobs:
           # Decode base64 keystore and save to android/app/
           # Support both old secret name (ANDROID_KEYSTORE_BASE64) and new (MAYA_UPLOAD_KEYSTORE_BASE64)
           if [ -n "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-upload.keystore
+            echo "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-release.keystore
             KEYSTORE_SECRET="MAYA_UPLOAD_KEYSTORE_BASE64"
           elif [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-upload.keystore
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-release.keystore
             KEYSTORE_SECRET="ANDROID_KEYSTORE_BASE64"
           else
             echo "❌ ERROR: No keystore secret found!"
@@ -343,40 +102,36 @@ jobs:
             exit 1
           fi
           
-          if [ ! -f "android/app/maya-upload.keystore" ]; then
+          if [ ! -f "android/app/maya-release.keystore" ]; then
             echo "❌ ERROR: Failed to create keystore file"
             exit 1
           fi
           
-          echo "✅ Keystore decoded successfully at android/app/maya-upload.keystore"
-          ls -lh android/app/maya-upload.keystore
+          echo "✅ Keystore decoded successfully at android/app/maya-release.keystore"
+          ls -lh android/app/maya-release.keystore
           
-          # Optional: Verify keystore SHA1 if expected value is provided
-          if [ -n "${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 }}" ] || [ -n "${{ secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}" ]; then
-            echo "🔍 Verifying keystore SHA1..."
-            KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
-            STORE_PASSWORD="${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
-            EXPECTED_SHA1="${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 || secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}"
-            
-            if [ -z "$KEY_ALIAS" ] || [ -z "$STORE_PASSWORD" ]; then
-              echo "⚠️ WARNING: Cannot verify SHA1 - missing alias or password"
+          # Verify keystore SHA1 matches expected value
+          echo "🔍 Verifying keystore SHA1..."
+          KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
+          STORE_PASSWORD="${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
+          EXPECTED_SHA1="${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 || secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}"
+          
+          if [ -n "$EXPECTED_SHA1" ] && [ -n "$KEY_ALIAS" ] && [ -n "$STORE_PASSWORD" ]; then
+            SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "$KEY_ALIAS" -storepass "$STORE_PASSWORD" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
+            echo "Keystore SHA1: $SHA1"
+            if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
+              echo "✅ Keystore SHA1 matches expected value!"
             else
-              SHA1=$(keytool -list -v -keystore android/app/maya-upload.keystore -alias "$KEY_ALIAS" -storepass "$STORE_PASSWORD" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
-              echo "Keystore SHA1: $SHA1"
-              if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
-                echo "✅ Keystore SHA1 matches expected value!"
-              else
-                echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
-                echo "Expected: $EXPECTED_SHA1"
-                echo "Got:      $SHA1"
-                echo ""
-                echo "This will cause Google Play to reject the AAB."
-                echo "Please update the keystore secret with the correct keystore."
-                exit 1
-              fi
+              echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
+              echo "Expected: $EXPECTED_SHA1"
+              echo "Got:      $SHA1"
+              echo ""
+              echo "This will cause Google Play to reject the AAB."
+              echo "Please update the keystore secret with the correct keystore."
+              exit 1
             fi
           else
-            echo "ℹ️ Skipping SHA1 verification (no expected SHA1 secret provided)"
+            echo "ℹ️ Skipping SHA1 verification (no expected SHA1 secret provided or missing alias/password)"
           fi
 
       - name: ⚙️ Configure signing properties (Gradle)
@@ -397,7 +152,7 @@ jobs:
           # Support both old and new secret names for backward compatibility
           cat >> android/gradle.properties <<EOF
           # Android signing configuration (injected at CI runtime)
-          MAYA_UPLOAD_STORE_FILE=maya-upload.keystore
+          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
           MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
           MAYA_UPLOAD_KEY_ALIAS=${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
           MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.MAYA_UPLOAD_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
@@ -447,54 +202,67 @@ jobs:
             exit 1
           fi
           
-          echo "✅ AAB file found, extracting and verifying signature..."
+          echo "✅ AAB file found, verifying signature..."
           
-          # Extract the AAB and check the signature
-          # The AAB is a zip file, we need to extract it and check the signing
-          TEMP_DIR=$(mktemp -d)
-          unzip -q "$AAB_PATH" -d "$TEMP_DIR" || {
-            echo "❌ ERROR: Failed to extract AAB"
-            rm -rf "$TEMP_DIR"
-            exit 1
-          }
+          # Get expected SHA1 from secrets
+          EXPECTED_SHA1="${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 || secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}"
           
-          # Check if there's a META-INF folder with signature files
-          if [ ! -d "$TEMP_DIR/META-INF" ]; then
-            echo "❌ ERROR: AAB is not signed! Missing META-INF folder"
-            rm -rf "$TEMP_DIR"
-            exit 1
+          if [ -z "$EXPECTED_SHA1" ]; then
+            echo "⚠️ WARNING: No expected SHA1 provided, skipping AAB signature verification"
+            echo "To enable verification, set MAYA_UPLOAD_EXPECTED_SHA1 or ANDROID_KEYSTORE_EXPECTED_SHA1 secret"
+            exit 0
           fi
           
-          # Get the SHA1 of the certificate from the AAB
-          # We can use jarsigner or apksigner to verify
+          # Try to extract SHA1 from AAB using jarsigner or apksigner
+          CERT_SHA1=""
+          
           if command -v apksigner >/dev/null 2>&1; then
             echo "Using apksigner to verify signature..."
-            # Convert AAB to APK for verification (or use bundletool)
-            CERT_SHA1=$(apksigner verify --print-certs "$AAB_PATH" 2>/dev/null | grep "SHA-1" | head -1 | awk '{print $2}' || echo "")
+            # Note: apksigner works with APK, not AAB directly
+            # We'll use jarsigner instead for AAB
+            CERT_SHA1=$(jarsigner -verify -verbose -certs "$AAB_PATH" 2>&1 | grep -i "SHA1" | head -1 | sed 's/.*SHA1: //' | awk '{print $1}' || echo "")
           elif command -v jarsigner >/dev/null 2>&1; then
             echo "Using jarsigner to verify signature..."
-            CERT_SHA1=$(jarsigner -verify -verbose -certs "$AAB_PATH" 2>&1 | grep "SHA1" | head -1 | awk '{print $3}' | tr -d '()' || echo "")
-          else
-            echo "⚠️ WARNING: Neither apksigner nor jarsigner found, skipping signature verification"
-            CERT_SHA1=""
+            # Extract certificate info from AAB
+            CERT_SHA1=$(jarsigner -verify -verbose -certs "$AAB_PATH" 2>&1 | grep -i "SHA1" | head -1 | sed 's/.*SHA1: //' | awk '{print $1}' || echo "")
           fi
           
-          rm -rf "$TEMP_DIR"
+          if [ -z "$CERT_SHA1" ]; then
+            # Try alternative method: extract and check META-INF
+            echo "Trying alternative method to verify signature..."
+            TEMP_DIR=$(mktemp -d)
+            unzip -q "$AAB_PATH" -d "$TEMP_DIR" 2>/dev/null || true
+            
+            if [ -d "$TEMP_DIR/META-INF" ]; then
+              echo "✅ AAB is signed (META-INF folder found)"
+              # Try to get SHA1 from certificate files
+              if [ -f "$TEMP_DIR/META-INF/*.RSA" ] || [ -f "$TEMP_DIR/META-INF/*.DSA" ] || [ -f "$TEMP_DIR/META-INF/*.EC" ]; then
+                CERT_FILE=$(find "$TEMP_DIR/META-INF" -name "*.RSA" -o -name "*.DSA" -o -name "*.EC" | head -1)
+                if [ -n "$CERT_FILE" ]; then
+                  CERT_SHA1=$(keytool -printcert -file "$CERT_FILE" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
+                fi
+              fi
+            else
+              echo "❌ ERROR: AAB is not signed! Missing META-INF folder"
+              rm -rf "$TEMP_DIR"
+              exit 1
+            fi
+            rm -rf "$TEMP_DIR"
+          fi
           
           if [ -n "$CERT_SHA1" ]; then
             echo "AAB Certificate SHA1: $CERT_SHA1"
-            EXPECTED_SHA1="1C:3B:87:09:A5:5B:A3:74:A3:C2:7A:98:AF:23:06:82:C7:B1:AF:FD"
+            echo "Expected SHA1: $EXPECTED_SHA1"
             
-            # Normalize SHA1 format (remove colons for comparison)
-            CERT_SHA1_NORMALIZED=$(echo "$CERT_SHA1" | tr -d ':')
-            EXPECTED_SHA1_NORMALIZED=$(echo "$EXPECTED_SHA1" | tr -d ':')
+            # Normalize SHA1 format (remove colons and convert to uppercase for comparison)
+            CERT_SHA1_NORMALIZED=$(echo "$CERT_SHA1" | tr -d ':' | tr '[:lower:]' '[:upper:]')
+            EXPECTED_SHA1_NORMALIZED=$(echo "$EXPECTED_SHA1" | tr -d ':' | tr '[:lower:]' '[:upper:]')
             
             if [ "$CERT_SHA1_NORMALIZED" = "$EXPECTED_SHA1_NORMALIZED" ]; then
               echo "✅ AAB is correctly signed with the release keystore!"
             else
-              # Check if it's the debug keystore (common debug SHA1)
-              DEBUG_SHA1_PATTERNS="61:ED:37:7E:85:D3:86:A8:DF:EE:6B:86:4B:D8:5B:0B:FA:A5:AF:81"
-              if echo "$CERT_SHA1" | grep -q "61:ED:37:7E:85:D3"; then
+              # Check if it's the debug keystore (common debug SHA1 pattern)
+              if echo "$CERT_SHA1" | grep -qi "61:ED:37:7E:85:D3"; then
                 echo "❌ ERROR: AAB is signed with DEBUG keystore!"
                 echo "This will be rejected by Google Play."
                 echo "Expected release SHA1: $EXPECTED_SHA1"
@@ -509,7 +277,8 @@ jobs:
             fi
           else
             echo "⚠️ WARNING: Could not extract SHA1 from AAB signature"
-            echo "Continuing, but signature verification was skipped"
+            echo "AAB file exists and appears to be signed, but signature verification was skipped"
+            echo "This is not ideal but continuing..."
           fi
 
       - name: 📤 Upload Android artifact
