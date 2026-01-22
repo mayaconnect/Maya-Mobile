@@ -121,68 +121,91 @@ jobs:
                       # Remove the entire block including the keyword
                       content = content[:match.start()] + content[end_pos + 1:]
 
-          # Handle duplicate buildTypes blocks
-          buildtypes_pattern = r'buildTypes\s*\{'
-          matches = list(re.finditer(buildtypes_pattern, content))
+          # Handle duplicate buildTypes blocks - use line-by-line approach for better detection
+          lines = content.splitlines(keepends=True)
+          output_lines = []
+          skip_block = False
+          brace_count = 0
+          buildtypes_count = 0
+          block_start_line = 0
+          in_android_block = False
+          android_brace_level = 0
+          removed_blocks = []
 
-          if len(matches) > 1:
-              print(f'⚠️ Found {len(matches)} buildTypes blocks!')
+          for i, line in enumerate(lines, 1):
+              stripped = line.strip()
               
-              # Extract all buildTypes blocks with their complete content
-              blocks = []
-              for match in matches:
-                  start = match.start()
-                  # Find the opening brace position
-                  brace_pos = content.index('{', start)
-                  # Find matching closing brace
-                  end = find_closing_brace(content, brace_pos)
-                  if end != -1:
-                      blocks.append({
-                          'start': start,
-                          'end': end + 1,
-                          'content': content[start:end + 1]
-                      })
-                      print(f'  Block {len(blocks)}: position {start}-{end + 1}')
+              # Track if we're inside android block
+              if 'android {' in stripped or 'android{' in stripped:
+                  in_android_block = True
+                  android_brace_level = stripped.count('{') - stripped.count('}')
+                  output_lines.append(line)
+                  continue
               
-              if blocks:
-                  # Keep only the first block
-                  first_block = blocks[0]
-                  print(f'✅ Keeping first buildTypes block (position {first_block["start"]}-{first_block["end"]})')
+              if in_android_block:
+                  android_brace_level += line.count('{') - line.count('}')
+                  if android_brace_level <= 0:
+                      in_android_block = False
+              
+              # Detect buildTypes blocks
+              if 'buildTypes' in stripped and '{' in line:
+                  buildtypes_count += 1
                   
-                  # Remove all blocks from content (in reverse order to maintain positions)
-                  for block in reversed(blocks):
-                      content = content[:block['start']] + content[block['end']:]
+                  # If buildTypes is outside android block, remove it
+                  if not in_android_block:
+                      print(f'🚫 Found buildTypes OUTSIDE android block at line {i}, removing it')
+                      skip_block = True
+                      removed_blocks.append(f'buildTypes outside android (line {i})')
+                      brace_count = line.count('{') - line.count('}')
+                      block_start_line = i
+                      continue
                   
-                  # Re-insert the first block at its original position (or find android block)
-                  android_match = re.search(r'android\s*\{', content)
-                  if android_match:
-                      # Find a good insertion point after defaultConfig
-                      search_start = android_match.end()
-                      default_config_match = re.search(r'defaultConfig\s*\{', content[search_start:])
-                      
-                      if default_config_match:
-                          # Find closing brace of defaultConfig
-                          dc_start = search_start + default_config_match.start()
-                          dc_brace = content.index('{', dc_start)
-                          dc_end = find_closing_brace(content, dc_brace)
-                          
-                          if dc_end != -1:
-                              insert_pos = dc_end + 1
-                              # Skip whitespace
-                              while insert_pos < len(content) and content[insert_pos] in ' \t\n':
-                                  insert_pos += 1
-                              
-                              content = content[:insert_pos] + '\n\n    ' + first_block['content'] + '\n' + content[insert_pos:]
-                              print(f'✅ Re-inserted buildTypes block after defaultConfig')
-                      else:
-                          # Insert after android block opening
-                          insert_pos = android_match.end()
-                          content = content[:insert_pos] + '\n    ' + first_block['content'] + '\n' + content[insert_pos:]
-                          print(f'✅ Re-inserted buildTypes block in android section')
-          elif len(matches) == 1:
-              print(f'✅ Found exactly 1 buildTypes block - no duplicates')
+                  # If it's a duplicate inside android block, keep only the first
+                  if buildtypes_count > 1:
+                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
+                      skip_block = True
+                      removed_blocks.append(f'duplicate buildTypes (line {i})')
+                      brace_count = line.count('{') - line.count('}')
+                      block_start_line = i
+                      continue
+                  else:
+                      print(f'✅ Keeping first buildTypes block at line {i} (inside android block)')
+              
+              # If we're inside a problematic block, count braces
+              if skip_block:
+                  brace_count += line.count('{') - line.count('}')
+                  if brace_count <= 0:
+                      print(f'✅ Finished removing block at line {i} (started at line {block_start_line})')
+                      skip_block = False
+                      block_start_line = 0
+                  continue
+              
+              # Keep all other lines
+              output_lines.append(line)
+          
+          content = ''.join(output_lines)
+          
+          # Verify we have exactly one buildTypes block inside android
+          buildtypes_inside_android = 0
+          in_android = False
+          android_braces = 0
+          for line in content.splitlines():
+              if 'android {' in line or 'android{' in line:
+                  in_android = True
+                  android_braces = line.count('{') - line.count('}')
+              elif in_android:
+                  android_braces += line.count('{') - line.count('}')
+                  if android_braces <= 0:
+                      in_android = False
+                  elif 'buildTypes' in line and '{' in line:
+                      buildtypes_inside_android += 1
+          
+          if buildtypes_inside_android == 1:
+              print(f'✅ Verified: Exactly 1 buildTypes block inside android block')
+          elif buildtypes_inside_android > 1:
+              print(f'⚠️ WARNING: Found {buildtypes_inside_android} buildTypes blocks inside android block')
           else:
-              print(f'⚠️ No buildTypes block found!')
+              print(f'⚠️ WARNING: No buildTypes block found inside android block!')
 
           # Clean up extra blank lines
           content = re.sub(r'\n\n\n+', '\n\n', content)
@@ -215,15 +238,27 @@ jobs:
             # Validate Gradle syntax
             echo "🔍 Validating Gradle syntax..."
             cd android
-            if ./gradlew tasks --dry-run > /dev/null 2>&1; then
+            echo "Running: ./gradlew tasks --dry-run"
+            if ./gradlew tasks --dry-run 2>&1 | tee /tmp/gradle-validation.log; then
               echo "✅ Gradle syntax validation passed"
             else
               echo "❌ ERROR: Gradle syntax validation failed"
-              echo "Showing error:"
-              ./gradlew tasks --dry-run 2>&1 | head -50 || true
               echo ""
-              echo "Showing build.gradle around line 130-150:"
-              sed -n '130,150p' app/build.gradle || true
+              echo "=== Full Gradle error output ==="
+              cat /tmp/gradle-validation.log || true
+              echo ""
+              echo "=== build.gradle content (first 50 lines) ==="
+              head -n 50 app/build.gradle || true
+              echo ""
+              echo "=== build.gradle content (lines 100-200) ==="
+              sed -n '100,200p' app/build.gradle || true
+              echo ""
+              echo "=== Checking for common issues ==="
+              echo "Number of '{' in build.gradle: $(grep -o '{' app/build.gradle | wc -l)"
+              echo "Number of '}' in build.gradle: $(grep -o '}' app/build.gradle | wc -l)"
+              echo "Number of 'buildTypes {' in build.gradle: $(grep -c 'buildTypes {' app/build.gradle || echo 0)"
+              echo "Number of 'androidResources' in build.gradle: $(grep -c 'androidResources' app/build.gradle || echo 0)"
+              echo "Number of 'packaging' in build.gradle: $(grep -c 'packaging' app/build.gradle || echo 0)"
               cd ..
               exit 1
             fi
@@ -423,6 +458,76 @@ jobs:
           mkdir -p android/fastlane
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/fastlane/google-play-service-account.json
           echo "Service account configured"
+
+      - name: ✅ Verify signing configuration before build
+        run: |
+          echo "🔍 Verifying signing configuration..."
+          
+          # Check keystore file exists
+          if [ ! -f "android/app/maya-release.keystore" ]; then
+            echo "❌ ERROR: Keystore file not found at android/app/maya-release.keystore"
+            exit 1
+          fi
+          echo "✅ Keystore file exists: $(ls -lh android/app/maya-release.keystore)"
+          
+          # Check gradle.properties has signing config
+          if [ ! -f "android/gradle.properties" ]; then
+            echo "❌ ERROR: gradle.properties not found!"
+            exit 1
+          fi
+          
+          echo "📋 Checking gradle.properties for signing properties:"
+          if grep -q "MAYA_UPLOAD_STORE_FILE" android/gradle.properties; then
+            echo "✅ MAYA_UPLOAD_STORE_FILE found"
+            STORE_FILE=$(grep "MAYA_UPLOAD_STORE_FILE" android/gradle.properties | cut -d'=' -f2)
+            echo "   Value: $STORE_FILE"
+          else
+            echo "❌ ERROR: MAYA_UPLOAD_STORE_FILE not found in gradle.properties"
+            exit 1
+          fi
+          
+          if grep -q "MAYA_UPLOAD_STORE_PASSWORD" android/gradle.properties; then
+            echo "✅ MAYA_UPLOAD_STORE_PASSWORD found (hidden)"
+          else
+            echo "❌ ERROR: MAYA_UPLOAD_STORE_PASSWORD not found in gradle.properties"
+            exit 1
+          fi
+          
+          if grep -q "MAYA_UPLOAD_KEY_ALIAS" android/gradle.properties; then
+            echo "✅ MAYA_UPLOAD_KEY_ALIAS found"
+            KEY_ALIAS=$(grep "MAYA_UPLOAD_KEY_ALIAS" android/gradle.properties | cut -d'=' -f2)
+            echo "   Value: $KEY_ALIAS"
+          else
+            echo "❌ ERROR: MAYA_UPLOAD_KEY_ALIAS not found in gradle.properties"
+            exit 1
+          fi
+          
+          if grep -q "MAYA_UPLOAD_KEY_PASSWORD" android/gradle.properties; then
+            echo "✅ MAYA_UPLOAD_KEY_PASSWORD found (hidden)"
+          else
+            echo "❌ ERROR: MAYA_UPLOAD_KEY_PASSWORD not found in gradle.properties"
+            exit 1
+          fi
+          
+          # Verify build.gradle has signingConfigs.release
+          if grep -q "signingConfigs.release" android/app/build.gradle || grep -A 10 "signingConfigs {" android/app/build.gradle | grep -q "release {"; then
+            echo "✅ signingConfigs.release found in build.gradle"
+          else
+            echo "❌ ERROR: signingConfigs.release not found in build.gradle"
+            exit 1
+          fi
+          
+          # Verify release buildType uses signingConfigs.release
+          if grep -A 10 "release {" android/app/build.gradle | grep -q "signingConfig signingConfigs.release"; then
+            echo "✅ release buildType uses signingConfigs.release"
+          else
+            echo "❌ ERROR: release buildType does not use signingConfigs.release"
+            echo "Release block content:"
+            grep -A 10 "release {" android/app/build.gradle || true
+            exit 1
+          fi
+          
+          echo "✅ All signing configuration checks passed!"
 
       - name: 🚀 Deploy to Google Play Internal Testing
         working-directory: android
