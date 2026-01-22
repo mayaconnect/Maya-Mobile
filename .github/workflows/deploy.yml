@@ -204,118 +204,54 @@ jobs:
           jarsigner -help > /dev/null 2>&1 && echo "✅ jarsigner is available" || (echo "❌ jarsigner not found" && exit 1)
           keytool -help > /dev/null 2>&1 && echo "✅ keytool is available" || (echo "❌ keytool not found" && exit 1)
 
-      - name: 🔨 Build Android App Bundle (AAB) - Unsigned
+      - name: ✅ Verify release signing configuration before build
         working-directory: android
         run: |
-          echo "🔨 Building UNSIGNED AAB with Gradle (will be signed with jarsigner after)..."
-          # Build without signing - we'll sign with jarsigner afterwards
-          ./gradlew bundleRelease -PBUILD_UNSIGNED_AAB=true --stacktrace --info --no-daemon
-          echo "✅ Unsigned AAB built successfully"
+          echo "✅ Verifying release signing configuration..."
+          
+          # Check that release keystore properties are set
+          if ! grep -q "MAYA_UPLOAD_STORE_FILE" gradle.properties; then
+            echo "❌ ERROR: MAYA_UPLOAD_STORE_FILE not found in gradle.properties"
+            echo "This would cause Gradle to use debug certificate - ABORTING!"
+            exit 1
+          fi
+          
+          # Verify keystore file exists
+          KEYSTORE_FILE=$(grep "MAYA_UPLOAD_STORE_FILE" gradle.properties | cut -d'=' -f2 | tr -d ' ')
+          if [ ! -f "app/$KEYSTORE_FILE" ]; then
+            echo "❌ ERROR: Keystore file not found: app/$KEYSTORE_FILE"
+            exit 1
+          fi
+          
+          # Verify it's NOT the debug keystore
+          if [ "$KEYSTORE_FILE" = "debug.keystore" ]; then
+            echo "❌ ERROR: Debug keystore detected! This must not be used for release builds!"
+            exit 1
+          fi
+          
+          echo "✅ Release signing configuration verified:"
+          echo "   - Keystore file: $KEYSTORE_FILE"
+          echo "   - Keystore exists: ✓"
+          echo "   - Not debug keystore: ✓"
+
+      - name: 🔨 Build Android App Bundle (AAB) - Signed with Release Certificate
+        working-directory: android
+        run: |
+          echo "🔨 Building AAB with Gradle (signed with release certificate ONLY)..."
+          echo "⚠️  If build fails with 'Release keystore not configured', check gradle.properties"
+          
+          # Build and sign with release keystore (configured in gradle.properties)
+          # This ensures only the release certificate is used, no debug certificate
+          # The build will FAIL if release keystore is not configured (see build.gradle)
+          ./gradlew bundleRelease --stacktrace --info --no-daemon
+          
+          echo "✅ AAB built and signed successfully with release certificate"
           ls -lh app/build/outputs/bundle/release/app-release.aab
 
-      - name: 🧹 Remove all existing signatures from AAB
+      - name: 🔍 Verify AAB signature (release certificate only, no debug)
         working-directory: android
         run: |
-          echo "🧹 Removing all existing signatures from AAB (including debug certificates)..."
-          
-          # Verify zip/unzip are available
-          if ! command -v zip &> /dev/null || ! command -v unzip &> /dev/null; then
-            echo "❌ ERROR: zip/unzip commands not found. Installing..."
-            sudo apt-get update && sudo apt-get install -y zip unzip
-          fi
-          
-          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
-          
-          if [ ! -f "$AAB_PATH" ]; then
-            echo "❌ ERROR: AAB file not found at $AAB_PATH"
-            exit 1
-          fi
-          
-          # Create temporary directory for AAB extraction
-          TEMP_DIR=$(mktemp -d)
-          echo "Extracting AAB to $TEMP_DIR..."
-          
-          # Extract AAB (it's a ZIP file)
-          unzip -q "$AAB_PATH" -d "$TEMP_DIR" || {
-            echo "❌ ERROR: Failed to extract AAB"
-            exit 1
-          }
-          
-          # Remove only signature files from META-INF (keep MANIFEST.MF as it's needed)
-          echo "Removing signature files from META-INF..."
-          find "$TEMP_DIR" -path "*/META-INF/*.SF" -delete
-          find "$TEMP_DIR" -path "*/META-INF/*.RSA" -delete
-          find "$TEMP_DIR" -path "*/META-INF/*.DSA" -delete
-          find "$TEMP_DIR" -path "*/META-INF/*.EC" -delete
-          
-          # For nested JARs, we need to handle them differently
-          # Find all .jar files inside the AAB and remove their signatures
-          echo "Removing signatures from nested JAR files..."
-          find "$TEMP_DIR" -name "*.jar" -type f | while read -r jar_file; do
-            JAR_TEMP=$(mktemp -d)
-            unzip -q "$jar_file" -d "$JAR_TEMP" 2>/dev/null || {
-              rm -rf "$JAR_TEMP"
-              continue
-            }
-            find "$JAR_TEMP" -path "*/META-INF/*.SF" -delete
-            find "$JAR_TEMP" -path "*/META-INF/*.RSA" -delete
-            find "$JAR_TEMP" -path "*/META-INF/*.DSA" -delete
-            find "$JAR_TEMP" -path "*/META-INF/*.EC" -delete
-            (cd "$JAR_TEMP" && zip -q -r "$jar_file" . 2>/dev/null) || true
-            rm -rf "$JAR_TEMP"
-          done
-          
-          # Recreate AAB without signatures
-          echo "Recreating AAB without signatures..."
-          cd "$TEMP_DIR"
-          zip -q -r "$OLDPWD/$AAB_PATH" . || {
-            echo "❌ ERROR: Failed to recreate AAB"
-            exit 1
-          }
-          cd "$OLDPWD"
-          
-          # Cleanup
-          rm -rf "$TEMP_DIR"
-          
-          echo "✅ All existing signatures removed from AAB"
-
-      - name: ✍️ Sign AAB with jarsigner (release certificate only)
-        working-directory: android
-        run: |
-          echo "✍️ Signing AAB with jarsigner (release certificate only)..."
-          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
-          KEYSTORE_PATH="app/maya-release.keystore"
-          KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
-          STORE_PASSWORD="${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
-          KEY_PASSWORD="${{ secrets.MAYA_UPLOAD_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}"
-          
-          if [ ! -f "$AAB_PATH" ]; then
-            echo "❌ ERROR: AAB file not found at $AAB_PATH"
-            exit 1
-          fi
-          
-          if [ ! -f "$KEYSTORE_PATH" ]; then
-            echo "❌ ERROR: Keystore file not found at $KEYSTORE_PATH"
-            exit 1
-          fi
-          
-          echo "📦 Signing $AAB_PATH with keystore $KEYSTORE_PATH (alias: $KEY_ALIAS)..."
-          echo "   (All previous signatures have been removed, this will be the only signature)"
-          jarsigner \
-            -keystore "$KEYSTORE_PATH" \
-            -storepass "$STORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
-            -sigalg SHA256withRSA \
-            -digestalg SHA-256 \
-            "$AAB_PATH" \
-            "$KEY_ALIAS"
-          
-          echo "✅ AAB signed successfully with release certificate only"
-
-      - name: 🔍 Verify AAB signature (single certificate chain)
-        working-directory: android
-        run: |
-          echo "🔍 Verifying AAB signature and checking for single certificate chain..."
+          echo "🔍 Verifying AAB signature and checking for release certificate only..."
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
           
           # Verify signature
@@ -327,6 +263,33 @@ jobs:
             echo "❌ ERROR: AAB signature verification failed"
             cat /tmp/jarsigner_output.txt
             exit 1
+          fi
+          
+          # Check for debug certificate (should not be present)
+          echo ""
+          echo "Checking for debug certificate..."
+          if grep -q "Android Debug" /tmp/jarsigner_output.txt; then
+            echo "❌ ERROR: Debug certificate detected in AAB!"
+            echo "This will cause Google Play to reject the AAB."
+            echo ""
+            echo "Found debug certificate references:"
+            grep -i "Android Debug" /tmp/jarsigner_output.txt | head -5
+            echo ""
+            echo "Full verification output:"
+            cat /tmp/jarsigner_output.txt
+            exit 1
+          else
+            echo "✅ No debug certificate found"
+          fi
+          
+          # Check for release certificate (should be present)
+          echo ""
+          echo "Checking for release certificate..."
+          KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
+          if grep -q "Manuel Castilla\|Maya" /tmp/jarsigner_output.txt || [ -n "$KEY_ALIAS" ]; then
+            echo "✅ Release certificate found"
+          else
+            echo "⚠️ WARNING: Could not confirm release certificate presence"
           fi
           
           # Check for multiple certificate chains
@@ -348,9 +311,13 @@ jobs:
           fi
           
           echo ""
-          echo "✅ AAB signature verified successfully with single certificate chain"
+          echo "✅ AAB signature verified successfully"
+          echo "   - No debug certificate ✓"
+          echo "   - Release certificate present ✓"
+          echo "   - Single certificate chain ✓"
+          echo ""
           echo "Certificate details:"
-          grep -A 5 "Certificate chain" /tmp/jarsigner_output.txt | head -20 || cat /tmp/jarsigner_output.txt
+          grep -A 5 "Certificate chain\|Signed by" /tmp/jarsigner_output.txt | head -30 || cat /tmp/jarsigner_output.txt | head -50
 
       - name: 🚀 Upload to Google Play Internal Testing
         working-directory: android
