@@ -124,6 +124,7 @@ android {
             if (!buildUnsigned && project.hasProperty("MAYA_UPLOAD_STORE_FILE")) {
                 signingConfig signingConfigs.release
             }
+            // If buildUnsigned is true, signingConfig is not set, so AAB will be unsigned
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
