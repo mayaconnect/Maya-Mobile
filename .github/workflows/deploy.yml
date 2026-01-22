@@ -204,12 +204,13 @@ jobs:
           jarsigner -help > /dev/null 2>&1 && echo "✅ jarsigner is available" || (echo "❌ jarsigner not found" && exit 1)
           keytool -help > /dev/null 2>&1 && echo "✅ keytool is available" || (echo "❌ keytool not found" && exit 1)
 
-      - name: 🔨 Build Android App Bundle (AAB)
+      - name: 🔨 Build Android App Bundle (AAB) - Unsigned
         working-directory: android
         run: |
-          echo "🔨 Building AAB with Gradle..."
-          ./gradlew bundleRelease --stacktrace --info --no-daemon
-          echo "✅ AAB built successfully"
+          echo "🔨 Building UNSIGNED AAB with Gradle (will be signed with jarsigner after)..."
+          # Build without signing - we'll sign with jarsigner afterwards
+          ./gradlew bundleRelease -PBUILD_UNSIGNED_AAB=true --stacktrace --info --no-daemon
+          echo "✅ Unsigned AAB built successfully"
           ls -lh app/build/outputs/bundle/release/app-release.aab
 
       - name: ✍️ Sign AAB with jarsigner
@@ -233,6 +234,7 @@ jobs:
           fi
           
           echo "📦 Signing $AAB_PATH with keystore $KEYSTORE_PATH (alias: $KEY_ALIAS)..."
+          echo "   (AAB was built unsigned with BUILD_UNSIGNED_AAB=true, so this will be the only signature)"
           jarsigner \
             -keystore "$KEYSTORE_PATH" \
             -storepass "$STORE_PASSWORD" \
@@ -244,19 +246,45 @@ jobs:
           
           echo "✅ AAB signed successfully"
 
-      - name: 🔍 Verify AAB signature
+      - name: 🔍 Verify AAB signature (single certificate chain)
         working-directory: android
         run: |
-          echo "🔍 Verifying AAB signature..."
+          echo "🔍 Verifying AAB signature and checking for single certificate chain..."
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
-          jarsigner -verify -verbose -certs "$AAB_PATH"
           
-          if [ $? -eq 0 ]; then
-            echo "✅ AAB signature verified successfully"
-          else
+          # Verify signature
+          echo "Running jarsigner verification..."
+          jarsigner -verify -verbose -certs "$AAB_PATH" > /tmp/jarsigner_output.txt 2>&1
+          VERIFY_EXIT_CODE=$?
+          
+          if [ $VERIFY_EXIT_CODE -ne 0 ]; then
             echo "❌ ERROR: AAB signature verification failed"
+            cat /tmp/jarsigner_output.txt
             exit 1
           fi
+          
+          # Check for multiple certificate chains
+          echo ""
+          echo "Checking certificate chains..."
+          CERT_COUNT=$(grep -c "Certificate chain" /tmp/jarsigner_output.txt || echo "0")
+          
+          if [ "$CERT_COUNT" -gt 1 ]; then
+            echo "❌ ERROR: Multiple certificate chains detected ($CERT_COUNT chains)"
+            echo "This will cause Google Play to reject the AAB."
+            echo ""
+            echo "Full verification output:"
+            cat /tmp/jarsigner_output.txt
+            exit 1
+          elif [ "$CERT_COUNT" -eq 1 ]; then
+            echo "✅ Single certificate chain confirmed"
+          else
+            echo "⚠️ WARNING: Could not determine certificate chain count"
+          fi
+          
+          echo ""
+          echo "✅ AAB signature verified successfully with single certificate chain"
+          echo "Certificate details:"
+          grep -A 5 "Certificate chain" /tmp/jarsigner_output.txt | head -20 || cat /tmp/jarsigner_output.txt
 
       - name: 🚀 Upload to Google Play Internal Testing
         working-directory: android
