@@ -66,31 +66,43 @@ jobs:
           echo "🔧 Fixing build.gradle syntax issues..."
           BUILD_GRADLE="android/app/build.gradle"
           if [ -f "$BUILD_GRADLE" ]; then
+            # Show first few lines for debugging
+            echo "📄 First 20 lines of build.gradle:"
+            head -n 20 "$BUILD_GRADLE" || true
+            
             python3 <<EOF
           file_path = 'android/app/build.gradle'
           with open(file_path, 'r', encoding='utf-8') as f:
-              lines = f.readlines()
+              content = f.read()
           
+          # Count braces to verify structure
+          open_braces = content.count('{')
+          close_braces = content.count('}')
+          print(f'📊 Braces before: {open_braces} open, {close_braces} close')
+          
+          lines = content.splitlines(keepends=True)
           output = []
           skip_block = False
           brace_count = 0
           removed_blocks = []
           
           for i, line in enumerate(lines, 1):
+              # Detect start of problematic blocks
               if 'androidResources {' in line:
-                  print(f'🚫 Found androidResources at line {i}')
+                  print(f'🚫 Found androidResources at line {i}: {line.strip()}')
                   skip_block = True
                   removed_blocks.append('androidResources')
                   brace_count = line.count('{') - line.count('}')
                   continue
               
               if 'packagingOptions {' in line or 'packaging {' in line:
-                  print(f'🚫 Found packaging/packagingOptions at line {i}')
+                  print(f'🚫 Found packaging/packagingOptions at line {i}: {line.strip()}')
                   skip_block = True
                   removed_blocks.append('packaging')
                   brace_count = line.count('{') - line.count('}')
                   continue
               
+              # If we're inside a problematic block, count braces
               if skip_block:
                   brace_count += line.count('{') - line.count('}')
                   if brace_count <= 0:
@@ -98,14 +110,42 @@ jobs:
                       skip_block = False
                   continue
               
+              # Keep all other lines
               output.append(line)
           
+          # Verify structure after removal
+          output_content = ''.join(output)
+          open_braces_after = output_content.count('{')
+          close_braces_after = output_content.count('}')
+          print(f'📊 Braces after: {open_braces_after} open, {close_braces_after} close')
+          
+          if open_braces_after != close_braces_after:
+              print(f'⚠️ WARNING: Brace mismatch! This may cause syntax errors.')
+              print(f'   Trying to fix by adding missing braces...')
+              # Try to fix by adding missing closing braces
+              diff = open_braces_after - close_braces_after
+              if diff > 0:
+                  output_content += '\n' + ('    ' * (output_content.count('\n    ') // 10)) + '}' * diff
+                  print(f'   Added {diff} closing brace(s)')
+          
           with open(file_path, 'w', encoding='utf-8') as f:
-              f.writelines(output)
+              f.write(output_content)
           
           print(f'✅ build.gradle fixed (removed: {", ".join(removed_blocks) if removed_blocks else "none"})')
           EOF
             echo "✅ build.gradle syntax fixed"
+            
+            # Show lines around 133 for debugging
+            echo "🔍 Showing lines around 130-140:"
+            sed -n '130,140p' "$BUILD_GRADLE" || true
+            
+            # Verify the file is still valid
+            echo "🔍 Verifying build.gradle structure..."
+            if grep -q "android {" "$BUILD_GRADLE" && grep -q "^}" "$BUILD_GRADLE"; then
+              echo "✅ build.gradle structure looks valid"
+            else
+              echo "⚠️ WARNING: build.gradle structure may be invalid"
+            fi
           else
             echo "⚠️ WARNING: build.gradle not found"
           fi
