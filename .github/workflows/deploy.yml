@@ -248,10 +248,11 @@ jobs:
           echo "✅ AAB built and signed successfully with release certificate"
           ls -lh app/build/outputs/bundle/release/app-release.aab
 
-      - name: 🧹 Remove debug symbols from AAB (prevent debug certificate)
+      - name: 🧹 Remove ALL signatures and re-sign with release certificate only
         working-directory: android
         run: |
-          echo "🧹 Removing debug symbols from AAB to prevent debug certificate..."
+          echo "🧹 Removing ALL signatures from AAB (including debug certificates)..."
+          echo "   Then re-signing with release certificate ONLY"
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
           
           if [ ! -f "$AAB_PATH" ]; then
@@ -267,7 +268,7 @@ jobs:
           
           # Create temporary directory
           TEMP_DIR=$(mktemp -d)
-          echo "Extracting AAB to remove debug symbols..."
+          echo "Extracting AAB to remove all signatures..."
           
           # Extract AAB
           unzip -q "$AAB_PATH" -d "$TEMP_DIR" || {
@@ -278,15 +279,32 @@ jobs:
           # Remove debug symbols directory (contains files signed with debug certificate)
           DEBUG_SYMBOLS_DIR="$TEMP_DIR/BUNDLE-METADATA/com.android.tools.build.debugsymbols"
           if [ -d "$DEBUG_SYMBOLS_DIR" ]; then
-            echo "Removing debug symbols directory: BUNDLE-METADATA/com.android.tools.build.debugsymbols"
+            echo "Removing debug symbols directory..."
             rm -rf "$DEBUG_SYMBOLS_DIR"
-            echo "✅ Debug symbols removed"
-          else
-            echo "ℹ️  No debug symbols directory found (already removed or not generated)"
           fi
           
-          # Recreate AAB without debug symbols
-          echo "Recreating AAB without debug symbols..."
+          # Remove ALL signature files from root META-INF
+          echo "Removing all signature files from root META-INF..."
+          find "$TEMP_DIR/META-INF" -type f \( -name "*.SF" -o -name "*.RSA" -o -name "*.DSA" -o -name "*.EC" \) -delete 2>/dev/null || true
+          
+          # Remove signatures from all nested JAR files
+          echo "Removing signatures from nested JAR files..."
+          find "$TEMP_DIR" -name "*.jar" -type f | while read -r jar_file; do
+            JAR_TEMP=$(mktemp -d)
+            if unzip -q "$jar_file" -d "$JAR_TEMP" 2>/dev/null; then
+              # Remove all signature files from this JAR
+              find "$JAR_TEMP" -path "*/META-INF/*.SF" -delete
+              find "$JAR_TEMP" -path "*/META-INF/*.RSA" -delete
+              find "$JAR_TEMP" -path "*/META-INF/*.DSA" -delete
+              find "$JAR_TEMP" -path "*/META-INF/*.EC" -delete
+              # Recreate JAR without signatures
+              (cd "$JAR_TEMP" && zip -q -r "$jar_file" . 2>/dev/null) || true
+            fi
+            rm -rf "$JAR_TEMP"
+          done
+          
+          # Recreate AAB without any signatures
+          echo "Recreating AAB without any signatures..."
           cd "$TEMP_DIR"
           zip -q -r "$OLDPWD/$AAB_PATH" . || {
             echo "❌ ERROR: Failed to recreate AAB"
@@ -297,7 +315,40 @@ jobs:
           # Cleanup
           rm -rf "$TEMP_DIR"
           
-          echo "✅ AAB cleaned: debug symbols removed"
+          echo "✅ All signatures removed from AAB"
+
+      - name: ✍️ Sign AAB with release certificate ONLY (jarsigner)
+        working-directory: android
+        run: |
+          echo "✍️ Signing AAB with release certificate ONLY (all previous signatures removed)..."
+          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          KEYSTORE_PATH="app/maya-release.keystore"
+          KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
+          STORE_PASSWORD="${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
+          KEY_PASSWORD="${{ secrets.MAYA_UPLOAD_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}"
+          
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "❌ ERROR: AAB file not found at $AAB_PATH"
+            exit 1
+          fi
+          
+          if [ ! -f "$KEYSTORE_PATH" ]; then
+            echo "❌ ERROR: Keystore file not found at $KEYSTORE_PATH"
+            exit 1
+          fi
+          
+          echo "📦 Signing $AAB_PATH with release keystore (alias: $KEY_ALIAS)..."
+          echo "   Algorithm: SHA256withRSA (not SHA1withRSA)"
+          jarsigner \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$STORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            "$AAB_PATH" \
+            "$KEY_ALIAS"
+          
+          echo "✅ AAB signed successfully with release certificate ONLY"
 
       - name: 🔍 Verify AAB signature (release certificate only, no debug)
         working-directory: android
