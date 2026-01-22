@@ -19,6 +19,18 @@ platform :android do
     )
   end
 
+  desc "Upload AAB to Google Play Internal Testing (AAB must be already built and signed)"
+  lane :upload_internal do
+    # Upload to Google Play (AAB should be already built and signed externally)
+    upload_to_play_store(
+      track: 'internal',
+      aab: 'app/build/outputs/bundle/release/app-release.aab',
+      skip_upload_screenshots: true,
+      skip_upload_images: true,
+      skip_upload_metadata: true
+    )
+  end
+
   desc "Deploy to Google Play Internal Testing"
   lane :internal do
     # Build (without clean to preserve codegen artifacts)
