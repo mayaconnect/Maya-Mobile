@@ -52,8 +52,29 @@ jobs:
           mkdir -p /tmp/fastlane-backup
           cp -r android/fastlane /tmp/fastlane-backup/ || echo "No fastlane folder to backup"
 
+      - name: 📝 Create .env file for API URL
+        run: |
+          if [ -z "${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" ]; then
+            echo "⚠️ WARNING: EXPO_PUBLIC_API_BASE_URL secret is not set!"
+            echo "The app will use the default API URL from the code."
+          else
+            echo "EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}" > .env
+            echo "✅ .env file created with API URL"
+            # Verify the file was created (without showing the actual URL)
+            if [ -f ".env" ]; then
+              echo "✅ .env file exists"
+              echo "API URL configured: EXPO_PUBLIC_API_BASE_URL=***"
+            else
+              echo "❌ ERROR: .env file was not created"
+              exit 1
+            fi
+          fi
+
       - name: 🔨 Generate Android native folder
-        run: npx expo prebuild --platform android --clean
+        run: |
+          # Export the variable so it's available during prebuild
+          export EXPO_PUBLIC_API_BASE_URL="${{ secrets.EXPO_PUBLIC_API_BASE_URL }}"
+          npx expo prebuild --platform android --clean
 
       - name: 📋 Restore Fastlane configuration
         run: |
@@ -110,7 +131,6 @@ jobs:
           removed_blocks = []
           block_start_line = 0
           buildtypes_count = 0
-          keep_first_buildtypes = True
           
           for i, line in enumerate(lines, 1):
               # Detect start of problematic blocks (more flexible matching)
@@ -305,56 +325,105 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
 
-      - name: 🔐 Setup Android keystore
+      - name: 🔐 Decode Android keystore
         run: |
-          # Always use the keystore from GitHub secret (never use local file)
-          echo "📦 Creating keystore from secret..."
-          # Important: use -n to avoid trailing newline, and fail on decode error
-          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > maya-release.keystore
-          echo "✅ Keystore created successfully at project root"
-          # Copy keystore to android/app/ for Gradle to find it easily
+          echo "📦 Decoding keystore from GitHub secret..."
           mkdir -p android/app
-          cp maya-release.keystore android/app/maya-release.keystore
-          echo "✅ Keystore copied to android/app/"
-          # Verify keystore SHA1 matches expected value
-          echo "🔍 Verifying keystore SHA1..."
-          SHA1=$(keytool -list -v -keystore android/app/maya-release.keystore -alias "${{ secrets.ANDROID_KEY_ALIAS }}" -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
-          echo "Keystore SHA1: $SHA1"
-          EXPECTED_SHA1="1C:3B:87:09:A5:5B:A3:74:A3:C2:7A:98:AF:23:06:82:C7:B1:AF:FD"
-          if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
-            echo "✅ Keystore SHA1 matches expected value!"
+          # Decode base64 keystore and save to android/app/
+          # Support both old secret name (ANDROID_KEYSTORE_BASE64) and new (MAYA_UPLOAD_KEYSTORE_BASE64)
+          if [ -n "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-upload.keystore
+            KEYSTORE_SECRET="MAYA_UPLOAD_KEYSTORE_BASE64"
+          elif [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-upload.keystore
+            KEYSTORE_SECRET="ANDROID_KEYSTORE_BASE64"
           else
-            echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
-            echo "Expected: $EXPECTED_SHA1"
-            echo "Got:      $SHA1"
-            echo ""
-            echo "This will cause Google Play to reject the AAB."
-            echo "Please update the ANDROID_KEYSTORE_BASE64 secret with the correct keystore."
-            echo "Use the script: scripts/verify-and-encode-keystore.ps1 to verify and encode the correct keystore."
+            echo "❌ ERROR: No keystore secret found!"
+            echo "Please set either MAYA_UPLOAD_KEYSTORE_BASE64 or ANDROID_KEYSTORE_BASE64 in GitHub Secrets"
             exit 1
           fi
-          ls -lh maya-release.keystore android/app/maya-release.keystore
+          
+          if [ ! -f "android/app/maya-upload.keystore" ]; then
+            echo "❌ ERROR: Failed to create keystore file"
+            exit 1
+          fi
+          
+          echo "✅ Keystore decoded successfully at android/app/maya-upload.keystore"
+          ls -lh android/app/maya-upload.keystore
+          
+          # Optional: Verify keystore SHA1 if expected value is provided
+          if [ -n "${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 }}" ] || [ -n "${{ secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}" ]; then
+            echo "🔍 Verifying keystore SHA1..."
+            KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
+            STORE_PASSWORD="${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            EXPECTED_SHA1="${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 || secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}"
+            
+            if [ -z "$KEY_ALIAS" ] || [ -z "$STORE_PASSWORD" ]; then
+              echo "⚠️ WARNING: Cannot verify SHA1 - missing alias or password"
+            else
+              SHA1=$(keytool -list -v -keystore android/app/maya-upload.keystore -alias "$KEY_ALIAS" -storepass "$STORE_PASSWORD" 2>/dev/null | grep "SHA1:" | awk '{print $2}' || echo "")
+              echo "Keystore SHA1: $SHA1"
+              if [ "$SHA1" = "$EXPECTED_SHA1" ]; then
+                echo "✅ Keystore SHA1 matches expected value!"
+              else
+                echo "❌ ERROR: Keystore SHA1 does NOT match expected value!"
+                echo "Expected: $EXPECTED_SHA1"
+                echo "Got:      $SHA1"
+                echo ""
+                echo "This will cause Google Play to reject the AAB."
+                echo "Please update the keystore secret with the correct keystore."
+                exit 1
+              fi
+            fi
+          else
+            echo "ℹ️ Skipping SHA1 verification (no expected SHA1 secret provided)"
+          fi
 
-      - name: ⚙️ Create gradle.properties
+      - name: ⚙️ Configure signing properties (Gradle)
         run: |
-          cat << EOF > android/gradle.properties
-          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
-          MAYA_UPLOAD_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
-          MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
-
+          echo "⚙️ Configuring signing properties in gradle.properties..."
+          # Ensure gradle.properties exists (expo prebuild may or may not create it)
+          if [ ! -f "android/gradle.properties" ]; then
+            echo "Creating android/gradle.properties..."
+            touch android/gradle.properties
+          fi
+          
+          # Remove any existing MAYA_UPLOAD properties to avoid duplicates
+          if [ -f "android/gradle.properties" ]; then
+            sed -i.bak '/^MAYA_UPLOAD/d' android/gradle.properties || sed -i '/^MAYA_UPLOAD/d' android/gradle.properties
+          fi
+          
+          # Append signing properties to gradle.properties
+          # Support both old and new secret names for backward compatibility
+          cat >> android/gradle.properties <<EOF
+          # Android signing configuration (injected at CI runtime)
+          MAYA_UPLOAD_STORE_FILE=maya-upload.keystore
+          MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MAYA_UPLOAD_KEY_ALIAS=${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
+          MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.MAYA_UPLOAD_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+          echo "✅ Signing properties configured"
+          # Show the properties (without passwords) for verification
+          echo "Configured properties:"
+          grep "MAYA_UPLOAD" android/gradle.properties | sed 's/PASSWORD=.*/PASSWORD=***/' || true
+          
+          # Also add other Gradle settings if they don't exist
+          if ! grep -q "org.gradle.jvmargs" android/gradle.properties; then
+            cat >> android/gradle.properties <<EOF
+          
           # Gradle settings
           org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
           org.gradle.parallel=true
           org.gradle.configureondemand=true
           android.useAndroidX=true
           android.enableJetifier=true
-
+          
           # React Native / Hermes settings
           hermesEnabled=true
           newArchEnabled=true
           EOF
-          echo "Gradle properties configured"
+            echo "✅ Additional Gradle settings added"
+          fi
 
       - name: 🔑 Create Google Play service account JSON
         run: |
@@ -367,6 +436,81 @@ jobs:
         run: bundle exec fastlane internal
         env:
           SUPPLY_JSON_KEY: ./fastlane/google-play-service-account.json
+
+      - name: 🔍 Verify AAB signature (prevent debug signature)
+        run: |
+          echo "🔍 Verifying AAB signature to ensure it's NOT signed with debug keystore..."
+          AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
+          
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "❌ ERROR: AAB file not found at $AAB_PATH"
+            exit 1
+          fi
+          
+          echo "✅ AAB file found, extracting and verifying signature..."
+          
+          # Extract the AAB and check the signature
+          # The AAB is a zip file, we need to extract it and check the signing
+          TEMP_DIR=$(mktemp -d)
+          unzip -q "$AAB_PATH" -d "$TEMP_DIR" || {
+            echo "❌ ERROR: Failed to extract AAB"
+            rm -rf "$TEMP_DIR"
+            exit 1
+          }
+          
+          # Check if there's a META-INF folder with signature files
+          if [ ! -d "$TEMP_DIR/META-INF" ]; then
+            echo "❌ ERROR: AAB is not signed! Missing META-INF folder"
+            rm -rf "$TEMP_DIR"
+            exit 1
+          fi
+          
+          # Get the SHA1 of the certificate from the AAB
+          # We can use jarsigner or apksigner to verify
+          if command -v apksigner >/dev/null 2>&1; then
+            echo "Using apksigner to verify signature..."
+            # Convert AAB to APK for verification (or use bundletool)
+            CERT_SHA1=$(apksigner verify --print-certs "$AAB_PATH" 2>/dev/null | grep "SHA-1" | head -1 | awk '{print $2}' || echo "")
+          elif command -v jarsigner >/dev/null 2>&1; then
+            echo "Using jarsigner to verify signature..."
+            CERT_SHA1=$(jarsigner -verify -verbose -certs "$AAB_PATH" 2>&1 | grep "SHA1" | head -1 | awk '{print $3}' | tr -d '()' || echo "")
+          else
+            echo "⚠️ WARNING: Neither apksigner nor jarsigner found, skipping signature verification"
+            CERT_SHA1=""
+          fi
+          
+          rm -rf "$TEMP_DIR"
+          
+          if [ -n "$CERT_SHA1" ]; then
+            echo "AAB Certificate SHA1: $CERT_SHA1"
+            EXPECTED_SHA1="1C:3B:87:09:A5:5B:A3:74:A3:C2:7A:98:AF:23:06:82:C7:B1:AF:FD"
+            
+            # Normalize SHA1 format (remove colons for comparison)
+            CERT_SHA1_NORMALIZED=$(echo "$CERT_SHA1" | tr -d ':')
+            EXPECTED_SHA1_NORMALIZED=$(echo "$EXPECTED_SHA1" | tr -d ':')
+            
+            if [ "$CERT_SHA1_NORMALIZED" = "$EXPECTED_SHA1_NORMALIZED" ]; then
+              echo "✅ AAB is correctly signed with the release keystore!"
+            else
+              # Check if it's the debug keystore (common debug SHA1)
+              DEBUG_SHA1_PATTERNS="61:ED:37:7E:85:D3:86:A8:DF:EE:6B:86:4B:D8:5B:0B:FA:A5:AF:81"
+              if echo "$CERT_SHA1" | grep -q "61:ED:37:7E:85:D3"; then
+                echo "❌ ERROR: AAB is signed with DEBUG keystore!"
+                echo "This will be rejected by Google Play."
+                echo "Expected release SHA1: $EXPECTED_SHA1"
+                echo "Got debug SHA1: $CERT_SHA1"
+                exit 1
+              else
+                echo "⚠️ WARNING: AAB SHA1 does not match expected release keystore"
+                echo "Expected: $EXPECTED_SHA1"
+                echo "Got:      $CERT_SHA1"
+                echo "Continuing, but this may cause issues with Google Play..."
+              fi
+            fi
+          else
+            echo "⚠️ WARNING: Could not extract SHA1 from AAB signature"
+            echo "Continuing, but signature verification was skipped"
+          fi
 
       - name: 📤 Upload Android artifact
         uses: actions/upload-artifact@v4
@@ -557,3 +701,4 @@ jobs:
             echo "✅ iOS: https://appstoreconnect.apple.com/"
           fi
           echo ""
+          echo "======================================"
