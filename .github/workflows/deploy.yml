@@ -213,10 +213,76 @@ jobs:
           echo "✅ Unsigned AAB built successfully"
           ls -lh app/build/outputs/bundle/release/app-release.aab
 
-      - name: ✍️ Sign AAB with jarsigner
+      - name: 🧹 Remove all existing signatures from AAB
         working-directory: android
         run: |
-          echo "✍️ Signing AAB with jarsigner..."
+          echo "🧹 Removing all existing signatures from AAB (including debug certificates)..."
+          
+          # Verify zip/unzip are available
+          if ! command -v zip &> /dev/null || ! command -v unzip &> /dev/null; then
+            echo "❌ ERROR: zip/unzip commands not found. Installing..."
+            sudo apt-get update && sudo apt-get install -y zip unzip
+          fi
+          
+          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "❌ ERROR: AAB file not found at $AAB_PATH"
+            exit 1
+          fi
+          
+          # Create temporary directory for AAB extraction
+          TEMP_DIR=$(mktemp -d)
+          echo "Extracting AAB to $TEMP_DIR..."
+          
+          # Extract AAB (it's a ZIP file)
+          unzip -q "$AAB_PATH" -d "$TEMP_DIR" || {
+            echo "❌ ERROR: Failed to extract AAB"
+            exit 1
+          }
+          
+          # Remove only signature files from META-INF (keep MANIFEST.MF as it's needed)
+          echo "Removing signature files from META-INF..."
+          find "$TEMP_DIR" -path "*/META-INF/*.SF" -delete
+          find "$TEMP_DIR" -path "*/META-INF/*.RSA" -delete
+          find "$TEMP_DIR" -path "*/META-INF/*.DSA" -delete
+          find "$TEMP_DIR" -path "*/META-INF/*.EC" -delete
+          
+          # For nested JARs, we need to handle them differently
+          # Find all .jar files inside the AAB and remove their signatures
+          echo "Removing signatures from nested JAR files..."
+          find "$TEMP_DIR" -name "*.jar" -type f | while read -r jar_file; do
+            JAR_TEMP=$(mktemp -d)
+            unzip -q "$jar_file" -d "$JAR_TEMP" 2>/dev/null || {
+              rm -rf "$JAR_TEMP"
+              continue
+            }
+            find "$JAR_TEMP" -path "*/META-INF/*.SF" -delete
+            find "$JAR_TEMP" -path "*/META-INF/*.RSA" -delete
+            find "$JAR_TEMP" -path "*/META-INF/*.DSA" -delete
+            find "$JAR_TEMP" -path "*/META-INF/*.EC" -delete
+            (cd "$JAR_TEMP" && zip -q -r "$jar_file" . 2>/dev/null) || true
+            rm -rf "$JAR_TEMP"
+          done
+          
+          # Recreate AAB without signatures
+          echo "Recreating AAB without signatures..."
+          cd "$TEMP_DIR"
+          zip -q -r "$OLDPWD/$AAB_PATH" . || {
+            echo "❌ ERROR: Failed to recreate AAB"
+            exit 1
+          }
+          cd "$OLDPWD"
+          
+          # Cleanup
+          rm -rf "$TEMP_DIR"
+          
+          echo "✅ All existing signatures removed from AAB"
+
+      - name: ✍️ Sign AAB with jarsigner (release certificate only)
+        working-directory: android
+        run: |
+          echo "✍️ Signing AAB with jarsigner (release certificate only)..."
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
           KEYSTORE_PATH="app/maya-release.keystore"
           KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
@@ -234,7 +300,7 @@ jobs:
           fi
           
           echo "📦 Signing $AAB_PATH with keystore $KEYSTORE_PATH (alias: $KEY_ALIAS)..."
-          echo "   (AAB was built unsigned with BUILD_UNSIGNED_AAB=true, so this will be the only signature)"
+          echo "   (All previous signatures have been removed, this will be the only signature)"
           jarsigner \
             -keystore "$KEYSTORE_PATH" \
             -storepass "$STORE_PASSWORD" \
@@ -244,7 +310,7 @@ jobs:
             "$AAB_PATH" \
             "$KEY_ALIAS"
           
-          echo "✅ AAB signed successfully"
+          echo "✅ AAB signed successfully with release certificate only"
 
       - name: 🔍 Verify AAB signature (single certificate chain)
         working-directory: android
