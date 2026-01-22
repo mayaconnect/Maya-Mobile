@@ -61,6 +61,106 @@ jobs:
           echo "Fastlane configuration restored"
           ls -la android/fastlane/
 
+      - name: 🔧 Fix build.gradle - Remove problematic blocks
+        run: |
+          echo "🔧 Fixing build.gradle syntax issues..."
+          BUILD_GRADLE="android/app/build.gradle"
+          if [ -f "$BUILD_GRADLE" ]; then
+            python3 <<EOF
+          file_path = 'android/app/build.gradle'
+          with open(file_path, 'r', encoding='utf-8') as f:
+              lines = f.readlines()
+          
+          # Find all occurrences of buildTypes
+          buildtypes_occurrences = []
+          for i, line in enumerate(lines, 1):
+              stripped = line.strip()
+              if 'buildTypes' in stripped and '{' in line:
+                  buildtypes_occurrences.append(i)
+          
+          if len(buildtypes_occurrences) > 1:
+              print(f'⚠️ WARNING: Found {len(buildtypes_occurrences)} buildTypes blocks! Keeping only the first one.')
+          
+          output = []
+          skip_block = False
+          brace_count = 0
+          removed_blocks = []
+          block_start_line = 0
+          buildtypes_count = 0
+          
+          for i, line in enumerate(lines, 1):
+              stripped = line.strip()
+              
+              # Detect duplicate buildTypes blocks (keep only the first one)
+              if 'buildTypes' in stripped and '{' in line:
+                  buildtypes_count += 1
+                  if buildtypes_count > 1:
+                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
+                      skip_block = True
+                      removed_blocks.append(f'duplicate buildTypes (line {i})')
+                      brace_count = line.count('{') - line.count('}')
+                      block_start_line = i
+                      continue
+                  else:
+                      print(f'✅ Keeping first buildTypes block at line {i}')
+              
+              if 'androidResources' in stripped and '{' in line:
+                  print(f'🚫 Found androidResources at line {i}: {stripped}')
+                  skip_block = True
+                  removed_blocks.append(f'androidResources (line {i})')
+                  brace_count = line.count('{') - line.count('}')
+                  block_start_line = i
+                  continue
+              
+              if ('packagingOptions' in stripped or 'packaging {' in stripped) and '{' in line:
+                  print(f'🚫 Found packaging/packagingOptions at line {i}: {stripped}')
+                  skip_block = True
+                  removed_blocks.append(f'packaging (line {i})')
+                  brace_count = line.count('{') - line.count('}')
+                  block_start_line = i
+                  continue
+              
+              # If we're inside a problematic block, count braces
+              if skip_block:
+                  brace_count += line.count('{') - line.count('}')
+                  if brace_count <= 0:
+                      print(f'✅ Finished removing block at line {i} (started at line {block_start_line})')
+                      skip_block = False
+                      block_start_line = 0
+                  continue
+              
+              # Keep all other lines
+              output.append(line)
+          
+          # Verify structure after removal
+          output_content = ''.join(output)
+          open_braces_after = output_content.count('{')
+          close_braces_after = output_content.count('}')
+          print(f'📊 Braces after: {open_braces_after} open, {close_braces_after} close')
+          
+          if open_braces_after != close_braces_after:
+              print(f'⚠️ WARNING: Brace mismatch! This may cause syntax errors.')
+              print(f'   Difference: {open_braces_after - close_braces_after} braces')
+          
+          # Verify only one buildTypes block remains
+          buildtypes_count_after = output_content.count('buildTypes {')
+          if buildtypes_count_after > 1:
+              print(f'❌ ERROR: Still {buildtypes_count_after} buildTypes blocks after cleanup!')
+          elif buildtypes_count_after == 1:
+              print(f'✅ Verified: Only 1 buildTypes block remains')
+          else:
+              print(f'⚠️ WARNING: No buildTypes block found after cleanup!')
+          
+          with open(file_path, 'w', encoding='utf-8') as f:
+              f.write(output_content)
+          
+          print(f'✅ build.gradle fixed (removed: {", ".join(removed_blocks) if removed_blocks else "none"})')
+          EOF
+            echo "✅ build.gradle syntax fixed"
+          else
+            echo "⚠️ WARNING: build.gradle not found"
+          fi
+
       - name: 🔧 Configure release signing in build.gradle
         run: |
           echo "🔧 Configuring release signing in build.gradle..."
