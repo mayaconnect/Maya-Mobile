@@ -73,41 +73,85 @@ jobs:
             python3 <<EOF
           file_path = 'android/app/build.gradle'
           with open(file_path, 'r', encoding='utf-8') as f:
-              content = f.read()
+              lines = f.readlines()
+          
+          # Show lines around potential problematic areas
+          print('🔍 Searching for problematic blocks...')
+          
+          # First, find all occurrences of buildTypes
+          buildtypes_occurrences = []
+          for i, line in enumerate(lines, 1):
+              stripped = line.strip()
+              if 'buildTypes' in stripped and '{' in line:
+                  buildtypes_occurrences.append(i)
+                  print(f'📍 Found buildTypes at line {i}')
+          
+          if len(buildtypes_occurrences) > 1:
+              print(f'⚠️ WARNING: Found {len(buildtypes_occurrences)} buildTypes blocks! Keeping only the first one.')
+          
+          for i, line in enumerate(lines, 1):
+              if 'androidResources' in line or 'packagingOptions' in line or 'packaging {' in line:
+                  print(f'📍 Found potential issue at line {i}:')
+                  start = max(0, i - 3)
+                  end = min(len(lines), i + 10)
+                  for j in range(start, end):
+                      marker = '>>> ' if j == i - 1 else '    '
+                      print(f'{marker}{j+1:3d}: {lines[j].rstrip()}')
           
           # Count braces to verify structure
+          content = ''.join(lines)
           open_braces = content.count('{')
           close_braces = content.count('}')
           print(f'📊 Braces before: {open_braces} open, {close_braces} close')
           
-          lines = content.splitlines(keepends=True)
           output = []
           skip_block = False
           brace_count = 0
           removed_blocks = []
+          block_start_line = 0
+          buildtypes_count = 0
+          keep_first_buildtypes = True
           
           for i, line in enumerate(lines, 1):
-              # Detect start of problematic blocks
-              if 'androidResources {' in line:
-                  print(f'🚫 Found androidResources at line {i}: {line.strip()}')
+              # Detect start of problematic blocks (more flexible matching)
+              stripped = line.strip()
+              
+              # Detect duplicate buildTypes blocks (keep only the first one)
+              if 'buildTypes' in stripped and '{' in line:
+                  buildtypes_count += 1
+                  if buildtypes_count > 1:
+                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
+                      skip_block = True
+                      removed_blocks.append(f'duplicate buildTypes (line {i})')
+                      brace_count = line.count('{') - line.count('}')
+                      block_start_line = i
+                      continue
+                  else:
+                      print(f'✅ Keeping first buildTypes block at line {i}')
+              
+              if 'androidResources' in stripped and '{' in line:
+                  print(f'🚫 Found androidResources at line {i}: {stripped}')
                   skip_block = True
-                  removed_blocks.append('androidResources')
+                  removed_blocks.append(f'androidResources (line {i})')
                   brace_count = line.count('{') - line.count('}')
+                  block_start_line = i
                   continue
               
-              if 'packagingOptions {' in line or 'packaging {' in line:
-                  print(f'🚫 Found packaging/packagingOptions at line {i}: {line.strip()}')
+              if ('packagingOptions' in stripped or 'packaging {' in stripped) and '{' in line:
+                  print(f'🚫 Found packaging/packagingOptions at line {i}: {stripped}')
                   skip_block = True
-                  removed_blocks.append('packaging')
+                  removed_blocks.append(f'packaging (line {i})')
                   brace_count = line.count('{') - line.count('}')
+                  block_start_line = i
                   continue
               
               # If we're inside a problematic block, count braces
               if skip_block:
                   brace_count += line.count('{') - line.count('}')
                   if brace_count <= 0:
-                      print(f'✅ Finished removing block at line {i}')
+                      print(f'✅ Finished removing block at line {i} (started at line {block_start_line})')
                       skip_block = False
+                      block_start_line = 0
                   continue
               
               # Keep all other lines
@@ -121,12 +165,22 @@ jobs:
           
           if open_braces_after != close_braces_after:
               print(f'⚠️ WARNING: Brace mismatch! This may cause syntax errors.')
-              print(f'   Trying to fix by adding missing braces...')
-              # Try to fix by adding missing closing braces
-              diff = open_braces_after - close_braces_after
-              if diff > 0:
-                  output_content += '\n' + ('    ' * (output_content.count('\n    ') // 10)) + '}' * diff
-                  print(f'   Added {diff} closing brace(s)')
+              print(f'   Difference: {open_braces_after - close_braces_after} braces')
+          
+          # Verify only one buildTypes block remains
+          buildtypes_count_after = output_content.count('buildTypes {')
+          if buildtypes_count_after > 1:
+              print(f'❌ ERROR: Still {buildtypes_count_after} buildTypes blocks after cleanup!')
+          elif buildtypes_count_after == 1:
+              print(f'✅ Verified: Only 1 buildTypes block remains')
+          else:
+              print(f'⚠️ WARNING: No buildTypes block found after cleanup!')
+          
+          # Show lines around line 133 (where the error occurs)
+          print('🔍 Showing lines around 130-140 (error location):')
+          for i, line in enumerate(output, 1):
+              if 130 <= i <= 140:
+                  print(f'    {i:3d}: {line.rstrip()}')
           
           with open(file_path, 'w', encoding='utf-8') as f:
               f.write(output_content)
@@ -146,6 +200,18 @@ jobs:
             else
               echo "⚠️ WARNING: build.gradle structure may be invalid"
             fi
+            
+            # Try to validate Gradle syntax by checking if we can parse it
+            echo "🔍 Validating Gradle syntax..."
+            cd android
+            if ./gradlew tasks --dry-run > /dev/null 2>&1; then
+              echo "✅ Gradle syntax validation passed"
+            else
+              echo "⚠️ WARNING: Gradle syntax validation failed, but continuing..."
+              echo "Showing Gradle error output:"
+              ./gradlew tasks --dry-run 2>&1 | head -50 || true
+            fi
+            cd ..
           else
             echo "⚠️ WARNING: build.gradle not found"
           fi
