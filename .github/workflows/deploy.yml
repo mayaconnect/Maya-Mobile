@@ -248,6 +248,57 @@ jobs:
           echo "✅ AAB built and signed successfully with release certificate"
           ls -lh app/build/outputs/bundle/release/app-release.aab
 
+      - name: 🧹 Remove debug symbols from AAB (prevent debug certificate)
+        working-directory: android
+        run: |
+          echo "🧹 Removing debug symbols from AAB to prevent debug certificate..."
+          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "❌ ERROR: AAB file not found at $AAB_PATH"
+            exit 1
+          fi
+          
+          # Verify zip/unzip are available
+          if ! command -v zip &> /dev/null || ! command -v unzip &> /dev/null; then
+            echo "Installing zip/unzip..."
+            sudo apt-get update && sudo apt-get install -y zip unzip
+          fi
+          
+          # Create temporary directory
+          TEMP_DIR=$(mktemp -d)
+          echo "Extracting AAB to remove debug symbols..."
+          
+          # Extract AAB
+          unzip -q "$AAB_PATH" -d "$TEMP_DIR" || {
+            echo "❌ ERROR: Failed to extract AAB"
+            exit 1
+          }
+          
+          # Remove debug symbols directory (contains files signed with debug certificate)
+          DEBUG_SYMBOLS_DIR="$TEMP_DIR/BUNDLE-METADATA/com.android.tools.build.debugsymbols"
+          if [ -d "$DEBUG_SYMBOLS_DIR" ]; then
+            echo "Removing debug symbols directory: BUNDLE-METADATA/com.android.tools.build.debugsymbols"
+            rm -rf "$DEBUG_SYMBOLS_DIR"
+            echo "✅ Debug symbols removed"
+          else
+            echo "ℹ️  No debug symbols directory found (already removed or not generated)"
+          fi
+          
+          # Recreate AAB without debug symbols
+          echo "Recreating AAB without debug symbols..."
+          cd "$TEMP_DIR"
+          zip -q -r "$OLDPWD/$AAB_PATH" . || {
+            echo "❌ ERROR: Failed to recreate AAB"
+            exit 1
+          }
+          cd "$OLDPWD"
+          
+          # Cleanup
+          rm -rf "$TEMP_DIR"
+          
+          echo "✅ AAB cleaned: debug symbols removed"
+
       - name: 🔍 Verify AAB signature (release certificate only, no debug)
         working-directory: android
         run: |

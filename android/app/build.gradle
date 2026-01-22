@@ -133,6 +133,12 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
+            
+            // Disable debug symbols generation to prevent debug certificate in release AAB
+            // Debug symbols are signed with debug certificate by default, which causes Google Play rejection
+            ndk {
+                debugSymbolLevel 'NONE'
+            }
         }
     }
     packagingOptions {
