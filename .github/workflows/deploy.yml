@@ -61,6 +61,72 @@ jobs:
           echo "Fastlane configuration restored"
           ls -la android/fastlane/
 
+      - name: 🔧 Configure release signing in build.gradle
+        run: |
+          echo "🔧 Configuring release signing in build.gradle..."
+          BUILD_GRADLE="android/app/build.gradle"
+          
+          if [ ! -f "$BUILD_GRADLE" ]; then
+            echo "❌ ERROR: build.gradle not found. expo prebuild may have failed."
+            exit 1
+          fi
+          
+          # Create backup
+          cp "$BUILD_GRADLE" "$BUILD_GRADLE.backup"
+          
+          # Check if signingConfigs.release already exists
+          if grep -q "signingConfigs.release" "$BUILD_GRADLE" || (grep -A 10 "signingConfigs {" "$BUILD_GRADLE" | grep -q "release {"); then
+            echo "✅ signingConfigs.release already exists"
+          else
+            # Add release config after debug config in signingConfigs block
+            awk '
+              /signingConfigs \{/ { 
+                print
+                in_signing = 1
+                next
+              }
+              in_signing && /^    \}/ {
+                print "        release {"
+                print "            if (project.hasProperty(\"MAYA_UPLOAD_STORE_FILE\")) {"
+                print "                storeFile file(MAYA_UPLOAD_STORE_FILE)"
+                print "                storePassword MAYA_UPLOAD_STORE_PASSWORD"
+                print "                keyAlias MAYA_UPLOAD_KEY_ALIAS"
+                print "                keyPassword MAYA_UPLOAD_KEY_PASSWORD"
+                print "            }"
+                print "        }"
+                print
+                in_signing = 0
+              }
+              { print }
+            ' "$BUILD_GRADLE" > "$BUILD_GRADLE.tmp" && mv "$BUILD_GRADLE.tmp" "$BUILD_GRADLE"
+            echo "✅ Added signingConfigs.release"
+          fi
+          
+          # Ensure release buildType uses signingConfigs.release instead of debug
+          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
+            echo "⚠️  WARNING: Release buildType is using debug signing! Fixing..."
+            sed -i '/release {/,/^    }/s/signingConfig signingConfigs\.debug/signingConfig signingConfigs.release/g' "$BUILD_GRADLE"
+            echo "✅ Fixed: Replaced debug signing with release signing"
+          elif grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs.release"; then
+            echo "✅ Release buildType already uses signingConfigs.release"
+          else
+            echo "⚠️  No signingConfig found in release block, adding signingConfigs.release"
+            sed -i '/release {/a\            signingConfig signingConfigs.release' "$BUILD_GRADLE"
+            echo "✅ Added signingConfig signingConfigs.release to release buildType"
+          fi
+          
+          # Final verification - ensure release does NOT use debug
+          if grep -A 10 "release {" "$BUILD_GRADLE" | grep -q "signingConfig signingConfigs\.debug"; then
+            echo "❌ ERROR: Release buildType still uses debug signing after configuration!"
+            echo "Build.gradle content around release block:"
+            grep -A 10 "release {" "$BUILD_GRADLE"
+            exit 1
+          else
+            echo "✅ Verification passed: Release buildType uses release signing (not debug)"
+          fi
+          
+          echo "✅ Release signing configuration complete"
+
       - name: 🔧 Set gradlew permissions
         working-directory: android
         run: |
