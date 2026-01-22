@@ -119,7 +119,11 @@ android {
         }
         release {
             // Sign with release keystore for production
-            signingConfig signingConfigs.release
+            // Only sign if BUILD_UNSIGNED_AAB is not set to 'true' (allows jarsigner to sign instead)
+            def buildUnsigned = findProperty('BUILD_UNSIGNED_AAB') == 'true'
+            if (!buildUnsigned && project.hasProperty("MAYA_UPLOAD_STORE_FILE")) {
+                signingConfig signingConfigs.release
+            }
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
