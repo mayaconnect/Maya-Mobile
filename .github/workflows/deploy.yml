@@ -66,99 +66,159 @@ jobs:
           echo "🔧 Fixing build.gradle syntax issues..."
           BUILD_GRADLE="android/app/build.gradle"
           if [ -f "$BUILD_GRADLE" ]; then
-            python3 <<EOF
+            echo "📄 First 30 lines of build.gradle:"
+            head -n 30 "$BUILD_GRADLE" || true
+            echo ""
+            
+            python3 <<'PYTHON_EOF'
+          import re
+
           file_path = 'android/app/build.gradle'
+
           with open(file_path, 'r', encoding='utf-8') as f:
-              lines = f.readlines()
-          
-          # Find all occurrences of buildTypes
-          buildtypes_occurrences = []
-          for i, line in enumerate(lines, 1):
-              stripped = line.strip()
-              if 'buildTypes' in stripped and '{' in line:
-                  buildtypes_occurrences.append(i)
-          
-          if len(buildtypes_occurrences) > 1:
-              print(f'⚠️ WARNING: Found {len(buildtypes_occurrences)} buildTypes blocks! Keeping only the first one.')
-          
-          output = []
-          skip_block = False
-          brace_count = 0
-          removed_blocks = []
-          block_start_line = 0
-          buildtypes_count = 0
-          
-          for i, line in enumerate(lines, 1):
-              stripped = line.strip()
+              content = f.read()
+
+          print('🔍 Analyzing build.gradle...')
+
+          # Function to find matching closing brace
+          def find_closing_brace(text, start_pos):
+              """Find the position of the closing brace that matches the opening brace at start_pos"""
+              brace_count = 0
+              i = start_pos
+              while i < len(text):
+                  if text[i] == '{':
+                      brace_count += 1
+                  elif text[i] == '}':
+                      brace_count -= 1
+                      if brace_count == 0:
+                          return i
+                  i += 1
+              return -1
+
+          # Remove androidResources blocks
+          pattern = r'androidResources\s*\{'
+          matches = list(re.finditer(pattern, content))
+          if matches:
+              print(f'🚫 Found {len(matches)} androidResources block(s)')
+          content = re.sub(r'androidResources\s*\{[^}]*\}', '', content, flags=re.DOTALL)
+
+          # Remove packaging/packagingOptions blocks
+          pattern = r'(packagingOptions|packaging)\s*\{'
+          matches = list(re.finditer(pattern, content))
+          if matches:
+              print(f'🚫 Found {len(matches)} packaging block(s)')
+          content = re.sub(r'(packagingOptions|packaging)\s*\{[^}]*\}', '', content, flags=re.DOTALL)
+
+          # Handle duplicate buildTypes blocks
+          buildtypes_pattern = r'buildTypes\s*\{'
+          matches = list(re.finditer(buildtypes_pattern, content))
+
+          if len(matches) > 1:
+              print(f'⚠️ Found {len(matches)} buildTypes blocks!')
               
-              # Detect duplicate buildTypes blocks (keep only the first one)
-              if 'buildTypes' in stripped and '{' in line:
-                  buildtypes_count += 1
-                  if buildtypes_count > 1:
-                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
-                      skip_block = True
-                      removed_blocks.append(f'duplicate buildTypes (line {i})')
-                      brace_count = line.count('{') - line.count('}')
-                      block_start_line = i
-                      continue
-                  else:
-                      print(f'✅ Keeping first buildTypes block at line {i}')
+              # Extract all buildTypes blocks with their complete content
+              blocks = []
+              for match in matches:
+                  start = match.start()
+                  # Find the opening brace position
+                  brace_pos = content.index('{', start)
+                  # Find matching closing brace
+                  end = find_closing_brace(content, brace_pos)
+                  if end != -1:
+                      blocks.append({
+                          'start': start,
+                          'end': end + 1,
+                          'content': content[start:end + 1]
+                      })
+                      print(f'  Block {len(blocks)}: position {start}-{end + 1}')
               
-              if 'androidResources' in stripped and '{' in line:
-                  print(f'🚫 Found androidResources at line {i}: {stripped}')
-                  skip_block = True
-                  removed_blocks.append(f'androidResources (line {i})')
-                  brace_count = line.count('{') - line.count('}')
-                  block_start_line = i
-                  continue
-              
-              if ('packagingOptions' in stripped or 'packaging {' in stripped) and '{' in line:
-                  print(f'🚫 Found packaging/packagingOptions at line {i}: {stripped}')
-                  skip_block = True
-                  removed_blocks.append(f'packaging (line {i})')
-                  brace_count = line.count('{') - line.count('}')
-                  block_start_line = i
-                  continue
-              
-              # If we're inside a problematic block, count braces
-              if skip_block:
-                  brace_count += line.count('{') - line.count('}')
-                  if brace_count <= 0:
-                      print(f'✅ Finished removing block at line {i} (started at line {block_start_line})')
-                      skip_block = False
-                      block_start_line = 0
-                  continue
-              
-              # Keep all other lines
-              output.append(line)
-          
-          # Verify structure after removal
-          output_content = ''.join(output)
-          open_braces_after = output_content.count('{')
-          close_braces_after = output_content.count('}')
-          print(f'📊 Braces after: {open_braces_after} open, {close_braces_after} close')
-          
-          if open_braces_after != close_braces_after:
-              print(f'⚠️ WARNING: Brace mismatch! This may cause syntax errors.')
-              print(f'   Difference: {open_braces_after - close_braces_after} braces')
-          
-          # Verify only one buildTypes block remains
-          buildtypes_count_after = output_content.count('buildTypes {')
-          if buildtypes_count_after > 1:
-              print(f'❌ ERROR: Still {buildtypes_count_after} buildTypes blocks after cleanup!')
-          elif buildtypes_count_after == 1:
-              print(f'✅ Verified: Only 1 buildTypes block remains')
+              if blocks:
+                  # Keep only the first block
+                  first_block = blocks[0]
+                  print(f'✅ Keeping first buildTypes block (position {first_block["start"]}-{first_block["end"]})')
+                  
+                  # Remove all blocks from content (in reverse order to maintain positions)
+                  for block in reversed(blocks):
+                      content = content[:block['start']] + content[block['end']:]
+                  
+                  # Re-insert the first block at its original position (or find android block)
+                  android_match = re.search(r'android\s*\{', content)
+                  if android_match:
+                      # Find a good insertion point after defaultConfig
+                      search_start = android_match.end()
+                      default_config_match = re.search(r'defaultConfig\s*\{', content[search_start:])
+                      
+                      if default_config_match:
+                          # Find closing brace of defaultConfig
+                          dc_start = search_start + default_config_match.start()
+                          dc_brace = content.index('{', dc_start)
+                          dc_end = find_closing_brace(content, dc_brace)
+                          
+                          if dc_end != -1:
+                              insert_pos = dc_end + 1
+                              # Skip whitespace
+                              while insert_pos < len(content) and content[insert_pos] in ' \t\n':
+                                  insert_pos += 1
+                              
+                              content = content[:insert_pos] + '\n\n    ' + first_block['content'] + '\n' + content[insert_pos:]
+                              print(f'✅ Re-inserted buildTypes block after defaultConfig')
+                      else:
+                          # Insert after android block opening
+                          insert_pos = android_match.end()
+                          content = content[:insert_pos] + '\n    ' + first_block['content'] + '\n' + content[insert_pos:]
+                          print(f'✅ Re-inserted buildTypes block in android section')
+          elif len(matches) == 1:
+              print(f'✅ Found exactly 1 buildTypes block - no duplicates')
           else:
-              print(f'⚠️ WARNING: No buildTypes block found after cleanup!')
-          
+              print(f'⚠️ No buildTypes block found!')
+
+          # Clean up extra blank lines
+          content = re.sub(r'\n\n\n+', '\n\n', content)
+
+          # Verify brace balance
+          open_braces = content.count('{')
+          close_braces = content.count('}')
+          print(f'📊 Final brace count: {open_braces} open, {close_braces} close')
+
+          if open_braces != close_braces:
+              print(f'❌ ERROR: Brace mismatch! Difference: {open_braces - close_braces}')
+              exit(1)
+
+          # Verify buildTypes count
+          final_buildtypes = len(re.findall(r'buildTypes\s*\{', content))
+          print(f'✅ Final buildTypes count: {final_buildtypes}')
+
+          if final_buildtypes != 1:
+              print(f'⚠️ WARNING: Expected 1 buildTypes block, found {final_buildtypes}')
+
+          # Write the fixed content
           with open(file_path, 'w', encoding='utf-8') as f:
-              f.write(output_content)
-          
-          print(f'✅ build.gradle fixed (removed: {", ".join(removed_blocks) if removed_blocks else "none"})')
-          EOF
+              f.write(content)
+
+          print('✅ build.gradle fixed successfully')
+          PYTHON_EOF
+            
             echo "✅ build.gradle syntax fixed"
+            
+            # Validate Gradle syntax
+            echo "🔍 Validating Gradle syntax..."
+            cd android
+            if ./gradlew tasks --dry-run > /dev/null 2>&1; then
+              echo "✅ Gradle syntax validation passed"
+            else
+              echo "❌ ERROR: Gradle syntax validation failed"
+              echo "Showing error:"
+              ./gradlew tasks --dry-run 2>&1 | head -50 || true
+              echo ""
+              echo "Showing build.gradle around line 130-150:"
+              sed -n '130,150p' app/build.gradle || true
+              cd ..
+              exit 1
+            fi
+            cd ..
           else
-            echo "⚠️ WARNING: build.gradle not found"
+            echo "❌ ERROR: build.gradle not found"
+            exit 1
           fi
 
       - name: 🔧 Configure release signing in build.gradle
