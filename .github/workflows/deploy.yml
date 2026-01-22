@@ -189,49 +189,78 @@ jobs:
           }
           echo "✅ Codegen artifacts generated"
 
-      - name: 💎 Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: true
-
-      - name: 🔐 Setup Android keystore
-        run: |
-          mkdir -p android/app
-          # Important: use -n to avoid trailing newline, and fail on decode error
-          echo -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/maya-release.keystore
-          echo "Keystore created successfully"
-
-      - name: ⚙️ Create gradle.properties
-        run: |
-          cat << EOF > android/gradle.properties
-          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
-          MAYA_UPLOAD_KEY_ALIAS=${{ secrets.MAYA_UPLOAD_KEY_ALIAS }}
-          MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.MAYA_UPLOAD_STORE_PASSWORD }}
-          MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.MAYA_UPLOAD_KEY_PASSWORD }}
-
-          # Gradle settings
-          org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
-          org.gradle.parallel=true
-          org.gradle.configureondemand=true
-          android.useAndroidX=true
-          android.enableJetifier=true
-
-          # React Native / Hermes settings
-          hermesEnabled=true
-          newArchEnabled=true
-          EOF
-          echo "Gradle properties configured"
-
       - name: 🔑 Create Google Play service account JSON
         run: |
           mkdir -p android/fastlane
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/fastlane/google-play-service-account.json
           echo "Service account configured"
 
-      - name: 🚀 Deploy to Google Play Internal Testing
+      - name: ☕ Verify Java and jarsigner availability
+        run: |
+          echo "☕ Checking Java installation..."
+          java -version
+          echo ""
+          echo "🔍 Checking jarsigner availability..."
+          jarsigner -help > /dev/null 2>&1 && echo "✅ jarsigner is available" || (echo "❌ jarsigner not found" && exit 1)
+          keytool -help > /dev/null 2>&1 && echo "✅ keytool is available" || (echo "❌ keytool not found" && exit 1)
+
+      - name: 🔨 Build Android App Bundle (AAB)
         working-directory: android
-        run: bundle exec fastlane internal
+        run: |
+          echo "🔨 Building AAB with Gradle..."
+          ./gradlew bundleRelease --stacktrace --info --no-daemon
+          echo "✅ AAB built successfully"
+          ls -lh app/build/outputs/bundle/release/app-release.aab
+
+      - name: ✍️ Sign AAB with jarsigner
+        working-directory: android
+        run: |
+          echo "✍️ Signing AAB with jarsigner..."
+          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          KEYSTORE_PATH="app/maya-release.keystore"
+          KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
+          STORE_PASSWORD="${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
+          KEY_PASSWORD="${{ secrets.MAYA_UPLOAD_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}"
+          
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "❌ ERROR: AAB file not found at $AAB_PATH"
+            exit 1
+          fi
+          
+          if [ ! -f "$KEYSTORE_PATH" ]; then
+            echo "❌ ERROR: Keystore file not found at $KEYSTORE_PATH"
+            exit 1
+          fi
+          
+          echo "📦 Signing $AAB_PATH with keystore $KEYSTORE_PATH (alias: $KEY_ALIAS)..."
+          jarsigner \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass "$STORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            "$AAB_PATH" \
+            "$KEY_ALIAS"
+          
+          echo "✅ AAB signed successfully"
+
+      - name: 🔍 Verify AAB signature
+        working-directory: android
+        run: |
+          echo "🔍 Verifying AAB signature..."
+          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          jarsigner -verify -verbose -certs "$AAB_PATH"
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ AAB signature verified successfully"
+          else
+            echo "❌ ERROR: AAB signature verification failed"
+            exit 1
+          fi
+
+      - name: 🚀 Upload to Google Play Internal Testing
+        working-directory: android
+        run: bundle exec fastlane upload_internal
         env:
           SUPPLY_JSON_KEY: ./fastlane/google-play-service-account.json
 
