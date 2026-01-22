@@ -95,19 +95,31 @@ jobs:
                   i += 1
               return -1
 
-          # Remove androidResources blocks
+          # Remove androidResources blocks (using proper brace matching)
           pattern = r'androidResources\s*\{'
           matches = list(re.finditer(pattern, content))
           if matches:
               print(f'🚫 Found {len(matches)} androidResources block(s)')
-          content = re.sub(r'androidResources\s*\{[^}]*\}', '', content, flags=re.DOTALL)
+              # Remove blocks in reverse order to preserve positions
+              for match in reversed(matches):
+                  brace_pos = content.index('{', match.start())
+                  end_pos = find_closing_brace(content, brace_pos)
+                  if end_pos != -1:
+                      # Remove the entire block including the keyword
+                      content = content[:match.start()] + content[end_pos + 1:]
 
-          # Remove packaging/packagingOptions blocks
+          # Remove packaging/packagingOptions blocks (using proper brace matching)
           pattern = r'(packagingOptions|packaging)\s*\{'
           matches = list(re.finditer(pattern, content))
           if matches:
               print(f'🚫 Found {len(matches)} packaging block(s)')
-          content = re.sub(r'(packagingOptions|packaging)\s*\{[^}]*\}', '', content, flags=re.DOTALL)
+              # Remove blocks in reverse order to preserve positions
+              for match in reversed(matches):
+                  brace_pos = content.index('{', match.start())
+                  end_pos = find_closing_brace(content, brace_pos)
+                  if end_pos != -1:
+                      # Remove the entire block including the keyword
+                      content = content[:match.start()] + content[end_pos + 1:]
 
           # Handle duplicate buildTypes blocks
           buildtypes_pattern = r'buildTypes\s*\{'
