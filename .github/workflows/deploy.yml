@@ -333,6 +333,144 @@ jobs:
           fi
           
           echo "✅ Release signing configuration complete"
+          
+          # Verify build.gradle is still valid after signing configuration
+          echo "🔍 Verifying build.gradle syntax after signing configuration..."
+          cd android
+          if ./gradlew tasks --dry-run > /dev/null 2>&1; then
+            echo "✅ build.gradle syntax is still valid after signing configuration"
+          else
+            echo "⚠️ WARNING: build.gradle syntax error after signing configuration!"
+            echo "This might be caused by the awk script. Re-running fix script..."
+            cd ..
+            # Re-run the fix script
+            python3 <<'PYTHON_EOF'
+          import re
+
+          file_path = 'android/app/build.gradle'
+
+          with open(file_path, 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          print('🔍 Re-analyzing build.gradle after signing configuration...')
+
+          # Function to find matching closing brace
+          def find_closing_brace(text, start_pos):
+              brace_count = 0
+              i = start_pos
+              while i < len(text):
+                  if text[i] == '{':
+                      brace_count += 1
+                  elif text[i] == '}':
+                      brace_count -= 1
+                      if brace_count == 0:
+                          return i
+                  i += 1
+              return -1
+
+          # Remove androidResources blocks
+          pattern = r'androidResources\s*\{'
+          matches = list(re.finditer(pattern, content))
+          if matches:
+              print(f'🚫 Found {len(matches)} androidResources block(s)')
+              for match in reversed(matches):
+                  brace_pos = content.index('{', match.start())
+                  end_pos = find_closing_brace(content, brace_pos)
+                  if end_pos != -1:
+                      content = content[:match.start()] + content[end_pos + 1:]
+
+          # Remove packaging blocks
+          pattern = r'(packagingOptions|packaging)\s*\{'
+          matches = list(re.finditer(pattern, content))
+          if matches:
+              print(f'🚫 Found {len(matches)} packaging block(s)')
+              for match in reversed(matches):
+                  brace_pos = content.index('{', match.start())
+                  end_pos = find_closing_brace(content, brace_pos)
+                  if end_pos != -1:
+                      content = content[:match.start()] + content[end_pos + 1:]
+
+          # Handle duplicate buildTypes blocks
+          lines = content.splitlines(keepends=True)
+          output_lines = []
+          skip_block = False
+          brace_count = 0
+          buildtypes_count = 0
+          block_start_line = 0
+          in_android_block = False
+          android_brace_level = 0
+
+          for i, line in enumerate(lines, 1):
+              stripped = line.strip()
+              
+              if 'android {' in stripped or 'android{' in stripped:
+                  in_android_block = True
+                  android_brace_level = stripped.count('{') - stripped.count('}')
+                  output_lines.append(line)
+                  continue
+              
+              if in_android_block:
+                  android_brace_level += line.count('{') - line.count('}')
+                  if android_brace_level <= 0:
+                      in_android_block = False
+              
+              if 'buildTypes' in stripped and '{' in line:
+                  buildtypes_count += 1
+                  
+                  if not in_android_block:
+                      print(f'🚫 Found buildTypes OUTSIDE android block at line {i}, removing it')
+                      skip_block = True
+                      brace_count = line.count('{') - line.count('}')
+                      block_start_line = i
+                      continue
+                  
+                  if buildtypes_count > 1:
+                      print(f'🚫 Found duplicate buildTypes at line {i}, removing it')
+                      skip_block = True
+                      brace_count = line.count('{') - line.count('}')
+                      block_start_line = i
+                      continue
+                  else:
+                      print(f'✅ Keeping first buildTypes block at line {i}')
+              
+              if skip_block:
+                  brace_count += line.count('{') - line.count('}')
+                  if brace_count <= 0:
+                      print(f'✅ Finished removing block at line {i}')
+                      skip_block = False
+                      block_start_line = 0
+                  continue
+              
+              output_lines.append(line)
+          
+          content = ''.join(output_lines)
+          
+          # Verify brace balance
+          open_braces = content.count('{')
+          close_braces = content.count('}')
+          print(f'📊 Final brace count: {open_braces} open, {close_braces} close')
+
+          if open_braces != close_braces:
+              print(f'❌ ERROR: Brace mismatch! Difference: {open_braces - close_braces}')
+              exit(1)
+
+          # Write the fixed content
+          with open(file_path, 'w', encoding='utf-8') as f:
+              f.write(content)
+
+          print('✅ build.gradle re-fixed after signing configuration')
+          PYTHON_EOF
+            cd android
+            # Verify again
+            if ./gradlew tasks --dry-run > /dev/null 2>&1; then
+              echo "✅ build.gradle syntax is now valid after re-fix"
+            else
+              echo "❌ ERROR: build.gradle still has syntax errors after re-fix"
+              ./gradlew tasks --dry-run 2>&1 | head -50 || true
+              exit 1
+            fi
+          fi
+          cd ..
 
       - name: 🔧 Set gradlew permissions
         working-directory: android
@@ -458,6 +596,41 @@ jobs:
           mkdir -p android/fastlane
           echo '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > android/fastlane/google-play-service-account.json
           echo "Service account configured"
+
+      - name: ✅ Final build.gradle verification before build
+        run: |
+          echo "🔍 Final verification of build.gradle before build..."
+          cd android
+          
+          # Check for problematic blocks one more time
+          if grep -q "androidResources" app/build.gradle; then
+            echo "⚠️ WARNING: androidResources block still present!"
+          fi
+          
+          if grep -c "buildTypes {" app/build.gradle | grep -v "^1$"; then
+            echo "⚠️ WARNING: Multiple buildTypes blocks detected!"
+            echo "Number of buildTypes blocks: $(grep -c 'buildTypes {' app/build.gradle || echo 0)"
+          fi
+          
+          # Final syntax check
+          echo "Running final Gradle syntax check..."
+          if ./gradlew tasks --dry-run --stacktrace > /tmp/final-gradle-check.log 2>&1; then
+            echo "✅ Final syntax check passed - build.gradle is ready for build"
+          else
+            echo "❌ ERROR: Final syntax check failed!"
+            echo "=== Error output ==="
+            cat /tmp/final-gradle-check.log | head -100 || true
+            echo ""
+            echo "=== build.gradle around problematic area ==="
+            # Try to find the error line from the log
+            ERROR_LINE=$(grep -o "line: [0-9]*" /tmp/final-gradle-check.log | head -1 | grep -o "[0-9]*" || echo "135")
+            echo "Checking around line $ERROR_LINE:"
+            START_LINE=$((ERROR_LINE - 10))
+            END_LINE=$((ERROR_LINE + 20))
+            sed -n "${START_LINE},${END_LINE}p" app/build.gradle || true
+            exit 1
+          fi
+          cd ..
 
       - name: ✅ Verify signing configuration before build
         run: |
