@@ -323,7 +323,7 @@ jobs:
         working-directory: android
         run: |
           echo "✍️ Signing AAB with release certificate ONLY..."
-          echo "   All previous signatures removed, adding release signature now"
+          echo "   Removing any remaining signatures first, then signing with release certificate"
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
           KEYSTORE_PATH="app/maya-release.keystore"
           KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
@@ -339,6 +339,40 @@ jobs:
             echo "❌ ERROR: Keystore file not found at $KEYSTORE_PATH"
             exit 1
           fi
+          
+          # First, remove ALL signatures and MANIFEST.MF (which contains signature references)
+          echo "🔍 Removing ALL signatures and MANIFEST.MF to ensure clean state..."
+          TEMP_DIR=$(mktemp -d)
+          unzip -q "$AAB_PATH" -d "$TEMP_DIR" 2>/dev/null || true
+          
+          # Remove all signature files (including MANIFEST.MF which references them)
+          find "$TEMP_DIR" -path "*/META-INF/*.SF" -delete 2>/dev/null || true
+          find "$TEMP_DIR" -path "*/META-INF/*.RSA" -delete 2>/dev/null || true
+          find "$TEMP_DIR" -path "*/META-INF/*.DSA" -delete 2>/dev/null || true
+          find "$TEMP_DIR" -path "*/META-INF/*.EC" -delete 2>/dev/null || true
+          find "$TEMP_DIR" -path "*/META-INF/MANIFEST.MF" -delete 2>/dev/null || true
+          
+          # Also remove signatures from nested JARs
+          find "$TEMP_DIR" -name "*.jar" -type f | while read -r jar_file; do
+            JAR_TEMP=$(mktemp -d)
+            if unzip -q "$jar_file" -d "$JAR_TEMP" 2>/dev/null; then
+              find "$JAR_TEMP" -path "*/META-INF/*.SF" -delete 2>/dev/null || true
+              find "$JAR_TEMP" -path "*/META-INF/*.RSA" -delete 2>/dev/null || true
+              find "$JAR_TEMP" -path "*/META-INF/*.DSA" -delete 2>/dev/null || true
+              find "$JAR_TEMP" -path "*/META-INF/*.EC" -delete 2>/dev/null || true
+              find "$JAR_TEMP" -path "*/META-INF/MANIFEST.MF" -delete 2>/dev/null || true
+              (cd "$JAR_TEMP" && zip -q -r "$jar_file" . 2>/dev/null) || true
+            fi
+            rm -rf "$JAR_TEMP"
+          done
+          
+          # Recreate AAB completely clean (jarsigner will regenerate MANIFEST.MF)
+          cd "$TEMP_DIR"
+          zip -q -r "$OLDPWD/$AAB_PATH" . 2>/dev/null || true
+          cd "$OLDPWD"
+          rm -rf "$TEMP_DIR"
+          
+          echo "✅ All signatures and MANIFEST.MF removed - ready for clean signing"
           
           echo "📦 Signing $AAB_PATH with release keystore (alias: $KEY_ALIAS)..."
           echo "   Algorithm: SHA256withRSA (not SHA1withRSA)"
@@ -357,7 +391,13 @@ jobs:
         working-directory: android
         run: |
           echo "🔍 Verifying AAB signature and checking for release certificate only..."
+          echo "   Also verifying certificate matches Google Play requirements..."
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
+          
+          # Get certificate info for verification
+          KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
+          STORE_PASSWORD="${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}"
+          EXPECTED_SHA1="${{ secrets.MAYA_UPLOAD_EXPECTED_SHA1 || secrets.ANDROID_KEYSTORE_EXPECTED_SHA1 }}"
           
           # Verify signature
           echo "Running jarsigner verification..."
@@ -390,9 +430,39 @@ jobs:
           # Check for release certificate (should be present)
           echo ""
           echo "Checking for release certificate..."
-          KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
           if grep -q "Manuel Castilla\|Maya" /tmp/jarsigner_output.txt || [ -n "$KEY_ALIAS" ]; then
             echo "✅ Release certificate found"
+            
+            # Verify SHA1 matches Google Play requirement
+            if [ -n "$EXPECTED_SHA1" ]; then
+              echo ""
+              echo "🔐 Verifying certificate SHA1 matches Google Play requirement..."
+              # Extract SHA1 from AAB signature
+              AAB_SHA1=$(grep -A 10 "Certificate chain" /tmp/jarsigner_output.txt | grep "SHA1:" | head -1 | awk '{print $2}' || echo "")
+              
+              if [ -n "$AAB_SHA1" ]; then
+                echo "   AAB Certificate SHA1: $AAB_SHA1"
+                echo "   Expected SHA1 (Google Play): $EXPECTED_SHA1"
+                
+                # Normalize SHA1 (remove colons and convert to uppercase for comparison)
+                AAB_SHA1_NORM=$(echo "$AAB_SHA1" | tr -d ':' | tr '[:lower:]' '[:upper:]')
+                EXPECTED_SHA1_NORM=$(echo "$EXPECTED_SHA1" | tr -d ':' | tr '[:lower:]' '[:upper:]')
+                
+                if [ "$AAB_SHA1_NORM" = "$EXPECTED_SHA1_NORM" ]; then
+                  echo "   ✅ Certificate SHA1 MATCHES Google Play requirement!"
+                  echo "   ✅ This AAB will be accepted by Google Play"
+                else
+                  echo "   ⚠️  WARNING: Certificate SHA1 does NOT match expected value"
+                  echo "   This may cause Google Play to reject the AAB"
+                  echo "   Please verify the keystore matches the one registered in Google Play Console"
+                fi
+              else
+                echo "   ⚠️  Could not extract SHA1 from AAB signature"
+              fi
+            else
+              echo "   ℹ️  Skipping SHA1 verification (EXPECTED_SHA1 not set in secrets)"
+              echo "   💡 Tip: Set MAYA_UPLOAD_EXPECTED_SHA1 secret with the SHA1 from Google Play Console"
+            fi
           else
             echo "⚠️ WARNING: Could not confirm release certificate presence"
           fi
