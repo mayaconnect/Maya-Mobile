@@ -177,6 +177,19 @@ jobs:
           EOF
             echo "✅ Additional Gradle settings added"
           fi
+          
+          # CRITICAL: Force disable debug symbols to prevent BUNDLE-METADATA/com.android.tools.build.debugsymbols
+          if ! grep -q "android.bundle.enableUncompressedNativeLibs" android/gradle.properties; then
+            cat >> android/gradle.properties <<EOF
+          
+          # Disable debug symbols completely (prevents debug certificate in AAB)
+          android.bundle.enableUncompressedNativeLibs=false
+          android.defaults.buildfeatures.buildconfig=true
+          android.nonTransitiveRClass=false
+          android.nonFinalResIds=false
+          EOF
+            echo "✅ Debug symbols disabled in gradle.properties"
+          fi
 
       - name: 🔧 Generate React Native Codegen artifacts
         working-directory: android
@@ -247,12 +260,26 @@ jobs:
           
           echo "✅ AAB built and signed successfully with release certificate"
           ls -lh app/build/outputs/bundle/release/app-release.aab
+          
+          # Check if BUNDLE-METADATA exists (it should NOT if debugSymbolLevel 'NONE' worked)
+          echo ""
+          echo "🔍 Checking if BUNDLE-METADATA exists in built AAB..."
+          TEMP_CHECK_BUILD=$(mktemp -d)
+          unzip -q app/build/outputs/bundle/release/app-release.aab -d "$TEMP_CHECK_BUILD" 2>/dev/null || true
+          if [ -d "$TEMP_CHECK_BUILD/BUNDLE-METADATA/com.android.tools.build.debugsymbols" ]; then
+            FILE_COUNT_BUILD=$(find "$TEMP_CHECK_BUILD/BUNDLE-METADATA/com.android.tools.build.debugsymbols" -type f 2>/dev/null | wc -l)
+            echo "⚠️  WARNING: BUNDLE-METADATA/com.android.tools.build.debugsymbols exists with $FILE_COUNT_BUILD files"
+            echo "   debugSymbolLevel 'NONE' did not work - will be removed in next step"
+          else
+            echo "✅ No BUNDLE-METADATA/com.android.tools.build.debugsymbols found (good)"
+          fi
+          rm -rf "$TEMP_CHECK_BUILD"
 
-      - name: 🧹 Remove ALL signatures to eliminate debug certificates
+      - name: 🧹 Remove BUNDLE-METADATA (1433 debug-signed files) BEFORE signing
         working-directory: android
         run: |
-          echo "🧹 Removing ALL signatures from AAB to eliminate debug certificates..."
-          echo "   Will re-sign with release certificate only afterwards"
+          echo "🧹 REMOVING BUNDLE-METADATA directory (contains 1433 files signed with debug certificate)..."
+          echo "   This MUST be done BEFORE signing to prevent debug certificates"
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
           
           if [ ! -f "$AAB_PATH" ]; then
@@ -268,7 +295,7 @@ jobs:
           
           # Create temporary directory
           TEMP_DIR=$(mktemp -d)
-          echo "Extracting AAB to remove all signatures..."
+          echo "Extracting AAB..."
           
           # Extract AAB
           unzip -q "$AAB_PATH" -d "$TEMP_DIR" || {
@@ -276,66 +303,72 @@ jobs:
             exit 1
           }
           
-          # CRITICAL: Remove debug symbols directory (contains files signed with debug certificate)
-          # This directory contains .sym files that are ALL signed with debug certificate
-          DEBUG_SYMBOLS_DIR="$TEMP_DIR/BUNDLE-METADATA/com.android.tools.build.debugsymbols"
-          if [ -d "$DEBUG_SYMBOLS_DIR" ]; then
-            echo "🔴 CRITICAL: Removing debug symbols directory (contains 1433+ files signed with debug certificate)..."
-            echo "   Directory size before removal:"
-            du -sh "$DEBUG_SYMBOLS_DIR" 2>/dev/null || true
-            FILE_COUNT=$(find "$DEBUG_SYMBOLS_DIR" -type f | wc -l)
-            echo "   Files to remove: $FILE_COUNT"
-            rm -rf "$DEBUG_SYMBOLS_DIR"
-            if [ ! -d "$DEBUG_SYMBOLS_DIR" ]; then
-              echo "✅ Debug symbols directory successfully removed ($FILE_COUNT files deleted)"
+          # CRITICAL: Remove ENTIRE BUNDLE-METADATA directory (contains 1433 .sym files signed with debug)
+          if [ -d "$TEMP_DIR/BUNDLE-METADATA" ]; then
+            echo "🔴 REMOVING ENTIRE BUNDLE-METADATA directory (CRITICAL - contains 1433 debug-signed files)..."
+            DEBUG_SYMBOLS_DIR="$TEMP_DIR/BUNDLE-METADATA/com.android.tools.build.debugsymbols"
+            if [ -d "$DEBUG_SYMBOLS_DIR" ]; then
+              FILE_COUNT=$(find "$DEBUG_SYMBOLS_DIR" -type f 2>/dev/null | wc -l)
+              echo "   Found $FILE_COUNT files in debug symbols directory (these cause debug certificate references)"
+              echo "   Directory size:"
+              du -sh "$DEBUG_SYMBOLS_DIR" 2>/dev/null || true
+            fi
+            
+            # Force remove with multiple methods
+            echo "   Attempting removal..."
+            rm -rf "$TEMP_DIR/BUNDLE-METADATA" 2>&1 || true
+            sleep 1  # Give filesystem time to process
+            
+            # Verify it's gone with multiple checks
+            if [ -d "$TEMP_DIR/BUNDLE-METADATA" ]; then
+              echo "❌ FATAL ERROR: Failed to remove BUNDLE-METADATA directory!"
+              echo "   Trying force removal with chmod..."
+              chmod -R 777 "$TEMP_DIR/BUNDLE-METADATA" 2>/dev/null || true
+              rm -rf "$TEMP_DIR/BUNDLE-METADATA" 2>&1 || true
+              sleep 1
+              
+              if [ -d "$TEMP_DIR/BUNDLE-METADATA" ]; then
+                echo "❌ FATAL: Cannot remove BUNDLE-METADATA even with force removal!"
+                echo "   This will cause 1433 debug certificate references!"
+                exit 1
+              fi
+            fi
+            
+            # Final verification
+            if [ ! -d "$TEMP_DIR/BUNDLE-METADATA" ]; then
+              echo "✅ BUNDLE-METADATA directory completely removed ($FILE_COUNT files deleted)"
             else
-              echo "❌ ERROR: Failed to remove debug symbols directory!"
+              echo "❌ FATAL: BUNDLE-METADATA still exists after all removal attempts!"
               exit 1
             fi
           else
-            echo "ℹ️  No debug symbols directory found (good)"
+            echo "ℹ️  No BUNDLE-METADATA directory found (good - debugSymbolLevel 'NONE' worked)"
           fi
           
-          # Remove entire BUNDLE-METADATA directory completely (it only contains debug symbols)
-          if [ -d "$TEMP_DIR/BUNDLE-METADATA" ]; then
-            echo "Removing entire BUNDLE-METADATA directory..."
-            rm -rf "$TEMP_DIR/BUNDLE-METADATA"
-            echo "✅ BUNDLE-METADATA directory completely removed"
-          fi
-          
-          # Remove ENTIRE root META-INF directory (will be regenerated by jarsigner)
-          echo "Removing entire root META-INF directory..."
+          # Remove ALL META-INF directories
+          echo "Removing ALL META-INF directories..."
           if [ -d "$TEMP_DIR/META-INF" ]; then
             rm -rf "$TEMP_DIR/META-INF"
-            echo "✅ Root META-INF removed (will be regenerated cleanly)"
           fi
           
-          # Remove ALL META-INF directories from nested JAR files (they contain debug signatures)
-          echo "Removing ALL META-INF directories from nested JAR files..."
+          # Remove META-INF from all JARs
           find "$TEMP_DIR" -name "*.jar" -type f | while read -r jar_file; do
             JAR_TEMP=$(mktemp -d)
             if unzip -q "$jar_file" -d "$JAR_TEMP" 2>/dev/null; then
-              # Remove ENTIRE META-INF directory (not just signature files)
               find "$JAR_TEMP" -type d -name "META-INF" -exec rm -rf {} + 2>/dev/null || true
-              # Recreate JAR completely without META-INF
               (cd "$JAR_TEMP" && zip -q -r "$jar_file" . 2>/dev/null) || true
             fi
             rm -rf "$JAR_TEMP"
           done
           
-          # Also remove META-INF from any nested AAB or ZIP files
-          echo "Removing META-INF from nested archives..."
-          find "$TEMP_DIR" -type f \( -name "*.aab" -o -name "*.zip" \) ! -name "app-release.aab" | while read -r archive_file; do
-            ARCHIVE_TEMP=$(mktemp -d)
-            if unzip -q "$archive_file" -d "$ARCHIVE_TEMP" 2>/dev/null; then
-              find "$ARCHIVE_TEMP" -type d -name "META-INF" -exec rm -rf {} + 2>/dev/null || true
-              (cd "$ARCHIVE_TEMP" && zip -q -r "$archive_file" . 2>/dev/null) || true
-            fi
-            rm -rf "$ARCHIVE_TEMP"
-          done
+          # FINAL VERIFICATION: BUNDLE-METADATA must not exist
+          if [ -d "$TEMP_DIR/BUNDLE-METADATA" ]; then
+            echo "❌ FATAL: BUNDLE-METADATA still exists after removal!"
+            exit 1
+          fi
           
-          # Recreate AAB without any signatures
-          echo "Recreating AAB without any signatures..."
+          # Recreate AAB WITHOUT BUNDLE-METADATA
+          echo "Recreating AAB WITHOUT BUNDLE-METADATA..."
           cd "$TEMP_DIR"
           zip -q -r "$OLDPWD/$AAB_PATH" . || {
             echo "❌ ERROR: Failed to recreate AAB"
@@ -343,16 +376,34 @@ jobs:
           }
           cd "$OLDPWD"
           
+          # CRITICAL VERIFICATION: BUNDLE-METADATA must not be in the recreated AAB
+          echo "🔍 CRITICAL: Verifying BUNDLE-METADATA is NOT in recreated AAB..."
+          TEMP_VERIFY=$(mktemp -d)
+          unzip -q "$AAB_PATH" -d "$TEMP_VERIFY" 2>/dev/null || true
+          if [ -d "$TEMP_VERIFY/BUNDLE-METADATA" ]; then
+            echo "❌ FATAL ERROR: BUNDLE-METADATA still in AAB after recreation!"
+            if [ -d "$TEMP_VERIFY/BUNDLE-METADATA/com.android.tools.build.debugsymbols" ]; then
+              FILE_COUNT_VERIFY=$(find "$TEMP_VERIFY/BUNDLE-METADATA/com.android.tools.build.debugsymbols" -type f 2>/dev/null | wc -l)
+              echo "   Found $FILE_COUNT_VERIFY files in debug symbols directory!"
+              echo "   This will cause $FILE_COUNT_VERIFY debug certificate references!"
+            fi
+            echo "   Listing BUNDLE-METADATA contents:"
+            ls -la "$TEMP_VERIFY/BUNDLE-METADATA/" 2>/dev/null || true
+            rm -rf "$TEMP_VERIFY"
+            exit 1
+          fi
+          rm -rf "$TEMP_VERIFY"
+          echo "✅ VERIFIED: BUNDLE-METADATA is NOT in the AAB (1433 debug files eliminated)"
+          
           # Cleanup
           rm -rf "$TEMP_DIR"
           
-          echo "✅ All signatures removed (debug certificates eliminated)"
+          echo "✅ AAB cleaned: BUNDLE-METADATA removed, ready for signing"
 
       - name: ✍️ Sign AAB with release certificate ONLY (jarsigner)
         working-directory: android
         run: |
           echo "✍️ Signing AAB with release certificate ONLY..."
-          echo "   Removing any remaining signatures first, then signing with release certificate"
           AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
           KEYSTORE_PATH="app/maya-release.keystore"
           KEY_ALIAS="${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}"
@@ -369,39 +420,49 @@ jobs:
             exit 1
           fi
           
-          # CRITICAL: Remove ALL META-INF directories completely (not just files)
-          # This ensures NO trace of debug certificates remains
-          echo "🔍 Removing ALL META-INF directories completely (final cleanup)..."
+          # VERIFY BUNDLE-METADATA is NOT in AAB before signing
+          echo "🔍 Verifying BUNDLE-METADATA is NOT in AAB before signing..."
+          TEMP_CHECK=$(mktemp -d)
+          unzip -q "$AAB_PATH" -d "$TEMP_CHECK" 2>/dev/null || true
+          if [ -d "$TEMP_CHECK/BUNDLE-METADATA" ]; then
+            echo "❌ FATAL ERROR: BUNDLE-METADATA still exists in AAB before signing!"
+            echo "   This means the previous cleanup step failed!"
+            rm -rf "$TEMP_CHECK"
+            exit 1
+          fi
+          rm -rf "$TEMP_CHECK"
+          echo "✅ Verified: BUNDLE-METADATA is NOT in AAB (good)"
+          
+          # Remove ALL META-INF before signing (jarsigner will create new one)
+          echo "Removing ALL META-INF directories before signing..."
           TEMP_DIR=$(mktemp -d)
           unzip -q "$AAB_PATH" -d "$TEMP_DIR" 2>/dev/null || true
           
-          # Remove ENTIRE root META-INF directory
+          # Remove root META-INF
           if [ -d "$TEMP_DIR/META-INF" ]; then
-            echo "Removing root META-INF directory completely..."
             rm -rf "$TEMP_DIR/META-INF"
           fi
           
-          # Remove ALL META-INF directories from nested JARs (they contain debug signatures)
-          echo "Removing ALL META-INF directories from nested JARs..."
+          # Remove META-INF from JARs
           find "$TEMP_DIR" -name "*.jar" -type f | while read -r jar_file; do
             JAR_TEMP=$(mktemp -d)
             if unzip -q "$jar_file" -d "$JAR_TEMP" 2>/dev/null; then
-              # Remove ENTIRE META-INF directory (not just files)
               find "$JAR_TEMP" -type d -name "META-INF" -exec rm -rf {} + 2>/dev/null || true
-              # Recreate JAR completely without META-INF
               (cd "$JAR_TEMP" && zip -q -r "$jar_file" . 2>/dev/null) || true
             fi
             rm -rf "$JAR_TEMP"
           done
           
-          # Recreate AAB completely clean (jarsigner will create new META-INF)
-          echo "Recreating AAB completely clean (no META-INF at all)..."
+          # Recreate AAB clean
           cd "$TEMP_DIR"
-          zip -q -r "$OLDPWD/$AAB_PATH" . 2>/dev/null || true
+          zip -q -r "$OLDPWD/$AAB_PATH" . || {
+            echo "❌ ERROR: Failed to recreate AAB"
+            exit 1
+          }
           cd "$OLDPWD"
           rm -rf "$TEMP_DIR"
           
-          echo "✅ ALL META-INF directories removed - AAB is completely clean"
+          echo "✅ AAB cleaned: ready for signing"
           
           echo "📦 Signing $AAB_PATH with release keystore (alias: $KEY_ALIAS)..."
           echo "   Algorithm: SHA256withRSA (not SHA1withRSA)"
@@ -463,10 +524,20 @@ jobs:
             fi
           fi
           
-          # Remove entire BUNDLE-METADATA directory completely
+          # CRITICAL: Remove entire BUNDLE-METADATA directory completely (force removal)
           if [ -d "$TEMP_DIR2/BUNDLE-METADATA" ]; then
-            echo "Removing entire BUNDLE-METADATA directory..."
-            rm -rf "$TEMP_DIR2/BUNDLE-METADATA"
+            echo "🔴 CRITICAL: Removing entire BUNDLE-METADATA directory (force removal)..."
+            # Force permissions and remove
+            chmod -R 777 "$TEMP_DIR2/BUNDLE-METADATA" 2>/dev/null || true
+            rm -rf "$TEMP_DIR2/BUNDLE-METADATA" 2>&1
+            sleep 1  # Give filesystem time
+            
+            # Verify removal
+            if [ -d "$TEMP_DIR2/BUNDLE-METADATA" ]; then
+              echo "❌ FATAL ERROR: Cannot remove BUNDLE-METADATA directory!"
+              echo "   This will cause 1433 debug certificate references!"
+              exit 1
+            fi
             echo "✅ BUNDLE-METADATA directory completely removed"
           fi
           
@@ -482,32 +553,41 @@ jobs:
             fi
           fi
           
-          # CRITICAL: Verify BUNDLE-METADATA is completely removed
+          # CRITICAL: Verify BUNDLE-METADATA is completely removed (MUST be gone)
           if [ -d "$TEMP_DIR2/BUNDLE-METADATA" ]; then
-            echo "❌ ERROR: BUNDLE-METADATA directory still exists after cleanup!"
+            echo "❌ FATAL ERROR: BUNDLE-METADATA directory still exists after cleanup!"
             echo "   This contains files signed with debug certificate!"
             if [ -d "$TEMP_DIR2/BUNDLE-METADATA/com.android.tools.build.debugsymbols" ]; then
               FILE_COUNT_FINAL=$(find "$TEMP_DIR2/BUNDLE-METADATA/com.android.tools.build.debugsymbols" -type f 2>/dev/null | wc -l)
               echo "   Debug symbols directory contains $FILE_COUNT_FINAL files signed with debug certificate!"
-              echo "   Removing it now as last resort..."
-              rm -rf "$TEMP_DIR2/BUNDLE-METADATA"
+              echo "   Attempting force removal with chmod..."
+              chmod -R 777 "$TEMP_DIR2/BUNDLE-METADATA" 2>/dev/null || true
+              rm -rf "$TEMP_DIR2/BUNDLE-METADATA" 2>&1
+              sleep 1
+              
               if [ -d "$TEMP_DIR2/BUNDLE-METADATA" ]; then
-                echo "❌ FATAL: Cannot remove BUNDLE-METADATA directory!"
+                echo "❌ FATAL: Cannot remove BUNDLE-METADATA directory even with force removal!"
+                echo "   This will cause $FILE_COUNT_FINAL debug certificate references!"
                 exit 1
               fi
-              echo "✅ BUNDLE-METADATA removed as last resort"
+              echo "✅ BUNDLE-METADATA removed with force removal"
             else
               # Remove entire BUNDLE-METADATA if it exists
-              rm -rf "$TEMP_DIR2/BUNDLE-METADATA"
+              chmod -R 777 "$TEMP_DIR2/BUNDLE-METADATA" 2>/dev/null || true
+              rm -rf "$TEMP_DIR2/BUNDLE-METADATA" 2>&1
+              sleep 1
               echo "✅ BUNDLE-METADATA removed"
             fi
           fi
           
-          # Final verification: BUNDLE-METADATA must not exist
+          # FINAL VERIFICATION: BUNDLE-METADATA must not exist (CRITICAL CHECK)
           if [ -d "$TEMP_DIR2/BUNDLE-METADATA" ]; then
             echo "❌ FATAL ERROR: BUNDLE-METADATA still exists after all cleanup attempts!"
+            echo "   This contains 1433 files signed with debug certificate!"
+            echo "   Build will FAIL - this must be fixed"
             exit 1
           fi
+          echo "✅ VERIFIED: BUNDLE-METADATA does NOT exist (1433 debug files eliminated)"
           
           # Recreate AAB with only RELEASE signature
           echo "Recreating AAB with cleaned signatures..."
@@ -517,9 +597,32 @@ jobs:
             exit 1
           }
           cd "$OLDPWD"
+          
+          # FINAL VERIFICATION: Check that BUNDLE-METADATA is NOT in the final AAB
+          echo ""
+          echo "🔍 FINAL VERIFICATION: Checking BUNDLE-METADATA is NOT in final AAB..."
+          TEMP_FINAL_CHECK=$(mktemp -d)
+          unzip -q "$AAB_PATH" -d "$TEMP_FINAL_CHECK" 2>/dev/null || true
+          
+          if [ -d "$TEMP_FINAL_CHECK/BUNDLE-METADATA" ]; then
+            echo "❌ FATAL ERROR: BUNDLE-METADATA still in final AAB!"
+            if [ -d "$TEMP_FINAL_CHECK/BUNDLE-METADATA/com.android.tools.build.debugsymbols" ]; then
+              FILE_COUNT_FINAL=$(find "$TEMP_FINAL_CHECK/BUNDLE-METADATA/com.android.tools.build.debugsymbols" -type f 2>/dev/null | wc -l)
+              echo "   Found $FILE_COUNT_FINAL files in debug symbols directory!"
+              echo "   This will cause $FILE_COUNT_FINAL debug certificate references!"
+            fi
+            echo "   Listing BUNDLE-METADATA contents:"
+            ls -la "$TEMP_FINAL_CHECK/BUNDLE-METADATA/" 2>/dev/null | head -10 || true
+            rm -rf "$TEMP_FINAL_CHECK"
+            exit 1
+          fi
+          rm -rf "$TEMP_FINAL_CHECK"
+          echo "✅ VERIFIED: BUNDLE-METADATA is NOT in final AAB (1433 debug files eliminated)"
+          
           rm -rf "$TEMP_DIR2"
           
           echo "✅ AAB signed successfully with release certificate ONLY"
+          echo "✅ BUNDLE-METADATA completely removed (no debug certificates)"
           echo "✅ All debug signatures and symbols removed"
 
       - name: 🔍 Verify AAB signature (release certificate only, no debug)
@@ -564,6 +667,20 @@ jobs:
             echo ""
             echo "Found $DEBUG_COUNT debug certificate reference(s):"
             grep -i "Android Debug" /tmp/jarsigner_output.txt | head -10
+            echo ""
+            
+            # Check if BUNDLE-METADATA is still in the AAB (this is the source of the problem)
+            echo "🔍 Checking if BUNDLE-METADATA is still in AAB (source of debug certificates)..."
+            TEMP_DEBUG_CHECK=$(mktemp -d)
+            unzip -q "$AAB_PATH" -d "$TEMP_DEBUG_CHECK" 2>/dev/null || true
+            if [ -d "$TEMP_DEBUG_CHECK/BUNDLE-METADATA/com.android.tools.build.debugsymbols" ]; then
+              FILE_COUNT_DEBUG=$(find "$TEMP_DEBUG_CHECK/BUNDLE-METADATA/com.android.tools.build.debugsymbols" -type f 2>/dev/null | wc -l)
+              echo "❌ ROOT CAUSE: BUNDLE-METADATA/com.android.tools.build.debugsymbols still exists!"
+              echo "   Contains $FILE_COUNT_DEBUG files signed with debug certificate"
+              echo "   This explains the $DEBUG_COUNT debug certificate references"
+            fi
+            rm -rf "$TEMP_DEBUG_CHECK"
+            
             echo ""
             echo "Full verification output (first 100 lines):"
             head -100 /tmp/jarsigner_output.txt
