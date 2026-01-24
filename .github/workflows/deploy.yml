@@ -178,11 +178,12 @@ jobs:
           
           # Append signing properties to gradle.properties
           # Support both old and new secret names for backward compatibility
-          # Note: MAYA_UPLOAD_STORE_FILE is relative to android/app/ directory
+          # Note: MAYA_UPLOAD_STORE_FILE is relative to android/app/ directory (where build.gradle is)
           # The keystore is created at android/app/maya-release.keystore
+          # Since build.gradle is in android/app/, the path should be just "maya-release.keystore"
           cat >> android/gradle.properties <<EOF
           # Android signing configuration (injected at CI runtime)
-          MAYA_UPLOAD_STORE_FILE=app/maya-release.keystore
+          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
           MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
           MAYA_UPLOAD_KEY_ALIAS=${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
           MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.MAYA_UPLOAD_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
