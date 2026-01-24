@@ -88,15 +88,45 @@ jobs:
           mkdir -p android/app
           # Decode base64 keystore and save to android/app/
           # Support both old secret name (ANDROID_KEYSTORE_BASE64) and new (MAYA_UPLOAD_KEYSTORE_BASE64)
-          if [ -n "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-release.keystore
+          KEYSTORE_BASE64=""
+          KEYSTORE_SECRET=""
+          
+          # Check for MAYA_UPLOAD_KEYSTORE_BASE64 first (preferred)
+          if [ -n "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" ] && [ "${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}" != "" ]; then
+            KEYSTORE_BASE64="${{ secrets.MAYA_UPLOAD_KEYSTORE_BASE64 }}"
             KEYSTORE_SECRET="MAYA_UPLOAD_KEYSTORE_BASE64"
-          elif [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/maya-release.keystore
+            echo "✅ Found MAYA_UPLOAD_KEYSTORE_BASE64 secret"
+          # Fallback to ANDROID_KEYSTORE_BASE64
+          elif [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && [ "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" != "" ]; then
+            KEYSTORE_BASE64="${{ secrets.ANDROID_KEYSTORE_BASE64 }}"
             KEYSTORE_SECRET="ANDROID_KEYSTORE_BASE64"
+            echo "✅ Found ANDROID_KEYSTORE_BASE64 secret (fallback)"
           else
             echo "❌ ERROR: No keystore secret found!"
-            echo "Please set either MAYA_UPLOAD_KEYSTORE_BASE64 or ANDROID_KEYSTORE_BASE64 in GitHub Secrets"
+            echo ""
+            echo "Please set one of the following secrets in GitHub:"
+            echo "  - MAYA_UPLOAD_KEYSTORE_BASE64 (preferred)"
+            echo "  - ANDROID_KEYSTORE_BASE64 (fallback)"
+            echo ""
+            echo "To create the secret:"
+            echo "  1. Encode your keystore file to Base64:"
+            echo "     base64 -i your-keystore.jks | pbcopy  # macOS"
+            echo "     base64 your-keystore.jks | clip      # Windows"
+            echo "     base64 your-keystore.jks              # Linux"
+            echo "  2. Go to GitHub Settings > Secrets and variables > Actions"
+            echo "  3. Add a new secret named MAYA_UPLOAD_KEYSTORE_BASE64"
+            echo "  4. Paste the Base64-encoded keystore content"
+            exit 1
+          fi
+          
+          # Decode and save keystore
+          echo "Decoding keystore from $KEYSTORE_SECRET..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/maya-release.keystore
+          
+          # Verify the decoded file is valid
+          if [ ! -s android/app/maya-release.keystore ]; then
+            echo "❌ ERROR: Decoded keystore file is empty or invalid!"
+            echo "Please check that the secret contains valid Base64-encoded keystore data"
             exit 1
           fi
           
@@ -148,9 +178,11 @@ jobs:
           
           # Append signing properties to gradle.properties
           # Support both old and new secret names for backward compatibility
+          # Note: MAYA_UPLOAD_STORE_FILE is relative to android/app/ directory
+          # The keystore is created at android/app/maya-release.keystore
           cat >> android/gradle.properties <<EOF
           # Android signing configuration (injected at CI runtime)
-          MAYA_UPLOAD_STORE_FILE=maya-release.keystore
+          MAYA_UPLOAD_STORE_FILE=app/maya-release.keystore
           MAYA_UPLOAD_STORE_PASSWORD=${{ secrets.MAYA_UPLOAD_STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
           MAYA_UPLOAD_KEY_ALIAS=${{ secrets.MAYA_UPLOAD_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
           MAYA_UPLOAD_KEY_PASSWORD=${{ secrets.MAYA_UPLOAD_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
@@ -178,18 +210,10 @@ jobs:
             echo "✅ Additional Gradle settings added"
           fi
           
-          # CRITICAL: Force disable debug symbols to prevent BUNDLE-METADATA/com.android.tools.build.debugsymbols
-          if ! grep -q "android.bundle.enableUncompressedNativeLibs" android/gradle.properties; then
-            cat >> android/gradle.properties <<EOF
-          
-          # Disable debug symbols completely (prevents debug certificate in AAB)
-          android.bundle.enableUncompressedNativeLibs=false
-          android.defaults.buildfeatures.buildconfig=true
-          android.nonTransitiveRClass=false
-          android.nonFinalResIds=false
-          EOF
-            echo "✅ Debug symbols disabled in gradle.properties"
-          fi
+          # Note: Removed deprecated options:
+          # - android.bundle.enableUncompressedNativeLibs (deprecated in AGP 8.x+)
+          # - android.defaults.buildfeatures.buildconfig (deprecated in AGP 8.x+)
+          # Debug symbols are already disabled via ndk { debugSymbolLevel 'NONE' } in build.gradle
 
       - name: 🔧 Generate React Native Codegen artifacts
         working-directory: android
@@ -293,6 +317,23 @@ jobs:
             sudo apt-get update && sudo apt-get install -y zip unzip
           fi
           
+          # METHOD 1: Try to delete BUNDLE-METADATA directly from AAB using zip -d (faster)
+          echo "Attempting to delete BUNDLE-METADATA directly from AAB using zip -d..."
+          zip -d "$AAB_PATH" "BUNDLE-METADATA/*" 2>&1 || true
+          zip -d "$AAB_PATH" "*/BUNDLE-METADATA/*" 2>&1 || true
+          
+          # Verify it's gone
+          TEMP_CHECK_DIRECT=$(mktemp -d)
+          unzip -q "$AAB_PATH" -d "$TEMP_CHECK_DIRECT" 2>/dev/null || true
+          if [ ! -d "$TEMP_CHECK_DIRECT/BUNDLE-METADATA" ]; then
+            echo "✅ BUNDLE-METADATA successfully removed using zip -d"
+            rm -rf "$TEMP_CHECK_DIRECT"
+            exit 0  # Success, no need to continue
+          fi
+          rm -rf "$TEMP_CHECK_DIRECT"
+          echo "⚠️  zip -d did not work, trying extraction method..."
+          
+          # METHOD 2: Extract, remove, recreate (fallback)
           # Create temporary directory
           TEMP_DIR=$(mktemp -d)
           echo "Extracting AAB..."
@@ -367,10 +408,13 @@ jobs:
             exit 1
           fi
           
-          # Recreate AAB WITHOUT BUNDLE-METADATA
-          echo "Recreating AAB WITHOUT BUNDLE-METADATA..."
+          # Recreate AAB WITHOUT BUNDLE-METADATA (use -x to explicitly exclude it)
+          echo "Recreating AAB WITHOUT BUNDLE-METADATA (using explicit exclusion)..."
           cd "$TEMP_DIR"
-          zip -q -r "$OLDPWD/$AAB_PATH" . || {
+          # Use -x to explicitly exclude BUNDLE-METADATA even if it somehow still exists
+          # Also exclude any .sym files that might be elsewhere
+          rm -f "$OLDPWD/$AAB_PATH" || true  # Delete old AAB first
+          zip -q -r "$OLDPWD/$AAB_PATH" . -x "BUNDLE-METADATA/*" "*/BUNDLE-METADATA/*" "*.sym" "*/debugsymbols/*" || {
             echo "❌ ERROR: Failed to recreate AAB"
             exit 1
           }
@@ -545,13 +589,26 @@ jobs:
           echo ""
           echo "🔍 Verifying cleanup before recreating AAB..."
           if [ -d "$TEMP_DIR2/META-INF" ]; then
+            # Force remove ANDROIDD files one more time (they might have been recreated)
+            echo "Removing ANDROIDD files one final time..."
+            find "$TEMP_DIR2/META-INF" -type f -name "ANDROIDD*" -delete 2>/dev/null || true
+            rm -f "$TEMP_DIR2/META-INF/ANDROIDD.SF" "$TEMP_DIR2/META-INF/ANDROIDD.RSA" "$TEMP_DIR2/META-INF/ANDROIDD.DSA" "$TEMP_DIR2/META-INF/ANDROIDD.EC" 2>/dev/null || true
+            
             ANDROIDD_FILES=$(find "$TEMP_DIR2/META-INF" -name "ANDROIDD*" 2>/dev/null | wc -l)
             if [ "$ANDROIDD_FILES" -gt 0 ]; then
               echo "❌ ERROR: ANDROIDD files still exist after cleanup!"
               find "$TEMP_DIR2/META-INF" -name "ANDROIDD*" 2>/dev/null
               exit 1
             fi
+            echo "✅ Verified: No ANDROIDD files in META-INF"
           fi
+          
+          # Also verify BUNDLE-METADATA is completely gone
+          if [ -d "$TEMP_DIR2/BUNDLE-METADATA" ]; then
+            echo "❌ FATAL: BUNDLE-METADATA still exists right before recreating AAB!"
+            exit 1
+          fi
+          echo "✅ Verified: BUNDLE-METADATA is completely gone"
           
           # CRITICAL: Verify BUNDLE-METADATA is completely removed (MUST be gone)
           if [ -d "$TEMP_DIR2/BUNDLE-METADATA" ]; then
@@ -589,10 +646,14 @@ jobs:
           fi
           echo "✅ VERIFIED: BUNDLE-METADATA does NOT exist (1433 debug files eliminated)"
           
-          # Recreate AAB with only RELEASE signature
-          echo "Recreating AAB with cleaned signatures..."
+          # Recreate AAB with only RELEASE signature (explicitly exclude BUNDLE-METADATA)
+          echo "Recreating AAB with cleaned signatures (explicitly excluding BUNDLE-METADATA)..."
           cd "$TEMP_DIR2"
-          zip -q -r "$OLDPWD/$AAB_PATH" . || {
+          # Delete old AAB first, then recreate with explicit exclusion
+          rm -f "$OLDPWD/$AAB_PATH" || true
+          # Use -x to explicitly exclude BUNDLE-METADATA even if it somehow still exists
+          # Also exclude any .sym files that might be elsewhere
+          zip -q -r "$OLDPWD/$AAB_PATH" . -x "BUNDLE-METADATA/*" "*/BUNDLE-METADATA/*" "*.sym" "*/debugsymbols/*" || {
             echo "❌ ERROR: Failed to recreate AAB"
             exit 1
           }
