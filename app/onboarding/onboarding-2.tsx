@@ -8,19 +8,25 @@ import { Colors } from '@/constants/design-system';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 export default function Onboarding2Screen() {
   const handleSkip = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/connexion/login');
   };
 
   const handleNext = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/onboarding/onboarding-3');
   };
 
   return (
     <NavigationTransition direction="right">
-      <OnboardingScreen onSkip={handleSkip} onBack={() => router.back()} showBack={true}>
+      <OnboardingScreen onSkip={handleSkip} onBack={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.back();
+      }} showBack={true}>
         <OnboardingContentCard
           icon={
             <FeatureIcon
@@ -33,6 +39,7 @@ export default function Onboarding2Screen() {
           title="Sécurisé et simple"
           description="Votre QR code unique vous garantit des paiements sécurisés et rapides"
           gradientColors={Colors.gradients.primary as any}
+          delay={100}
         />
         
         <View style={styles.paginationContainer}>

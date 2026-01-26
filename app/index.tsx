@@ -9,6 +9,14 @@ import { useAuth } from '@/hooks/use-auth';
 import { Redirect, router, usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, ScrollView, Dimensions, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  interpolate,
+  Extrapolate,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 
@@ -67,18 +75,27 @@ export default function Index() {
     router.push('/connexion/login');
   };
 
+  const scrollX = useSharedValue(0);
+
   const handleNext = () => {
     if (currentPage < onboardingData.length - 1) {
-      scrollViewRef.current?.scrollTo({ x: width * (currentPage + 1), animated: true });
+      const nextPage = currentPage + 1;
+      scrollViewRef.current?.scrollTo({ x: width * nextPage, animated: true });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.push('/connexion/login');
     }
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
+    scrollX.value = offsetX;
     const page = Math.round(offsetX / width);
-    setCurrentPage(page);
+    if (page !== currentPage) {
+      setCurrentPage(page);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   return (
@@ -92,16 +109,17 @@ export default function Index() {
           onScroll={handleScroll}
           scrollEventThrottle={16}
           style={styles.scrollView}
+          decelerationRate="fast"
+          snapToInterval={width}
+          snapToAlignment="center"
         >
           {onboardingData.map((item, index) => (
-            <View key={index} style={styles.slideContainer}>
-              <OnboardingContentCard
-                icon={item.icon}
-                title={item.title}
-                description={item.description}
-                gradientColors={Colors.gradients.primary as any}
-              />
-            </View>
+            <OnboardingSlide
+              key={index}
+              index={index}
+              item={item}
+              scrollX={scrollX}
+            />
           ))}
         </ScrollView>
 
@@ -116,6 +134,49 @@ export default function Index() {
         </View>
       </OnboardingScreen>
     </NavigationTransition>
+  );
+}
+
+interface OnboardingSlideProps {
+  index: number;
+  item: typeof onboardingData[0];
+  scrollX: Animated.SharedValue<number>;
+}
+
+function OnboardingSlide({ index, item, scrollX }: OnboardingSlideProps) {
+  const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
+  
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.9, 1, 0.9],
+      Extrapolate.CLAMP
+    );
+    
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.5, 1, 0.5],
+      Extrapolate.CLAMP
+    );
+
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.slideContainer, animatedStyle]}>
+      <OnboardingContentCard
+        icon={item.icon}
+        title={item.title}
+        description={item.description}
+        gradientColors={Colors.gradients.primary as any}
+        delay={index * 100}
+      />
+    </Animated.View>
   );
 }
 
@@ -134,6 +195,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
+    zIndex: 10,
   },
   nextButton: {
     marginTop: 24,

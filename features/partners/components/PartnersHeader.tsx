@@ -1,7 +1,7 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { PartnerViewMode } from '../types';
 
 interface PartnersHeaderProps {
@@ -25,7 +25,7 @@ export const PartnersHeader: React.FC<PartnersHeaderProps> = ({
             <Ionicons name="business" size={28} color="#F6C756" style={styles.titleIcon} />
             <Text style={styles.title}>Explorer</Text>
           </View>
-          <Text style={styles.subtitle}>Trouvez vos partenaires Maya</Text>
+          <Text style={styles.subtitle}>Trouvez vos partenaires MayaConnect</Text>
         </View>
         <View style={styles.headerActions}>
           <View style={styles.viewSelectorContainer}>

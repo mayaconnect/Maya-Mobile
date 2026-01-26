@@ -1,25 +1,25 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { StoresApi } from '@/features/stores-map/services/storesApi';
+import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { responsiveSpacing } from '@/utils/responsive';
 import { PartnersGridView } from '../components/PartnersGridView';
 import { PartnersHeader } from '../components/PartnersHeader';
 import { PartnersListView } from '../components/PartnersListView';
@@ -322,10 +322,10 @@ export default function PartnersScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
 
-  // Générer le HTML pour la carte avec OpenStreetMap (Leaflet) - gratuit, pas besoin de clé API
+  // Générer le HTML pour la carte avec fond noir personnalisé (CartoDB Dark Matter)
   const generateMapHTML = useCallback((userLoc: { latitude: number; longitude: number } | null, stores: PartnerUI[]) => {
     if (!userLoc) {
-      return '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;"><p style="color:#666;">Chargement de la position...</p></body></html>';
+      return '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;background:#1A0A0E;"><p style="color:#cccccc;">Chargement de la position...</p></body></html>';
     }
 
     const storesMarkers = stores
@@ -334,21 +334,35 @@ export default function PartnersScreen() {
         if (!storeWithCoords.latitude || !storeWithCoords.longitude) return null;
         
         const color = store.isOpen ? '#10B981' : '#EF4444';
-        const escapedName = store.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ');
-        const escapedAddress = (store.address || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ');
+        const escapedName = store.name.replace(/"/g, '&quot;').replace(/'/g, "\\'").replace(/\n/g, ' ');
+        const escapedAddress = (store.address || '').replace(/"/g, '&quot;').replace(/'/g, "\\'").replace(/\n/g, ' ');
         return `
-          {
-            lat: ${storeWithCoords.latitude},
-            lng: ${storeWithCoords.longitude},
-            title: "${escapedName}",
-            description: "${escapedAddress}",
-            color: "${color}",
-            storeId: "${store.id}"
-          }
+          L.marker([${storeWithCoords.latitude}, ${storeWithCoords.longitude}], {
+            icon: L.divIcon({
+              className: 'store-marker',
+              html: '<div style="background-color: ${color}; width: 32px; height: 32px; border-radius: 50%; border: 3px solid #1A0A0E; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%;"></div></div>',
+              iconSize: [32, 32],
+              iconAnchor: [16, 16]
+            })
+          })
+            .addTo(map)
+            .bindPopup(
+              '<div style="background: #1A0A0E; color: white; padding: 12px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-width: 200px;">' +
+              '<b style="color: ${color}; font-size: 16px; display: block; margin-bottom: 6px;">${escapedName}</b>' +
+              '<span style="color: #cccccc; font-size: 14px;">${escapedAddress}</span>' +
+              '</div>',
+              { className: 'custom-popup' }
+            )
+            .on('click', function() {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'storeClick',
+                storeId: '${store.id}'
+              }));
+            });
         `;
       })
       .filter(Boolean)
-      .join(',');
+      .join('\n');
 
     return `
       <!DOCTYPE html>
@@ -356,83 +370,116 @@ export default function PartnersScreen() {
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
           <style>
-            body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-            #map { width: 100%; height: 100vh; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              margin: 0; 
+              padding: 0; 
+              background: #1A0A0E;
+              overflow: hidden;
+            }
+            #map { 
+              width: 100%; 
+              height: 100vh; 
+              background: #1A0A0E;
+            }
+            
+            /* Style personnalisé pour les popups */
             .leaflet-popup-content-wrapper {
-              border-radius: 8px;
-              padding: 0;
+              background: transparent !important;
+              box-shadow: none !important;
+              padding: 0 !important;
             }
             .leaflet-popup-content {
-              margin: 0;
-              padding: 12px;
+              margin: 0 !important;
             }
-            .store-popup h3 {
-              margin: 0 0 6px 0;
-              font-size: 16px;
-              font-weight: 600;
-              color: #1F2937;
+            .leaflet-popup-tip {
+              background: #1A0A0E !important;
             }
-            .store-popup p {
-              margin: 0;
-              font-size: 14px;
-              color: #6B7280;
+            .leaflet-popup-close-button {
+              color: #8B2F3F !important;
+              font-size: 24px !important;
+              padding: 8px !important;
+            }
+            .leaflet-popup-close-button:hover {
+              color: #FF6B6B !important;
+            }
+            
+            /* Masquer les contrôles de zoom natifs de Leaflet (on utilise les boutons React Native) */
+            .leaflet-control-zoom {
+              display: none !important;
+            }
+            
+            /* Attribution personnalisée */
+            .leaflet-control-attribution {
+              background: rgba(26, 10, 14, 0.8) !important;
+              color: #cccccc !important;
+              font-size: 11px !important;
             }
           </style>
         </head>
         <body>
           <div id="map"></div>
-          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
           <script>
-            // Initialiser la carte
-            const userLocation = [${userLoc.latitude}, ${userLoc.longitude}];
-            const map = L.map('map').setView(userLocation, 11);
-
-            // Ajouter les tuiles OpenStreetMap
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            // Initialiser la carte avec vue centrée
+            const map = L.map('map', {
+              center: [${userLoc.latitude}, ${userLoc.longitude}],
+              zoom: 13,
+              zoomControl: false, // Désactiver le contrôle par défaut (on utilise les boutons React Native)
+              attributionControl: true,
+              preferCanvas: true
+            });
+            
+            // Exposer la carte globalement pour que les boutons React Native puissent la contrôler
+            window.map = map;
+            
+            // Utiliser CartoDB Dark Matter (fond noir/gris foncé)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              subdomains: 'abcd',
               maxZoom: 19,
+              className: 'custom-tile-layer'
             }).addTo(map);
+            
+            // Appliquer un filtre CSS pour éclaircir la carte (plus gris)
+            const mapElement = document.getElementById('map');
+            if (mapElement) {
+              mapElement.style.filter = 'brightness(1.0) contrast(0.95) saturate(0.95)';
+            }
 
-            // Marqueur utilisateur (icône personnalisée)
+            // Marqueur de l'utilisateur avec style personnalisé
             const userIcon = L.divIcon({
               className: 'user-marker',
-              html: '<div style="background-color: #8B2F3F; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(139, 47, 63, 0.5);"></div>',
+              html: '<div style="background: linear-gradient(135deg, #8B2F3F 0%, #6B1F2F 100%); width: 24px; height: 24px; border-radius: 50%; border: 4px solid #1A0A0E; box-shadow: 0 4px 16px rgba(139, 47, 63, 0.6), inset 0 2px 4px rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite;"><div style="width: 8px; height: 8px; background: white; border-radius: 50%; box-shadow: 0 0 8px rgba(255,255,255,0.8);"></div></div>',
               iconSize: [24, 24],
-              iconAnchor: [12, 12],
+              iconAnchor: [12, 12]
             });
-
-            L.marker(userLocation, { icon: userIcon })
-              .addTo(map)
-              .bindPopup('<b>Votre position</b><br>Vous êtes ici');
+            
+            L.marker([${userLoc.latitude}, ${userLoc.longitude}], {
+              icon: userIcon,
+              zIndexOffset: 1000
+            })
+            .addTo(map)
+            .bindPopup(
+              '<div style="background: #1A0A0E; color: white; padding: 12px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-width: 150px; text-align: center;">' +
+              '<b style="color: #8B2F3F; font-size: 16px;">Votre position</b>' +
+              '</div>',
+              { className: 'custom-popup' }
+            );
 
             // Marqueurs des stores
-            const stores = [${storesMarkers}];
-            stores.forEach((store) => {
-              const storeIcon = L.divIcon({
-                className: 'store-marker',
-                html: '<div style="background-color: ' + store.color + '; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">🏪</div>',
-                iconSize: [20, 20],
-                iconAnchor: [10, 10],
-              });
+            ${storesMarkers}
 
-              const marker = L.marker([store.lat, store.lng], { icon: storeIcon })
-                .addTo(map);
-
-              const popupContent = '<div class="store-popup"><h3>' + store.title + '</h3><p>' + store.description + '</p></div>';
-              
-              marker.bindPopup(popupContent);
-
-              marker.on('click', () => {
-                // Envoyer un message à React Native
-                if (window.ReactNativeWebView) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'storeClick',
-                    storeId: store.storeId
-                  }));
-                }
-              });
-            });
+            // Animation pulse pour le marqueur utilisateur
+            const style = document.createElement('style');
+            style.textContent = \`
+              @keyframes pulse {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.1); opacity: 0.9; }
+              }
+            \`;
+            document.head.appendChild(style);
           </script>
         </body>
       </html>
@@ -495,26 +542,42 @@ export default function PartnersScreen() {
           />
 
         {/* Contenu principal */}
-        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <Animated.View 
+          style={[
+            viewMode === 'carte' ? styles.contentFullWidth : styles.content, 
+            { opacity: fadeAnim }
+          ]}
+        >
 
           {/* Contenu conditionnel : Grille, Liste ou Carte */}
           {viewMode === 'carte' ? (
-            <PartnersMapView
-              userLocation={userLocation}
-              locationPermission={locationPermission}
-              mapStores={mapStores}
-              mapLoading={mapLoading}
-              onRequestLocationPermission={requestLocationPermission}
-              onGetCurrentLocation={getCurrentLocation}
-              onLoadStoresNearby={loadStoresNearby}
-              onStoreClick={(storeId) => {
-                const store = mapStores.find(s => s.id === storeId);
-                if (store) {
-                  handlePartnerSelect(store);
-                }
-              }}
-              generateMapHTML={generateMapHTML}
-            />
+            <ScrollView
+              style={styles.mapScrollView}
+              contentContainerStyle={[
+                styles.mapScrollContent,
+                { paddingBottom: insets.bottom + responsiveSpacing(Spacing.xl) }
+              ]}
+              showsVerticalScrollIndicator={true}
+              bounces={true}
+              nestedScrollEnabled={true}
+            >
+              <PartnersMapView
+                userLocation={userLocation}
+                locationPermission={locationPermission}
+                mapStores={mapStores}
+                mapLoading={mapLoading}
+                onRequestLocationPermission={requestLocationPermission}
+                onGetCurrentLocation={getCurrentLocation}
+                onLoadStoresNearby={loadStoresNearby}
+                onStoreClick={(storeId) => {
+                  const store = mapStores.find(s => s.id === storeId);
+                  if (store) {
+                    handlePartnerSelect(store);
+                  }
+                }}
+                generateMapHTML={generateMapHTML}
+              />
+            </ScrollView>
           ) : viewMode === 'grille' ? (
             <PartnersGridView
               partners={filteredPartners}
@@ -1029,6 +1092,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.sm,
+  } as ViewStyle,
+  contentFullWidth: {
+    flex: 1,
+    paddingHorizontal: 0,
+     // Pas de padding pour la carte
+    paddingTop: Spacing.sm,
+  } as ViewStyle,
+  mapScrollView: {
+    flex: 1,
+    width: '100%',
+    height: responsiveSpacing(300),
+  } as ViewStyle,
+  mapScrollContent: {
+    flexGrow: 1,
+    paddingBottom: Spacing.xl,
   } as ViewStyle,
   
   // Catégories modernes

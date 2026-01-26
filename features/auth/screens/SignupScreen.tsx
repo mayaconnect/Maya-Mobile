@@ -10,6 +10,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Image,
+  ImageStyle,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,7 +24,7 @@ import {
   View,
   ViewStyle
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Fonction pour formater automatiquement la date de naissance
 const formatBirthDate = (input: string): string => {
@@ -46,8 +51,27 @@ const formatBirthDate = (input: string): string => {
 type SignupStep = 'personal' | 'security' | 'address';
 
 export default function SignupScreen() {
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  
   // Données personnelles
   const [email, setEmail] = useState('');
+
+  React.useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -288,38 +312,54 @@ export default function SignupScreen() {
   };
 
   return (
-    <NavigationTransition direction="right" children={<></>}>
+    <NavigationTransition direction="right">
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.container}
       >
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <View style={styles.backButtonInner}>
-                <Ionicons name="arrow-back" size={20} color="white" />
-                <Text style={styles.headerText}>Retour</Text>
-              </View>
-            </TouchableOpacity>
-            <View style={styles.logoContainer}>
-              <Text style={styles.appName}>Maya</Text>
-              <View style={styles.logoUnderline} />
-            </View>
-            <View style={styles.placeholder} />
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          {/* Section supérieure avec fond sombre - réduite quand clavier actif */}
+          <View style={[styles.topSection, isKeyboardVisible && styles.topSectionKeyboard]}>
+            <SafeAreaView edges={['top']} style={styles.topSafeArea}>
+              {/* Bouton retour */}
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#6B7280" />
+              </TouchableOpacity>
+
+              {/* Logo et nom de l'app - masqué quand clavier actif */}
+              {!isKeyboardVisible && (
+                <View style={styles.logoContainer}>
+                  <Image 
+                    source={require('@/assets/images/logo2.png')} 
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.appName}>MayaConnect</Text>
+                  <Text style={styles.slogan}>Votre partenaire économies</Text>
+                </View>
+              )}
+            </SafeAreaView>
           </View>
 
-          <View style={styles.keyboardAvoidingView}>
-            <ScrollView 
-              style={styles.scrollView} 
-              contentContainerStyle={styles.scrollContent}
+          {/* Carte blanche en bas */}
+          <View style={[styles.whiteCard, isKeyboardVisible && styles.whiteCardKeyboard, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
+            {/* Indicateur de drag */}
+            {!isKeyboardVisible && <View style={styles.dragIndicator} />}
+
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.contentContainer}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              bounces={true}
             >
-            <View style={styles.card}>
-                <Text style={styles.title}>Créer un compte</Text>
-                <Text style={styles.subtitle}>Inscrivez-vous pour commencer à économiser</Text>
+              <Text style={styles.title}>Créer un compte</Text>
 
                 {/* Message d'erreur global */}
                 {errorMessage ? (
@@ -396,7 +436,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Prénom *</Text>
                         <View style={[styles.inputWrapper, firstNameError ? styles.inputError : null]}>
-                          <Ionicons name="person" size={20} color={firstNameError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
+                          <Ionicons name="person" size={20} color={firstNameError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Jean"
@@ -421,7 +461,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Nom *</Text>
                         <View style={[styles.inputWrapper, lastNameError ? styles.inputError : null]}>
-                          <Ionicons name="person" size={20} color={lastNameError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
+                          <Ionicons name="person" size={20} color={lastNameError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Dupont"
@@ -435,16 +475,19 @@ export default function SignupScreen() {
                             autoCapitalize="words"
                           />
                         </View>
-                        {lastNameError ? (
+                      {lastNameError ? (
+                        <View style={styles.fieldErrorContainer}>
+                          <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
                           <Text style={styles.fieldError}>{lastNameError}</Text>
-                        ) : null}
+                        </View>
+                      ) : null}
                       </View>
                     </View>
 
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Email *</Text>
                       <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
-                        <Ionicons name="mail" size={20} color={emailError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
+                        <Ionicons name="mail" size={20} color={emailError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="votre@email.com"
@@ -460,14 +503,17 @@ export default function SignupScreen() {
                         />
                       </View>
                       {emailError ? (
-                        <Text style={styles.fieldError}>{emailError}</Text>
+                        <View style={styles.fieldErrorContainer}>
+                          <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                          <Text style={styles.fieldError}>{emailError}</Text>
+                        </View>
                       ) : null}
                     </View>
 
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Date de naissance *</Text>
                       <View style={[styles.inputWrapper, birthDateError ? styles.inputError : null]}>
-                        <Ionicons name="calendar" size={20} color={birthDateError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
+                        <Ionicons name="calendar" size={20} color={birthDateError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="1990-01-15 ou 19900115"
@@ -483,7 +529,10 @@ export default function SignupScreen() {
                         />
                       </View>
                       {birthDateError ? (
-                        <Text style={styles.fieldError}>{birthDateError}</Text>
+                        <View style={styles.fieldErrorContainer}>
+                          <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                          <Text style={styles.fieldError}>{birthDateError}</Text>
+                        </View>
                       ) : null}
                     </View>
                   </>
@@ -496,7 +545,7 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Mot de passe *</Text>
                       <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
-                        <Ionicons name="lock-closed" size={20} color={passwordError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
+                        <Ionicons name="lock-closed" size={20} color={passwordError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="••••••••"
@@ -510,11 +559,14 @@ export default function SignupScreen() {
                           secureTextEntry={!showPassword}
                         />
                         <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={passwordError ? "#EF4444" : "#8B2F3F"} />
+                          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                       </View>
                       {passwordError ? (
-                        <Text style={styles.fieldError}>{passwordError}</Text>
+                        <View style={styles.fieldErrorContainer}>
+                          <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                          <Text style={styles.fieldError}>{passwordError}</Text>
+                        </View>
                       ) : null}
 
                       <View style={styles.passwordCriteria}>
@@ -555,7 +607,7 @@ export default function SignupScreen() {
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Confirmer le mot de passe *</Text>
                       <View style={[styles.inputWrapper, confirmError ? styles.inputError : null]}>
-                        <Ionicons name="lock-closed" size={20} color={confirmError ? "#EF4444" : "#8B2F3F"} style={styles.inputIcon as any} />
+                        <Ionicons name="lock-closed" size={20} color={confirmError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
                         <TextInput
                           style={styles.input}
                           placeholder="••••••••"
@@ -569,11 +621,14 @@ export default function SignupScreen() {
                           secureTextEntry={!showConfirm}
                         />
                         <TouchableOpacity onPress={() => setShowConfirm((v) => !v)}>
-                          <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={confirmError ? "#EF4444" : "#8B2F3F"} />
+                          <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                       </View>
                       {confirmError ? (
-                        <Text style={styles.fieldError}>{confirmError}</Text>
+                        <View style={styles.fieldErrorContainer}>
+                          <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                          <Text style={styles.fieldError}>{confirmError}</Text>
+                        </View>
                       ) : null}
                     </View>
                   </>
@@ -591,12 +646,12 @@ export default function SignupScreen() {
 
                     <View style={styles.inputContainer}>
                       <Text style={styles.inputLabel}>Rue *</Text>
-                      <View style={styles.inputWrapper}>
-                        <Ionicons name="location" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
-                        <TextInput
-                          style={styles.input}
-                          placeholder="123 Rue de la Paix"
-                          placeholderTextColor="#9CA3AF"
+                        <View style={styles.inputWrapper}>
+                          <Ionicons name="location" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
+                          <TextInput
+                            style={styles.input}
+                            placeholder="123 Rue de la Paix"
+                            placeholderTextColor="#9CA3AF"
                           value={street}
                           onChangeText={(text) => {
                             setStreet(text);
@@ -611,7 +666,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Ville *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="business" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
+                          <Ionicons name="business" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Paris"
@@ -630,7 +685,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Code postal *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="mail" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
+                          <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="75001"
@@ -651,7 +706,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Région/État *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="map" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
+                          <Ionicons name="map" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="Île-de-France"
@@ -670,7 +725,7 @@ export default function SignupScreen() {
                       <View style={[styles.inputContainer, styles.halfWidth]}>
                         <Text style={styles.inputLabel}>Pays *</Text>
                         <View style={styles.inputWrapper}>
-                          <Ionicons name="flag" size={20} color="#8B2F3F" style={styles.inputIcon as any} />
+                          <Ionicons name="flag" size={20} color="#9CA3AF" style={styles.inputIcon as any} />
                           <TextInput
                             style={styles.input}
                             placeholder="France"
@@ -711,10 +766,9 @@ export default function SignupScreen() {
                     <Text style={styles.switchAuthLink}>Se connecter</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
             </ScrollView>
           </View>
-        </SafeAreaView>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </NavigationTransition>
   );
@@ -722,21 +776,21 @@ export default function SignupScreen() {
 
 type SignupStyles = {
   container: ViewStyle;
-  safeArea: ViewStyle;
-  header: ViewStyle;
+  keyboardView: ViewStyle;
+  topSection: ViewStyle;
+  topSectionKeyboard: ViewStyle;
+  topSafeArea: ViewStyle;
   backButton: ViewStyle;
-  backButtonInner: ViewStyle;
-  headerText: TextStyle;
   logoContainer: ViewStyle;
+  logoImage: ImageStyle;
   appName: TextStyle;
-  logoUnderline: ViewStyle;
-  placeholder: ViewStyle;
-  keyboardAvoidingView: ViewStyle;
+  slogan: TextStyle;
+  whiteCard: ViewStyle;
+  whiteCardKeyboard: ViewStyle;
+  dragIndicator: ViewStyle;
   scrollView: ViewStyle;
-  scrollContent: ViewStyle;
-  card: ViewStyle;
+  contentContainer: ViewStyle;
   title: TextStyle;
-  subtitle: TextStyle;
   stepProgress: ViewStyle;
   progressBar: ViewStyle;
   progressSegment: ViewStyle;
@@ -780,105 +834,95 @@ type SignupStyles = {
 const styles = StyleSheet.create<SignupStyles>({
   container: {
     flex: 1,
-  },
-  safeArea: {
+  } as ViewStyle,
+  keyboardView: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+  } as ViewStyle,
+  topSection: {
+    flex: 0.3,
+    minHeight: 180,
+  } as ViewStyle,
+  topSectionKeyboard: {
+    flex: 0.1,
+    minHeight: 80,
+  } as ViewStyle,
+  topSafeArea: {
+    flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
   backButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.xl,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    ...Shadows.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  backButtonInner: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
-  },
-  headerText: {
-    color: Colors.text.light,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    marginLeft: Spacing.xs,
-  },
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
   logoContainer: {
+    flex: 1,
     alignItems: 'center',
-  },
+    justifyContent: 'flex-start',
+    paddingTop: 0,
+  } as ViewStyle,
+  logoImage: {
+    width: 90,
+    height: 90,
+    marginBottom: Spacing.xs,
+  } as ImageStyle,
   appName: {
-    fontSize: Typography.sizes['4xl'],
-    fontWeight: Typography.weights.extrabold,
-    color: Colors.text.light,
-    letterSpacing: Typography.letterSpacing.wide,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  logoUnderline: {
-    width: 60,
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: BorderRadius.full,
-    marginTop: Spacing.xs,
-    ...Shadows.sm,
-  },
-  placeholder: {
-    width: 100,
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 0,
-    paddingBottom: 0,
-  },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    backdropFilter: 'blur(20px)',
-    borderTopLeftRadius: BorderRadius['3xl'],
-    borderTopRightRadius: BorderRadius['3xl'],
-    borderBottomLeftRadius: BorderRadius.lg,
-    borderBottomRightRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    position: 'relative',
-    top: 33,
-    maxHeight: '95%',
-    ...Shadows.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  title: {
-    fontSize: 22,
+    fontSize: Typography.sizes['2xl'],
     fontWeight: Typography.weights.extrabold as any,
     color: Colors.text.light,
-    textAlign: 'center',
-    marginBottom: 4,
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  subtitle: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: 2,
+    letterSpacing: -1,
+  } as TextStyle,
+  slogan: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.light,
     fontWeight: Typography.weights.medium as any,
-  },
+  } as TextStyle,
+  whiteCard: {
+    flex: 0.8,
+    backgroundColor: 'white',
+    borderTopLeftRadius: BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    ...Shadows.xl,
+    paddingTop: Spacing.xs,
+    overflow: 'hidden',
+  } as ViewStyle,
+  whiteCardKeyboard: {
+    flex: 0.9,
+  } as ViewStyle,
+  dragIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  scrollView: {
+    flex: 1,
+  } as ViewStyle,
+  contentContainer: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: 0,
+    paddingBottom: Spacing.xl,
+  } as ViewStyle,
+  title: {
+    fontSize: 28,
+    fontWeight: Typography.weights.extrabold as any,
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+    letterSpacing: -0.5,
+  } as TextStyle,
   stepProgress: {
     marginBottom: Spacing.lg,
   },
@@ -926,30 +970,28 @@ const styles = StyleSheet.create<SignupStyles>({
     marginBottom: 6,
   },
   inputLabel: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semibold as any,
-    color: 'white',
-    marginBottom: Spacing.sm,
-    letterSpacing: 0.2,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 6,
+    letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
     backgroundColor: '#FFFFFF',
-    ...Shadows.sm,
+    height: 50,
   },
   inputIcon: {
     marginRight: Spacing.sm,
-    opacity: 0.6,
   },
   input: {
     flex: 1,
-    paddingVertical: Spacing.md,
     fontSize: Typography.sizes.base,
     color: '#111827',
     fontWeight: Typography.weights.medium as any,
@@ -972,17 +1014,16 @@ const styles = StyleSheet.create<SignupStyles>({
     borderTopColor: 'rgba(255, 255, 255, 0.15)',
   },
   switchAuthText: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#6B7280',
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
   },
   switchAuthLink: {
-    color: Colors.text.light,
+    color: '#EF4444',
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.bold as any,
     marginLeft: Spacing.xs,
     textDecorationLine: 'underline',
-    letterSpacing: -0.2,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -1007,7 +1048,6 @@ const styles = StyleSheet.create<SignupStyles>({
     borderColor: '#EF4444',
     borderWidth: 2,
     backgroundColor: '#FEF2F2',
-    ...Shadows.sm,
   },
   fieldErrorContainer: {
     flexDirection: 'row',

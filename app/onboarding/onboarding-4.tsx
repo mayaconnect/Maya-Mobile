@@ -8,19 +8,25 @@ import { Colors } from '@/constants/design-system';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 export default function Onboarding4Screen() {
   const handleSkip = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/connexion/login');
   };
 
   const handleNext = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.push('/connexion/login');
   };
 
   return (
     <NavigationTransition direction="right">
-      <OnboardingScreen onSkip={handleSkip} onBack={() => router.back()} showBack={true}>
+      <OnboardingScreen onSkip={handleSkip} onBack={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.back();
+      }} showBack={true}>
         <OnboardingContentCard
           icon={
             <FeatureIcon
@@ -33,6 +39,7 @@ export default function Onboarding4Screen() {
           title="Rejoignez Maya"
           description="Des milliers de partenaires vous attendent pour maximiser vos économies"
           gradientColors={Colors.gradients.primary as any}
+          delay={300}
         />
         
         <View style={styles.paginationContainer}>
@@ -42,6 +49,7 @@ export default function Onboarding4Screen() {
             onPress={handleNext}
             icon="arrow-forward"
             style={styles.nextButton}
+            variant="solid"
           />
         </View>
       </OnboardingScreen>
