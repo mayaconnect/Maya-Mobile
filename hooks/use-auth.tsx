@@ -85,7 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       return finalUserInfo;
     } catch (error) {
-      setUser(null);
+      // Ne pas mettre user à null en cas d'erreur pour éviter les redirections
+      // L'utilisateur reste sur la page de connexion et peut voir l'erreur
+      // setUser(null); // Commenté pour éviter la redirection vers l'onboarding
       throw error;
     } finally {
       setLoading(false);

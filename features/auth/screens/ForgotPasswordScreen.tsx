@@ -1,7 +1,9 @@
 import { AnimatedButton } from '@/components/common/animated-button';
+import { ErrorMessage } from '@/components/common/error-message';
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { AuthService } from '@/services/auth.service';
+import { responsiveSpacing, scaleFont } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -41,7 +43,7 @@ const ForgotPasswordScreen: React.FC = () => {
 
     if (!email) {
       setEmailError('Email requis');
-      setErrorMessage('⚠️ Veuillez entrer votre email');
+      setErrorMessage('Veuillez entrer votre adresse email pour continuer');
       return;
     }
 
@@ -52,8 +54,8 @@ const ForgotPasswordScreen: React.FC = () => {
       setStep('phone');
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'email:', error);
-      setEmailError('❌ Cet email n\'est pas enregistré');
-      setErrorMessage('Aucun compte trouvé avec cet email');
+      setEmailError('Email non trouvé');
+      setErrorMessage('Aucun compte n\'est associé à cet email. Vérifiez votre adresse ou créez un compte.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ const ForgotPasswordScreen: React.FC = () => {
 
     if (!phoneNumber) {
       setPhoneError('Numéro requis');
-      setErrorMessage('⚠️ Veuillez entrer votre numéro de téléphone');
+      setErrorMessage('Veuillez entrer votre numéro de téléphone pour recevoir le code de réinitialisation');
       return;
     }
 
@@ -76,8 +78,8 @@ const ForgotPasswordScreen: React.FC = () => {
       setStep('code');
     } catch (error) {
       console.error('Erreur lors de l\'envoi du code:', error);
-      setPhoneError('Impossible d\'envoyer le code');
-      setErrorMessage('❌ Vérifiez le numéro saisi');
+      setPhoneError('Numéro invalide');
+      setErrorMessage('Impossible d\'envoyer le code. Vérifiez que le numéro est correct et réessayez.');
     } finally {
       setLoading(false);
     }
@@ -89,7 +91,7 @@ const ForgotPasswordScreen: React.FC = () => {
 
     if (!code || code.length < 4) {
       setCodeError('Code invalide');
-      setErrorMessage('⚠️ Veuillez saisir le code reçu');
+      setErrorMessage('Veuillez saisir le code à 4 chiffres reçu par SMS');
       return;
     }
 
@@ -112,7 +114,7 @@ const ForgotPasswordScreen: React.FC = () => {
     } catch (error) {
       console.error('❌ [Forgot Password] Erreur lors de la vérification du code:', error);
       setCodeError('Code incorrect');
-      setErrorMessage('❌ Code de vérification incorrect');
+      setErrorMessage('Le code de vérification est incorrect. Vérifiez votre SMS et réessayez.');
     } finally {
       setLoading(false);
     }
@@ -124,19 +126,25 @@ const ForgotPasswordScreen: React.FC = () => {
     setConfirmError('');
 
     if (!newPassword || !confirmPassword) {
-      setErrorMessage('⚠️ Veuillez remplir tous les champs');
+      if (!newPassword) {
+        setPasswordError('Mot de passe requis');
+      }
+      if (!confirmPassword) {
+        setConfirmError('Confirmation requise');
+      }
+      setErrorMessage('Veuillez remplir tous les champs pour créer votre nouveau mot de passe');
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordError('Minimum 6 caractères requis');
-      setErrorMessage('Le mot de passe doit contenir au moins 6 caractères');
+    if (newPassword.length < 8) {
+      setPasswordError('Minimum 8 caractères requis');
+      setErrorMessage('Le mot de passe doit contenir au moins 8 caractères pour plus de sécurité');
       return;
     }
 
     if (newPassword !== confirmPassword) {
       setConfirmError('Les mots de passe ne correspondent pas');
-      setErrorMessage('Les deux mots de passe doivent être identiques');
+      setErrorMessage('Les deux mots de passe doivent être identiques. Vérifiez votre saisie.');
       return;
     }
 
@@ -159,9 +167,15 @@ const ForgotPasswordScreen: React.FC = () => {
     } catch (error) {
       console.error('❌ [Forgot Password] Erreur lors de la réinitialisation:', error);
       if (error instanceof Error) {
-        setErrorMessage(`❌ ${error.message}`);
+        if (error.message.includes('expired') || error.message.includes('invalid') || error.message.includes('token')) {
+          setErrorMessage('Le code de réinitialisation a expiré. Veuillez recommencer le processus.');
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
+          setErrorMessage('Problème de connexion au serveur. Vérifiez votre connexion internet et réessayez.');
+        } else {
+          setErrorMessage(`Erreur lors de la réinitialisation : ${error.message}. Veuillez réessayer.`);
+        }
       } else {
-        setErrorMessage('❌ Échec de la réinitialisation');
+        setErrorMessage('Échec de la réinitialisation. Veuillez réessayer ou contacter le support.');
       }
     } finally {
       setLoading(false);
@@ -450,17 +464,21 @@ const ForgotPasswordScreen: React.FC = () => {
               <Text style={styles.subtitle}>{renderSubtitle()}</Text>
 
               {successMessage ? (
-                <View style={styles.successBanner}>
-                  <Ionicons name="checkmark-circle" size={20} color="#059669" />
-                  <Text style={styles.successBannerText}>{successMessage}</Text>
-                </View>
+                <ErrorMessage
+                  message={successMessage}
+                  type="success"
+                  onDismiss={() => setSuccessMessage('')}
+                  icon="checkmark-circle"
+                />
               ) : null}
 
               {errorMessage ? (
-                <View style={styles.errorBanner}>
-                  <Ionicons name="alert-circle" size={20} color="#DC2626" />
-                  <Text style={styles.errorBannerText}>{errorMessage}</Text>
-                </View>
+                <ErrorMessage
+                  message={errorMessage}
+                  type="error"
+                  onDismiss={() => resetMessages()}
+                  icon="alert-circle"
+                />
               ) : null}
 
               {renderStepContent()}

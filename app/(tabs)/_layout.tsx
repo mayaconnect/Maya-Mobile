@@ -1,10 +1,14 @@
 import { useAuth } from '@/hooks/use-auth';
+import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
+import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { user, loading } = useAuth();
+  const insets = useSafeAreaInsets();
   
   // Attendre que le chargement soit terminé avant de rediriger
   if (loading) {
@@ -26,6 +30,9 @@ export default function TabLayout() {
                     (user as any)?.isPartner === true ||
                     (user as any)?.isOperator === true;
 
+  // Calculer le padding bottom avec safe area
+  const bottomPadding = Math.max(insets.bottom, responsiveSpacing(8));
+
   return (
     <Tabs
       initialRouteName="home"
@@ -38,20 +45,20 @@ export default function TabLayout() {
         } : {
           backgroundColor: '#1A0A0E',
           borderTopWidth: 0,
-          paddingBottom: 12,
-          paddingTop: 12,
-          height: 70,
+          paddingBottom: bottomPadding,
+          paddingTop: responsiveSpacing(12),
+          height: 70 + (bottomPadding - responsiveSpacing(8)),
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 8,
           elevation: 8,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
+          borderTopLeftRadius: responsiveSpacing(20),
+          borderTopRightRadius: responsiveSpacing(20),
           position: 'absolute',
-          left: 8,
-          right: 8,
-          bottom: 8,
+          left: 0,
+          right: 0,
+          bottom: 0,
         },
         sceneStyle: { paddingBottom: 0 },
         tabBarLabelStyle: {

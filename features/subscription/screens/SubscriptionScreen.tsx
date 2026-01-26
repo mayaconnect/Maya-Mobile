@@ -21,10 +21,12 @@ import {
   View,
   ViewStyle
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { responsiveSpacing } from '@/utils/responsive';
 
 export default function SubscriptionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<'solo' | 'duo' | 'family'>('duo');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -451,7 +453,10 @@ export default function SubscriptionScreen() {
         <SafeAreaView style={styles.safeArea} edges={['top']}>
           <ScrollView
             style={styles.scrollContainer}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: Math.max(insets.bottom, responsiveSpacing(90)) } // Navbar height (70) + safe area + margin
+            ]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl

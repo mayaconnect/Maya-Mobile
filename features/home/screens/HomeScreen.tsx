@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { AuthService } from '@/services/auth.service';
 import { QrApi, QrTokenData } from '@/features/home/services/qrApi';
 import { TransactionsApi } from '@/features/home/services/transactionsApi';
+import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
+import { responsiveSpacing } from '@/utils/responsive';
 import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,7 +13,7 @@ import { router } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, View, ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeWelcomeHeader } from '../components/HomeWelcomeHeader';
 import { HomeStatsCards } from '../components/HomeStatsCards';
 import { HomeQuickActions } from '../components/HomeQuickActions';
@@ -19,10 +21,13 @@ import { HomeQRCodeCard } from '../components/HomeQRCodeCard';
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [qrData, setQrData] = useState<QrTokenData | null>(null);
   const [qrLoading, setQrLoading] = useState(true);
   const [qrError, setQrError] = useState<string | null>(null);
   const [qrCodeResponse, setQrCodeResponse] = useState<any | null>(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   // États pour les transactions
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -48,8 +53,62 @@ export default function HomeScreen() {
     }
   }, [user]);
 
-  // Charger le QR Code côté client
+  // Vérifier l'abonnement actif
+  const checkSubscription = useCallback(async () => {
+    setSubscriptionLoading(true);
+    try {
+      const hasSub = await SubscriptionsApi.hasActiveSubscription();
+      setHasActiveSubscription(hasSub);
+      console.log('📦 [Home] Vérification abonnement:', hasSub);
+    } catch (error) {
+      console.error('❌ [Home] Erreur lors de la vérification de l\'abonnement:', error);
+      setHasActiveSubscription(false);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  }, []);
+
+  // Vérifier si l'utilisateur a une photo de profil
+  const hasProfilePhoto = useCallback(() => {
+    if (!user) return false;
+    // Vérifier avatarBase64, avatarUrl ou avatar
+    const hasAvatar = !!(user.avatarBase64 || (user as any)?.avatarUrl || (user as any)?.avatar);
+    console.log('📸 [Home] Vérification photo de profil:', {
+      hasAvatarBase64: !!user.avatarBase64,
+      hasAvatarUrl: !!(user as any)?.avatarUrl,
+      hasAvatar: !!(user as any)?.avatar,
+      hasPhoto: hasAvatar,
+    });
+    return hasAvatar;
+  }, [user]);
+
+  // Charger le QR Code côté client (uniquement si abonnement actif ET photo de profil)
   const loadQrToken = useCallback(async (forceRefresh: boolean = false) => {
+    // Vérifier d'abord si l'utilisateur a un abonnement actif
+    const hasSub = await SubscriptionsApi.hasActiveSubscription();
+    setHasActiveSubscription(hasSub);
+    
+    // Vérifier si l'utilisateur a une photo de profil
+    const hasPhoto = hasProfilePhoto();
+    
+    if (!hasSub) {
+      console.log('⚠️ [Home] Pas d\'abonnement actif, QR Code non disponible');
+      setQrLoading(false);
+      setQrError(null);
+      setQrData(null);
+      setQrCodeResponse(null);
+      return;
+    }
+    
+    if (!hasPhoto) {
+      console.log('⚠️ [Home] Pas de photo de profil, QR Code non disponible');
+      setQrLoading(false);
+      setQrError(null);
+      setQrData(null);
+      setQrCodeResponse(null);
+      return;
+    }
+
     setQrLoading(true);
     setQrError(null);
     try {
@@ -94,15 +153,18 @@ export default function HomeScreen() {
     } finally {
       setQrLoading(false);
     }
-  }, []);
+  }, [hasProfilePhoto]);
 
   useEffect(() => {
     const checkAuthAndLoadQr = async () => {
       // Vérifier que l'utilisateur est authentifié avant de charger le QR code
       const isAuthenticated = await AuthService.isAuthenticated();
       if (isAuthenticated && !user?.email?.toLowerCase().includes('partner')) {
+        // Vérifier l'abonnement d'abord
+        await checkSubscription();
         // Petit délai pour s'assurer que le token est bien disponible
         await new Promise(resolve => setTimeout(resolve, 200));
+        // Charger le QR code (qui vérifiera aussi l'abonnement)
         loadQrToken();
       }
     };
@@ -110,11 +172,11 @@ export default function HomeScreen() {
     if (user) {
       checkAuthAndLoadQr();
     }
-  }, [loadQrToken, user]);
+  }, [loadQrToken, checkSubscription, user, hasProfilePhoto]);
 
-  // Rafraîchir automatiquement le QR code toutes les 5 minutes
+  // Rafraîchir automatiquement le QR code toutes les 5 minutes (uniquement si abonnement actif ET photo)
   useEffect(() => {
-    if (!qrData || user?.email?.toLowerCase().includes('partner')) {
+    if (!qrData || user?.email?.toLowerCase().includes('partner') || !hasActiveSubscription || !hasProfilePhoto()) {
       return;
     }
 
@@ -143,7 +205,7 @@ export default function HomeScreen() {
     return () => {
       clearTimeout(refreshTimer);
     };
-  }, [qrData, loadQrToken, user]);
+  }, [qrData, loadQrToken, user, hasActiveSubscription, hasProfilePhoto]);
 
   const handleReloadQR = useCallback(() => {
     loadQrToken(true);
@@ -424,7 +486,10 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView 
           style={styles.scrollContainer}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Math.max(insets.bottom, responsiveSpacing(90)) } // Navbar height (70) + safe area + margin
+          ]}
           showsVerticalScrollIndicator={false}
         >
             <HomeWelcomeHeader firstName={user?.firstName} lastName={user?.lastName} />
@@ -441,9 +506,14 @@ export default function HomeScreen() {
               qrCodeResponse={qrCodeResponse}
               qrLoading={qrLoading}
               qrError={qrError}
+              hasActiveSubscription={hasActiveSubscription}
+              subscriptionLoading={subscriptionLoading}
+              hasProfilePhoto={hasProfilePhoto()}
               onShare={handleShareQR}
               onReload={handleReloadQR}
               onRetry={() => loadQrToken(true)}
+              onSubscribe={() => router.push('/subscription')}
+              onAddPhoto={() => router.push('/(tabs)/profile')}
             />
         </ScrollView>
         </SafeAreaView>

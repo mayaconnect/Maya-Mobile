@@ -1,8 +1,10 @@
 import { AnimatedButton } from '@/components/common/animated-button';
+import { ErrorMessage } from '@/components/common/error-message';
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { RegisterRequest } from '@/services/auth.service';
+import { responsiveSpacing, scaleFont } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -96,37 +98,46 @@ export default function SignupScreen() {
     let isValid = true;
 
     if (!firstName) {
-      setFirstNameError('❌ Prénom requis');
+      setFirstNameError('Prénom requis');
       isValid = false;
     }
 
     if (!lastName) {
-      setLastNameError('❌ Nom requis');
+      setLastNameError('Nom requis');
       isValid = false;
     }
 
     if (!email) {
-      setEmailError('❌ Email requis');
+      setEmailError('Email requis');
+      isValid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Format d\'email invalide');
       isValid = false;
     }
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!birthDate) {
-      setBirthDateError('❌ Date de naissance requise');
+      setBirthDateError('Date de naissance requise');
       isValid = false;
     } else if (!dateRegex.test(birthDate)) {
-      setBirthDateError('❌ Format requis: YYYY-MM-DD');
+      setBirthDateError('Format requis: YYYY-MM-DD');
       isValid = false;
     } else {
       const birthDateObj = new Date(birthDate);
       if (isNaN(birthDateObj.getTime())) {
-        setBirthDateError('❌ Date de naissance invalide');
+        setBirthDateError('Date de naissance invalide');
         isValid = false;
+      } else {
+        const age = new Date().getFullYear() - birthDateObj.getFullYear();
+        if (age < 13) {
+          setBirthDateError('Vous devez avoir au moins 13 ans');
+          isValid = false;
+        }
       }
     }
 
     if (!isValid) {
-      setErrorMessage('⚠️ Complétez vos informations personnelles');
+      setErrorMessage('Veuillez compléter tous les champs correctement');
     }
 
     return isValid;
@@ -136,37 +147,32 @@ export default function SignupScreen() {
     let isValid = true;
 
     if (!password) {
-      setPasswordError('❌ Mot de passe requis');
+      setPasswordError('Mot de passe requis');
+      isValid = false;
+    } else if (password.length < 8) {
+      setPasswordError('Minimum 8 caractères requis');
+      isValid = false;
+    } else if (!/\d/.test(password)) {
+      setPasswordError('Au moins un chiffre requis');
+      isValid = false;
+    } else if (!/[A-Z]/.test(password)) {
+      setPasswordError('Au moins une majuscule requise');
+      isValid = false;
+    } else if (!/[a-z]/.test(password)) {
+      setPasswordError('Au moins une minuscule requise');
       isValid = false;
     }
 
     if (!confirmPassword) {
-      setConfirmError('❌ Confirmation requise');
+      setConfirmError('Confirmation requise');
       isValid = false;
-    }
-
-    if (password && password.length < 8) {
-      setPasswordError('❌ Minimum 8 caractères requis');
-      isValid = false;
-    }
-
-    if (password && !/\d/.test(password)) {
-      setPasswordError('❌ Au moins un chiffre requis (0-9)');
-      isValid = false;
-    }
-
-    if (password && !/[A-Z]/.test(password)) {
-      setPasswordError('❌ Au moins une majuscule requise (A-Z)');
-      isValid = false;
-    }
-
-    if (password && confirmPassword && password !== confirmPassword) {
-      setConfirmError('❌ Les mots de passe ne correspondent pas');
+    } else if (password && confirmPassword && password !== confirmPassword) {
+      setConfirmError('Les mots de passe ne correspondent pas');
       isValid = false;
     }
 
     if (!isValid) {
-      setErrorMessage('⚠️ Vérifiez votre mot de passe');
+      setErrorMessage('Votre mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre');
     }
 
     return isValid;
@@ -177,8 +183,8 @@ export default function SignupScreen() {
     const isValid = requiredFields.every((field) => field.trim().length > 0);
 
     if (!isValid) {
-      setAddressError('❌ Veuillez remplir tous les champs d\'adresse');
-      setErrorMessage('⚠️ Adresse complète requise');
+      setAddressError('Veuillez remplir tous les champs d\'adresse');
+      setErrorMessage('Une adresse complète est requise pour finaliser votre inscription');
     }
 
     return isValid;
@@ -263,16 +269,20 @@ export default function SignupScreen() {
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error);
       if (error instanceof Error) {
-        if (error.message === 'EMAIL_ALREADY_EXISTS') {
-          setEmailError('❌ Cet email est déjà utilisé');
-          setErrorMessage('Un compte existe déjà avec cet email');
-        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
-          setErrorMessage('❌ Erreur de connexion. Vérifiez que le serveur backend est démarré.');
+        if (error.message === 'EMAIL_ALREADY_EXISTS' || error.message.includes('already exists') || error.message.includes('409') || error.message.includes('Conflict')) {
+          setEmailError('Email déjà utilisé');
+          setErrorMessage('Un compte existe déjà avec cet email. Connectez-vous ou utilisez un autre email.');
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network') || error.message.includes('TIMEOUT')) {
+          setErrorMessage('Problème de connexion au serveur. Vérifiez votre connexion internet et réessayez.');
+        } else if (error.message.includes('400') || error.message.includes('Bad Request') || error.message.includes('validation')) {
+          setErrorMessage('Données invalides. Vérifiez que tous les champs sont correctement remplis.');
+        } else if (error.message.includes('500') || error.message.includes('Server Error')) {
+          setErrorMessage('Erreur serveur temporaire. Veuillez réessayer dans quelques instants.');
         } else {
-          setErrorMessage(`❌ Erreur: ${error.message}`);
+          setErrorMessage(`Une erreur est survenue : ${error.message}. Veuillez réessayer ou contacter le support.`);
         }
       } else {
-        setErrorMessage('❌ Échec de l\'inscription. Veuillez réessayer.');
+        setErrorMessage('Échec de l\'inscription. Veuillez vérifier vos informations et réessayer.');
       }
     }
   };
@@ -313,10 +323,12 @@ export default function SignupScreen() {
 
                 {/* Message d'erreur global */}
                 {errorMessage ? (
-                  <View style={styles.errorBanner}>
-                    <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                    <Text style={styles.errorBannerText}>{errorMessage}</Text>
-                  </View>
+                  <ErrorMessage
+                    message={errorMessage}
+                    type="error"
+                    onDismiss={() => resetFieldErrors()}
+                    icon="alert-circle"
+                  />
                 ) : null}
 
                 <View style={styles.stepProgress}>
@@ -399,7 +411,10 @@ export default function SignupScreen() {
                           />
                         </View>
                         {firstNameError ? (
-                          <Text style={styles.fieldError}>{firstNameError}</Text>
+                          <View style={styles.fieldErrorContainer}>
+                            <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                            <Text style={styles.fieldError}>{firstNameError}</Text>
+                          </View>
                         ) : null}
                       </View>
 
@@ -568,7 +583,10 @@ export default function SignupScreen() {
                   <>
                     <Text style={styles.sectionTitle}>Adresse</Text>
                     {addressError ? (
-                      <Text style={styles.fieldError}>{addressError}</Text>
+                      <View style={styles.fieldErrorContainer}>
+                        <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                        <Text style={styles.fieldError}>{addressError}</Text>
+                      </View>
                     ) : null}
 
                     <View style={styles.inputContainer}>
@@ -991,13 +1009,19 @@ const styles = StyleSheet.create<SignupStyles>({
     backgroundColor: '#FEF2F2',
     ...Shadows.sm,
   },
+  fieldErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: responsiveSpacing(Spacing.xs),
+    marginLeft: responsiveSpacing(Spacing.xs),
+    gap: responsiveSpacing(4),
+  } as ViewStyle,
   fieldError: {
     color: '#EF4444',
-    fontSize: Typography.sizes.xs,
-    marginTop: Spacing.xs,
-    marginLeft: Spacing.xs,
+    fontSize: scaleFont(Typography.sizes.xs),
     fontWeight: Typography.weights.medium as any,
-  },
+    flex: 1,
+  } as TextStyle,
   row: {
     flexDirection: 'row',
     gap: 10,

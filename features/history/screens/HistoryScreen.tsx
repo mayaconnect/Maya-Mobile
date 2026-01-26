@@ -7,11 +7,13 @@ import { TransactionsApi } from '@/features/home/services/transactionsApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { responsiveSpacing } from '@/utils/responsive';
 import { HistoryHeader } from '../components/HistoryHeader';
 
 export default function HistoryScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,10 @@ export default function HistoryScreen() {
 
           <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: Math.max(insets.bottom, responsiveSpacing(90)) } // Navbar height (70) + safe area + margin
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {/* Économies par catégorie */}
