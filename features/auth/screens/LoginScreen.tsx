@@ -1,15 +1,17 @@
-import { AnimatedButton } from '@/components/common/animated-button';
 import { ErrorMessage } from '@/components/common/error-message';
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { useAuth } from '@/hooks/use-auth'; // eslint-disable-line @typescript-eslint/no-unused-vars
-import { responsiveSpacing, scaleFont } from '@/utils/responsive';
+import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
-  ScrollView,
+  Image,
+  ImageStyle,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -18,7 +20,7 @@ import {
   View,
   ViewStyle
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -30,6 +32,24 @@ export default function LoginScreen() {
   const [passwordError, setPasswordError] = useState('');
   const { signIn, signInWithGoogle } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  React.useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const handleLogin = async () => {
     // Réinitialiser les erreurs
@@ -80,8 +100,6 @@ export default function LoginScreen() {
         } else if (error.message === 'INVALID_PASSWORD' || error.message === 'INVALID_CREDENTIALS' || error.message.includes('401') || error.message.includes('Unauthorized')) {
           setPasswordError('Mot de passe incorrect');
           setErrorMessage('Le mot de passe ne correspond pas à cet email. Vérifiez votre saisie ou réinitialisez votre mot de passe.');
-          // Ne pas vider le champ mot de passe pour que l'utilisateur puisse le corriger
-          // setPassword(''); // Commenté pour permettre à l'utilisateur de voir et corriger son mot de passe
         } else if (error.message.includes('Failed to fetch') || error.message.includes('Network') || error.message === 'TIMEOUT_ERROR' || error.message.includes('timeout')) {
           setErrorMessage('Problème de connexion au serveur. Vérifiez votre connexion internet et réessayez.');
         } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
@@ -97,41 +115,51 @@ export default function LoginScreen() {
     }
   };
 
-
   return (
-    <NavigationTransition direction="right" children={<></>}>
+    <NavigationTransition direction="right">
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.container}
       >
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <View style={styles.backButtonInner}>
-                <Ionicons name="arrow-back" size={20} color="white" />
-                <Text style={styles.headerText}>Retour</Text>
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          {/* Section supérieure avec fond sombre */}
+          <View style={styles.topSection}>
+            <SafeAreaView edges={['top']} style={styles.topSafeArea}>
+              {/* Bouton retour */}
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#6B7280" />
+              </TouchableOpacity>
+
+              {/* Logo et nom de l'app */}
+              <View style={styles.logoContainer}>
+                <Image 
+                  source={require('@/assets/images/logo2.png')} 
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.appName}>MayaConnect</Text>
+                <Text style={styles.slogan}>Votre partenaire économies</Text>
               </View>
-            </TouchableOpacity>
-            <View style={styles.logoContainer}>
-              <Text style={styles.appName}>Maya</Text>
-            </View>
-            <View style={styles.placeholder} />
+            </SafeAreaView>
           </View>
 
-          <ScrollView 
-            style={styles.scrollContainer}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.card}>
-              <Text style={styles.title}>Connexion</Text>
-              <Text style={styles.subtitle}>Accédez à votre espace d&apos;économies en un instant</Text>
+          {/* Carte blanche en bas */}
+          <View style={[styles.whiteCard, isKeyboardVisible && styles.whiteCardKeyboard, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
+            {/* Indicateur de drag */}
+            <View style={styles.dragIndicator} />
 
-              {/* Message d'erreur global */}
-              {errorMessage ? (
+            <View style={styles.contentContainer}>
+            <Text style={styles.title}>Connexion</Text>
+
+            {/* Message d'erreur global - masqué si pas d'erreur pour économiser l'espace */}
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
                 <ErrorMessage
                   message={errorMessage}
                   type="error"
@@ -142,352 +170,325 @@ export default function LoginScreen() {
                   }}
                   icon="alert-circle"
                 />
+              </View>
+            ) : null}
+
+            {/* Champ Email */}
+            <View style={styles.inputContainer}>
+              <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
+                <Ionicons name="mail-outline" size={20} color={emailError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setEmailError('');
+                    setErrorMessage('');
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+              {emailError ? (
+                <Text style={styles.fieldError}>{emailError}</Text>
               ) : null}
+            </View>
 
-              {/* Bouton de connexion Google */}
-              <TouchableOpacity
-                style={[styles.googleButton, googleLoading && styles.googleButtonDisabled]}
-                onPress={async () => {
-                  setGoogleLoading(true);
-                  setErrorMessage('');
-                  try {
-                    const userInfo = await signInWithGoogle();
-                    
-                    // Vérifier si l'utilisateur est un partenaire ou opérateur
-                    const isPartnerOrOperator = userInfo?.email?.toLowerCase().includes('partner') || 
-                                                 userInfo?.email?.toLowerCase().includes('partenaire') ||
-                                                 userInfo?.email?.toLowerCase().includes('operator') ||
-                                                 userInfo?.email?.toLowerCase().includes('opérateur') ||
-                                                 (userInfo as any)?.role === 'partner' ||
-                                                 (userInfo as any)?.role === 'operator' ||
-                                                 (userInfo as any)?.role === 'opérateur' ||
-                                                 (userInfo as any)?.isPartner === true ||
-                                                 (userInfo as any)?.isOperator === true;
-                    
-                    // Redirection vers la page appropriée
-                    if (isPartnerOrOperator) {
-                      router.replace('/(tabs)/partner-home');
-                    } else {
-                      router.replace('/(tabs)/home');
-                    }
-                  } catch (error) {
-                    console.error('Erreur lors de la connexion Google:', error);
-                    if (error instanceof Error) {
-                      if (error.message.includes('annulée') || error.message.includes('canceled')) {
-                        setErrorMessage('Connexion Google annulée. Vous pouvez réessayer à tout moment.');
-                      } else if (error.message.includes('Accès bloqué') || error.message.includes('blocked')) {
-                        setErrorMessage('Accès bloqué. Vérifiez que l\'application est autorisée dans votre compte Google ou contactez le support.');
-                      } else if (error.message.includes('redirect_uri') || error.message.includes('configuration')) {
-                        setErrorMessage('Erreur de configuration. Veuillez contacter le support technique.');
-                      } else if (error.message.includes('Client ID')) {
-                        setErrorMessage('Erreur de configuration Google. Contactez le support pour résoudre ce problème.');
-                      } else {
-                        setErrorMessage(`Erreur lors de la connexion Google : ${error.message}. Veuillez réessayer.`);
-                      }
-                    } else {
-                      setErrorMessage('Échec de la connexion Google. Veuillez réessayer ou utiliser votre email et mot de passe.');
-                    }
-                  } finally {
-                    setGoogleLoading(false);
-                  }
-                }}
-                disabled={googleLoading}
-              >
-                <View style={styles.googleButtonContent}>
-                  {googleLoading ? (
-                    <Text style={styles.googleButtonText}>Connexion...</Text>
-                  ) : (
-                    <>
-                      <Ionicons name="logo-google" size={20} color="#4285F4" />
-                      <Text style={styles.googleButtonText}>Continuer avec Google</Text>
-                    </>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OU</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-             
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
-                  <Ionicons name="mail" size={20} color={emailError ? "#EF4444" : "rgba(255, 255, 255, 0.8)"} style={styles.inputIcon as any} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="votre@email.com"
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                    value={email}
-                    onChangeText={(text) => {
-                      setEmail(text);
-                      setEmailError('');
-                      setErrorMessage('');
-                    }}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
-                {emailError ? (
-                  <View style={styles.fieldErrorContainer}>
-                    <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
-                    <Text style={styles.fieldError}>{emailError}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Mot de passe</Text>
-                <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
-                  <Ionicons name="lock-closed" size={20} color={passwordError ? "#EF4444" : "rgba(255, 255, 255, 0.8)"} style={styles.inputIcon as any} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="••••••••"
-                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                    value={password}
-                    onChangeText={(text) => {
-                      setPassword(text);
-                      setPasswordError('');
-                      setErrorMessage('');
-                    }}
-                    secureTextEntry={!showPassword}
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
-                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="rgba(255, 255, 255, 0.8)" />
-                  </TouchableOpacity>
-                </View>
-                {passwordError ? (
-                  <View style={styles.fieldErrorContainer}>
-                    <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
-                    <Text style={styles.fieldError}>{passwordError}</Text>
-                    <TouchableOpacity 
-                      onPress={() => router.push('/connexion/forgot-password')}
-                      style={styles.forgotPasswordLink}
-                    >
-                      <Text style={styles.forgotPasswordLinkText}>Mot de passe oublié ?</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
-              </View>
-
-              <AnimatedButton
-                title="Se connecter"
-                onPress={handleLogin}
-                icon="log-in"
-                style={styles.loginButton}
-                variant="solid"
-              />
-
-              <TouchableOpacity 
-                style={styles.forgotPassword}
-                onPress={() => router.push('/connexion/forgot-password')}
-              >
-                <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
-              </TouchableOpacity>
-
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-             
-
-              <View style={styles.signupContainer}>
-                <Text style={styles.signupText}>Pas encore de compte ? </Text>
-                <TouchableOpacity onPress={() => router.push('/connexion/signup')}>
-                  <Text style={styles.signupLink}>S&apos;inscrire</Text>
+            {/* Champ Mot de passe */}
+            <View style={styles.inputContainer}>
+              <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
+                <Ionicons name="lock-closed-outline" size={20} color={passwordError ? "#EF4444" : "#9CA3AF"} style={styles.inputIcon as any} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Mot de passe"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setPasswordError('');
+                    setErrorMessage('');
+                  }}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword((v) => !v)}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
+              {passwordError ? (
+                <Text style={styles.fieldError}>{passwordError}</Text>
+              ) : null}
             </View>
-          </ScrollView>
-        </SafeAreaView>
+
+            {/* Lien mot de passe oublié */}
+            <TouchableOpacity 
+              style={styles.forgotPassword}
+              onPress={() => router.push('/connexion/forgot-password')}
+            >
+              <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
+            </TouchableOpacity>
+
+            {/* Bouton Se connecter */}
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleLogin}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loginButtonText}>Se connecter</Text>
+              <Ionicons name="arrow-forward" size={20} color="white" />
+            </TouchableOpacity>
+
+            {/* Séparateur */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Bouton Google */}
+            <TouchableOpacity
+              style={[styles.googleButton, googleLoading && styles.googleButtonDisabled]}
+              onPress={async () => {
+                setGoogleLoading(true);
+                setErrorMessage('');
+                try {
+                  const userInfo = await signInWithGoogle();
+                  
+                  // Vérifier si l'utilisateur est un partenaire ou opérateur
+                  const isPartnerOrOperator = userInfo?.email?.toLowerCase().includes('partner') || 
+                                               userInfo?.email?.toLowerCase().includes('partenaire') ||
+                                               userInfo?.email?.toLowerCase().includes('operator') ||
+                                               userInfo?.email?.toLowerCase().includes('opérateur') ||
+                                               (userInfo as any)?.role === 'partner' ||
+                                               (userInfo as any)?.role === 'operator' ||
+                                               (userInfo as any)?.role === 'opérateur' ||
+                                               (userInfo as any)?.isPartner === true ||
+                                               (userInfo as any)?.isOperator === true;
+                  
+                  // Redirection vers la page appropriée
+                  if (isPartnerOrOperator) {
+                    router.replace('/(tabs)/partner-home');
+                  } else {
+                    router.replace('/(tabs)/home');
+                  }
+                } catch (error) {
+                  console.error('Erreur lors de la connexion Google:', error);
+                  if (error instanceof Error) {
+                    if (error.message.includes('annulée') || error.message.includes('canceled')) {
+                      setErrorMessage('Connexion Google annulée. Vous pouvez réessayer à tout moment.');
+                    } else if (error.message.includes('Accès bloqué') || error.message.includes('blocked')) {
+                      setErrorMessage('Accès bloqué. Vérifiez que l\'application est autorisée dans votre compte Google ou contactez le support.');
+                    } else if (error.message.includes('redirect_uri') || error.message.includes('configuration')) {
+                      setErrorMessage('Erreur de configuration. Veuillez contacter le support technique.');
+                    } else if (error.message.includes('Client ID')) {
+                      setErrorMessage('Erreur de configuration Google. Contactez le support pour résoudre ce problème.');
+                    } else {
+                      setErrorMessage(`Erreur lors de la connexion Google : ${error.message}. Veuillez réessayer.`);
+                    }
+                  } else {
+                    setErrorMessage('Échec de la connexion Google. Veuillez réessayer ou utiliser votre email et mot de passe.');
+                  }
+                } finally {
+                  setGoogleLoading(false);
+                }
+              }}
+              disabled={googleLoading}
+            >
+              <View style={styles.googleButtonContent}>
+                <Ionicons name="logo-google" size={20} color="#4285F4" />
+                <Text style={styles.googleButtonText}>
+                  {googleLoading ? 'Connexion...' : 'Continuer avec Google'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Lien d'inscription */}
+            <View style={styles.signupContainer}>
+              <Text style={styles.signupText}>Pas encore de compte?</Text>
+              <TouchableOpacity onPress={() => router.push('/connexion/signup')}>
+                <Text style={styles.signupLink}>S'inscrire</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          </View>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </NavigationTransition>
   );
 }
 
-type LoginStyles = {
-  container: ViewStyle;
-  safeArea: ViewStyle;
-  header: ViewStyle;
-  backButton: ViewStyle;
-  backButtonInner: ViewStyle;
-  headerText: TextStyle;
-  logoContainer: ViewStyle;
-  appName: TextStyle;
-  logoUnderline: ViewStyle;
-  placeholder: ViewStyle;
-  scrollContainer: ViewStyle;
-  scrollContent: ViewStyle;
-  card: ViewStyle;
-  title: TextStyle;
-  subtitle: TextStyle;
-  socialButtons: ViewStyle;
-  socialButton: ViewStyle;
-  socialIconButton: ViewStyle;
-  socialButtonText: TextStyle;
-  googleButton: ViewStyle;
-  googleButtonDisabled: ViewStyle;
-  googleButtonContent: ViewStyle;
-  googleButtonText: TextStyle;
-  divider: ViewStyle;
-  dividerLine: ViewStyle;
-  dividerText: TextStyle;
-  inputContainer: ViewStyle;
-  inputLabel: TextStyle;
-  inputWrapper: ViewStyle;
-  inputIcon: ViewStyle;
-  input: TextStyle;
-  loginButton: ViewStyle;
-  skipLoginButton: ViewStyle;
-  forgotPassword: ViewStyle;
-  forgotPasswordText: TextStyle;
-  signupContainer: ViewStyle;
-  signupText: TextStyle;
-  signupLink: TextStyle;
-  errorBanner: ViewStyle;
-  errorBannerText: TextStyle;
-  inputError: ViewStyle;
-  fieldError: TextStyle;
-  roleSelector: ViewStyle;
-  roleButton: ViewStyle;
-  roleButtonActive: ViewStyle;
-  roleButtonText: TextStyle;
-  roleButtonTextActive: TextStyle;
-};
-
-const styles = StyleSheet.create<LoginStyles>({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  safeArea: {
+  } as ViewStyle,
+  keyboardView: {
     flex: 1,
-    paddingHorizontal: 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-    top: 20,
-    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+  } as ViewStyle,
+  topSection: {
+    flex: 0.3,
+    minHeight: 180,
+  } as ViewStyle,
+  topSafeArea: {
+    flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
   backButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BorderRadius['2xl'],
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    ...Shadows.sm,
-  },
-  backButtonInner: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
-  },
-  headerText: {
-    color: Colors.text.light,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    marginLeft: Spacing.xs,
-  },
-  logoContainer: {
-    alignItems: 'center',
-  },
-  appName: {
-    fontSize: Typography.sizes['4xl'],
-    fontWeight: Typography.weights.extrabold,
-    color: Colors.text.light,
-    letterSpacing: Typography.letterSpacing.wide,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  logoUnderline: {
-    width: 50,
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: BorderRadius.sm,
-    marginTop: Spacing.xs,
-  },
-  placeholder: {
-    marginBottom: 0,
-    width: 100,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 40,
-    paddingBottom: 40,
-  },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    backdropFilter: 'blur(20px)',
-    borderRadius: BorderRadius['3xl'],
-    padding: Spacing.xl,
-    paddingTop: Spacing.lg,
-    ...Shadows.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  title: {
-    fontSize: 26,
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  logoContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 0,
+  } as ViewStyle,
+  logoImage: {
+    width: 90,
+    height: 90,
+    marginBottom: Spacing.xs,
+  } as ImageStyle,
+  appName: {
+    fontSize: Typography.sizes['2xl'],
     fontWeight: Typography.weights.extrabold as any,
     color: Colors.text.light,
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  subtitle: {
+    marginBottom: 2,
+    letterSpacing: -1,
+  } as TextStyle,
+  slogan: {
     fontSize: Typography.sizes.xs,
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
-    marginBottom: Spacing.md,
+    color: Colors.text.light,
     fontWeight: Typography.weights.medium as any,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: Spacing.md,
-  },
-  socialButton: {
+  } as TextStyle,
+  whiteCard: {
+    flex: 0.8,
+    backgroundColor: 'white',
+    borderTopLeftRadius: BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 0,
+    ...Shadows.xl,
+    paddingTop: Spacing.xs,
+    overflow: 'hidden',
+  } as ViewStyle,
+  whiteCardKeyboard: {
+    flex: 0.95,
+  } as ViewStyle,
+  dragIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  contentContainer: {
     flex: 1,
-  },
-  socialIconButton: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    justifyContent: 'flex-start',
+  } as ViewStyle,
+  title: {
+    fontSize: 28,
+    fontWeight: Typography.weights.extrabold as any,
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    letterSpacing: -0.5,
+  } as TextStyle,
+  inputContainer: {
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    height: 44,
-    paddingHorizontal: 14,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  socialButtonText: {
-    color: Colors.text.secondary,
+    borderColor: '#E5E7EB',
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    backgroundColor: 'white',
+  } as ViewStyle,
+  inputIcon: {
+    marginRight: Spacing.sm,
+  } as ViewStyle,
+  input: {
+    flex: 1,
+    paddingVertical: 0,
+    fontSize: Typography.sizes.sm,
+    color: '#111827',
+  } as TextStyle,
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  } as ViewStyle,
+  fieldError: {
+    color: '#EF4444',
+    fontSize: Typography.sizes.xs,
+    marginTop: 2,
+    marginLeft: Spacing.sm,
+  } as TextStyle,
+  errorContainer: {
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  forgotPassword: {
+    alignItems: 'flex-end',
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  forgotPasswordText: {
+    color: '#EF4444',
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
-  },
-  googleButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  } as TextStyle,
+  loginButton: {
+    backgroundColor: '#8B2F3F',
     borderRadius: BorderRadius.lg,
-    paddingVertical: 11,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
     ...Shadows.md,
+  } as ViewStyle,
+  loginButtonText: {
+    color: 'white',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.md,
+  } as ViewStyle,
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  } as ViewStyle,
+  dividerText: {
+    marginHorizontal: Spacing.md,
+    color: '#6B7280',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
+  googleButton: {
+    backgroundColor: 'white',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: Spacing.sm,
+    ...Shadows.sm,
   } as ViewStyle,
   googleButtonDisabled: {
     opacity: 0.6,
@@ -499,175 +500,25 @@ const styles = StyleSheet.create<LoginStyles>({
     gap: Spacing.sm,
   } as ViewStyle,
   googleButtonText: {
-    color: Colors.text.dark,
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semibold as any,
-    letterSpacing: 0.2,
-  } as TextStyle,
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.sm,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  dividerText: {
-    marginHorizontal: Spacing.md,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.semibold as any,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  inputContainer: {
-    marginBottom: Spacing.sm,
-  },
-  inputLabel: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.semibold as any,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 6,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    ...Shadows.sm,
-  },
-  inputIcon: {
-    marginRight: Spacing.xs,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 11,
+    color: '#111827',
     fontSize: Typography.sizes.sm,
-    color: Colors.text.light,
     fontWeight: Typography.weights.medium as any,
-  },
-  loginButton: {
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
-  },
-  skipLoginButton: {
-    marginBottom: 20,
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  forgotPasswordText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold as any,
-    textDecorationLine: 'underline',
-  },
+  } as TextStyle,
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.15)',
-  },
+    marginTop: Spacing.xs,
+    gap: Spacing.xs,
+  } as ViewStyle,
   signupText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium as any,
-  },
-  signupLink: {
-    color: Colors.text.light,
+    color: '#111827',
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.bold as any,
-    marginLeft: Spacing.xs,
-    textDecorationLine: 'underline',
-    letterSpacing: -0.2,
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  errorBannerText: {
-    flex: 1,
-    color: '#991B1B',
-    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    borderWidth: 2,
-    backgroundColor: '#FEF2F2',
-  },
-  fieldErrorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: responsiveSpacing(Spacing.xs),
-    marginLeft: responsiveSpacing(Spacing.xs),
-    gap: responsiveSpacing(4),
-    flexWrap: 'wrap',
-  } as ViewStyle,
-  fieldError: {
-    color: '#EF4444',
-    fontSize: scaleFont(Typography.sizes.xs),
-    fontWeight: Typography.weights.medium as any,
-    flex: 1,
   } as TextStyle,
-  forgotPasswordLink: {
-    marginLeft: 'auto',
-  } as ViewStyle,
-  forgotPasswordLinkText: {
+  signupLink: {
     color: '#EF4444',
-    fontSize: scaleFont(Typography.sizes.xs),
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semibold as any,
-    textDecorationLine: 'underline',
   } as TextStyle,
-  roleSelector: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  roleButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  roleButtonActive: {
-    backgroundColor: '#8B2F3F',
-    borderColor: 'rgba(139, 47, 63, 0.8)',
-    ...Shadows.md,
-  },
-  roleButtonText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold as any,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  roleButtonTextActive: {
-    color: 'white',
-    fontWeight: Typography.weights.bold as any,
-  },
 });

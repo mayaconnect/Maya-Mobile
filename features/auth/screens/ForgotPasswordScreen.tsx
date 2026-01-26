@@ -3,16 +3,29 @@ import { ErrorMessage } from '@/components/common/error-message';
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { AuthService } from '@/services/auth.service';
-import { responsiveSpacing, scaleFont } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Image,
+  ImageStyle,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ForgotPasswordScreen: React.FC = () => {
   type Step = 'email' | 'phone' | 'code' | 'reset';
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
@@ -219,9 +232,9 @@ const ForgotPasswordScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Email</Text>
               <View style={[styles.inputWrapper, emailError ? styles.inputError : null]}>
                 <Ionicons
-                  name="mail"
+                  name="mail-outline"
                   size={20}
-                  color={emailError ? '#DC2626' : '#9CA3AF'}
+                  color={emailError ? '#EF4444' : '#9CA3AF'}
                   style={styles.inputIcon as any}
                 />
                 <TextInput
@@ -355,9 +368,9 @@ const ForgotPasswordScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Nouveau mot de passe</Text>
               <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
                 <Ionicons
-                  name="lock-closed"
+                  name="lock-closed-outline"
                   size={20}
-                  color={passwordError ? '#DC2626' : '#9CA3AF'}
+                  color={passwordError ? '#EF4444' : '#9CA3AF'}
                   style={styles.inputIcon as any}
                 />
                 <TextInput
@@ -373,7 +386,7 @@ const ForgotPasswordScreen: React.FC = () => {
                   editable={!loading}
                 />
                 <TouchableOpacity onPress={() => setShowPassword((value) => !value)}>
-                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
               {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
@@ -383,9 +396,9 @@ const ForgotPasswordScreen: React.FC = () => {
               <Text style={styles.inputLabel}>Confirmer le mot de passe</Text>
               <View style={[styles.inputWrapper, confirmError ? styles.inputError : null]}>
                 <Ionicons
-                  name="lock-closed"
+                  name="lock-closed-outline"
                   size={20}
-                  color={confirmError ? '#DC2626' : '#9CA3AF'}
+                  color={confirmError ? '#EF4444' : '#9CA3AF'}
                   style={styles.inputIcon as any}
                 />
                 <TextInput
@@ -401,7 +414,7 @@ const ForgotPasswordScreen: React.FC = () => {
                   editable={!loading}
                 />
                 <TouchableOpacity onPress={() => setShowConfirm((value) => !value)}>
-                  <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color="#9CA3AF" />
+                  <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
               {confirmError ? <Text style={styles.fieldError}>{confirmError}</Text> : null}
@@ -439,46 +452,70 @@ const ForgotPasswordScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
         style={styles.container}
       >
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <View style={styles.backButtonInner}>
-                <Ionicons name="arrow-back" size={20} color="white" />
-                <Text style={styles.headerText}>Retour</Text>
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          {/* Section supérieure avec fond sombre */}
+          <View style={styles.topSection}>
+            <SafeAreaView edges={['top']} style={styles.topSafeArea}>
+              {/* Bouton retour */}
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#6B7280" />
+              </TouchableOpacity>
+
+              {/* Logo et nom de l'app */}
+              <View style={styles.logoContainer}>
+                <Image 
+                  source={require('@/assets/images/logo2.png')} 
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.appName}>MayaConnect</Text>
+                <Text style={styles.slogan}>Votre partenaire économies</Text>
               </View>
-            </TouchableOpacity>
-            <View style={styles.logoContainer}>
-              <Text style={styles.appName}>Maya</Text>
-              <View style={styles.logoUnderline} />
-            </View>
-            <View style={styles.placeholder} />
+            </SafeAreaView>
           </View>
 
-          <View style={styles.content}>
-            <View style={styles.card}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="lock-closed-outline" size={64} color="#8B2F3F" />
-              </View>
+          {/* Carte blanche en bas */}
+          <View style={[styles.whiteCard, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
+            {/* Indicateur de drag */}
+            <View style={styles.dragIndicator} />
 
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.contentContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              keyboardDismissMode="interactive"
+            >
               <Text style={styles.title}>{renderTitle()}</Text>
               <Text style={styles.subtitle}>{renderSubtitle()}</Text>
 
-              {successMessage ? (
-                <ErrorMessage
-                  message={successMessage}
-                  type="success"
-                  onDismiss={() => setSuccessMessage('')}
-                  icon="checkmark-circle"
-                />
+              {/* Message d'erreur global */}
+              {errorMessage ? (
+                <View style={styles.errorContainer}>
+                  <ErrorMessage
+                    message={errorMessage}
+                    type="error"
+                    onDismiss={() => resetMessages()}
+                    icon="alert-circle"
+                  />
+                </View>
               ) : null}
 
-              {errorMessage ? (
-                <ErrorMessage
-                  message={errorMessage}
-                  type="error"
-                  onDismiss={() => resetMessages()}
-                  icon="alert-circle"
-                />
+              {/* Message de succès */}
+              {successMessage ? (
+                <View style={styles.errorContainer}>
+                  <ErrorMessage
+                    message={successMessage}
+                    type="success"
+                    onDismiss={() => setSuccessMessage('')}
+                    icon="checkmark-circle"
+                  />
+                </View>
               ) : null}
 
               {renderStepContent()}
@@ -492,9 +529,9 @@ const ForgotPasswordScreen: React.FC = () => {
               <TouchableOpacity onPress={() => router.push('/connexion/login')}>
                 <Text style={styles.backToLogin}>Retour à la connexion</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
-        </SafeAreaView>
+        </KeyboardAvoidingView>
       </LinearGradient>
     </NavigationTransition>
   );
@@ -503,191 +540,168 @@ const ForgotPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  safeArea: {
+  } as ViewStyle,
+  keyboardView: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  } as ViewStyle,
+  topSection: {
+    flex: 0.3,
+    minHeight: 180,
+  } as ViewStyle,
+  topSafeArea: {
+    flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
   backButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BorderRadius['2xl'],
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    ...Shadows.sm,
-  },
-  backButtonInner: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
-  },
-  headerText: {
-    color: Colors.text.light,
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    marginLeft: Spacing.xs,
-  },
-  logoContainer: {
-    alignItems: 'center',
-  },
-  appName: {
-    fontSize: Typography.sizes['4xl'],
-    fontWeight: Typography.weights.extrabold,
-    color: Colors.text.light,
-    letterSpacing: Typography.letterSpacing.wide,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  logoUnderline: {
-    width: 50,
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: BorderRadius.sm,
-    marginTop: Spacing.xs,
-  },
-  placeholder: {
-    width: 100,
-  },
-  content: {
-    flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  card: {
-    backgroundColor: Colors.background.card,
-    borderRadius: BorderRadius['3xl'],
-    padding: Spacing['2xl'],
-    marginVertical: Spacing.lg,
-    ...Shadows.xl,
-  },
-  iconContainer: {
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  logoContainer: {
+    flex: 1,
     alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
+    justifyContent: 'flex-start',
+    paddingTop: 0,
+  } as ViewStyle,
+  logoImage: {
+    width: 90,
+    height: 90,
+    marginBottom: Spacing.xs,
+  } as ImageStyle,
+  appName: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: Typography.weights.extrabold as any,
+    color: Colors.text.light,
+    marginBottom: 2,
+    letterSpacing: -1,
+  } as TextStyle,
+  slogan: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.light,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
+  whiteCard: {
+    flex: 0.8,
+    backgroundColor: 'white',
+    borderTopLeftRadius: BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    ...Shadows.xl,
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
+  dragIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  scrollView: {
+    flex: 1,
+  } as ViewStyle,
+  contentContainer: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  } as ViewStyle,
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: 'black',
+    fontWeight: Typography.weights.extrabold as any,
+    color: '#111827',
     textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
+    marginTop: Spacing.md,
+    marginBottom: Spacing.md,
+    letterSpacing: -0.5,
+  } as TextStyle,
   subtitle: {
-    fontSize: 16,
+    fontSize: Typography.sizes.sm,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: Spacing.lg,
-  },
-  inputContainer: {
-    marginBottom: Spacing.lg,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'black',
+    marginBottom: Spacing.md,
+  } as TextStyle,
+  errorContainer: {
     marginBottom: Spacing.xs,
-  },
+  } as ViewStyle,
+  inputContainer: {
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  inputLabel: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+    color: '#111827',
+    marginBottom: Spacing.xs,
+  } as TextStyle,
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
-  },
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'white',
+  } as ViewStyle,
   inputIcon: {
     marginRight: Spacing.sm,
-  },
+  } as ViewStyle,
   input: {
     flex: 1,
-    paddingVertical: Spacing.md,
-    fontSize: 16,
-    color: 'black',
-  },
+    paddingVertical: 0,
+    fontSize: Typography.sizes.sm,
+    color: '#111827',
+  } as TextStyle,
   submitButton: {
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
   backToEmailButton: {
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-  },
+    paddingVertical: Spacing.xs,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
   backToEmailText: {
     color: '#8B2F3F',
-    fontSize: 14,
-    fontWeight: '500',
-  },
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Spacing.lg,
-  },
+    marginVertical: Spacing.sm,
+  } as ViewStyle,
   dividerLine: {
     flex: 1,
     height: 1,
     backgroundColor: '#E5E7EB',
-  },
+  } as ViewStyle,
   dividerText: {
     marginHorizontal: Spacing.md,
-    color: '#9CA3AF',
-    fontSize: 14,
-  },
+    color: '#6B7280',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
   backToLogin: {
     textAlign: 'center',
-    color: '#8B2F3F',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    borderLeftWidth: 4,
-    borderLeftColor: '#DC2626',
-    padding: Spacing.md,
-    borderRadius: 8,
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  errorBannerText: {
-    flex: 1,
-    color: '#991B1B',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  successBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#D1FAE5',
-    borderLeftWidth: 4,
-    borderLeftColor: '#059669',
-    padding: Spacing.md,
-    borderRadius: 8,
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  successBannerText: {
-    flex: 1,
-    color: '#065F46',
-    fontSize: 14,
-    fontWeight: '500',
-  },
+    color: '#EF4444',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
+  } as TextStyle,
   inputError: {
-    borderColor: '#DC2626',
+    borderColor: '#EF4444',
     borderWidth: 2,
-    backgroundColor: '#FEF2F2',
-  },
+  } as ViewStyle,
   fieldError: {
-    color: '#DC2626',
-    fontSize: 12,
-    marginTop: Spacing.xs,
-    marginLeft: Spacing.xs,
-  },
+    color: '#EF4444',
+    fontSize: Typography.sizes.xs,
+    marginTop: 2,
+    marginLeft: Spacing.sm,
+  } as TextStyle,
 });
 
 export default ForgotPasswordScreen;

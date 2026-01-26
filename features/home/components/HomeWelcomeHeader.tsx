@@ -1,8 +1,8 @@
-import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
+import { Colors, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 interface HomeWelcomeHeaderProps {
   firstName?: string;
@@ -18,7 +18,7 @@ export const HomeWelcomeHeader: React.FC<HomeWelcomeHeaderProps> = ({ firstName,
           <Text style={styles.welcomeName}>
             {firstName || 'Client'} {lastName || ''}
           </Text>
-          <Text style={styles.welcomeSubtitle}>Profitez de vos avantages Maya</Text>
+          <Text style={styles.welcomeSubtitle}>Profitez de vos avantages MayaConnect</Text>
         </View>
         <TouchableOpacity
           style={styles.profileButton}
