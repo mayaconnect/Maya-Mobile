@@ -24,7 +24,33 @@ import {
   View,
   ViewStyle
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { responsiveSpacing } from '@/utils/responsive';
+
+// Fonction helper pour convertir un Uint8Array en base64 (compatible React Native)
+function arrayBufferToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  // Utiliser une conversion base64 compatible
+  // En React Native, on peut utiliser une implémentation base64 simple
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  let i = 0;
+  while (i < binary.length) {
+    const a = binary.charCodeAt(i++);
+    const b = i < binary.length ? binary.charCodeAt(i++) : 0;
+    const c = i < binary.length ? binary.charCodeAt(i++) : 0;
+    
+    const bitmap = (a << 16) | (b << 8) | c;
+    result += chars.charAt((bitmap >> 18) & 63);
+    result += chars.charAt((bitmap >> 12) & 63);
+    result += i - 2 < binary.length ? chars.charAt((bitmap >> 6) & 63) : '=';
+    result += i - 1 < binary.length ? chars.charAt(bitmap & 63) : '=';
+  }
+  return result;
+}
 
 export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -32,6 +58,7 @@ export default function ProfileScreen() {
   const [faceId, setFaceId] = useState(true);
   const [showDebugUsers, setShowDebugUsers] = useState(false);
   const { signOut, user, refreshUser } = useAuth();
+  const insets = useSafeAreaInsets();
   
   // États pour les informations complètes
   const [userInfo, setUserInfo] = useState<any | null>(null);
@@ -51,72 +78,156 @@ export default function ProfileScreen() {
         return null;
       }
 
-      // Construire l'URL complète
-      let imageUrl = avatarUrl;
-      if (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')) {
-        // Si avatarUrl commence déjà par /, c'est un chemin absolu depuis la racine du serveur
-        // Sinon, c'est un chemin relatif
+      // Vérifier si c'est une URL complète (http:// ou https://)
+      const isFullUrl = avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://');
+      
+      if (isFullUrl) {
+        // URL complète (ex: Azure File Storage)
+        console.log('📥 [Profile] Chargement avatar depuis URL complète:', avatarUrl);
         
+        try {
+          // Pour Azure File Storage, on peut essayer avec le token d'authentification
+          // Si l'URL contient déjà un SAS token, on peut l'utiliser directement
+          // Sinon, on essaie avec le token Bearer
+          const response = await fetch(avatarUrl, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'ngrok-skip-browser-warning': 'true',
+            },
+          });
+
+          if (response.ok) {
+            console.log('✅ [Profile] Avatar chargé depuis URL complète');
+            // Convertir en base64 (méthode compatible React Native)
+            const arrayBuffer = await response.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            // Conversion base64 manuelle (compatible React Native)
+            const base64 = arrayBufferToBase64(bytes);
+            return base64;
+          } else {
+            // Si l'URL complète ne fonctionne pas avec le token, essayer sans token
+            // (au cas où l'URL contient déjà un SAS token ou est publique)
+            console.log(`⚠️ [Profile] URL complète avec token retourne ${response.status}, essai sans token...`);
+            const responseWithoutToken = await fetch(avatarUrl, {
+              headers: {
+                'ngrok-skip-browser-warning': 'true',
+              },
+            });
+
+            if (responseWithoutToken.ok) {
+              console.log('✅ [Profile] Avatar chargé depuis URL complète (sans token)');
+              // Convertir en base64 (méthode compatible React Native)
+              const arrayBuffer = await responseWithoutToken.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              const base64 = arrayBufferToBase64(bytes);
+              return base64;
+            } else {
+              console.warn(`⚠️ [Profile] Impossible de charger l'avatar depuis l'URL complète: ${responseWithoutToken.status}`);
+              // Essayer via un endpoint proxy du backend
+              return await tryProxyEndpoint(avatarUrl, token);
+            }
+          }
+        } catch (fetchError) {
+          console.error('❌ [Profile] Erreur lors du chargement depuis URL complète:', fetchError);
+          // Essayer via un endpoint proxy du backend
+          return await tryProxyEndpoint(avatarUrl, token);
+        }
+      } else {
+        // URL relative - utiliser la logique existante
         const urlObj = new URL(API_BASE_URL);
         const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
         
-        // Si avatarUrl commence par /, on l'utilise tel quel (chemin absolu)
-        // Sinon, on enlève les slashes en début et on ajoute un /
-        if (avatarUrl.startsWith('/')) {
-          // Chemin absolu : /uploads/avatars/...
-          imageUrl = `${baseUrl}${avatarUrl}`;
-        } else {
-          // Chemin relatif : uploads/avatars/... (sans slash initial)
-          imageUrl = `${baseUrl}/${avatarUrl}`;
+        // Nettoyer le chemin avatarUrl
+        const cleanAvatarPath = avatarUrl.replace(/^\/+/, '');
+        const filename = cleanAvatarPath.split('/').pop() || '';
+        
+        // Essayer plusieurs chemins possibles :
+        // 1. Route API dédiée (si elle existe) : /api/v1/auth/avatar ou /api/v1/users/me/avatar
+        // 2. Chemin direct depuis la racine : /uploads/avatars/...
+        // 3. Chemin via API : /api/v1/uploads/avatars/...
+        const possibleUrls: string[] = [];
+        
+        // Si on a le nom du fichier, essayer une route API dédiée
+        if (filename) {
+          possibleUrls.push(`${API_BASE_URL}/auth/avatar`);
+          possibleUrls.push(`${API_BASE_URL}/users/me/avatar`);
         }
         
-        // Nettoyer les doubles slashes (sauf après le protocole http:// ou https://)
-        imageUrl = imageUrl.replace(/([^:]\/)\/+/g, '$1');
+        // Ajouter les chemins statiques
+        if (avatarUrl.startsWith('/')) {
+          possibleUrls.push(`${baseUrl}${avatarUrl}`);
+        } else {
+          possibleUrls.push(`${baseUrl}/${cleanAvatarPath}`);
+        }
+        possibleUrls.push(`${baseUrl}/api/v1/${cleanAvatarPath}`);
+
+        console.log('📥 [Profile] Tentative de chargement avatar, URLs à tester:', possibleUrls);
+
+        // Essayer chaque URL jusqu'à ce qu'une fonctionne
+        for (const url of possibleUrls) {
+          try {
+            console.log(`🔍 [Profile] Test de l'URL: ${url}`);
+            const response = await fetch(url, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'ngrok-skip-browser-warning': 'true',
+              },
+            });
+
+            if (response.ok) {
+              console.log(`✅ [Profile] Avatar trouvé à l'URL: ${url}`);
+              // Convertir en base64 (méthode compatible React Native)
+              const arrayBuffer = await response.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              const base64 = arrayBufferToBase64(bytes);
+              return base64;
+            } else {
+              console.log(`⚠️ [Profile] URL ${url} retourne ${response.status}`);
+            }
+          } catch (fetchError) {
+            console.log(`⚠️ [Profile] Erreur pour l'URL ${url}:`, fetchError);
+            // Continue à essayer les autres URLs
+            continue;
+          }
+        }
+
+        // Si aucune URL n'a fonctionné
+        console.warn('⚠️ [Profile] Aucune URL valide trouvée pour l\'avatar.');
+        return null;
       }
+    } catch (error) {
+      console.error('❌ [Profile] Erreur lors du chargement avatar avec auth:', error);
+      return null;
+    }
+  };
 
-      console.log('📥 [Profile] Chargement avatar avec auth:', { 
-        originalAvatarUrl: avatarUrl,
-        baseUrl: API_BASE_URL,
-        finalImageUrl: imageUrl,
-        imageUrlLength: imageUrl.length,
-        startsWithSlash: avatarUrl.startsWith('/'),
-        startsWithHttp: avatarUrl.startsWith('http'),
-      });
-
-      // Télécharger l'image avec authentification
-      const response = await fetch(imageUrl, {
+  // Fonction helper pour essayer un endpoint proxy du backend
+  const tryProxyEndpoint = async (avatarUrl: string, token: string): Promise<string | null> => {
+    try {
+      // Essayer un endpoint proxy qui charge l'image depuis Azure et la retourne
+      const proxyUrl = `${API_BASE_URL}/auth/avatar-proxy?url=${encodeURIComponent(avatarUrl)}`;
+      console.log('🔄 [Profile] Essai via endpoint proxy:', proxyUrl);
+      
+      const response = await fetch(proxyUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'ngrok-skip-browser-warning': 'true',
         },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        console.error('❌ [Profile] Erreur HTTP lors du chargement avatar:', {
-          status: response.status,
-          statusText: response.statusText,
-          url: imageUrl,
-          errorText: errorText.substring(0, 200),
-        });
+      if (response.ok) {
+        console.log('✅ [Profile] Avatar chargé via endpoint proxy');
+        // Convertir en base64 (méthode compatible React Native)
+        const arrayBuffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        const base64 = arrayBufferToBase64(bytes);
+        return base64;
+      } else {
+        console.warn(`⚠️ [Profile] Endpoint proxy retourne ${response.status}`);
         return null;
       }
-
-      // Convertir en base64
-      const blob = await response.blob();
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = reader.result as string;
-          // Enlever le préfixe data:image/...;base64,
-          const base64Data = base64.split(',')[1];
-          resolve(base64Data);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
     } catch (error) {
-      console.error('❌ [Profile] Erreur lors du chargement avatar avec auth:', error);
+      console.warn('⚠️ [Profile] Erreur avec endpoint proxy:', error);
       return null;
     }
   };
@@ -384,7 +495,10 @@ export default function ProfileScreen() {
 
           <ScrollView
             style={styles.content}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: Math.max(insets.bottom, responsiveSpacing(90)) } // Navbar height (70) + safe area + margin
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
@@ -421,69 +535,31 @@ export default function ProfileScreen() {
                       // Utiliser avatarBase64 du state si disponible, sinon celui de userInfo
                       const finalAvatarBase64 = avatarBase64 || userInfo?.avatarBase64;
                       
-                      // Vérifier si on a un avatar (base64 ou URL)
-                      const hasAvatar = finalAvatarBase64 || (userInfo as any)?.avatarUrl || (userInfo as any)?.avatar;
-                      if (!hasAvatar) return null;
-                      
-                      let imageUri = '';
+                      // Utiliser uniquement le base64 si disponible (l'URL directe ne fonctionne pas sans route API)
                       if (finalAvatarBase64) {
-                        imageUri = `data:image/jpeg;base64,${finalAvatarBase64}`;
-                      } else {
-                        // Si pas de base64, essayer l'URL (mais ça ne marchera probablement pas sans auth)
-                        const avatarUrl = (userInfo as any)?.avatarUrl || (userInfo as any)?.avatar;
-                        if (avatarUrl) {
-                          if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
-                            imageUri = avatarUrl;
-                          } else {
-                            // Construire l'URL complète depuis le chemin relatif
-                            const urlObj = new URL(API_BASE_URL);
-                            const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
-                            const cleanAvatarUrl = avatarUrl.replace(/^\/+/, '');
-                            imageUri = `${baseUrl}/${cleanAvatarUrl}`.replace(/([^:]\/)\/+/g, '$1');
-                          }
-                        }
+                        const imageUri = `data:image/jpeg;base64,${finalAvatarBase64}`;
+                        console.log('🖼️ [Profile] Affichage avatar depuis base64');
+                        return (
+                          <View style={styles.avatarImageContainer}>
+                            <Image 
+                              source={{ uri: imageUri }}
+                              style={styles.avatarImage}
+                              resizeMode="cover"
+                              onError={(error) => {
+                                console.warn('⚠️ [Profile] Erreur chargement image base64, utilisation avatar par défaut');
+                              }}
+                            />
+                            <View style={styles.avatarEditOverlay}>
+                              <Ionicons name="camera" size={20} color={Colors.text.light} />
+                            </View>
+                          </View>
+                        );
                       }
                       
-                      console.log('🖼️ [Profile] Affichage avatar:', {
-                        hasAvatarBase64: !!userInfo?.avatarBase64,
-                        hasAvatarUrl: !!(userInfo as any)?.avatarUrl,
-                        hasAvatar: !!(userInfo as any)?.avatar,
-                        imageUri: imageUri.length > 100 ? imageUri.substring(0, 100) + '...' : imageUri,
-                        fullImageUri: imageUri,
-                      });
-                      
-                      return (
-                        <View style={styles.avatarImageContainer}>
-                          <Image 
-                            source={{ 
-                              uri: imageUri,
-                              cache: 'default',
-                              headers: {
-                                // Ajouter les headers nécessaires pour ngrok si besoin
-                                'ngrok-skip-browser-warning': 'true',
-                              },
-                            }}
-                            style={styles.avatarImage}
-                            resizeMode="cover"
-                            onError={(error) => {
-                              console.error('❌ [Profile] Erreur chargement image:', {
-                                error: error.nativeEvent?.error || error,
-                                imageUri: imageUri,
-                                imageUriLength: imageUri.length,
-                              });
-                            }}
-                            onLoad={() => {
-                              console.log('✅ [Profile] Image avatar chargée avec succès', { imageUri });
-                            }}
-                            onLoadStart={() => {
-                              console.log('🔄 [Profile] Début du chargement de l\'image', { imageUri });
-                            }}
-                          />
-                          <View style={styles.avatarEditOverlay}>
-                            <Ionicons name="camera" size={20} color={Colors.text.light} />
-                          </View>
-                        </View>
-                      );
+                      // Si pas de base64, ne pas essayer d'utiliser l'URL directement
+                      // (car elle nécessite une authentification et le serveur ne sert pas les fichiers statiques)
+                      // On affiche l'avatar par défaut avec les initiales
+                      return null;
                     })() || (
                       <LinearGradient
                         colors={['#8B2F3F', '#A53F51']}
@@ -693,30 +769,6 @@ export default function ProfileScreen() {
                   </View>
                 </View>
               )}
-
-              {/* Moyens de paiement */}
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Moyens de paiement</Text>
-                <TouchableOpacity style={styles.paymentItem}>
-                  <Ionicons name="card" size={18} color={Colors.text.primary} />
-                  <View style={{ flex: 1, marginLeft: Spacing.md } as ViewStyle}>
-                    <Text style={styles.paymentTitle}>Visa •••• 4242</Text>
-                    <View style={styles.inlineRow}>
-                      <View style={styles.defaultChip}><Text style={styles.defaultChipText}>Par défaut</Text></View>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.text.muted} />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.paymentItem}>
-                  <Ionicons name="logo-paypal" size={18} color={Colors.text.primary} />
-                  <View style={{ flex: 1, marginLeft: Spacing.md } as ViewStyle}>
-                    <Text style={styles.paymentTitle}>PayPal</Text>
-                    <Text style={styles.paymentSubtitle}>{userInfo?.email || user?.email || 'email@example.com'}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={Colors.text.muted} />
-                </TouchableOpacity>
-              </View>
 
               {/* Paramètres */}
               <View style={styles.sectionCard}>

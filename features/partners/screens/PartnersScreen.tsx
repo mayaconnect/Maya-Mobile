@@ -18,7 +18,8 @@ import {
     View,
     ViewStyle
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { responsiveSpacing } from '@/utils/responsive';
 import { PartnersGridView } from '../components/PartnersGridView';
 import { PartnersHeader } from '../components/PartnersHeader';
 import { PartnersListView } from '../components/PartnersListView';
@@ -30,6 +31,7 @@ import { mapStoreToPartner } from '../utils/partnerMapper';
 type PartnerUI = Partner;
 
 export default function PartnersScreen() {
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [viewMode, setViewMode] = useState<PartnerViewMode>('grille');
@@ -562,7 +564,10 @@ export default function PartnersScreen() {
               <ScrollView 
                 style={styles.modalScrollView}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.modalContentContainer}
+                contentContainerStyle={[
+                  styles.modalContentContainer,
+                  { paddingBottom: Math.max(insets.bottom, responsiveSpacing(20)) } // Safe area pour le modal
+                ]}
               >
                 {selectedPartner && (
                   <>

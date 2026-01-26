@@ -1,5 +1,6 @@
 import { Colors, Spacing, Typography } from '@/constants/design-system';
 import { PartnerCard } from '@/components/partners/partner-card';
+import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -11,6 +12,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Partner } from '../types';
 
 interface PartnersListViewProps {
@@ -26,6 +28,7 @@ export const PartnersListView: React.FC<PartnersListViewProps> = ({
   error,
   onPartnerSelect,
 }) => {
+  const insets = useSafeAreaInsets();
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -59,7 +62,10 @@ export const PartnersListView: React.FC<PartnersListViewProps> = ({
     <ScrollView
       style={styles.partnersList}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.partnersListContent}
+      contentContainerStyle={[
+        styles.partnersListContent,
+        { paddingBottom: Math.max(insets.bottom, responsiveSpacing(90)) } // Navbar height (70) + safe area + margin
+      ]}
     >
       {partners.map((partner, index) => (
         <PartnerCard

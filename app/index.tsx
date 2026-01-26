@@ -6,7 +6,7 @@ import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { PaginationDots } from '@/components/pagination-dots';
 import { Colors } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, ScrollView, Dimensions, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
@@ -39,6 +39,9 @@ export default function Index() {
   const { user, loading } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  // Note: pathname peut ne pas être disponible dans tous les contextes
+  // On s'assure juste que si l'utilisateur n'est pas connecté, on affiche l'onboarding
+  // Mais si l'utilisateur est déjà sur /connexion/login, il ne sera pas redirigé ici
 
   // Si l'utilisateur est connecté, rediriger immédiatement vers la page home
   if (!loading && user) {

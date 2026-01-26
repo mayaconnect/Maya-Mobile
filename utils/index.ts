@@ -10,4 +10,5 @@ export * from './performance';
 export * from './memoization';
 export * from './lazy-loading';
 export * from './offline-sync';
+export * from './responsive';
 export * from './persistent-cache';

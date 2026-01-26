@@ -1,4 +1,5 @@
 import { Colors, Spacing, Typography, BorderRadius } from '@/constants/design-system';
+import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -11,6 +12,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Partner } from '../types';
 
 interface PartnersGridViewProps {
@@ -26,6 +28,7 @@ export const PartnersGridView: React.FC<PartnersGridViewProps> = ({
   error,
   onPartnerSelect,
 }) => {
+  const insets = useSafeAreaInsets();
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -59,7 +62,10 @@ export const PartnersGridView: React.FC<PartnersGridViewProps> = ({
     <View style={styles.partnersGrid}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.partnersGridContent}
+        contentContainerStyle={[
+          styles.partnersGridContent,
+          { paddingBottom: Math.max(insets.bottom, responsiveSpacing(90)) } // Navbar height (70) + safe area + margin
+        ]}
       >
         {partners.map((partner, index) => (
           <TouchableOpacity

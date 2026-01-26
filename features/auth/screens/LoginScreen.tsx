@@ -1,7 +1,9 @@
 import { AnimatedButton } from '@/components/common/animated-button';
+import { ErrorMessage } from '@/components/common/error-message';
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth'; // eslint-disable-line @typescript-eslint/no-unused-vars
+import { responsiveSpacing, scaleFont } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -36,11 +38,19 @@ export default function LoginScreen() {
     setPasswordError('');
 
     if (!email || !password) {
-      setErrorMessage('⚠️ Veuillez remplir tous les champs');
+      if (!email) {
+        setEmailError('Champ requis');
+      }
+      if (!password) {
+        setPasswordError('Champ requis');
+      }
+      setErrorMessage('Veuillez remplir tous les champs pour continuer');
       return;
     }
     try {
+      console.log('🔐 [LoginScreen] Tentative de connexion...');
       const userInfo = await signIn({ email, password, role });
+      console.log('✅ [LoginScreen] Connexion réussie, redirection...');
       
       // Vérifier si l'utilisateur est un partenaire ou opérateur pour rediriger directement
       const isPartnerOrOperator = userInfo?.email?.toLowerCase().includes('partner') || 
@@ -60,21 +70,29 @@ export default function LoginScreen() {
         router.replace('/(tabs)/home');
       }
     } catch (error) {
-      console.error('Erreur lors de la connexion:', error);
+      console.error('❌ [LoginScreen] Erreur lors de la connexion:', error);
+      console.log('🔍 [LoginScreen] Reste sur la page de connexion pour afficher l\'erreur');
       if (error instanceof Error) {
-        if (error.message === 'INVALID_EMAIL') {
-          setEmailError('❌ Cet email n\'est pas enregistré');
-          setErrorMessage('Email non trouvé dans notre base de données');
-        } else if (error.message === 'INVALID_PASSWORD') {
-          setPasswordError('❌ Mot de passe incorrect');
-          setErrorMessage('Le mot de passe ne correspond pas à cet email');
-        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network') || error.message === 'TIMEOUT_ERROR') {
-          setErrorMessage('❌ Serveur backend non disponible. Vérifiez que le serveur est démarré.');
+        // Gestion des erreurs d'identifiants
+        if (error.message === 'INVALID_EMAIL' || error.message.includes('404') || error.message.includes('not found')) {
+          setEmailError('Email non trouvé');
+          setErrorMessage('Cet email n\'est pas enregistré. Vérifiez votre adresse ou créez un compte.');
+        } else if (error.message === 'INVALID_PASSWORD' || error.message === 'INVALID_CREDENTIALS' || error.message.includes('401') || error.message.includes('Unauthorized')) {
+          setPasswordError('Mot de passe incorrect');
+          setErrorMessage('Le mot de passe ne correspond pas à cet email. Vérifiez votre saisie ou réinitialisez votre mot de passe.');
+          // Ne pas vider le champ mot de passe pour que l'utilisateur puisse le corriger
+          // setPassword(''); // Commenté pour permettre à l'utilisateur de voir et corriger son mot de passe
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('Network') || error.message === 'TIMEOUT_ERROR' || error.message.includes('timeout')) {
+          setErrorMessage('Problème de connexion au serveur. Vérifiez votre connexion internet et réessayez.');
+        } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+          setErrorMessage('Accès refusé. Votre compte pourrait être suspendu. Contactez le support.');
+        } else if (error.message.includes('500') || error.message.includes('Server Error')) {
+          setErrorMessage('Erreur serveur temporaire. Veuillez réessayer dans quelques instants.');
         } else {
-          setErrorMessage(`❌ Erreur: ${error.message}`);
+          setErrorMessage(`Une erreur est survenue : ${error.message}. Veuillez réessayer ou contacter le support si le problème persiste.`);
         }
       } else {
-        setErrorMessage('❌ Échec de la connexion. Veuillez réessayer.');
+        setErrorMessage('Échec de la connexion. Veuillez vérifier vos identifiants et réessayer.');
       }
     }
   };
@@ -114,10 +132,16 @@ export default function LoginScreen() {
 
               {/* Message d'erreur global */}
               {errorMessage ? (
-                <View style={styles.errorBanner}>
-                  <Ionicons name="alert-circle" size={20} color="#DC2626" />
-                  <Text style={styles.errorBannerText}>{errorMessage}</Text>
-                </View>
+                <ErrorMessage
+                  message={errorMessage}
+                  type="error"
+                  onDismiss={() => {
+                    setErrorMessage('');
+                    setEmailError('');
+                    setPasswordError('');
+                  }}
+                  icon="alert-circle"
+                />
               ) : null}
 
               {/* Bouton de connexion Google */}
@@ -149,17 +173,19 @@ export default function LoginScreen() {
                   } catch (error) {
                     console.error('Erreur lors de la connexion Google:', error);
                     if (error instanceof Error) {
-                      if (error.message.includes('annulée')) {
-                        setErrorMessage('Connexion Google annulée');
-                      } else if (error.message.includes('Accès bloqué')) {
-                        setErrorMessage('❌ Accès bloqué. Vérifiez que l\'application est autorisée dans votre compte Google ou contactez le support.');
-                      } else if (error.message.includes('redirect_uri')) {
-                        setErrorMessage('❌ Erreur de configuration. Veuillez contacter le support technique.');
+                      if (error.message.includes('annulée') || error.message.includes('canceled')) {
+                        setErrorMessage('Connexion Google annulée. Vous pouvez réessayer à tout moment.');
+                      } else if (error.message.includes('Accès bloqué') || error.message.includes('blocked')) {
+                        setErrorMessage('Accès bloqué. Vérifiez que l\'application est autorisée dans votre compte Google ou contactez le support.');
+                      } else if (error.message.includes('redirect_uri') || error.message.includes('configuration')) {
+                        setErrorMessage('Erreur de configuration. Veuillez contacter le support technique.');
+                      } else if (error.message.includes('Client ID')) {
+                        setErrorMessage('Erreur de configuration Google. Contactez le support pour résoudre ce problème.');
                       } else {
-                        setErrorMessage(`❌ ${error.message}`);
+                        setErrorMessage(`Erreur lors de la connexion Google : ${error.message}. Veuillez réessayer.`);
                       }
                     } else {
-                      setErrorMessage('❌ Échec de la connexion Google. Veuillez réessayer.');
+                      setErrorMessage('Échec de la connexion Google. Veuillez réessayer ou utiliser votre email et mot de passe.');
                     }
                   } finally {
                     setGoogleLoading(false);
@@ -205,7 +231,10 @@ export default function LoginScreen() {
                   />
                 </View>
                 {emailError ? (
-                  <Text style={styles.fieldError}>{emailError}</Text>
+                  <View style={styles.fieldErrorContainer}>
+                    <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                    <Text style={styles.fieldError}>{emailError}</Text>
+                  </View>
                 ) : null}
               </View>
 
@@ -230,7 +259,16 @@ export default function LoginScreen() {
                   </TouchableOpacity>
                 </View>
                 {passwordError ? (
-                  <Text style={styles.fieldError}>{passwordError}</Text>
+                  <View style={styles.fieldErrorContainer}>
+                    <Ionicons name="close-circle" size={scaleFont(14)} color="#EF4444" />
+                    <Text style={styles.fieldError}>{passwordError}</Text>
+                    <TouchableOpacity 
+                      onPress={() => router.push('/connexion/forgot-password')}
+                      style={styles.forgotPasswordLink}
+                    >
+                      <Text style={styles.forgotPasswordLinkText}>Mot de passe oublié ?</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : null}
               </View>
 
@@ -577,12 +615,29 @@ const styles = StyleSheet.create<LoginStyles>({
     borderWidth: 2,
     backgroundColor: '#FEF2F2',
   },
+  fieldErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: responsiveSpacing(Spacing.xs),
+    marginLeft: responsiveSpacing(Spacing.xs),
+    gap: responsiveSpacing(4),
+    flexWrap: 'wrap',
+  } as ViewStyle,
   fieldError: {
     color: '#EF4444',
-    fontSize: Typography.sizes.xs,
-    marginTop: Spacing.xs,
-    marginLeft: Spacing.xs,
-  },
+    fontSize: scaleFont(Typography.sizes.xs),
+    fontWeight: Typography.weights.medium as any,
+    flex: 1,
+  } as TextStyle,
+  forgotPasswordLink: {
+    marginLeft: 'auto',
+  } as ViewStyle,
+  forgotPasswordLinkText: {
+    color: '#EF4444',
+    fontSize: scaleFont(Typography.sizes.xs),
+    fontWeight: Typography.weights.semibold as any,
+    textDecorationLine: 'underline',
+  } as TextStyle,
   roleSelector: {
     flexDirection: 'row',
     gap: Spacing.sm,
