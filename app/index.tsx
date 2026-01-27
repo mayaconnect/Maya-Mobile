@@ -6,17 +6,16 @@ import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { PaginationDots } from '@/components/pagination-dots';
 import { Colors } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
-import { Redirect, router, usePathname, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, ScrollView, Dimensions, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  interpolate,
-  Extrapolate,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Redirect, router } from 'expo-router';
+import React, { useRef, useState } from 'react';
+import { Dimensions, NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, {
+  Extrapolate,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue
+} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +61,7 @@ export default function Index() {
                                  (user as any)?.role === 'operator' ||
                                  (user as any)?.role === 'opérateur' ||
                                  (user as any)?.role === 'partners' ||
+                                 (user as any)?.role === 'StoreOperator' ||
                                  (user as any)?.isPartner === true ||
                                  (user as any)?.isOperator === true;
 

@@ -5,6 +5,7 @@ import { SubscriptionsApi } from '@/features/subscription/services/subscriptions
 import { useAuth } from '@/hooks/use-auth';
 import { API_BASE_URL, AuthService } from '@/services/auth.service';
 import { uploadAvatar as uploadAvatarApi } from '@/services/auth/auth.profile';
+import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,7 +26,6 @@ import {
   ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { responsiveSpacing } from '@/utils/responsive';
 
 // Fonction helper pour convertir un Uint8Array en base64 (compatible React Native)
 function arrayBufferToBase64(bytes: Uint8Array): string {

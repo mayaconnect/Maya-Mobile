@@ -1,6 +1,7 @@
 import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -131,6 +132,24 @@ export const PartnersMapView: React.FC<PartnersMapViewProps> = ({
             console.log('🗺️ Carte partenaires chargée avec fond noir personnalisé');
           }}
         />
+
+        {/* Blur overlays sur les côtés avec la couleur de l'app */}
+        <View style={styles.blurOverlayLeft} pointerEvents="none">
+          <LinearGradient
+            colors={['rgba(139, 47, 63, 0.35)', 'rgba(139, 47, 63, 0.15)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradientFill}
+          />
+        </View>
+        <View style={styles.blurOverlayRight} pointerEvents="none">
+          <LinearGradient
+            colors={['transparent', 'rgba(139, 47, 63, 0.15)', 'rgba(139, 47, 63, 0.35)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradientFill}
+          />
+        </View>
       </View>
       {/* Bordure inférieure pour effet 3D */}
       <View style={styles.mapBottomBorder} />
@@ -179,13 +198,7 @@ export const PartnersMapView: React.FC<PartnersMapViewProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Info de la carte - style comme dans l'image */}
-      <View style={styles.mapInfo}>
-        <Ionicons name="storefront" size={responsiveSpacing(16)} color={Colors.accent.rose} />
-        <Text style={styles.mapInfoText}>
-          {mapStores.length} store{mapStores.length > 1 ? 's' : ''} dans un rayon de 50km
-        </Text>
-      </View>
+     
     </View>
   );
 };
@@ -246,6 +259,27 @@ const styles = StyleSheet.create({
     // Effet de profondeur supplémentaire
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
+  blurOverlayLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: responsiveSpacing(60),
+    zIndex: 5,
+  } as ViewStyle,
+  blurOverlayRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: responsiveSpacing(60),
+    zIndex: 5,
+  } as ViewStyle,
+  gradientFill: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   } as ViewStyle,
   mapLoadingContainer: {
     flex: 1,
@@ -325,9 +359,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   mapInfo: {
     position: 'relative',
-    bottom: responsiveSpacing(Spacing.md),
-    left: responsiveSpacing(Spacing.md),
-    right: responsiveSpacing(Spacing.md),
+    bottom: responsiveSpacing(50),
     zIndex: 1000,
     backgroundColor: 'rgba(139, 47, 63, 0.9)',
     borderWidth: 1,

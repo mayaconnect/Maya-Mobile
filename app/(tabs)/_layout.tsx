@@ -27,6 +27,7 @@ export default function TabLayout() {
                     (user as any)?.role === 'partner' ||
                     (user as any)?.role === 'operator' ||
                     (user as any)?.role === 'opérateur' ||
+                    (user as any)?.role === 'StoreOperator' ||
                     (user as any)?.isPartner === true ||
                     (user as any)?.isOperator === true;
 

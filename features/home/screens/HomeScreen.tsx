@@ -1,23 +1,22 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import { useAuth } from '@/hooks/use-auth';
-import { AuthService } from '@/services/auth.service';
 import { QrApi, QrTokenData } from '@/features/home/services/qrApi';
 import { TransactionsApi } from '@/features/home/services/transactionsApi';
 import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
+import { useAuth } from '@/hooks/use-auth';
+import { AuthService } from '@/services/auth.service';
 import { responsiveSpacing } from '@/utils/responsive';
 import * as FileSystem from 'expo-file-system';
-import * as Print from 'expo-print';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Print from 'expo-print';
 import { router } from 'expo-router';
-import * as Sharing from 'expo-sharing';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, View, ViewStyle } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HomeWelcomeHeader } from '../components/HomeWelcomeHeader';
-import { HomeStatsCards } from '../components/HomeStatsCards';
-import { HomeQuickActions } from '../components/HomeQuickActions';
 import { HomeQRCodeCard } from '../components/HomeQRCodeCard';
+import { HomeQuickActions } from '../components/HomeQuickActions';
+import { HomeStatsCards } from '../components/HomeStatsCards';
+import { HomeWelcomeHeader } from '../components/HomeWelcomeHeader';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -44,6 +43,7 @@ export default function HomeScreen() {
                       (user as any)?.role === 'partner' ||
                       (user as any)?.role === 'operator' ||
                       (user as any)?.role === 'opérateur' ||
+                      (user as any)?.role === 'StoreOperator' ||
                       (user as any)?.isPartner === true ||
                       (user as any)?.isOperator === true;
     
@@ -82,33 +82,8 @@ export default function HomeScreen() {
     return hasAvatar;
   }, [user]);
 
-  // Charger le QR Code côté client (uniquement si abonnement actif ET photo de profil)
+  // Charger le QR Code côté client (sans bloquer l'affichage en fonction de l'abonnement ou de la photo)
   const loadQrToken = useCallback(async (forceRefresh: boolean = false) => {
-    // Vérifier d'abord si l'utilisateur a un abonnement actif
-    const hasSub = await SubscriptionsApi.hasActiveSubscription();
-    setHasActiveSubscription(hasSub);
-    
-    // Vérifier si l'utilisateur a une photo de profil
-    const hasPhoto = hasProfilePhoto();
-    
-    if (!hasSub) {
-      console.log('⚠️ [Home] Pas d\'abonnement actif, QR Code non disponible');
-      setQrLoading(false);
-      setQrError(null);
-      setQrData(null);
-      setQrCodeResponse(null);
-      return;
-    }
-    
-    if (!hasPhoto) {
-      console.log('⚠️ [Home] Pas de photo de profil, QR Code non disponible');
-      setQrLoading(false);
-      setQrError(null);
-      setQrData(null);
-      setQrCodeResponse(null);
-      return;
-    }
-
     setQrLoading(true);
     setQrError(null);
     try {

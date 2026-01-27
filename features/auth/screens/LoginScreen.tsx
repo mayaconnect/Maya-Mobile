@@ -7,11 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Animated,
   Image,
   ImageStyle,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -34,15 +36,43 @@ export default function LoginScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const insets = useSafeAreaInsets();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const wasKeyboardVisible = React.useRef(false);
+
+  // Animation pour l'effet d'expansion
+  const expandAnimation = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setIsKeyboardVisible(true)
+      (event) => {
+        // Animation seulement si le clavier n'était pas déjà ouvert
+        if (!wasKeyboardVisible.current) {
+          setIsKeyboardVisible(true);
+          Animated.spring(expandAnimation, {
+            toValue: 1,
+            useNativeDriver: true,
+            damping: 18,
+            stiffness: 120,
+            mass: 1,
+          }).start();
+        }
+        wasKeyboardVisible.current = true;
+      }
     );
     const keyboardDidHideListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setIsKeyboardVisible(false)
+      () => {
+        setIsKeyboardVisible(false);
+        wasKeyboardVisible.current = false;
+        // Animation de retour quand le clavier se ferme
+        Animated.spring(expandAnimation, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 18,
+          stiffness: 120,
+          mass: 1,
+        }).start();
+      }
     );
 
     return () => {
@@ -80,6 +110,7 @@ export default function LoginScreen() {
                                    (userInfo as any)?.role === 'partner' ||
                                    (userInfo as any)?.role === 'operator' ||
                                    (userInfo as any)?.role === 'opérateur' ||
+                                   (userInfo as any)?.role === 'StoreOperator' ||
                                    (userInfo as any)?.isPartner === true ||
                                    (userInfo as any)?.isOperator === true;
       
@@ -150,12 +181,41 @@ export default function LoginScreen() {
           </View>
 
           {/* Carte blanche en bas */}
-          <View style={[styles.whiteCard, isKeyboardVisible && styles.whiteCardKeyboard, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
+          <Animated.View
+            style={[
+              styles.whiteCard,
+              isKeyboardVisible && styles.whiteCardKeyboard,
+              { paddingBottom: Math.max(insets.bottom, Spacing.lg) },
+              {
+                transform: [
+                  {
+                    scaleY: expandAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.02], // Agrandit légèrement en hauteur
+                    }),
+                  },
+                  {
+                    scaleX: expandAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.01], // Agrandit très légèrement en largeur
+                    }),
+                  },
+                ],
+                transformOrigin: 'top center', // Expansion depuis le haut
+              },
+            ]}
+          >
             {/* Indicateur de drag */}
             <View style={styles.dragIndicator} />
 
-            <View style={styles.contentContainer}>
-            <Text style={styles.title}>Connexion</Text>
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={[styles.contentContainer, isKeyboardVisible && styles.contentContainerKeyboard]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={true}
+            >
+            <Text style={[styles.title, isKeyboardVisible && styles.titleKeyboard]}>Connexion</Text>
 
             {/* Message d'erreur global - masqué si pas d'erreur pour économiser l'espace */}
             {errorMessage ? (
@@ -263,6 +323,7 @@ export default function LoginScreen() {
                                                (userInfo as any)?.role === 'partner' ||
                                                (userInfo as any)?.role === 'operator' ||
                                                (userInfo as any)?.role === 'opérateur' ||
+                                               (userInfo as any)?.role === 'StoreOperator' ||
                                                (userInfo as any)?.isPartner === true ||
                                                (userInfo as any)?.isOperator === true;
                   
@@ -310,8 +371,8 @@ export default function LoginScreen() {
                 <Text style={styles.signupLink}>S'inscrire</Text>
               </TouchableOpacity>
             </View>
-          </View>
-          </View>
+          </ScrollView>
+          </Animated.View>
         </KeyboardAvoidingView>
       </LinearGradient>
     </NavigationTransition>
@@ -368,8 +429,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   whiteCard: {
-    flex: 0.8,
-    backgroundColor: 'white',
+    flex: 0.7,
+    backgroundColor: '#FAF8F5',
     borderTopLeftRadius: BorderRadius['3xl'],
     borderTopRightRadius: BorderRadius['3xl'],
     borderBottomLeftRadius: 10,
@@ -379,7 +440,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   } as ViewStyle,
   whiteCardKeyboard: {
-    flex: 0.95,
+    flex: 0.82, // Augmente modérément pour garder le logo visible
   } as ViewStyle,
   dragIndicator: {
     width: 40,
@@ -389,22 +450,34 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: Spacing.sm,
   } as ViewStyle,
-  contentContainer: {
+  scrollView: {
     flex: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-    justifyContent: 'flex-start',
+  } as ViewStyle,
+  contentContainer: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.lg,
+  } as ViewStyle,
+  contentContainerKeyboard: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.md,
   } as ViewStyle,
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: Typography.weights.extrabold as any,
-    color: '#111827',
+    color: '#1F2937',
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     letterSpacing: -0.5,
   } as TextStyle,
+  titleKeyboard: {
+    fontSize: 22,
+    marginBottom: Spacing.sm,
+  } as TextStyle,
   inputContainer: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   inputWrapper: {
     flexDirection: 'row',
@@ -423,7 +496,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 0,
     fontSize: Typography.sizes.sm,
-    color: '#111827',
+    color: '#1F2937',
   } as TextStyle,
   inputError: {
     borderColor: '#EF4444',
@@ -440,10 +513,10 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   forgotPassword: {
     alignItems: 'flex-end',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   forgotPasswordText: {
-    color: '#EF4444',
+    color: '#DC2626',
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
@@ -456,7 +529,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     ...Shadows.md,
   } as ViewStyle,
   loginButtonText: {
@@ -467,7 +540,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.sm,
   } as ViewStyle,
   dividerLine: {
     flex: 1,
@@ -500,7 +573,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   } as ViewStyle,
   googleButtonText: {
-    color: '#111827',
+    color: '#374151',
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
@@ -512,13 +585,13 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   } as ViewStyle,
   signupText: {
-    color: '#111827',
-    fontSize: Typography.sizes.base,
+    color: '#4B5563',
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   signupLink: {
-    color: '#EF4444',
-    fontSize: Typography.sizes.base,
+    color: '#DC2626',
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.semibold as any,
   } as TextStyle,
 });

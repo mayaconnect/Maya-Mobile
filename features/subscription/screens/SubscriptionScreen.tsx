@@ -796,15 +796,7 @@ export default function SubscriptionScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* Section Pourquoi choisir Maya */}
-            <LinearGradient
-              colors={['#8B2F3F', '#9B3F4F']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.whyChooseSection}
-            >
-              <Text style={styles.whyChooseText}>Pourquoi choisir Maya ?</Text>
-            </LinearGradient>
+          
 
             {/* Bouton Continuer */}
             <TouchableOpacity 

@@ -445,7 +445,7 @@ export default function PartnersScreen() {
             // Appliquer un filtre CSS pour éclaircir la carte (plus gris)
             const mapElement = document.getElementById('map');
             if (mapElement) {
-              mapElement.style.filter = 'brightness(1.0) contrast(0.95) saturate(0.95)';
+              mapElement.style.filter = 'brightness(1.3) contrast(0.95) saturate(0.9)';
             }
 
             // Marqueur de l'utilisateur avec style personnalisé
@@ -486,6 +486,7 @@ export default function PartnersScreen() {
     `;
   }, []);
 
+  // Ouverture du détail complet (modal)
   const handlePartnerSelect = async (partner: PartnerUI) => {
     setSelectedPartner(partner);
     setShowPartnerModal(true);
@@ -551,16 +552,7 @@ export default function PartnersScreen() {
 
           {/* Contenu conditionnel : Grille, Liste ou Carte */}
           {viewMode === 'carte' ? (
-            <ScrollView
-              style={styles.mapScrollView}
-              contentContainerStyle={[
-                styles.mapScrollContent,
-                { paddingBottom: insets.bottom + responsiveSpacing(Spacing.xl) }
-              ]}
-              showsVerticalScrollIndicator={true}
-              bounces={true}
-              nestedScrollEnabled={true}
-            >
+            <>
               <PartnersMapView
                 userLocation={userLocation}
                 locationPermission={locationPermission}
@@ -572,12 +564,79 @@ export default function PartnersScreen() {
                 onStoreClick={(storeId) => {
                   const store = mapStores.find(s => s.id === storeId);
                   if (store) {
-                    handlePartnerSelect(store);
+                    // Sur la carte : afficher d'abord un aperçu, le modal complet via "Voir plus"
+                    setSelectedPartner(store);
+                    setDetailError('');
                   }
                 }}
                 generateMapHTML={generateMapHTML}
               />
-            </ScrollView>
+
+              {/* Aperçu du partenaire sélectionné sous la carte avec bouton "Voir plus" */}
+              {selectedPartner && (
+                <View style={styles.mapSelectedPartnerCard}>
+                  <View style={styles.mapSelectedHeader}>
+                    <View style={styles.mapSelectedIconCircle}>
+                      <Ionicons name="storefront" size={22} color={Colors.text.light} />
+                    </View>
+                    <View style={styles.mapSelectedTitleBlock}>
+                      <Text style={styles.mapSelectedName} numberOfLines={1}>
+                        {selectedPartner.name}
+                      </Text>
+                      <Text style={styles.mapSelectedCategory} numberOfLines={1}>
+                        {selectedPartner.category}
+                        {selectedPartner.distance != null
+                          ? ` • ${selectedPartner.distance.toFixed(1)} km`
+                          : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.mapSelectedRatingChip}>
+                      <Ionicons name="star" size={14} color={Colors.accent.gold} />
+                      <Text style={styles.mapSelectedRatingText}>
+                        {selectedPartner.rating?.toFixed(1) || '4.0'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {selectedPartner.promotion?.isActive && (
+                    <View style={styles.mapSelectedPromoRow}>
+                      <Ionicons name="pricetag" size={16} color={Colors.status.success} />
+                      <Text style={styles.mapSelectedPromoText} numberOfLines={2}>
+                        {selectedPartner.promotion.discount} • {selectedPartner.promotion.description}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.mapSelectedFooter}>
+                    <View style={styles.mapSelectedStatusRow}>
+                      <View
+                        style={[
+                          styles.mapSelectedStatusDot,
+                          { backgroundColor: selectedPartner.isOpen ? Colors.status.success : Colors.status.error },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.mapSelectedStatusText,
+                          { color: selectedPartner.isOpen ? Colors.status.success : Colors.status.error },
+                        ]}
+                      >
+                        {selectedPartner.isOpen ? 'Ouvert' : 'Fermé'}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.mapSelectedMoreButton}
+                      activeOpacity={0.8}
+                      onPress={() => handlePartnerSelect(selectedPartner)}
+                    >
+                      <Text style={styles.mapSelectedMoreText}>Voir plus</Text>
+                      <Ionicons name="chevron-forward" size={18} color={Colors.text.light} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </>
           ) : viewMode === 'grille' ? (
             <PartnersGridView
               partners={filteredPartners}
@@ -1108,6 +1167,109 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: Spacing.xl,
   } as ViewStyle,
+  // Carte : aperçu du partenaire sélectionné sous la map
+  mapSelectedPartnerCard: {
+    marginTop: Spacing.lg,
+    marginHorizontal: Spacing.lg,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    ...Shadows.md,
+  } as ViewStyle,
+  mapSelectedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  mapSelectedIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(139, 47, 63, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  } as ViewStyle,
+  mapSelectedTitleBlock: {
+    flex: 1,
+  } as ViewStyle,
+  mapSelectedName: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '800',
+    color: Colors.text.light,
+    letterSpacing: -0.3,
+  } as TextStyle,
+  mapSelectedCategory: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  } as TextStyle,
+  mapSelectedRatingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+  } as ViewStyle,
+  mapSelectedRatingText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '700',
+    color: Colors.text.light,
+  } as TextStyle,
+  mapSelectedPromoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
+  mapSelectedPromoText: {
+    flex: 1,
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+  } as TextStyle,
+  mapSelectedFooter: {
+    marginTop: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  } as ViewStyle,
+  mapSelectedStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  } as ViewStyle,
+  mapSelectedStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: BorderRadius.full,
+  } as ViewStyle,
+  mapSelectedStatusText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  } as TextStyle,
+  mapSelectedMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(139, 47, 63, 0.95)',
+  } as ViewStyle,
+  mapSelectedMoreText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '700',
+    color: Colors.text.light,
+  } as TextStyle,
   
   // Catégories modernes
   categoriesContainer: {

@@ -198,10 +198,21 @@ export function PartnerMe({
               };
 
               const getCategoryColor = (category: string | undefined): string => {
-                return '#FFFFFF';
+                if (!category) return Colors.primary[400];
+                const cat = category.toLowerCase();
+
+                // Palette harmonisée avec l'app : primaires / secondaires adoucies
+                if (cat.includes('restaurant') || cat.includes('food')) return Colors.primary[300];
+                if (cat.includes('shop') || cat.includes('magasin')) return Colors.secondary?.[400] ?? Colors.primary[300];
+                if (cat.includes('café') || cat.includes('coffee')) return Colors.primary[200];
+                if (cat.includes('bar')) return Colors.primary[500];
+                if (cat.includes('sport')) return Colors.primary[100];
+                if (cat.includes('beauty') || cat.includes('beauté')) return Colors.secondary?.[300] ?? Colors.primary[400];
+
+                return Colors.primary[400];
               };
               const getCategoryBackgroundColor = (category: string | undefined): string => {
-                return '#1F1F1F1';
+                return '#0B0610';
               };
 
               const iconName = getCategoryIcon(store.category);
@@ -541,16 +552,16 @@ const styles = StyleSheet.create({
   } as TextStyle,
   storeCard: {
     borderRadius: BorderRadius['2xl'],
-    marginBottom: Spacing.xl,
-    ...Shadows.xl,
+    marginBottom: Spacing.lg,
+    ...Shadows.md,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    elevation: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    elevation: 4,
   } as ViewStyle,
   storeCardGradient: {
-    padding: Spacing.xl,
+    padding: Spacing.lg,
   } as ViewStyle,
   storeCardContent: {
     flexDirection: 'row',
@@ -561,15 +572,15 @@ const styles = StyleSheet.create({
     position: 'relative',
   } as ViewStyle,
   storeIcon: {
-    width: 88,
-    height: 88,
+    width: 72,
+    height: 72,
     borderRadius: BorderRadius['2xl'],
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    ...Shadows.xl,
-    elevation: 6,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    ...Shadows.md,
+    elevation: 3,
   } as ViewStyle,
   storeStatusIndicator: {
     position: 'absolute',
@@ -584,10 +595,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   } as ViewStyle,
   storeStatusOpen: {
-    backgroundColor: '#10B981' as ColorValue,
+    backgroundColor: '#10B981',
   } as ViewStyle,
   storeStatusClosed: {
-    backgroundColor: '#EF4444' as ColorValue,
+    backgroundColor: '#EF4444',
   } as ViewStyle,
   storeDetails: {
     flex: 1,

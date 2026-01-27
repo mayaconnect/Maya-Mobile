@@ -1,4 +1,5 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
@@ -278,17 +279,17 @@ export function QrValidationModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-start',
   } as ViewStyle,
   safeArea: {
-    flex: 0,
+    top: responsiveSpacing(50),
+    flex: 1,
   } as ViewStyle,
   modalContent: {
-    backgroundColor: '#1A0A0E',
-    borderTopLeftRadius: BorderRadius['2xl'],
-    borderTopRightRadius: BorderRadius['2xl'],
-    maxHeight: '90%',
+    flex: 1,
+    backgroundColor: '#13070B',
+    borderRadius: 0,
     ...Shadows.lg,
   } as ViewStyle,
   modalHeader: {
@@ -310,8 +311,8 @@ const styles = StyleSheet.create({
   headerIconCircle: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.md,
-    backgroundColor: 'rgba(139, 47, 63, 0.15)',
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   } as ViewStyle,
@@ -322,10 +323,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   } as TextStyle,
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     justifyContent: 'center',
     alignItems: 'center',
   } as ViewStyle,
@@ -338,12 +339,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   } as ViewStyle,
   sectionTitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     fontWeight: '600',
     color: Colors.text.secondary,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
+    letterSpacing: 0.3,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   } as TextStyle,
   storeCard: {
     flexDirection: 'row',
@@ -425,11 +426,11 @@ const styles = StyleSheet.create({
   } as TextStyle,
   input: {
     flex: 1,
-    fontSize: Typography.sizes['2xl'],
+    fontSize: Typography.sizes.lg,
     fontWeight: '700',
     color: Colors.text.light,
-    paddingVertical: Spacing.md,
-    letterSpacing: -0.5,
+    paddingVertical: Spacing.sm,
+    letterSpacing: -0.2,
   } as TextStyle,
   currency: {
     fontSize: Typography.sizes.lg,
@@ -454,11 +455,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   } as ViewStyle,
   counterButton: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(139, 47, 63, 0.15)',
-    borderWidth: 2,
+    backgroundColor: 'rgba(139, 47, 63, 0.18)',
+    borderWidth: 1.5,
     borderColor: '#8B2F3F',
     justifyContent: 'center',
     alignItems: 'center',
@@ -470,7 +471,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   } as ViewStyle,
   counterValueContainer: {
-    minWidth: 120,
+    minWidth: 110,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -484,13 +485,13 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   } as ViewStyle,
   counterInput: {
-    minWidth: 50,
-    fontSize: Typography.sizes['2xl'],
+    minWidth: 40,
+    fontSize: Typography.sizes.lg,
     fontWeight: '700',
     color: Colors.text.light,
     paddingVertical: 0,
     textAlign: 'center',
-    letterSpacing: -0.5,
+    letterSpacing: -0.2,
   } as TextStyle,
   calculationCard: {
     backgroundColor: 'rgba(16, 185, 129, 0.08)',

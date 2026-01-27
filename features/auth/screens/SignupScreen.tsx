@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Animated,
   Image,
   ImageStyle,
   Keyboard,
@@ -53,18 +54,46 @@ type SignupStep = 'personal' | 'security' | 'address';
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  
+  const wasKeyboardVisible = React.useRef(false);
+
   // Données personnelles
   const [email, setEmail] = useState('');
+
+  // Animation pour l'effet d'expansion
+  const expandAnimation = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setIsKeyboardVisible(true)
+      (event) => {
+        // Animation seulement si le clavier n'était pas déjà ouvert
+        if (!wasKeyboardVisible.current) {
+          setIsKeyboardVisible(true);
+          Animated.spring(expandAnimation, {
+            toValue: 1,
+            useNativeDriver: true,
+            damping: 18,
+            stiffness: 120,
+            mass: 1,
+          }).start();
+        }
+        wasKeyboardVisible.current = true;
+      }
     );
     const keyboardDidHideListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setIsKeyboardVisible(false)
+      () => {
+        setIsKeyboardVisible(false);
+        wasKeyboardVisible.current = false;
+        // Animation de retour quand le clavier se ferme
+        Animated.spring(expandAnimation, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 18,
+          stiffness: 120,
+          mass: 1,
+        }).start();
+      }
     );
 
     return () => {
@@ -348,18 +377,41 @@ export default function SignupScreen() {
           </View>
 
           {/* Carte blanche en bas */}
-          <View style={[styles.whiteCard, isKeyboardVisible && styles.whiteCardKeyboard, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
+          <Animated.View
+            style={[
+              styles.whiteCard,
+              isKeyboardVisible && styles.whiteCardKeyboard,
+              { paddingBottom: Math.max(insets.bottom, Spacing.lg) },
+              {
+                transform: [
+                  {
+                    scaleY: expandAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.005], // Expansion très subtile en hauteur
+                    }),
+                  },
+                  {
+                    scaleX: expandAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.002], // Expansion très subtile en largeur
+                    }),
+                  },
+                ],
+                transformOrigin: 'top center', // Expansion depuis le haut
+              },
+            ]}
+          >
             {/* Indicateur de drag */}
             {!isKeyboardVisible && <View style={styles.dragIndicator} />}
 
             <ScrollView
               style={styles.scrollView}
-              contentContainerStyle={styles.contentContainer}
+              contentContainerStyle={[styles.contentContainer, isKeyboardVisible && styles.contentContainerKeyboard]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               bounces={true}
             >
-              <Text style={styles.title}>Créer un compte</Text>
+              <Text style={[styles.title, isKeyboardVisible && styles.titleKeyboard]}>Créer un compte</Text>
 
                 {/* Message d'erreur global */}
                 {errorMessage ? (
@@ -400,37 +452,7 @@ export default function SignupScreen() {
                   <>
                     <Text style={styles.sectionTitle}>Informations personnelles</Text>
 
-                    <View style={styles.inputContainer}>
-                      <Text style={styles.inputLabel}>Rôle *</Text>
-                      <View style={styles.roleSelector}>
-                        <TouchableOpacity
-                          style={[styles.roleButton, role === 'client' && styles.roleButtonActive]}
-                          onPress={() => setRole('client')}
-                        >
-                          <Ionicons 
-                            name="person" 
-                            size={18} 
-                            color={role === 'client' ? 'white' : '#6B7280'} 
-                          />
-                          <Text style={[styles.roleButtonText, role === 'client' && styles.roleButtonTextActive]}>
-                            Client
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.roleButton, role === 'partners' && styles.roleButtonActive]}
-                          onPress={() => setRole('partners')}
-                        >
-                          <Ionicons 
-                            name="storefront" 
-                            size={18} 
-                            color={role === 'partners' ? 'white' : '#6B7280'} 
-                          />
-                          <Text style={[styles.roleButtonText, role === 'partners' && styles.roleButtonTextActive]}>
-                            Partenaire
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+                   
 
                     <View style={styles.row}>
                       <View style={[styles.inputContainer, styles.halfWidth]}>
@@ -760,14 +782,9 @@ export default function SignupScreen() {
                   />
                 </View>
 
-                <View style={styles.switchAuthRow}>
-                  <Text style={styles.switchAuthText}>Déjà un compte ? </Text>
-                  <TouchableOpacity onPress={() => router.replace('/connexion/login')}>
-                    <Text style={styles.switchAuthLink}>Se connecter</Text>
-                  </TouchableOpacity>
-                </View>
+               
             </ScrollView>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </LinearGradient>
     </NavigationTransition>
@@ -790,7 +807,9 @@ type SignupStyles = {
   dragIndicator: ViewStyle;
   scrollView: ViewStyle;
   contentContainer: ViewStyle;
+  contentContainerKeyboard: ViewStyle;
   title: TextStyle;
+  titleKeyboard: TextStyle;
   stepProgress: ViewStyle;
   progressBar: ViewStyle;
   progressSegment: ViewStyle;
@@ -841,11 +860,11 @@ const styles = StyleSheet.create<SignupStyles>({
   } as ViewStyle,
   topSection: {
     flex: 0.3,
-    minHeight: 180,
+    minHeight: 100,
   } as ViewStyle,
   topSectionKeyboard: {
-    flex: 0.1,
-    minHeight: 80,
+    flex: 0.15,
+    minHeight: 85,
   } as ViewStyle,
   topSafeArea: {
     flex: 1,
@@ -873,20 +892,21 @@ const styles = StyleSheet.create<SignupStyles>({
     marginBottom: Spacing.xs,
   } as ImageStyle,
   appName: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: Typography.weights.extrabold as any,
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold as any,
     color: Colors.text.light,
-    marginBottom: 2,
-    letterSpacing: -1,
+    marginBottom: 0,
+    letterSpacing: -0.5,
   } as TextStyle,
   slogan: {
-    fontSize: Typography.sizes.xs,
+    fontSize: Typography.sizes.lg,
     color: Colors.text.light,
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   whiteCard: {
     flex: 0.8,
-    backgroundColor: 'white',
+    backgroundColor: '#FAF8F5',
+    position: 'relative',
     borderTopLeftRadius: BorderRadius['3xl'],
     borderTopRightRadius: BorderRadius['3xl'],
     borderBottomLeftRadius: 0,
@@ -896,7 +916,7 @@ const styles = StyleSheet.create<SignupStyles>({
     overflow: 'hidden',
   } as ViewStyle,
   whiteCardKeyboard: {
-    flex: 0.9,
+    flex: 1, // Augmente modérément pour garder le logo visible
   } as ViewStyle,
   dragIndicator: {
     width: 40,
@@ -911,20 +931,29 @@ const styles = StyleSheet.create<SignupStyles>({
   } as ViewStyle,
   contentContainer: {
     flexGrow: 1,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     paddingTop: 0,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.md,
+  } as ViewStyle,
+  contentContainerKeyboard: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 0,
+    paddingBottom: Spacing.sm,
   } as ViewStyle,
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: Typography.weights.extrabold as any,
     color: '#111827',
     textAlign: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     letterSpacing: -0.5,
   } as TextStyle,
+  titleKeyboard: {
+    fontSize: 22,
+    marginBottom: Spacing.sm,
+  } as TextStyle,
   stepProgress: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   progressBar: {
     flexDirection: 'row',
@@ -952,19 +981,16 @@ const styles = StyleSheet.create<SignupStyles>({
     letterSpacing: 0.3,
   },
   stepLabelActive: {
-    color: Colors.text.light,
+    color: '#8B2F3F',
     fontWeight: Typography.weights.bold as any,
   },
   sectionTitle: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.bold as any,
-    color: Colors.text.light,
+    color: '#1F2937',
     marginTop: Spacing.sm,
     marginBottom: 6,
     letterSpacing: -0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   inputContainer: {
     marginBottom: 6,
@@ -972,7 +998,7 @@ const styles = StyleSheet.create<SignupStyles>({
   inputLabel: {
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semibold as any,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#4B5563',
     marginBottom: 6,
     letterSpacing: 0.3,
     textTransform: 'uppercase',
@@ -1072,6 +1098,7 @@ const styles = StyleSheet.create<SignupStyles>({
   passwordCriteria: {
     marginTop: Spacing.sm,
     padding: Spacing.sm,
+    marginBottom: Spacing.sm,
     backgroundColor: '#F9FAFB',
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
