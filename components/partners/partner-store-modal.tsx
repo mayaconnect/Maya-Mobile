@@ -1,5 +1,7 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -12,8 +14,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface PartnerStoreModalProps {
   visible: boolean;
@@ -48,13 +50,17 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
           end={{ x: 1, y: 1 }}
           style={styles.gradientBackground}
         >
-          <View style={styles.modalHeader}>
+        
+
+          <BlurView intensity={30} tint="dark" style={styles.modalHeader}>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="chevron-down" size={24} color={Colors.text.light} />
+              <View style={styles.closeButtonInner}>
+                <Ionicons name="chevron-down" size={24} color={Colors.text.light} />
+              </View>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Détails du magasin</Text>
             <View style={styles.placeholder} />
-          </View>
+          </BlurView>
 
           {selectedStore && (
             <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer}>
@@ -66,17 +72,19 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
               )}
 
               {/* Hero + résumé */}
-              <View style={styles.storeDetailCard}>
+              <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.storeDetailCard}>
                 <View style={styles.storeHeroRow}>
                   <View style={styles.storeDetailIcon}>
-                    <LinearGradient
-                      colors={['#FACC15', '#F97316']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.storeHeroIcon}
-                    >
-                      <Ionicons name="storefront" size={40} color="#1F2937" />
-                    </LinearGradient>
+                    <BlurView intensity={60} tint="light" style={styles.storeHeroIconBlur}>
+                      <LinearGradient
+                        colors={['#FACC15', '#F97316', '#EF4444']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.storeHeroIcon}
+                      >
+                        <Ionicons name="storefront" size={44} color="#1F2937" />
+                      </LinearGradient>
+                    </BlurView>
                   </View>
 
                   <View style={styles.storeHeroInfo}>
@@ -124,10 +132,10 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
                     </View>
                   )}
                 </View>
-              </View>
+              </Animated.View>
 
               {/* Informations principales */}
-              <View style={styles.section}>
+              <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.section}>
                 <Text style={styles.sectionTitle}>Informations</Text>
                 <View style={styles.infoSection}>
                   {selectedStore.address && (
@@ -205,11 +213,11 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
                     </View>
                   )}
                 </View>
-              </View>
+              </Animated.View>
 
               {/* Statistiques */}
               {hasStats && (
-                <View style={styles.section}>
+                <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.section}>
                   <Text style={styles.sectionTitle}>Statistiques</Text>
                   <View style={styles.statsGrid}>
                     {selectedStore.totalScans !== undefined && (
@@ -236,22 +244,22 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
                       </View>
                     )}
                   </View>
-                </View>
+                </Animated.View>
               )}
 
               {/* Description */}
               {selectedStore.description && (
-                <View style={styles.section}>
+                <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.section}>
                   <Text style={styles.sectionTitle}>Description</Text>
                   <Text style={styles.storeDetailDescriptionText}>
                     {selectedStore.description}
                   </Text>
-                </View>
+                </Animated.View>
               )}
 
               {/* Partenaire rattaché */}
               {selectedStore.partner && (
-                <View style={styles.section}>
+                <Animated.View entering={FadeInUp.delay(500).springify()} style={styles.section}>
                   <Text style={styles.sectionTitle}>Partenaire</Text>
                   <View style={styles.partnerCard}>
                     <View style={styles.partnerAvatar}>
@@ -268,12 +276,12 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
                       )}
                     </View>
                   </View>
-                </View>
+                </Animated.View>
               )}
 
               {/* Promotion active */}
               {(selectedStore.activePromotion || selectedStore.promotion) && (
-                <View style={styles.section}>
+                <Animated.View entering={FadeInUp.delay(600).springify()} style={styles.section}>
                   <Text style={styles.sectionTitle}>Promotion en cours</Text>
                   <View style={styles.promotionCard}>
                     <View style={styles.promotionHeader}>
@@ -287,10 +295,10 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
                     </Text>
                     <Text style={styles.promotionDescription}>
                       {(selectedStore.activePromotion || selectedStore.promotion).description ||
-                        'Réduction immédiate sur l’addition du client.'}
+                        'Réduction immédiate sur l addition du client.'}
                     </Text>
                   </View>
-                </View>
+                </Animated.View>
               )}
             </ScrollView>
           )}
@@ -307,24 +315,72 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   gradientBackground: {
     flex: 1,
+    position: 'relative',
+  } as ViewStyle,
+  decorativeElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+    overflow: 'hidden',
+  } as ViewStyle,
+  floatingCircle: {
+    position: 'absolute',
+    borderRadius: 9999,
+    opacity: 0.15,
+  } as ViewStyle,
+  circle1: {
+    width: 200,
+    height: 200,
+    backgroundColor: Colors.accent.rose,
+    top: -60,
+    right: -70,
+  } as ViewStyle,
+  circle2: {
+    width: 160,
+    height: 160,
+    backgroundColor: Colors.accent.gold,
+    top: '30%',
+    left: -50,
+  } as ViewStyle,
+  circle3: {
+    width: 140,
+    height: 140,
+    backgroundColor: Colors.accent.emerald,
+    bottom: 100,
+    right: -40,
   } as ViewStyle,
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    paddingVertical: Spacing.lg,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
+    overflow: 'hidden',
+    zIndex: 10,
   } as ViewStyle,
   closeButton: {
+    padding: Spacing.xs,
+  } as ViewStyle,
+  closeButtonInner: {
     padding: Spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.full,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   } as ViewStyle,
   modalTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '700',
+    fontSize: Typography.sizes.xl,
+    fontWeight: '800',
     color: Colors.text.light,
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   } as TextStyle,
   placeholder: {
     width: 40,
@@ -349,12 +405,12 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   } as TextStyle,
   storeDetailCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.lg,
-    ...Shadows.lg,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: BorderRadius['3xl'],
+    padding: Spacing.xl,
+    ...Shadows['2xl'],
   } as ViewStyle,
   storeHeroRow: {
     flexDirection: 'row',
@@ -365,15 +421,19 @@ const styles = StyleSheet.create({
   storeDetailIcon: {
     alignItems: 'center',
   } as ViewStyle,
+  storeHeroIconBlur: {
+    borderRadius: BorderRadius['3xl'],
+    overflow: 'hidden',
+  } as ViewStyle,
   storeHeroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: BorderRadius['2xl'],
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius['3xl'],
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    ...Shadows.md,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    ...Shadows['2xl'],
   } as ViewStyle,
   storeHeroInfo: {
     flex: 1,
@@ -384,6 +444,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.text.light,
     marginBottom: Spacing.xs,
+  } as TextStyle,
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    alignSelf: 'flex-start',
+    borderWidth: 2,
+    borderColor: 'rgba(249, 115, 22, 0.3)',
+    ...Shadows.sm,
+  } as ViewStyle,
+  categoryPillText: {
+    fontSize: Typography.sizes.xs,
+    color: '#F97316',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   } as TextStyle,
   badgesRow: {
     flexDirection: 'row',
@@ -486,19 +566,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: Spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius['2xl'],
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    ...Shadows.md,
   } as ViewStyle,
   infoIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: 'rgba(139, 47, 63, 0.1)',
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.xl,
+    backgroundColor: 'rgba(249, 115, 22, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(249, 115, 22, 0.3)',
   } as ViewStyle,
   infoContent: {
     flex: 1,
@@ -528,13 +611,14 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.lg,
     alignItems: 'center',
     gap: Spacing.xs,
+    ...Shadows.md,
   } as ViewStyle,
   statValue: {
     fontSize: Typography.sizes.xl,
@@ -613,13 +697,19 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   } as ViewStyle,
+  promotionLabel: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: Colors.text.light,
+  } as TextStyle,
   promotionCard: {
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 107, 107, 0.3)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 107, 107, 0.4)',
+    borderRadius: BorderRadius['3xl'],
+    padding: Spacing.xl,
     alignItems: 'center',
+    ...Shadows.xl,
   } as ViewStyle,
   promotionDiscount: {
     fontSize: Typography.sizes['3xl'],

@@ -3,13 +3,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect } from 'react';
 import { Dimensions, Image, StyleSheet, View } from 'react-native';
 import Animated, {
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
-  withSpring,
-  withSequence,
   withDelay,
-  interpolate,
+  withSequence,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 const { height } = Dimensions.get('window');

@@ -1,5 +1,6 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
@@ -12,6 +13,15 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 interface PartnerMeProps {
   user: any;
@@ -36,25 +46,62 @@ export function PartnerMe({
 }: PartnerMeProps) {
   const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Partenaire Maya';
 
+  // Animations pour les cercles flottants
+  const circle1Opacity = useSharedValue(0.15);
+  const circle2Opacity = useSharedValue(0.12);
+
+  React.useEffect(() => {
+    circle1Opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.25, { duration: 3000 }),
+        withTiming(0.15, { duration: 3000 })
+      ),
+      -1,
+      true
+    );
+    circle2Opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.2, { duration: 4000 }),
+        withTiming(0.12, { duration: 4000 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const circle1Style = useAnimatedStyle(() => ({
+    opacity: circle1Opacity.value,
+  }));
+
+  const circle2Style = useAnimatedStyle(() => ({
+    opacity: circle2Opacity.value,
+  }));
+
   return (
     <View style={styles.container}>
+      {/* Éléments décoratifs flottants */}
+     
+
       {/* Bloc "Moi" / profil partenaire avec gradient */}
-      <LinearGradient
-        colors={['rgba(139, 47, 63, 0.3)', 'rgba(139, 47, 63, 0.15)', 'rgba(139, 47, 63, 0.05)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.profileCard}
-      >
+      <Animated.View entering={FadeInDown.delay(100).springify()}>
+        <LinearGradient
+          colors={['rgba(139, 47, 63, 0.35)', 'rgba(139, 47, 63, 0.2)', 'rgba(139, 47, 63, 0.08)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.profileCard}
+        >
         <View style={styles.profileHeader}>
           <View style={styles.profileAvatarContainer}>
-            <LinearGradient
-              colors={['#8B2F3F', '#A53F51']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.profileAvatar}
-            >
-              <Ionicons name="person" size={32} color={Colors.text.light} />
-            </LinearGradient>
+            <BlurView intensity={30} tint="light" style={styles.profileAvatarBlur}>
+              <LinearGradient
+                colors={['#8B2F3F', '#A53F51', '#C05566']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.profileAvatar}
+              >
+                <Ionicons name="person" size={36} color={Colors.text.light} />
+              </LinearGradient>
+            </BlurView>
             <View style={styles.onlineIndicator} />
           </View>
           <View style={styles.profileInfo}>
@@ -98,10 +145,11 @@ export function PartnerMe({
             </View>
           </View>
         )}
-      </LinearGradient>
+        </LinearGradient>
+      </Animated.View>
 
       {/* Magasins du partenaire */}
-      <View style={styles.storesSection}>
+      <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.storesSection}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleContainer}>
             <Ionicons name="storefront" size={24} color="#8B2F3F" />
@@ -115,11 +163,11 @@ export function PartnerMe({
         </View>
 
         {/* Barre de recherche */}
-        <View style={styles.searchContainer}>
+        <BlurView intensity={60} tint="dark" style={styles.searchContainer}>
           <Ionicons
             name="search"
             size={20}
-            color={Colors.text.secondary}
+            color={Colors.text.light}
             style={styles.searchIcon}
           />
           <TextInput
@@ -131,10 +179,10 @@ export function PartnerMe({
           />
           {storeSearchQuery.length > 0 && (
             <TouchableOpacity onPress={() => onSearchChange('')}>
-              <Ionicons name="close-circle" size={20} color={Colors.text.secondary} />
+              <Ionicons name="close-circle" size={20} color={Colors.text.light} />
             </TouchableOpacity>
           )}
-        </View>
+        </BlurView>
 
         {/* Liste des stores */}
         {storesLoading ? (
@@ -220,18 +268,22 @@ export function PartnerMe({
               const categoryBackgroundColor = getCategoryBackgroundColor(store.category);
 
               return (
-                <TouchableOpacity
+                <Animated.View
                   key={store.id}
-                  style={styles.storeCard}
-                  onPress={() => onStoreSelect(store)}
-                  activeOpacity={0.8}
+                  entering={FadeInUp.delay(300).springify()}
                 >
-                  <LinearGradient
-                    colors={[`${iconColor}08`, 'rgba(255, 255, 255, 0.05)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.storeCardGradient}
+                  <TouchableOpacity
+                    style={styles.storeCard}
+                    onPress={() => onStoreSelect(store)}
+                    activeOpacity={0.8}
                   >
+                    <BlurView intensity={40} tint="dark" style={styles.storeCardBlur}>
+                      <LinearGradient
+                        colors={[`${iconColor}12`, 'rgba(255, 255, 255, 0.08)']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.storeCardGradient}
+                      >
                     <View style={styles.storeCardContent}>
                       {/* Icône du magasin avec badge de statut et effet lumineux */}
                       <View style={styles.storeIconContainer}>
@@ -343,13 +395,15 @@ export function PartnerMe({
                         )}
                       </View>
                     </View>
-                  </LinearGradient>
-                </TouchableOpacity>
+                      </LinearGradient>
+                    </BlurView>
+                  </TouchableOpacity>
+                </Animated.View>
               );
             })}
           </>
         )}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -357,16 +411,45 @@ export function PartnerMe({
 const styles = StyleSheet.create({
   container: {
     marginBottom: Spacing.lg,
+    position: 'relative',
+  } as ViewStyle,
+  decorativeElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+    overflow: 'hidden',
+  } as ViewStyle,
+  floatingCircle: {
+    position: 'absolute',
+    borderRadius: 9999,
+  } as ViewStyle,
+  circle1: {
+    width: 180,
+    height: 180,
+    backgroundColor: Colors.accent.rose,
+    top: -40,
+    right: -60,
+  } as ViewStyle,
+  circle2: {
+    width: 140,
+    height: 140,
+    backgroundColor: Colors.accent.gold,
+    bottom: 100,
+    left: -50,
   } as ViewStyle,
   profileCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: BorderRadius['2xl'],
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: BorderRadius['3xl'],
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
     ...Shadows.xl,
     overflow: 'hidden',
+    zIndex: 1,
   } as ViewStyle,
   profileHeader: {
     flexDirection: 'row',
@@ -377,26 +460,34 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginRight: Spacing.lg,
   } as ViewStyle,
+  profileAvatarBlur: {
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+  } as ViewStyle,
   profileAvatar: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     borderRadius: BorderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    ...Shadows.lg,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    ...Shadows.xl,
   } as ViewStyle,
   onlineIndicator: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 18,
-    height: 18,
+    bottom: 4,
+    right: 4,
+    width: 20,
+    height: 20,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.primary[500],
+    backgroundColor: '#10B981',
     borderWidth: 3,
-    borderColor: 'rgba(0, 0, 0, 0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.3)',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
   } as ViewStyle,
   profileInfo: {
     flex: 1,
@@ -507,14 +598,14 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    marginBottom: Spacing.md,
-    ...Shadows.sm,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: BorderRadius['2xl'],
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.lg,
+    ...Shadows.lg,
+    overflow: 'hidden',
   } as ViewStyle,
   searchIcon: {
     marginRight: Spacing.sm,
@@ -551,17 +642,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   } as TextStyle,
   storeCard: {
-    borderRadius: BorderRadius['2xl'],
+    borderRadius: BorderRadius['3xl'],
     marginBottom: Spacing.lg,
-    ...Shadows.md,
+    ...Shadows.xl,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    elevation: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    elevation: 6,
+  } as ViewStyle,
+  storeCardBlur: {
+    borderRadius: BorderRadius['3xl'],
+    overflow: 'hidden',
   } as ViewStyle,
   storeCardGradient: {
-    padding: Spacing.lg,
+    padding: Spacing.xl,
   } as ViewStyle,
   storeCardContent: {
     flexDirection: 'row',

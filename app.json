@@ -4,12 +4,12 @@
     "slug": "maya-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/logo2.png",
     "scheme": "maya",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/logo.png",
+      "image": "./assets/images/logo2.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff",
       "dark": {
@@ -20,7 +20,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.maya.connect",
       "buildNumber": "1.0.0",
-      "icon": "./assets/images/logo.png",
+      "icon": "./assets/images/logo2.png",
       "infoPlist": {
         "NSCameraUsageDescription": "Maya a besoin d'accéder à votre caméra pour scanner les codes QR.",
         "NSLocationWhenInUseUsageDescription": "Maya a besoin de votre localisation pour vous montrer les magasins à proximité.",
@@ -32,7 +32,7 @@
       "package": "com.maya.connect",
       "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo.png",
+        "foregroundImage": "./assets/images/logo2.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
