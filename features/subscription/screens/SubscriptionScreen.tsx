@@ -2,6 +2,7 @@ import { NavigationTransition } from '@/components/common/navigation-transition'
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { PaymentApi } from '@/features/subscription/services/paymentApi';
 import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
+import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -22,7 +23,6 @@ import {
   ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { responsiveSpacing } from '@/utils/responsive';
 
 export default function SubscriptionScreen() {
   const router = useRouter();
@@ -443,7 +443,7 @@ export default function SubscriptionScreen() {
   };
 
   return (
-    <NavigationTransition children={<></>}>
+    <NavigationTransition>
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
