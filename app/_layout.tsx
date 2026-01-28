@@ -23,15 +23,15 @@ function RootLayoutNav() {
 
   return (
     <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="onboarding/onboarding-2" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="onboarding/onboarding-3" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="onboarding/onboarding-4" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="connexion/login" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="connexion/signup" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="connexion/forgot-password" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false , animation: 'fade', animationDuration: 25 }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' , animation: 'fade', animationDuration: 25 }} />
+      <Stack.Screen name="index" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="onboarding/onboarding-2" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="onboarding/onboarding-3" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="onboarding/onboarding-4" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="connexion/login" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="connexion/signup" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="connexion/forgot-password" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' , animation: 'fade', animationDuration: 300 }} />
     </Stack>
   );
 }

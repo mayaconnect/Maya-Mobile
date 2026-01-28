@@ -5,9 +5,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
-  interpolate,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface PaginationDotsProps {
   totalPages: number;
@@ -15,38 +13,9 @@ interface PaginationDotsProps {
 }
 
 export function PaginationDots({ totalPages, currentPage }: PaginationDotsProps) {
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withSpring(currentPage / (totalPages - 1), {
-      damping: 15,
-      stiffness: 100,
-    });
-  }, [currentPage, totalPages]);
-
-  const progressBarStyle = useAnimatedStyle(() => {
-    return {
-      width: `${((currentPage + 1) / totalPages) * 100}%`,
-    };
-  });
 
   return (
     <View style={styles.container}>
-      {/* Barre de progression moderne */}
-      <View style={styles.progressBarContainer}>
-        <View style={styles.progressBarBackground}>
-          <Animated.View style={[styles.progressBarFill, progressBarStyle]}>
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.9)', 'rgba(255, 255, 255, 0.7)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.progressBarGlow} />
-          </Animated.View>
-        </View>
-      </View>
-
       {/* Dots améliorés avec animations */}
       <View style={styles.dotsContainer}>
         {Array.from({ length: totalPages }, (_, index) => (
@@ -69,15 +38,15 @@ interface PaginationDotProps {
 }
 
 function PaginationDot({ isActive, index, currentPage }: PaginationDotProps) {
-  const scale = useSharedValue(isActive ? 1.3 : 1);
-  const opacity = useSharedValue(isActive ? 1 : 0.4);
+  const scale = useSharedValue(isActive ? 1.2 : 1);
+  const opacity = useSharedValue(isActive ? 1 : 0.5);
 
   useEffect(() => {
-    scale.value = withSpring(isActive ? 1.3 : 1, {
+    scale.value = withSpring(isActive ? 1.2 : 1, {
       damping: 10,
       stiffness: 200,
     });
-    opacity.value = withTiming(isActive ? 1 : 0.4, { duration: 300 });
+    opacity.value = withTiming(isActive ? 1 : 0.5, { duration: 300 });
   }, [isActive]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -88,14 +57,7 @@ function PaginationDot({ isActive, index, currentPage }: PaginationDotProps) {
   return (
     <Animated.View style={[styles.dotContainer, animatedStyle]}>
       {isActive ? (
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 1)', 'rgba(255, 255, 255, 0.8)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.activeDot}
-        >
-          <View style={styles.activeDotInner} />
-        </LinearGradient>
+        <View style={styles.activeDot} />
       ) : (
         <View style={styles.inactiveDot} />
       )}
@@ -106,72 +68,34 @@ function PaginationDot({ isActive, index, currentPage }: PaginationDotProps) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: 16,
-    gap: 12,
-  },
-  progressBarContainer: {
-    width: 120,
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBarBackground: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 2,
-    position: 'relative',
-  },
-  progressBarGlow: {
-    position: 'absolute',
-    top: -2,
-    left: 0,
-    right: 0,
-    bottom: -2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 3,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
   },
   dotContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   activeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
+    width: 20,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#8B2F3F',
+    shadowColor: '#8B2F3F',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  activeDotInner: {
+  inactiveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(139, 47, 63, 0.8)',
-  },
-  inactiveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: '#D1D5DB',
   },
 });

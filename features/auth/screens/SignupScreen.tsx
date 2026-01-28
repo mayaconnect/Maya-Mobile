@@ -860,7 +860,7 @@ const styles = StyleSheet.create<SignupStyles>({
   } as ViewStyle,
   topSection: {
     flex: 0.3,
-    minHeight: 100,
+    minHeight: 180,
   } as ViewStyle,
   topSectionKeyboard: {
     flex: 0.15,
@@ -892,19 +892,19 @@ const styles = StyleSheet.create<SignupStyles>({
     marginBottom: Spacing.xs,
   } as ImageStyle,
   appName: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold as any,
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: Typography.weights.extrabold as any,
     color: Colors.text.light,
-    marginBottom: 0,
-    letterSpacing: -0.5,
+    marginBottom: 2,
+    letterSpacing: -1,
   } as TextStyle,
   slogan: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.xs,
     color: Colors.text.light,
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   whiteCard: {
-    flex: 0.8,
+    flex: 0.7,
     backgroundColor: '#FAF8F5',
     position: 'relative',
     borderTopLeftRadius: BorderRadius['3xl'],
@@ -916,7 +916,7 @@ const styles = StyleSheet.create<SignupStyles>({
     overflow: 'hidden',
   } as ViewStyle,
   whiteCardKeyboard: {
-    flex: 1, // Augmente modérément pour garder le logo visible
+    flex: 0.82, // Augmente modérément pour garder le logo visible
   } as ViewStyle,
   dragIndicator: {
     width: 40,
