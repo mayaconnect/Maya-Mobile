@@ -2,7 +2,7 @@ import { API_BASE_URL } from '@/services/auth.service';
 import { ApiClient } from '@/services/shared/api-client';
 import { log } from '@/utils/logger';
 
-const STORES_API_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/i, '/api');
+const STORES_API_BASE_URL = API_BASE_URL?.replace(/\/api\/v1$/i, '/api') || API_BASE_URL || '';
 
 export interface StoreSearchParams {
   latitude?: number;

@@ -4,7 +4,7 @@ import { ApiClient } from '@/services/shared/api-client';
 import { log } from '@/utils/logger';
 import { Platform } from 'react-native';
 
-const PAYMENTS_API_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/i, '/api');
+const PAYMENTS_API_BASE_URL = API_BASE_URL?.replace(/\/api\/v1$/i, '/api') || API_BASE_URL || '';
 
 // Wrapper pour les appels API de paiement avec le bon baseUrl
 const paymentsApiCall = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {

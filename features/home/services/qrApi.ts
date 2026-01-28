@@ -52,9 +52,9 @@ const clearQrToken = async (): Promise<void> => {
   }
 };
 
-const QR_API_BASE_URL = API_BASE_URL.includes('/api/v1')
+const QR_API_BASE_URL = API_BASE_URL?.includes('/api/v1')
   ? API_BASE_URL.replace('/api/v1', '/api')
-  : API_BASE_URL;
+  : API_BASE_URL || '';
 
 export const QrApi = {
   /**

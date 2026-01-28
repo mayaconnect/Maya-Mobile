@@ -12,19 +12,23 @@ interface NavigationTransitionProps {
   delay?: number;
 }
 
-export function NavigationTransition({ 
-  children, 
+export function NavigationTransition({
+  children,
   direction = 'right',
-  delay = 0 
+  delay = 0
 }: NavigationTransitionProps) {
-  const opacity = useSharedValue(1);
-  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(20);
 
   React.useEffect(() => {
-    // Démarrer immédiatement sans délai pour éviter le fond noir
-    opacity.value = withTiming(1, { duration: 300 });
-    translateY.value = withTiming(0, { duration: 300 });
-  }, []);
+    // Fade in animation
+    const timer = setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 400 });
+      translateY.value = withTiming(0, { duration: 400 });
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [delay]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {

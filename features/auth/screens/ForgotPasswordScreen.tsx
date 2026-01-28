@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   whiteCard: {
-    flex: 0.8,
+    flex: 0.7,
     backgroundColor: 'white',
     borderTopLeftRadius: BorderRadius['3xl'],
     borderTopRightRadius: BorderRadius['3xl'],
