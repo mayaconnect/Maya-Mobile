@@ -21,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 interface QrValidationModalProps {
   visible: boolean;
   onClose: () => void;
-  onValidate: (amountGross: number, personsCount: number) => void;
+  onValidate: (amountGross: number) => void;
   partnerId: string;
   storeId: string;
   operatorUserId: string;
@@ -44,7 +44,6 @@ export function QrValidationModal({
   isValidating = false,
 }: QrValidationModalProps) {
   const [amountGross, setAmountGross] = useState('');
-  const [personsCount, setPersonsCount] = useState('1');
 
   // Calculer le montant net et l'économie
   const calculateAmounts = () => {
@@ -60,42 +59,22 @@ export function QrValidationModal({
   const handleValidate = () => {
     // Validation des champs
     const amount = parseFloat(amountGross);
-    const persons = parseInt(personsCount, 10);
 
     if (!amountGross || isNaN(amount) || amount < 0) {
       Alert.alert('Erreur', 'Veuillez entrer un montant valide');
       return;
     }
 
-    if (!personsCount || isNaN(persons) || persons < 1) {
-      Alert.alert('Erreur', 'Le nombre de personnes doit être au moins 1');
-      return;
-    }
-
     console.log('✅ [QR Validation Modal] Validation avec:', {
       amountGross: amount,
-      personsCount: persons,
     });
 
-    onValidate(amount, persons);
+    onValidate(amount);
   };
 
   const handleCancel = () => {
     setAmountGross('');
-    setPersonsCount('1');
     onClose();
-  };
-
-  const incrementPersons = () => {
-    const current = parseInt(personsCount, 10) || 1;
-    setPersonsCount(String(current + 1));
-  };
-
-  const decrementPersons = () => {
-    const current = parseInt(personsCount, 10) || 1;
-    if (current > 1) {
-      setPersonsCount(String(current - 1));
-    }
   };
 
   return (
@@ -196,41 +175,6 @@ export function QrValidationModal({
                   </View>
                 )}
 
-                {/* Nombre de personnes */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>
-                    Nombre de personnes <Text style={styles.required}>*</Text>
-                  </Text>
-                  <View style={styles.counterContainer}>
-                    <TouchableOpacity
-                      style={[styles.counterButton, personsCount === '1' && styles.counterButtonDisabled]}
-                      onPress={decrementPersons}
-                      disabled={isValidating || personsCount === '1'}
-                    >
-                      <Ionicons name="remove" size={24} color={personsCount === '1' ? Colors.text.muted : '#8B2F3F'} />
-                    </TouchableOpacity>
-
-                    <View style={styles.counterValueContainer}>
-                      <Ionicons name="people" size={24} color="#8B2F3F" />
-                      <TextInput
-                        style={styles.counterInput}
-                        value={personsCount}
-                        onChangeText={setPersonsCount}
-                        keyboardType="number-pad"
-                        editable={!isValidating}
-                      />
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.counterButton}
-                      onPress={incrementPersons}
-                      disabled={isValidating}
-                    >
-                      <Ionicons name="add" size={24} color="#8B2F3F" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.hint}>Nombre de personnes concernées par la transaction</Text>
-                </View>
               </View>
 
               {/* Note d'information */}

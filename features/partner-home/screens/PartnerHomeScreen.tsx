@@ -361,7 +361,7 @@ export default function PartnerHomeScreen() {
     }
   };
 
-  const handleValidateQR = async (amountGross: number, personsCount: number) => {
+  const handleValidateQR = async (amountGross: number) => {
     if (!qrValidationData) {
       console.error('❌ [QR VALIDATION] Aucune donnée de validation disponible');
       return;
@@ -370,13 +370,14 @@ export default function PartnerHomeScreen() {
     setValidatingQR(true);
 
     try {
+      const personsCount = 1;
       // Trouver le magasin pour obtenir son discountPercent
       const store = stores.find(s => s.id === qrValidationData.storeId || s.storeId === qrValidationData.storeId);
       // L'API utilise avgDiscountPercent, discountPercent ou discount
       const discountPercent = store?.avgDiscountPercent || store?.discountPercent || store?.discount || 10; // Fallback à 10% si non trouvé
 
       console.log('═══════════════════════════════════════════════════════════');
-      console.log('🌐 [QR VALIDATION] Début de la validation avec montant et personnes');
+      console.log('🌐 [QR VALIDATION] Début de la validation');
       console.log('═══════════════════════════════════════════════════════════');
       console.log('📤 [QR VALIDATION] Paramètres de validation:', {
         qrToken: qrValidationData.qrToken.substring(0, 30) + '...',
@@ -421,7 +422,7 @@ export default function PartnerHomeScreen() {
       // Afficher le résultat
       Alert.alert(
         '✅ QR Code validé',
-        `Visite enregistrée avec succès !\n\nClient: ${validationResult.clientName || validationResult.client?.firstName || 'Client'}\nMagasin: ${qrValidationData.storeName || 'N/A'}\nMontant: ${amountGross.toFixed(2)}€\nPersonnes: ${personsCount}\nRéduction: ${validationResult?.discountAmount?.toFixed(2) || '0.00'}€`,
+        `Visite enregistrée avec succès !\n\nClient: ${validationResult.clientName || validationResult.client?.firstName || 'Client'}\nMagasin: ${qrValidationData.storeName || 'N/A'}\nMontant: ${amountGross.toFixed(2)}€\nRéduction: ${validationResult?.discountAmount?.toFixed(2) || '0.00'}€`,
         [
           {
             text: 'OK',
@@ -1067,7 +1068,7 @@ export default function PartnerHomeScreen() {
           mode="partner"
         />
 
-        {/* Modal de validation QR avec montant et personnes */}
+        {/* Modal de validation QR */}
         {qrValidationData && (() => {
           // Récupérer le discountPercent du store en temps réel pour le modal
           const currentStore = stores.find(s => s.id === qrValidationData.storeId || s.storeId === qrValidationData.storeId);
