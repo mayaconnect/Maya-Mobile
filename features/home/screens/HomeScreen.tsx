@@ -9,8 +9,8 @@ import { responsiveSpacing } from '@/utils/responsive';
 import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
-import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeQRCodeCard } from '../components/HomeQRCodeCard';
@@ -27,6 +27,7 @@ export default function HomeScreen() {
   const [qrCodeResponse, setQrCodeResponse] = useState<any | null>(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const previousSubscriptionStatus = useRef<boolean | null>(null);
 
   // États pour les transactions
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -58,15 +59,27 @@ export default function HomeScreen() {
     setSubscriptionLoading(true);
     try {
       const hasSub = await SubscriptionsApi.hasActiveSubscription();
+      const previousStatus = previousSubscriptionStatus.current;
       setHasActiveSubscription(hasSub);
+      previousSubscriptionStatus.current = hasSub;
       console.log('📦 [Home] Vérification abonnement:', hasSub);
+      
+      // Si l'abonnement vient d'être activé (passage de false à true), recharger le QR Code
+      if (previousStatus === false && hasSub === true) {
+        console.log('🔄 [Home] Abonnement activé, rafraîchissement du QR Code...');
+        // Attendre un peu pour que le backend soit prêt
+        setTimeout(() => {
+          loadQrToken(true);
+        }, 1000);
+      }
     } catch (error) {
       console.error('❌ [Home] Erreur lors de la vérification de l\'abonnement:', error);
       setHasActiveSubscription(false);
+      previousSubscriptionStatus.current = false;
     } finally {
       setSubscriptionLoading(false);
     }
-  }, []);
+  }, [loadQrToken]);
 
   // Vérifier si l'utilisateur a une photo de profil
   const hasProfilePhoto = useCallback(() => {
@@ -148,6 +161,39 @@ export default function HomeScreen() {
       checkAuthAndLoadQr();
     }
   }, [loadQrToken, checkSubscription, user, hasProfilePhoto]);
+
+  // Rafraîchir le QR Code quand on revient sur la page (après un paiement par exemple)
+  useFocusEffect(
+    useCallback(() => {
+      // Vérifier l'abonnement et recharger le QR Code si nécessaire
+      const refreshOnFocus = async () => {
+        if (!user || user?.email?.toLowerCase().includes('partner')) {
+          return;
+        }
+
+        console.log('🔄 [Home] Page mise au focus, vérification de l\'abonnement...');
+        const hasSub = await SubscriptionsApi.hasActiveSubscription();
+        const previousStatus = previousSubscriptionStatus.current;
+        
+        // Si l'abonnement vient d'être activé, recharger le QR Code
+        if (previousStatus === false && hasSub === true) {
+          console.log('✅ [Home] Abonnement détecté après retour sur la page, rafraîchissement du QR Code...');
+          previousSubscriptionStatus.current = hasSub;
+          setHasActiveSubscription(hasSub);
+          // Attendre un peu pour que le backend soit prêt
+          setTimeout(() => {
+            loadQrToken(true);
+          }, 1000);
+        } else if (hasSub !== previousSubscriptionStatus.current) {
+          // Mettre à jour le statut même si on ne recharge pas
+          previousSubscriptionStatus.current = hasSub;
+          setHasActiveSubscription(hasSub);
+        }
+      };
+
+      refreshOnFocus();
+    }, [user, loadQrToken])
+  );
 
   // Rafraîchir automatiquement le QR code toutes les 5 minutes (uniquement si abonnement actif ET photo)
   useEffect(() => {

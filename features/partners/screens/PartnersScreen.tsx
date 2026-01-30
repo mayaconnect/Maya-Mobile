@@ -7,17 +7,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PartnersGridView } from '../components/PartnersGridView';
@@ -2048,7 +2048,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,

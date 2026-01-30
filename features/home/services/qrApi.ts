@@ -262,23 +262,92 @@ export const QrApi = {
       return await ApiClient.post<any>('/qr/validate', requestBody, {
         baseUrlOverride: QR_API_BASE_URL,
       });
-    } catch (error) {
-      log.error('Erreur lors de la validation du token QR', error as Error);
-
-      if (error instanceof Error) {
-        if (error.message.includes('HTTP 400')) {
-          throw new Error('Requête invalide. Vérifiez que tous les paramètres sont corrects.');
-        } else if (error.message.includes('HTTP 401')) {
-          throw new Error('Authentification requise. Veuillez vous reconnecter.');
-        } else if (error.message.includes('HTTP 403')) {
-          throw new Error('Accès refusé. Vous n\'avez pas les permissions nécessaires.');
-        } else if (error.message.includes('HTTP 404')) {
-          throw new Error('QR Code non trouvé ou expiré.');
-        } else if (error.message.includes('HTTP 500')) {
-          throw new Error('Erreur serveur. Veuillez réessayer plus tard.');
-        }
+    } catch (error: any) {
+      // S'assurer que l'erreur est bien loggée
+      try {
+        log.error('Erreur lors de la validation du token QR', error as Error);
+      } catch (logError) {
+        console.error('Erreur lors de la validation du token QR:', error);
       }
-      throw error;
+
+      // Extraire le message d'erreur de la réponse si disponible
+      let errorMessage = 'Impossible de valider le QR Code. Veuillez réessayer.';
+      let statusCode: number | null = null;
+
+      try {
+        // Essayer d'extraire le code de statut HTTP depuis ApiError
+        if (error?.statusCode !== undefined) {
+          statusCode = error.statusCode;
+        } else if (error?.status !== undefined) {
+          statusCode = error.status;
+        } else if (error?.message) {
+          const statusMatch = error.message.match(/HTTP (\d+)/);
+          if (statusMatch) {
+            statusCode = parseInt(statusMatch[1], 10);
+          }
+        }
+
+        // Essayer d'extraire le message d'erreur de la réponse
+        if (error?.getUserMessage && typeof error.getUserMessage === 'function') {
+          errorMessage = error.getUserMessage();
+        } else if (error?.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error?.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error?.message && typeof error.message === 'string') {
+          // Ne pas utiliser le message HTTP brut
+          if (!error.message.includes('HTTP') && !error.message.includes('fetch')) {
+            errorMessage = error.message;
+          }
+        } else if (error?.details?.message) {
+          errorMessage = error.details.message;
+        }
+
+        // Messages spécifiques selon le code de statut
+        const lowerMessage = errorMessage.toLowerCase();
+        
+        if (statusCode === 400) {
+          // Vérifier si c'est un QR Code déjà utilisé ou invalide
+          if (lowerMessage.includes('déjà utilisé') || lowerMessage.includes('already used') || lowerMessage.includes('déjà validé') || lowerMessage.includes('already validated')) {
+            errorMessage = '⚠️ Ce QR Code a déjà été utilisé. Chaque QR Code ne peut être validé qu\'une seule fois.';
+          } else if (lowerMessage.includes('invalide') || lowerMessage.includes('invalid')) {
+            errorMessage = '⚠️ Ce QR Code est invalide. Veuillez demander au client de générer un nouveau QR Code.';
+          } else {
+            errorMessage = '⚠️ Requête invalide. Vérifiez que tous les paramètres sont corrects.';
+          }
+        } else if (statusCode === 401) {
+          errorMessage = '🔐 Authentification requise. Veuillez vous reconnecter.';
+        } else if (statusCode === 403) {
+          errorMessage = '🚫 Accès refusé. Vous n\'avez pas les permissions nécessaires.';
+        } else if (statusCode === 404) {
+          errorMessage = '⏰ Ce QR Code n\'est plus valide ou a expiré. Le client doit générer un nouveau QR Code.';
+        } else if (statusCode === 409) {
+          errorMessage = '⚠️ Ce QR Code a déjà été utilisé. Chaque QR Code ne peut être validé qu\'une seule fois.';
+        } else if (statusCode === 410) {
+          errorMessage = '⏰ Ce QR Code a expiré. Le client doit générer un nouveau QR Code.';
+        } else if (statusCode === 500 || statusCode === 502 || statusCode === 503) {
+          errorMessage = '🔧 Erreur serveur. Veuillez réessayer dans quelques instants.';
+        } else if (!statusCode) {
+          // Si pas de code de statut, vérifier le message pour détecter les cas courants
+          if (lowerMessage.includes('déjà utilisé') || lowerMessage.includes('already used')) {
+            errorMessage = '⚠️ Ce QR Code a déjà été utilisé. Chaque QR Code ne peut être validé qu\'une seule fois.';
+          } else if (lowerMessage.includes('expiré') || lowerMessage.includes('expired')) {
+            errorMessage = '⏰ Ce QR Code a expiré. Le client doit générer un nouveau QR Code.';
+          } else if (lowerMessage.includes('invalide') || lowerMessage.includes('invalid')) {
+            errorMessage = '⚠️ Ce QR Code est invalide. Veuillez demander au client de générer un nouveau QR Code.';
+          }
+        }
+      } catch (parseError) {
+        // Si l'extraction échoue, utiliser un message générique
+        console.error('Erreur lors de l\'extraction des détails d\'erreur:', parseError);
+        errorMessage = 'Impossible de valider le QR Code. Veuillez réessayer.';
+      }
+
+      // Créer une nouvelle erreur avec le message utilisateur-friendly
+      const userFriendlyError = new Error(errorMessage);
+      (userFriendlyError as any).statusCode = statusCode;
+      (userFriendlyError as any).originalError = error;
+      return Promise.reject(userFriendlyError);
     }
   },
 };

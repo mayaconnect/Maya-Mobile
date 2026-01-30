@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: Spacing.xs,
   } as ViewStyle,
 });
