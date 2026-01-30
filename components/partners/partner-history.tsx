@@ -57,7 +57,7 @@ export function PartnerHistory({
   return (
     <View style={styles.historySection}>
       <View style={styles.historyHeaderSection}>
-        <Text style={styles.sectionTitle}>Historique complet</Text>
+        <Text style={styles.sectionTitle}>Historique</Text>
         <TouchableOpacity style={styles.exportButton} onPress={onExportData}>
           <Ionicons name="download-outline" size={18} color="#8B2F3F" />
           <Text style={styles.exportButtonText}>Exporter</Text>
@@ -114,54 +114,18 @@ export function PartnerHistory({
         ))}
       </ScrollView>
 
-      {/* Filtre par store */}
-      {stores.length > 0 && (
-        <View style={styles.storeFilterContainer}>
-          <Text style={styles.storeFilterLabel}>Filtrer par magasin:</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.storeFilterScroll}
-            contentContainerStyle={styles.storeFilterContent}
-          >
-            <TouchableOpacity
-              style={[
-                styles.storeFilterChip,
-                !selectedStoreId && styles.storeFilterChipActive,
-              ]}
-              onPress={() => onStoreFilterChange(undefined)}
-            >
-              <Text
-                style={[
-                  styles.storeFilterChipText,
-                  !selectedStoreId && styles.storeFilterChipTextActive,
-                ]}
-              >
-                Tous les magasins
-              </Text>
-            </TouchableOpacity>
-            {stores.map((store) => (
-              <TouchableOpacity
-                key={store.id}
-                style={[
-                  styles.storeFilterChip,
-                  selectedStoreId === store.id && styles.storeFilterChipActive,
-                ]}
-                onPress={() => onStoreFilterChange(store.id)}
-              >
-                <Text
-                  style={[
-                    styles.storeFilterChipText,
-                    selectedStoreId === store.id && styles.storeFilterChipTextActive,
-                  ]}
-                >
-                  {store.name || 'Magasin'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+      {/* Affichage du magasin actif uniquement */}
+      {selectedStoreId && stores.length > 0 && (() => {
+        const activeStore = stores.find((s: any) => s.id === selectedStoreId);
+        return activeStore ? (
+          <View style={styles.activeStoreInfo}>
+            <Ionicons name="storefront" size={16} color={Colors.text.light} />
+            <Text style={styles.activeStoreText}>
+              Magasin actif: {activeStore.name || 'Magasin'}
+            </Text>
+          </View>
+        ) : null;
+      })()}
 
       {/* Résultats filtrés */}
       {transactionsLoading ? (
@@ -347,42 +311,22 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '700',
   } as TextStyle,
-  storeFilterContainer: {
+  activeStoreInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(139, 47, 63, 0.15)',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 47, 63, 0.3)',
     marginBottom: Spacing.md,
   } as ViewStyle,
-  storeFilterLabel: {
+  activeStoreText: {
     fontSize: Typography.sizes.sm,
     fontWeight: '600',
     color: Colors.text.light,
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  storeFilterScroll: {
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
-  storeFilterContent: {
-    gap: Spacing.sm,
-  } as ViewStyle,
-  storeFilterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    marginRight: Spacing.sm,
-  } as ViewStyle,
-  storeFilterChipActive: {
-    backgroundColor: 'rgba(139, 47, 63, 0.3)',
-    borderColor: '#8B2F3F',
-  } as ViewStyle,
-  storeFilterChipText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '500',
-    color: Colors.text.secondary,
-  } as TextStyle,
-  storeFilterChipTextActive: {
-    color: Colors.text.light,
-    fontWeight: '600',
   } as TextStyle,
   resultsCount: {
     marginBottom: Spacing.md,

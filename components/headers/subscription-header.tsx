@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   planIcon: {
     width: 40,
     height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',

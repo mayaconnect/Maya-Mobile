@@ -27,7 +27,7 @@ export function PartnerHeader({ firstName, lastName, onLogout, showWelcome = tru
                 <View style={styles.welcomeContainer}>
                   <Text style={styles.welcomeText}>Bienvenue,</Text>
                   <View style={styles.nameBadge}>
-                    <Ionicons name="sparkles" size={16} color="#8B2F3F" style={styles.sparkleIcon} />
+                    <Ionicons name="sparkles" size={16} color="#8B2F3F" />
                     <Text style={styles.headerTitle}>
                       {firstName || 'Partenaire'} {lastName || ''}
                     </Text>
@@ -60,16 +60,20 @@ export function PartnerHeader({ firstName, lastName, onLogout, showWelcome = tru
 
 const styles = StyleSheet.create({
   header: {
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderRadius: BorderRadius.xl,
+    position: 'absolute',
+    top: Spacing.md,
+    left: 0,
+    right: 0,
+    borderBottomLeftRadius: BorderRadius['3xl'],
+    borderBottomRightRadius: BorderRadius['3xl'],
     overflow: 'hidden',
-    ...Shadows.lg,
+    ...Shadows.xl,
+    zIndex: 10,
   } as ViewStyle,
   gradient: {
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
   } as ViewStyle,
   headerContent: {
     flexDirection: 'row',
@@ -96,11 +100,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
   } as ViewStyle,
-  sparkleIcon: {
-    marginRight: 4,
-  } as ViewStyle,
   headerTitle: {
-    fontSize: Typography.sizes['3xl'],
+    fontSize: Typography.sizes['3xl'] + 4,
     fontWeight: Typography.weights.bold as any,
     color: Colors.text.light,
     letterSpacing: -0.5,

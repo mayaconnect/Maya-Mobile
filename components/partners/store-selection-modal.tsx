@@ -28,12 +28,15 @@ export function StoreSelectionModal({
   onSelectStore,
 }: StoreSelectionModalProps) {
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={false}
-      onRequestClose={onClose}
-    >
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => {
+          // Empêcher la fermeture du modal sans sélection
+          // Le modal doit rester ouvert jusqu'à ce qu'un store soit sélectionné
+        }}
+      >
       <LinearGradient
         colors={Colors.gradients.primary}
         start={{ x: 0, y: 0 }}
@@ -43,10 +46,11 @@ export function StoreSelectionModal({
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color={Colors.text.light} />
-            </TouchableOpacity>
-            <Text style={styles.title}>Sélectionner un magasin</Text>
+            {/* Pas de bouton de fermeture - le modal doit rester ouvert jusqu'à sélection */}
+            <View style={styles.placeholder} />
+            <Text style={styles.title}>
+              Sélectionner votre magasin actif
+            </Text>
             <View style={styles.placeholder} />
           </View>
 
@@ -57,7 +61,9 @@ export function StoreSelectionModal({
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.subtitle}>
-              Choisissez le magasin pour lequel vous souhaitez scanner le QR Code
+              {stores.length > 0 && stores[0]?.id 
+                ? 'Choisissez le magasin sur lequel vous souhaitez travailler. Toutes les données seront filtrées pour ce magasin.'
+                : 'Choisissez le magasin pour lequel vous souhaitez scanner le QR Code'}
             </Text>
 
             {stores.map((store) => (

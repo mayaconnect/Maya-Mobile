@@ -11,12 +11,12 @@ import { QrValidationModal } from '@/components/partners/qr-validation-modal';
 import { StoreSelectionModal } from '@/components/partners/store-selection-modal';
 import { QRScanner } from '@/components/qr/qr-scanner';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { QrApi } from '@/features/home/services/qrApi';
+import { TransactionsApi } from '@/features/home/services/transactionsApi';
+import { StoreOperatorsApi } from '@/features/partner-home/services/storeOperatorsApi';
+import { StoresApi } from '@/features/stores-map/services/storesApi';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthService } from '@/services/auth.service';
-import { ProfileApi } from '@/features/profile/services/profileApi';
-import { QrApi } from '@/features/home/services/qrApi';
-import { StoresApi } from '@/features/stores-map/services/storesApi';
-import { TransactionsApi } from '@/features/home/services/transactionsApi';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -39,6 +39,12 @@ export default function PartnerHomeScreen() {
   const [validatingQR, setValidatingQR] = useState(false);
   const [showStoreSelection, setShowStoreSelection] = useState(false);
   const [selectedStoreForScan, setSelectedStoreForScan] = useState<string | null>(null);
+  
+  // État pour le store actif
+  const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
+  const [activeStore, setActiveStore] = useState<any | null>(null);
+  const [showActiveStoreSelection, setShowActiveStoreSelection] = useState(false);
+  const [loadingActiveStore, setLoadingActiveStore] = useState(false);
 
   // États pour le modal de validation QR
   const [showQRValidationModal, setShowQRValidationModal] = useState(false);
@@ -60,6 +66,14 @@ export default function PartnerHomeScreen() {
   const [scans, setScans] = useState<any[]>([]);
   const [scansLoading, setScansLoading] = useState(false);
   const [scansError, setScansError] = useState<string | null>(null);
+  
+  // État pour les statistiques de clients
+  const [topCustomers, setTopCustomers] = useState<Array<{
+    customerId: string;
+    customerName: string;
+    visitCount: number;
+    totalAmount: number;
+  }>>([]);
 
   // États pour les transactions du partenaire
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -88,13 +102,14 @@ export default function PartnerHomeScreen() {
   const handleScanQR = () => {
     console.log('📱 [Partner Home] Bouton Scanner QR cliqué');
 
-    // Si le partenaire a plusieurs stores, afficher la modal de sélection
-    if (stores.length > 1) {
-      console.log('📱 [Partner Home] Plusieurs stores disponibles, affichage de la modal de sélection');
-      setShowStoreSelection(true);
-    } else if (stores.length === 1) {
-      // Si un seul store, le sélectionner automatiquement
-      console.log('📱 [Partner Home] Un seul store disponible, sélection automatique');
+    // Utiliser directement le store actif choisi au démarrage
+    if (activeStoreId) {
+      console.log('📱 [Partner Home] Utilisation du store actif:', activeStoreId);
+      setSelectedStoreForScan(activeStoreId);
+      setShowQRScanner(true);
+    } else if (stores.length > 0) {
+      // Si pas de store actif mais qu'on a des stores, utiliser le premier
+      console.log('📱 [Partner Home] Pas de store actif, utilisation du premier store disponible');
       setSelectedStoreForScan(stores[0].id);
       setShowQRScanner(true);
     } else {
@@ -255,28 +270,35 @@ export default function PartnerHomeScreen() {
         })),
       });
 
-      // Sélectionner le store et extraire son partnerId
+      // Sélectionner le store actif et extraire son partnerId
       let activeStore: any = null;
 
-      // Utiliser le store sélectionné pour le scan
-      if (selectedStoreForScan) {
-        activeStore = stores.find((s: any) => s.id === selectedStoreForScan);
+      // Utiliser le store actif choisi au démarrage (priorité) ou celui sélectionné pour le scan
+      const storeToUse = activeStoreId || selectedStoreForScan;
+      
+      if (storeToUse) {
+        activeStore = stores.find((s: any) => s.id === storeToUse);
         if (activeStore) {
           storeId = activeStore.id as string;
           partnerId = activeStore.partnerId || activeStore.partner?.id;
-          console.log('✅ [QR SCAN] Store sélectionné pour le scan:', {
+          console.log('✅ [QR SCAN] Store actif utilisé pour le scan:', {
             storeId: storeId.substring(0, 20) + '...',
             storeName: activeStore.name || activeStore.partner?.name || 'N/A',
             partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'undefined',
           });
         } else {
-          console.error('❌ [QR SCAN] Store sélectionné introuvable dans la liste des stores');
-          throw new Error('Store sélectionné introuvable');
+          console.error('❌ [QR SCAN] Store actif introuvable dans la liste des stores');
+          throw new Error('Store actif introuvable');
         }
       } else {
-        // Si aucun store n'a été sélectionné pour le scan (ne devrait pas arriver)
-        console.error('❌ [QR SCAN] Aucun store sélectionné pour le scan');
-        throw new Error('Aucun store sélectionné pour le scan');
+        // Si aucun store actif n'est défini
+        console.error('❌ [QR SCAN] Aucun store actif défini');
+        Alert.alert(
+          '⚠️ Aucun magasin actif',
+          'Veuillez sélectionner un magasin actif avant de scanner un QR Code.',
+          [{ text: 'OK' }]
+        );
+        return;
       }
       
       // Vérification finale des paramètres
@@ -392,6 +414,7 @@ export default function PartnerHomeScreen() {
 
       const validationStartTime = Date.now();
 
+      // Validation sécurisée - l'erreur sera catchée par le bloc catch principal
       const validationResult = await QrApi.validateQrToken(
         qrValidationData.qrToken,
         qrValidationData.partnerId,
@@ -415,48 +438,130 @@ export default function PartnerHomeScreen() {
         fullResult: JSON.stringify(validationResult, null, 2),
       });
 
-      // Fermer le modal
-      setShowQRValidationModal(false);
-      setQrValidationData(null);
+      // Fermer le modal de manière sécurisée
+      try {
+        setShowQRValidationModal(false);
+        setQrValidationData(null);
+      } catch (closeError) {
+        console.error('Erreur lors de la fermeture du modal:', closeError);
+      }
 
-      // Afficher le résultat
-      Alert.alert(
-        '✅ QR Code validé',
-        `Visite enregistrée avec succès !\n\nClient: ${validationResult.clientName || validationResult.client?.firstName || 'Client'}\nMagasin: ${qrValidationData.storeName || 'N/A'}\nMontant: ${amountGross.toFixed(2)}€\nRéduction: ${validationResult?.discountAmount?.toFixed(2) || '0.00'}€`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              console.log('🔄 [QR VALIDATION] Rechargement des clients et statistiques après validation...');
-              loadClients();
-              loadScanCounts(); // Recharger les statistiques de scans
+      // Afficher le résultat avec gestion sécurisée
+      try {
+        const clientName = validationResult?.clientName || validationResult?.client?.firstName || 'Client';
+        const storeName = qrValidationData?.storeName || 'N/A';
+        const amount = typeof amountGross === 'number' ? amountGross.toFixed(2) : '0.00';
+        const discount = validationResult?.discountAmount 
+          ? (typeof validationResult.discountAmount === 'number' ? validationResult.discountAmount.toFixed(2) : '0.00')
+          : '0.00';
+        
+        Alert.alert(
+          '✅ QR Code validé',
+          `Visite enregistrée avec succès !\n\nClient: ${clientName}\nMagasin: ${storeName}\nMontant: ${amount}€\nRéduction: ${discount}€`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                try {
+                  console.log('🔄 [QR VALIDATION] Rechargement des clients et statistiques après validation...');
+                  loadClients();
+                  loadScanCounts(); // Recharger les statistiques de scans
+                } catch (reloadError) {
+                  console.error('Erreur lors du rechargement:', reloadError);
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } catch (alertError) {
+        console.error('Erreur lors de l\'affichage de l\'alerte de succès:', alertError);
+        // Afficher une alerte simplifiée en cas d'erreur
+        Alert.alert('✅ QR Code validé', 'Visite enregistrée avec succès !', [{ text: 'OK' }]);
+      }
 
       console.log('✅ [QR VALIDATION] Processus terminé avec succès');
       console.log('═══════════════════════════════════════════════════════════');
-    } catch (error) {
-      console.error('═══════════════════════════════════════════════════════════');
-      console.error('❌ [QR VALIDATION] Erreur lors de la validation');
-      console.error('═══════════════════════════════════════════════════════════');
-      console.error('❌ [QR VALIDATION] Détails de l\'erreur:', {
-        error: error instanceof Error ? error.message : String(error),
-        errorName: error instanceof Error ? error.name : 'Unknown',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+    } catch (error: any) {
+      // S'assurer que toutes les erreurs sont catchées pour éviter les plantages
+      try {
+        console.error('═══════════════════════════════════════════════════════════');
+        console.error('❌ [QR VALIDATION] Erreur lors de la validation');
+        console.error('═══════════════════════════════════════════════════════════');
+        console.error('❌ [QR VALIDATION] Détails de l\'erreur:', {
+          error: error instanceof Error ? error.message : String(error),
+          errorName: error instanceof Error ? error.name : 'Unknown',
+          statusCode: error?.statusCode || error?.status || 'N/A',
+          hasStack: !!(error instanceof Error && error.stack),
+        });
+      } catch (logError) {
+        // Si même le log échoue, utiliser console.error basique
+        console.error('Erreur lors de la validation QR:', error);
+      }
 
-      Alert.alert(
-        '❌ Erreur',
-        error instanceof Error ? error.message : 'Impossible de valider le QR Code. Veuillez réessayer.',
-        [{ text: 'OK' }]
-      );
+      // Message d'erreur utilisateur avec gestion sécurisée
+      let errorMessage = 'Impossible de valider le QR Code. Veuillez réessayer.';
+      let errorTitle = '❌ Erreur';
 
-      console.error('═══════════════════════════════════════════════════════════');
+      try {
+        if (error instanceof Error) {
+          errorMessage = error.message || errorMessage;
+          
+          // Titre spécifique selon le type d'erreur
+          const lowerMessage = errorMessage.toLowerCase();
+          if (lowerMessage.includes('déjà utilisé') || lowerMessage.includes('already used')) {
+            errorTitle = '⚠️ QR Code déjà utilisé';
+          } else if (lowerMessage.includes('expiré') || lowerMessage.includes('expired')) {
+            errorTitle = '⏰ QR Code expiré';
+          } else if (lowerMessage.includes('invalide') || lowerMessage.includes('invalid')) {
+            errorTitle = '⚠️ QR Code invalide';
+          } else if (lowerMessage.includes('authentification') || lowerMessage.includes('authentication')) {
+            errorTitle = '🔐 Erreur d\'authentification';
+          } else if (lowerMessage.includes('serveur') || lowerMessage.includes('server')) {
+            errorTitle = '🔧 Erreur serveur';
+          }
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+      } catch (parseError) {
+        // Si l'extraction échoue, utiliser les valeurs par défaut
+        console.error('Erreur lors de l\'extraction du message d\'erreur:', parseError);
+      }
+
+      // Afficher l'alerte de manière sécurisée
+      try {
+        Alert.alert(
+          errorTitle,
+          errorMessage,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Ne pas fermer le modal automatiquement pour permettre de réessayer
+                // L'utilisateur peut fermer manuellement s'il le souhaite
+              },
+            },
+          ]
+        );
+      } catch (alertError) {
+        // Si Alert.alert échoue, au moins logger l'erreur
+        console.error('Impossible d\'afficher l\'alerte:', alertError);
+        console.error('Message d\'erreur original:', errorMessage);
+      }
+
+      try {
+        console.error('═══════════════════════════════════════════════════════════');
+      } catch {
+        // Ignorer les erreurs de log
+      }
     } finally {
-      setValidatingQR(false);
-      console.log('🏁 [QR VALIDATION] État de validation réinitialisé');
+      // Toujours réinitialiser l'état, même en cas d'erreur
+      try {
+        setValidatingQR(false);
+        console.log('🏁 [QR VALIDATION] État de validation réinitialisé');
+      } catch (finallyError) {
+        // Si même le finally échoue, au moins essayer de réinitialiser l'état
+        console.error('Erreur dans le bloc finally:', finallyError);
+      }
     }
   };
 
@@ -481,7 +586,7 @@ export default function PartnerHomeScreen() {
     loadClients();
   }, [loadClients]);
 
-  // Charger les scans détaillés
+  // Charger les scans détaillés avec la route filtered
   const loadScans = useCallback(async () => {
     if (!user?.id) {
       return;
@@ -494,11 +599,14 @@ export default function PartnerHomeScreen() {
       // Récupérer le partnerId depuis les stores
       let partnerId: string | undefined;
 
-      if (selectedStoreId) {
-        // Si un store spécifique est sélectionné
-        const selectedStore = stores.find((s: any) => s.id === selectedStoreId);
-        if (selectedStore) {
-          partnerId = selectedStore.partnerId || selectedStore.partner?.id;
+      // Utiliser le store actif
+      const currentStoreId = activeStoreId || selectedStoreId;
+      
+      if (currentStoreId) {
+        // Si un store actif est défini
+        const currentStore = stores.find((s: any) => s.id === currentStoreId);
+        if (currentStore) {
+          partnerId = currentStore.partnerId || currentStore.partner?.id;
         }
       } else if (stores.length > 0) {
         // Sinon, utiliser le partnerId du premier store
@@ -506,48 +614,97 @@ export default function PartnerHomeScreen() {
         partnerId = firstStore.partnerId || firstStore.partner?.id;
       }
 
-      console.log('📊 [Partner Home] Chargement des scans détaillés:', {
+      console.log('📊 [Partner Home] Chargement des scans détaillés avec filtered:', {
         partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'undefined',
-        storeId: selectedStoreId,
+        storeId: currentStoreId,
+        operatorUserId: user.id.substring(0, 20) + '...',
       });
 
-      // Utiliser getUserTransactions pour récupérer les transactions de l'opérateur
-      // Cette route existe déjà et fonctionne
-      const response = await TransactionsApi.getUserTransactions(user.id, {
-        page: 1,
-        pageSize: 100, // Charger les 100 derniers scans
-      });
+      // Utiliser getPartnerTransactions directement (route filtered temporairement désactivée)
+      let response;
+      if (partnerId) {
+        response = await TransactionsApi.getPartnerTransactions(partnerId, {
+          page: 1,
+          pageSize: 1000,
+          storeId: currentStoreId,
+        });
+      } else {
+        // Fallback : getUserTransactions
+        response = await TransactionsApi.getUserTransactions(user.id, {
+          page: 1,
+          pageSize: 1000,
+        });
+      }
 
       console.log('✅ [Partner Home] Scans détaillés récupérés:', {
         count: response.items?.length || 0,
         totalCount: response.totalCount,
       });
 
-      // Filtrer les scans par storeId si un store est sélectionné
-      let filteredScans = response.items || [];
-      if (selectedStoreId) {
-        filteredScans = filteredScans.filter((scan: any) => scan.storeId === selectedStoreId);
-        console.log('🔍 [Partner Home] Scans filtrés par store:', {
-          storeId: selectedStoreId,
-          countAfterFilter: filteredScans.length,
-        });
-      }
+      const scansData = response.items || [];
+      setScans(scansData);
 
-      setScans(filteredScans);
+      // Calculer les statistiques des clients (personne la plus venue, etc.)
+      const customerStats = new Map<string, {
+        customerId: string;
+        customerName: string;
+        visitCount: number;
+        totalAmount: number;
+      }>();
+
+      scansData.forEach((scan: any) => {
+        const customerId = scan.customerUserId || scan.customerId || scan.clientId || scan.client?.id || scan.customer?.id;
+        const customerName = scan.customerName || 
+                            scan.clientName || 
+                            `${scan.customer?.firstName || scan.client?.firstName || ''} ${scan.customer?.lastName || scan.client?.lastName || ''}`.trim() ||
+                            'Client inconnu';
+        const amount = scan.amountGross || scan.amount || 0;
+
+        if (customerId) {
+          if (customerStats.has(customerId)) {
+            const existing = customerStats.get(customerId)!;
+            existing.visitCount += 1;
+            existing.totalAmount += amount;
+          } else {
+            customerStats.set(customerId, {
+              customerId,
+              customerName: customerName || 'Client inconnu',
+              visitCount: 1,
+              totalAmount: amount,
+            });
+          }
+        }
+      });
+
+      // Trier par nombre de visites (décroissant) et prendre le top 10
+      const topCustomersList = Array.from(customerStats.values())
+        .sort((a, b) => b.visitCount - a.visitCount)
+        .slice(0, 10);
+
+      setTopCustomers(topCustomersList);
+      console.log('📊 [Partner Home] Statistiques clients calculées:', {
+        totalCustomers: customerStats.size,
+        topCustomers: topCustomersList.length,
+      });
     } catch (error) {
       console.error('❌ Erreur lors du chargement des scans:', error);
       setScansError('Impossible de charger les scans');
       setScans([]);
+      // Réinitialiser les statistiques clients en cas d'erreur
+      if (typeof setTopCustomers === 'function') {
+        setTopCustomers([]);
+      }
     } finally {
       setScansLoading(false);
     }
-  }, [user, selectedStoreId, stores]);
+  }, [user, activeStoreId, selectedStoreId, stores, setTopCustomers]);
 
+  // Ne charger les scans que si un store actif est défini
   useEffect(() => {
-    if (stores.length > 0) {
+    if (stores.length > 0 && activeStoreId && !showActiveStoreSelection) {
       loadScans();
     }
-  }, [loadScans, stores.length]);
+  }, [loadScans, stores.length, activeStoreId, showActiveStoreSelection]);
 
   // Charger les transactions du partenaire/opérateur
   const loadPartnerTransactions = useCallback(async () => {
@@ -587,26 +744,28 @@ export default function PartnerHomeScreen() {
       let partnerId: string | undefined;
       let useUserEndpoint = false;
 
-      if (selectedStoreId) {
-        // Trouver le store sélectionné pour extraire son partnerId
-        const selectedStore = stores.find((s: any) => s.id === selectedStoreId);
-        if (selectedStore) {
-          partnerId = selectedStore.partnerId || selectedStore.partner?.id;
-          console.log('📊 [Partner History] Store sélectionné, utilisation de son partnerId:', {
-            storeId: selectedStoreId,
-            storeName: selectedStore.name,
+      // Utiliser le store actif
+      const currentStoreId = activeStoreId || selectedStoreId;
+      
+      if (currentStoreId) {
+        // Trouver le store actif pour extraire son partnerId
+        const currentStore = stores.find((s: any) => s.id === currentStoreId);
+        if (currentStore) {
+          partnerId = currentStore.partnerId || currentStore.partner?.id;
+          console.log('📊 [Partner History] Store actif, utilisation de son partnerId:', {
+            storeId: currentStoreId,
+            storeName: currentStore.name,
             partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'undefined',
           });
         }
       }
 
-      // Si on n'a pas de partnerId spécifique (aucun store sélectionné ou pas trouvé)
-      // Pour un StoreOperator, on peut soit :
-      // 1. Charger les transactions de tous les stores (pas d'endpoint direct pour ça)
-      // 2. Charger les transactions via l'endpoint user
-      if (!partnerId) {
-        useUserEndpoint = true;
-        console.log('📊 [Partner History] Aucun store spécifique, utilisation de l\'endpoint user');
+      // Si on n'a pas de partnerId ou de store actif, on ne peut pas charger les transactions
+      if (!partnerId || !currentStoreId) {
+        console.warn('⚠️ [Partner History] Pas de store actif défini, impossible de charger les transactions');
+        setTransactions([]);
+        setTransactionsError('Veuillez sélectionner un magasin actif pour voir l\'historique');
+        return;
       }
 
       console.log('📊 [Partner History] Paramètres de chargement:', {
@@ -614,35 +773,30 @@ export default function PartnerHomeScreen() {
         partnerId: partnerId ? partnerId.substring(0, 20) + '...' : 'N/A',
         filterPeriod,
         startDate,
-        selectedStoreId,
-        useUserEndpoint,
+        storeId: currentStoreId,
       });
 
-      let response;
-      if (useUserEndpoint) {
-        // Utiliser l'endpoint user pour récupérer toutes les transactions de l'opérateur
-        response = await TransactionsApi.getUserTransactions(user.id, {
-          page: 1,
-          pageSize: 100,
-          startDate: startDate,
-        });
-      } else {
-        // Utiliser l'endpoint partner pour un store spécifique
-        response = await TransactionsApi.getPartnerTransactions(partnerId!, {
-          page: 1,
-          pageSize: 100,
-          storeId: selectedStoreId,
-          startDate: startDate,
-        });
-      }
+      // Toujours utiliser l'endpoint partner avec le store actif pour filtrer uniquement ce magasin
+      const response = await TransactionsApi.getPartnerTransactions(partnerId, {
+        page: 1,
+        pageSize: 100,
+        storeId: currentStoreId, // Filtrer uniquement par le store actif
+        startDate: startDate,
+      });
+      
+      // Filtrer également côté client pour être sûr de n'avoir que les transactions du store actif
+      const filteredTransactions = (response.items || []).filter((transaction: any) => {
+        const transactionStoreId = transaction.storeId || transaction.store?.id;
+        return transactionStoreId === currentStoreId;
+      });
 
-      console.log('✅ [Partner History] Transactions reçues:', {
-        count: response.items?.length || 0,
+      console.log('✅ [Partner History] Transactions reçues (filtrées par store actif):', {
+        count: filteredTransactions.length,
         totalCount: response.totalCount,
-        endpoint: useUserEndpoint ? 'user' : 'partner',
+        storeId: currentStoreId,
       });
 
-      setTransactions(response.items || []);
+      setTransactions(filteredTransactions);
     } catch (err) {
       console.error('❌ [Partner History] Erreur lors du chargement des transactions:', err);
       let errorMessage = 'Erreur lors du chargement';
@@ -662,13 +816,14 @@ export default function PartnerHomeScreen() {
     } finally {
       setTransactionsLoading(false);
     }
-  }, [user, filterPeriod, selectedStoreId, stores]);
+  }, [user, filterPeriod, activeStoreId, selectedStoreId, stores]);
 
+  // Ne charger les transactions que si un store actif est défini
   useEffect(() => {
-    if (selectedTab === 'history') {
+    if (selectedTab === 'history' && activeStoreId && !showActiveStoreSelection) {
       loadPartnerTransactions();
     }
-  }, [selectedTab, loadPartnerTransactions]);
+  }, [selectedTab, loadPartnerTransactions, activeStoreId, showActiveStoreSelection]);
 
   // Charger les stores du partenaire/opérateur connecté
   const loadStores = useCallback(async () => {
@@ -758,10 +913,103 @@ export default function PartnerHomeScreen() {
     }
   }, []);
 
+  // Charger le store actif (optionnel - pour vérifier s'il y en a un déjà défini)
+  const loadActiveStore = useCallback(async () => {
+    console.log('🏪 [Partner Home] Vérification du store actif...');
+    setLoadingActiveStore(true);
+    try {
+      const activeStoreData = await StoreOperatorsApi.getActiveStore();
+      if (activeStoreData && activeStoreData.id) {
+        setActiveStoreId(activeStoreData.id);
+        setActiveStore(activeStoreData);
+        setSelectedStoreId(activeStoreData.id);
+        setShowActiveStoreSelection(false); // S'assurer que le modal est fermé
+        console.log('✅ [Partner Home] Store actif trouvé:', activeStoreData.id);
+      } else {
+        console.log('⚠️ [Partner Home] Aucun store actif trouvé - affichage du modal');
+        // Toujours afficher le modal si aucun store actif
+        if (stores.length > 0) {
+          setShowActiveStoreSelection(true);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [Partner Home] Erreur lors du chargement du store actif:', error);
+      // En cas d'erreur, afficher le modal pour permettre la sélection
+      if (stores.length > 0) {
+        setShowActiveStoreSelection(true);
+      }
+    } finally {
+      setLoadingActiveStore(false);
+    }
+  }, [stores.length]);
+
+  // Définir le store actif
+  const handleSetActiveStore = useCallback(async (storeId: string) => {
+    console.log('🏪 [Partner Home] Définition du store actif:', storeId);
+    
+    // Vérifier si ce store est déjà actif pour éviter les appels inutiles
+    if (activeStoreId === storeId) {
+      console.log('✅ [Partner Home] Ce store est déjà actif, fermeture du modal');
+      setShowActiveStoreSelection(false);
+      return;
+    }
+    
+    setLoadingActiveStore(true);
+    // Fermer le modal immédiatement pour éviter les boucles
+    setShowActiveStoreSelection(false);
+    
+    try {
+      const activeStoreData = await StoreOperatorsApi.setActiveStore(storeId);
+      console.log('📦 [Partner Home] Réponse API setActiveStore:', activeStoreData);
+      
+      // L'API retourne { "message": "...", "storeId": "..." }
+      // On utilise l'ID du store de la réponse ou celui passé en paramètre
+      const finalStoreId = activeStoreData?.id || activeStoreData?.storeId || storeId;
+      
+      if (finalStoreId) {
+        // Trouver le store complet dans la liste des stores pour avoir toutes les infos
+        const storeFromList = stores.find((s: any) => s.id === finalStoreId);
+        const storeToSet = storeFromList || activeStoreData;
+        
+        // Mettre à jour les états de manière atomique
+        setActiveStoreId(finalStoreId);
+        setActiveStore(storeToSet);
+        setSelectedStoreId(finalStoreId);
+        console.log('✅ [Partner Home] Store actif défini:', finalStoreId);
+        
+        // Les useEffect se chargeront automatiquement de recharger les données
+        // car activeStoreId a changé
+      } else {
+        console.error('❌ [Partner Home] Réponse API invalide - pas d\'ID trouvé:', activeStoreData);
+        throw new Error('Réponse API invalide - pas d\'ID de store trouvé');
+      }
+    } catch (error) {
+      console.error('❌ [Partner Home] Erreur lors de la définition du store actif:', error);
+      // Réafficher le modal en cas d'erreur seulement si on n'a pas de store actif
+      if (!activeStoreId) {
+        setShowActiveStoreSelection(true);
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      Alert.alert('Erreur', `Impossible de définir le store actif: ${errorMessage}`);
+    } finally {
+      setLoadingActiveStore(false);
+    }
+  }, [activeStoreId, stores]);
+
   // Charger les stores au démarrage et quand l'onglet Me est affiché
   useEffect(() => {
     loadStores();
   }, [loadStores]);
+
+  // Afficher le modal de sélection de store au démarrage
+  useEffect(() => {
+    // Dès que les stores sont chargés, afficher directement le modal pour choisir le store actif
+    // Ne s'exécuter qu'une seule fois quand les stores sont chargés et qu'il n'y a pas de store actif
+    if (stores.length > 0 && !activeStoreId && !showActiveStoreSelection && !loadingActiveStore) {
+      console.log('🏪 [Partner Home] Stores chargés, affichage du modal de sélection au démarrage...');
+      setShowActiveStoreSelection(true);
+    }
+  }, [stores.length, activeStoreId, showActiveStoreSelection, loadingActiveStore]);
 
   // Charger les statistiques de scans
   const loadScanCounts = useCallback(async () => {
@@ -792,10 +1040,10 @@ export default function PartnerHomeScreen() {
 
       // Charger les statistiques pour chaque période
       const [todayCount, weekCount, monthCount, totalCount] = await Promise.all([
-        TransactionsApi.getScanCount(partnerId, selectedStoreId, todayStart.toISOString()),
-        TransactionsApi.getScanCount(partnerId, selectedStoreId, weekStart.toISOString()),
-        TransactionsApi.getScanCount(partnerId, selectedStoreId, monthStart.toISOString()),
-        TransactionsApi.getScanCount(partnerId, selectedStoreId),
+        TransactionsApi.getScanCount(partnerId, activeStoreId || selectedStoreId, todayStart.toISOString()),
+        TransactionsApi.getScanCount(partnerId, activeStoreId || selectedStoreId, weekStart.toISOString()),
+        TransactionsApi.getScanCount(partnerId, activeStoreId || selectedStoreId, monthStart.toISOString()),
+        TransactionsApi.getScanCount(partnerId, activeStoreId || selectedStoreId),
       ]);
 
       setScanCounts({
@@ -822,14 +1070,15 @@ export default function PartnerHomeScreen() {
     } finally {
       setScanCountsLoading(false);
     }
-  }, [user, selectedStoreId]);
+  }, [user, activeStoreId, selectedStoreId]);
 
   // Charger les statistiques au démarrage et quand le store sélectionné change
+  // Ne charger que si un store actif est défini
   useEffect(() => {
-    if (stores.length > 0) {
+    if (stores.length > 0 && activeStoreId && !showActiveStoreSelection) {
       loadScanCounts();
     }
-  }, [loadScanCounts, stores.length]);
+  }, [loadScanCounts, stores.length, activeStoreId, showActiveStoreSelection]);
 
   // Afficher les détails d'un store
   const handleStoreSelect = async (store: any) => {
@@ -940,6 +1189,16 @@ export default function PartnerHomeScreen() {
     return sum;
   }, 0);
 
+  // Calculer les réductions totales de la journée
+  const todayDiscounts = transactions.reduce((sum, transaction) => {
+    const transactionDate = new Date(transaction.createdAt || transaction.date || transaction.transactionDate);
+    // Vérifier si la transaction est d'aujourd'hui
+    if (transactionDate >= todayStart) {
+      return sum + (transaction.discountAmount || transaction.discount || 0);
+    }
+    return sum;
+  }, 0);
+
   console.log('💰 Statistiques calculées:', {
     totalRevenue,
     todayRevenue,
@@ -981,12 +1240,16 @@ export default function PartnerHomeScreen() {
           <ScrollView 
             style={styles.content} 
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent, 
+              { paddingTop: selectedTab === 'overview' ? 180 : 120 }
+            ]}
           >
           {selectedTab === 'overview' && (
             <PartnerOverview
               totalRevenue={totalRevenue}
               todayRevenue={todayRevenue}
+              todayDiscounts={todayDiscounts}
               scans={scans}
               scansLoading={scansLoading}
               scansError={scansError}
@@ -1004,14 +1267,17 @@ export default function PartnerHomeScreen() {
             <PartnerHistory
               searchQuery={searchQuery}
               filterPeriod={filterPeriod}
-              selectedStoreId={selectedStoreId}
+              selectedStoreId={activeStoreId || selectedStoreId}
               stores={stores}
               transactions={transactions}
               transactionsLoading={transactionsLoading}
               transactionsError={transactionsError} 
               onSearchChange={setSearchQuery}
               onFilterPeriodChange={setFilterPeriod}
-              onStoreFilterChange={setSelectedStoreId}
+              onStoreFilterChange={() => {
+                // Désactivé - on ne peut plus changer de magasin depuis l'historique
+                // Le magasin actif est défini au démarrage
+              }}
               onExportData={handleExportData}
             />
           )}
@@ -1024,8 +1290,14 @@ export default function PartnerHomeScreen() {
               storesLoading={storesLoading}
               storesError={storesError}
               filteredStores={filteredStores}
+              activeStoreId={activeStoreId}
+              activeStore={activeStore}
               onSearchChange={setStoreSearchQuery}
               onStoreSelect={handleStoreSelect}
+              onChangeStore={() => {
+                // Ouvrir le modal de sélection de store actif
+                setShowActiveStoreSelection(true);
+              }}
             />
           )}
 
@@ -1050,13 +1322,25 @@ export default function PartnerHomeScreen() {
           }}
         />
 
-        {/* Modal de sélection de store avant le scan */}
+        {/* Modal de sélection de store actif au démarrage - OBLIGATOIRE */}
         <StoreSelectionModal
+          visible={showActiveStoreSelection && stores.length > 0}
+          stores={stores}
+          onClose={() => {
+            // Ne pas permettre de fermer sans sélectionner un store
+            // Le modal doit rester ouvert jusqu'à ce qu'un store soit sélectionné
+            console.log('⚠️ [Partner Home] Tentative de fermeture du modal sans sélection - ignorée');
+          }}
+          onSelectStore={handleSetActiveStore}
+        />
+
+        {/* Modal de sélection de store avant le scan - DÉSACTIVÉ (on utilise le store actif) */}
+        {/* <StoreSelectionModal
           visible={showStoreSelection}
           stores={stores}
           onClose={() => setShowStoreSelection(false)}
           onSelectStore={handleStoreSelected}
-        />
+        /> */}
 
         <QRScanner
           visible={showQRScanner}
@@ -1145,7 +1429,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   logoutButton: {
     padding: Spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
@@ -1153,7 +1437,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
     paddingBottom: 100, // Espace pour la barre de navigation en bas
   } as ViewStyle,
   scrollContent: {

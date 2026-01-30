@@ -440,6 +440,9 @@ export default function ProfileScreen() {
       console.log('📤 [Profile] Upload de l\'avatar...');
       const updatedUser = await uploadAvatarApi(imageUri);
       
+      // Réinitialiser l'avatar pour forcer le rechargement
+      setAvatarBase64(null);
+      
       // Attendre un peu pour que l'API mette à jour l'avatar
       await new Promise(resolve => setTimeout(resolve, 500));
       
@@ -455,6 +458,23 @@ export default function ProfileScreen() {
       });
       
       setUserInfo(freshUserInfo);
+      
+      // Recharger l'avatar depuis la nouvelle URL si disponible
+      if (!freshUserInfo.avatarBase64 && ((freshUserInfo as any)?.avatarUrl || (freshUserInfo as any)?.avatar)) {
+        const avatarUrl = (freshUserInfo as any)?.avatarUrl || (freshUserInfo as any)?.avatar;
+        console.log('🔄 [Profile] Rechargement avatar depuis nouvelle URL après upload:', avatarUrl);
+        const base64 = await loadAvatarWithAuth(avatarUrl);
+        if (base64) {
+          setAvatarBase64(base64);
+          console.log('✅ [Profile] Nouvel avatar chargé en base64 après upload');
+        } else {
+          console.warn('⚠️ [Profile] Impossible de charger le nouvel avatar depuis l\'URL');
+        }
+      } else if (freshUserInfo.avatarBase64) {
+        // Si on a déjà le base64, l'utiliser directement
+        setAvatarBase64(freshUserInfo.avatarBase64);
+        console.log('✅ [Profile] Avatar base64 mis à jour directement');
+      }
       
       // Rafraîchir aussi le contexte utilisateur
       await refreshUser();
@@ -535,13 +555,19 @@ export default function ProfileScreen() {
                       // Utiliser avatarBase64 du state si disponible, sinon celui de userInfo
                       const finalAvatarBase64 = avatarBase64 || userInfo?.avatarBase64;
                       
+                      // Récupérer l'URL de l'avatar pour créer une clé unique
+                      const avatarUrl = (userInfo as any)?.avatarUrl || (userInfo as any)?.avatar || '';
+                      
                       // Utiliser uniquement le base64 si disponible (l'URL directe ne fonctionne pas sans route API)
                       if (finalAvatarBase64) {
+                        // Ajouter un timestamp basé sur l'URL pour forcer le rechargement quand l'URL change
+                        const urlHash = avatarUrl ? avatarUrl.split('/').pop() || '' : '';
                         const imageUri = `data:image/jpeg;base64,${finalAvatarBase64}`;
-                        console.log('🖼️ [Profile] Affichage avatar depuis base64');
+                        console.log('🖼️ [Profile] Affichage avatar depuis base64, URL:', avatarUrl);
                         return (
                           <View style={styles.avatarImageContainer}>
                             <Image 
+                              key={`avatar-${urlHash}-${finalAvatarBase64.substring(0, 20)}`}
                               source={{ uri: imageUri }}
                               style={styles.avatarImage}
                               resizeMode="cover"

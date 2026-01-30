@@ -1,3 +1,4 @@
+import { BorderRadius, Shadows, Spacing } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
@@ -21,9 +22,9 @@ export function PartnerBottomNav({ selectedTab, onTabChange }: PartnerBottomNavP
   return (
     <View style={styles.bottomNavBarContainer}>
       <LinearGradient
-        colors={['#2D1B1F', '#1A0A0E', '#1A0A0E']}
+        colors={['#1A0A0E', '#2D0F15', '#1A0A0E']}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
         <View style={styles.bottomNavBar}>
@@ -72,31 +73,26 @@ export function PartnerBottomNav({ selectedTab, onTabChange }: PartnerBottomNavP
 const styles = StyleSheet.create({
   bottomNavBarContainer: {
     position: 'absolute',
-    bottom: 8,
-    left: 8,
-    right: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(139, 47, 63, 0.3)',
-    borderRadius: 24,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    ...Shadows.xl,
     overflow: 'hidden',
-    shadowColor: '#8B2F3F',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 16,
   } as ViewStyle,
   gradient: {
-    borderRadius: 24,
+    borderRadius: BorderRadius['3xl'],
   } as ViewStyle,
   bottomNavBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: 'transparent',
-    paddingBottom: 16,
-    paddingTop: 12,
-    paddingHorizontal: 8,
-    height: 75,
+    paddingBottom: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    minHeight: 70,
   } as ViewStyle,
   bottomNavItem: {
     flex: 1,
@@ -119,7 +115,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#8B2F3F',
+    backgroundColor: '#FFFFFF',
   } as ViewStyle,
   bottomNavText: {
     fontSize: 11,

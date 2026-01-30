@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   } as TextStyle,
   refreshButton: {
     padding: Spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',

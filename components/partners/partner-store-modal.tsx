@@ -1,4 +1,4 @@
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -71,233 +71,246 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
                 </View>
               )}
 
-              {/* Hero + résumé */}
-              <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.storeDetailCard}>
-                <View style={styles.storeHeroRow}>
-                  <View style={styles.storeDetailIcon}>
-                    <BlurView intensity={60} tint="light" style={styles.storeHeroIconBlur}>
-                      <LinearGradient
-                        colors={['#FACC15', '#F97316', '#EF4444']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.storeHeroIcon}
-                      >
-                        <Ionicons name="storefront" size={44} color="#1F2937" />
-                      </LinearGradient>
-                    </BlurView>
+              {/* Header du magasin */}
+              <Animated.View entering={FadeInDown.delay(100).springify()}>
+                <BlurView intensity={20} tint="dark" style={styles.storeHeaderCard}>
+                  <View style={styles.storeHeaderTop}>
+                    <View style={styles.storeIconContainer}>
+                      <View style={styles.storeIcon}>
+                        <Ionicons name="storefront-outline" size={32} color={Colors.text.light} />
+                      </View>
+                      {selectedStore.isActive && (
+                        <View style={styles.activeBadge}>
+                          <Ionicons name="checkmark-circle" size={16} color={Colors.status.success} />
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.storeHeaderInfo}>
+                      <Text style={styles.storeName} numberOfLines={2}>
+                        {selectedStore.name || selectedStore.partner?.name || 'Magasin sans nom'}
+                      </Text>
+                      {selectedStore.category && (
+                        <View style={styles.categoryTag}>
+                          <Ionicons name="pricetag-outline" size={12} color={Colors.text.secondary} />
+                          <Text style={styles.categoryTagText}>{selectedStore.category}</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
-
-                  <View style={styles.storeHeroInfo}>
-                    <Text style={styles.storeDetailName} numberOfLines={2}>
-                      {selectedStore.name || selectedStore.partner?.name || 'Magasin sans nom'}
-                    </Text>
-                    {selectedStore.category && (
-                      <View style={styles.categoryPill}>
-                        <Ionicons name="pricetag" size={14} color="#F97316" />
-                        <Text style={styles.categoryPillText}>{selectedStore.category}</Text>
+                  
+                  <View style={styles.storeHeaderBadges}>
+                    {discountPercent && (
+                      <View style={styles.headerBadge}>
+                        <Ionicons name="gift-outline" size={14} color={Colors.status.success} />
+                        <Text style={styles.headerBadgeText}>-{discountPercent}%</Text>
+                      </View>
+                    )}
+                    {selectedStore.isOpen !== undefined && (
+                      <View style={[styles.headerBadge, selectedStore.isOpen ? styles.headerBadgeOpen : styles.headerBadgeClosed]}>
+                        <View style={[styles.statusDot, { backgroundColor: selectedStore.isOpen ? Colors.status.success : Colors.status.error }]} />
+                        <Text style={[styles.headerBadgeText, { color: selectedStore.isOpen ? Colors.status.success : Colors.status.error }]}>
+                          {selectedStore.isOpen ? 'Ouvert' : 'Fermé'}
+                        </Text>
                       </View>
                     )}
                   </View>
-                </View>
-
-                <View style={styles.heroBadgesRow}>
-                  {discountPercent && (
-                    <View style={styles.heroBadge}>
-                      <Ionicons name="gift" size={16} color="#10B981" />
-                      <Text style={styles.heroBadgeLabel}>Réduction</Text>
-                      <Text style={styles.heroBadgeValue}>-{discountPercent}%</Text>
-                    </View>
-                  )}
-                  {selectedStore.isOpen !== undefined && (
-                    <View
-                      style={[
-                        styles.heroBadge,
-                        selectedStore.isOpen ? styles.heroBadgeOpen : styles.heroBadgeClosed,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.heroStatusDot,
-                          { backgroundColor: selectedStore.isOpen ? '#10B981' : Colors.status.error },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.heroBadgeStatusText,
-                          { color: selectedStore.isOpen ? '#10B981' : Colors.status.error },
-                        ]}
-                      >
-                        {selectedStore.isOpen ? 'Ouvert maintenant' : 'Fermé'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                </BlurView>
               </Animated.View>
 
-              {/* Informations principales */}
-              <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.section}>
-                <Text style={styles.sectionTitle}>Informations</Text>
-                <View style={styles.infoSection}>
-                  {selectedStore.address && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconWrapper}>
-                        <Ionicons name="location" size={20} color="#F97316" />
+              {/* Informations de contact */}
+              <Animated.View entering={FadeInUp.delay(200).springify()}>
+                <BlurView intensity={15} tint="dark" style={styles.infoCard}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="information-circle-outline" size={18} color={Colors.text.light} />
+                    <Text style={styles.sectionTitle}>Informations</Text>
+                  </View>
+                  
+                  <View style={styles.infoList}>
+                    {selectedStore.address && (
+                      <View style={styles.infoItem}>
+                        <View style={styles.infoIconBox}>
+                          <Ionicons name="location-outline" size={18} color={Colors.text.light} />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                          <Text style={styles.infoLabel}>Adresse</Text>
+                          {selectedStore.address.street && (
+                            <Text style={styles.infoText}>{selectedStore.address.street}</Text>
+                          )}
+                          <Text style={styles.infoText}>
+                            {[selectedStore.address.postalCode, selectedStore.address.city]
+                              .filter(Boolean)
+                              .join(' ')}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Adresse</Text>
-                        {selectedStore.address.street && (
-                          <Text style={styles.infoValue}>{selectedStore.address.street}</Text>
-                        )}
-                        <Text style={styles.infoValue}>
-                          {[selectedStore.address.postalCode, selectedStore.address.city]
-                            .filter(Boolean)
-                            .join(' ')}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
+                    )}
 
-                  {(selectedStore.phone || selectedStore.phoneNumber) && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconWrapper}>
-                        <Ionicons name="call" size={20} color="#F97316" />
+                    {(selectedStore.phone || selectedStore.phoneNumber) && (
+                      <View style={styles.infoItem}>
+                        <View style={styles.infoIconBox}>
+                          <Ionicons name="call-outline" size={18} color={Colors.text.light} />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                          <Text style={styles.infoLabel}>Téléphone</Text>
+                          <Text style={styles.infoText}>
+                            {selectedStore.phone || selectedStore.phoneNumber}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Téléphone</Text>
-                        <Text style={styles.infoValue}>
-                          {selectedStore.phone || selectedStore.phoneNumber}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
+                    )}
 
-                  {selectedStore.email && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconWrapper}>
-                        <Ionicons name="mail" size={20} color="#F97316" />
+                    {selectedStore.email && (
+                      <View style={styles.infoItem}>
+                        <View style={styles.infoIconBox}>
+                          <Ionicons name="mail-outline" size={18} color={Colors.text.light} />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                          <Text style={styles.infoLabel}>Email</Text>
+                          <Text style={styles.infoText}>{selectedStore.email}</Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Email</Text>
-                        <Text style={styles.infoValue}>{selectedStore.email}</Text>
-                      </View>
-                    </View>
-                  )}
+                    )}
 
-                  {(selectedStore.website || selectedStore.url) && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconWrapper}>
-                        <Ionicons name="globe" size={20} color="#F97316" />
+                    {(selectedStore.website || selectedStore.url) && (
+                      <View style={styles.infoItem}>
+                        <View style={styles.infoIconBox}>
+                          <Ionicons name="globe-outline" size={18} color={Colors.text.light} />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                          <Text style={styles.infoLabel}>Site web</Text>
+                          <Text style={styles.infoText} numberOfLines={1}>
+                            {selectedStore.website || selectedStore.url}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Site web</Text>
-                        <Text style={styles.infoValue} numberOfLines={1}>
-                          {selectedStore.website || selectedStore.url}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
+                    )}
 
-                  {(selectedStore.openingHours || selectedStore.hours) && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconWrapper}>
-                        <Ionicons name="time" size={20} color="#F97316" />
+                    {(selectedStore.openingHours || selectedStore.hours) && (
+                      <View style={styles.infoItem}>
+                        <View style={styles.infoIconBox}>
+                          <Ionicons name="time-outline" size={18} color={Colors.text.light} />
+                        </View>
+                        <View style={styles.infoTextContainer}>
+                          <Text style={styles.infoLabel}>Horaires</Text>
+                          <Text style={styles.infoText}>
+                            {typeof (selectedStore.openingHours || selectedStore.hours) === 'string'
+                              ? (selectedStore.openingHours || selectedStore.hours)
+                              : 'Voir sur place'}
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Horaires</Text>
-                        <Text style={styles.infoValue}>
-                          {typeof (selectedStore.openingHours || selectedStore.hours) === 'string'
-                            ? (selectedStore.openingHours || selectedStore.hours)
-                            : 'Voir sur place'}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
+                    )}
+                  </View>
+                </BlurView>
               </Animated.View>
 
               {/* Statistiques */}
               {hasStats && (
-                <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.section}>
-                  <Text style={styles.sectionTitle}>Statistiques</Text>
-                  <View style={styles.statsGrid}>
-                    {selectedStore.totalScans !== undefined && (
-                      <View style={styles.statCard}>
-                        <Ionicons name="qr-code" size={22} color="#10B981" />
-                        <Text style={styles.statValue}>{selectedStore.totalScans}</Text>
-                        <Text style={styles.statLabel}>Scans</Text>
-                      </View>
-                    )}
-                    {selectedStore.totalRevenue !== undefined && (
-                      <View style={styles.statCard}>
-                        <Ionicons name="cash" size={22} color="#FACC15" />
-                        <Text style={styles.statValue}>
-                          {selectedStore.totalRevenue.toFixed(0)}€
-                        </Text>
-                        <Text style={styles.statLabel}>Revenus</Text>
-                      </View>
-                    )}
-                    {selectedStore.clientsCount !== undefined && (
-                      <View style={styles.statCard}>
-                        <Ionicons name="people" size={22} color="#60A5FA" />
-                        <Text style={styles.statValue}>{selectedStore.clientsCount}</Text>
-                        <Text style={styles.statLabel}>Clients</Text>
-                      </View>
-                    )}
-                  </View>
+                <Animated.View entering={FadeInUp.delay(300).springify()}>
+                  <BlurView intensity={15} tint="dark" style={styles.statsCard}>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons name="stats-chart-outline" size={18} color={Colors.text.light} />
+                      <Text style={styles.sectionTitle}>Statistiques</Text>
+                    </View>
+                    <View style={styles.statsGrid}>
+                      {selectedStore.totalScans !== undefined && (
+                        <View style={styles.statItem}>
+                          <View style={styles.statIconBox}>
+                            <Ionicons name="qr-code-outline" size={20} color={Colors.status.success} />
+                          </View>
+                          <Text style={styles.statValue}>{selectedStore.totalScans}</Text>
+                          <Text style={styles.statLabel}>Scans</Text>
+                        </View>
+                      )}
+                      {selectedStore.totalRevenue !== undefined && (
+                        <View style={styles.statItem}>
+                          <View style={styles.statIconBox}>
+                            <Ionicons name="cash-outline" size={20} color={Colors.accent.gold} />
+                          </View>
+                          <Text style={styles.statValue}>
+                            {selectedStore.totalRevenue.toFixed(0)}€
+                          </Text>
+                          <Text style={styles.statLabel}>Revenus</Text>
+                        </View>
+                      )}
+                      {selectedStore.clientsCount !== undefined && (
+                        <View style={styles.statItem}>
+                          <View style={styles.statIconBox}>
+                            <Ionicons name="people-outline" size={20} color={Colors.accent.cyan} />
+                          </View>
+                          <Text style={styles.statValue}>{selectedStore.clientsCount}</Text>
+                          <Text style={styles.statLabel}>Clients</Text>
+                        </View>
+                      )}
+                    </View>
+                  </BlurView>
                 </Animated.View>
               )}
 
               {/* Description */}
               {selectedStore.description && (
-                <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.section}>
-                  <Text style={styles.sectionTitle}>Description</Text>
-                  <Text style={styles.storeDetailDescriptionText}>
-                    {selectedStore.description}
-                  </Text>
+                <Animated.View entering={FadeInUp.delay(400).springify()}>
+                  <BlurView intensity={15} tint="dark" style={styles.descriptionCard}>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons name="document-text-outline" size={18} color={Colors.text.light} />
+                      <Text style={styles.sectionTitle}>Description</Text>
+                    </View>
+                    <Text style={styles.descriptionText}>
+                      {selectedStore.description}
+                    </Text>
+                  </BlurView>
                 </Animated.View>
               )}
 
               {/* Partenaire rattaché */}
               {selectedStore.partner && (
-                <Animated.View entering={FadeInUp.delay(500).springify()} style={styles.section}>
-                  <Text style={styles.sectionTitle}>Partenaire</Text>
-                  <View style={styles.partnerCard}>
-                    <View style={styles.partnerAvatar}>
-                      <Ionicons name="briefcase" size={22} color="#F97316" />
+                <Animated.View entering={FadeInUp.delay(500).springify()}>
+                  <BlurView intensity={15} tint="dark" style={styles.partnerCard}>
+                    <View style={styles.sectionHeader}>
+                      <Ionicons name="business-outline" size={18} color={Colors.text.light} />
+                      <Text style={styles.sectionTitle}>Partenaire</Text>
                     </View>
-                    <View style={styles.partnerInfo}>
-                      <Text style={styles.storeDetailPartnerName}>
-                        {selectedStore.partner.name || 'N/A'}
-                      </Text>
-                      {selectedStore.partner.email && (
-                        <Text style={styles.storeDetailPartnerEmail}>
-                          {selectedStore.partner.email}
+                    <View style={styles.partnerInfoRow}>
+                      <View style={styles.partnerIconBox}>
+                        <Ionicons name="briefcase-outline" size={20} color={Colors.text.light} />
+                      </View>
+                      <View style={styles.partnerInfo}>
+                        <Text style={styles.partnerName}>
+                          {selectedStore.partner.name || 'N/A'}
                         </Text>
-                      )}
+                        {selectedStore.partner.email && (
+                          <Text style={styles.partnerEmail}>
+                            {selectedStore.partner.email}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                  </View>
+                  </BlurView>
                 </Animated.View>
               )}
 
               {/* Promotion active */}
               {(selectedStore.activePromotion || selectedStore.promotion) && (
-                <Animated.View entering={FadeInUp.delay(600).springify()} style={styles.section}>
-                  <Text style={styles.sectionTitle}>Promotion en cours</Text>
-                  <View style={styles.promotionCard}>
+                <Animated.View entering={FadeInUp.delay(600).springify()}>
+                  <BlurView intensity={15} tint="dark" style={styles.promotionCard}>
                     <View style={styles.promotionHeader}>
-                      <Ionicons name="sparkles" size={20} color="#FF6B6B" />
-                      <Text style={styles.promotionLabel}>Offre spéciale</Text>
+                      <View style={styles.promotionIconBox}>
+                        <Ionicons name="sparkles-outline" size={20} color={Colors.accent.rose} />
+                      </View>
+                      <View style={styles.promotionContent}>
+                        <Text style={styles.promotionLabel}>Promotion active</Text>
+                        <Text style={styles.promotionDiscount}>
+                          {(selectedStore.activePromotion || selectedStore.promotion).discount ||
+                            (selectedStore.activePromotion || selectedStore.promotion).discountLabel ||
+                            `-${discountPercent ?? 10}%`}
+                        </Text>
+                        <Text style={styles.promotionDescription}>
+                          {(selectedStore.activePromotion || selectedStore.promotion).description ||
+                            'Réduction immédiate sur l addition du client.'}
+                        </Text>
+                      </View>
                     </View>
-                    <Text style={styles.promotionDiscount}>
-                      {(selectedStore.activePromotion || selectedStore.promotion).discount ||
-                        (selectedStore.activePromotion || selectedStore.promotion).discountLabel ||
-                        `-${discountPercent ?? 10}%`}
-                    </Text>
-                    <Text style={styles.promotionDescription}>
-                      {(selectedStore.activePromotion || selectedStore.promotion).description ||
-                        'Réduction immédiate sur l addition du client.'}
-                    </Text>
-                  </View>
+                  </BlurView>
                 </Animated.View>
               )}
             </ScrollView>
@@ -404,66 +417,92 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
   } as TextStyle,
-  storeDetailCard: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: BorderRadius['3xl'],
-    padding: Spacing.xl,
-    ...Shadows['2xl'],
-  } as ViewStyle,
-  storeHeroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.lg,
+  storeHeaderCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
     marginBottom: Spacing.md,
-  } as ViewStyle,
-  storeDetailIcon: {
-    alignItems: 'center',
-  } as ViewStyle,
-  storeHeroIconBlur: {
-    borderRadius: BorderRadius['3xl'],
     overflow: 'hidden',
   } as ViewStyle,
-  storeHeroIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: BorderRadius['3xl'],
+  storeHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  storeIconContainer: {
+    position: 'relative',
+  } as ViewStyle,
+  storeIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    ...Shadows['2xl'],
   } as ViewStyle,
-  storeHeroInfo: {
+  activeBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: 'rgba(26, 10, 14, 0.9)',
+    borderRadius: BorderRadius.full,
+    borderWidth: 2,
+    borderColor: Colors.status.success,
+  } as ViewStyle,
+  storeHeaderInfo: {
     flex: 1,
     gap: Spacing.xs,
   } as ViewStyle,
-  storeDetailName: {
+  storeName: {
     fontSize: Typography.sizes.xl,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Colors.text.light,
-    marginBottom: Spacing.xs,
+    lineHeight: 24,
   } as TextStyle,
-  categoryPill: {
+  categoryTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+  } as ViewStyle,
+  categoryTagText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    fontWeight: '500',
+  } as TextStyle,
+  storeHeaderBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  headerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: 'rgba(249, 115, 22, 0.2)',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-    alignSelf: 'flex-start',
-    borderWidth: 2,
-    borderColor: 'rgba(249, 115, 22, 0.3)',
-    ...Shadows.sm,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   } as ViewStyle,
-  categoryPillText: {
+  headerBadgeOpen: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+  } as ViewStyle,
+  headerBadgeClosed: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  } as ViewStyle,
+  headerBadgeText: {
     fontSize: Typography.sizes.xs,
-    color: '#F97316',
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
+    color: Colors.text.light,
+    fontWeight: '600',
   } as TextStyle,
   badgesRow: {
     flexDirection: 'row',
@@ -508,15 +547,16 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontWeight: '700',
   } as TextStyle,
-  statusBadgeSmall: {
   heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   } as ViewStyle,
   heroBadgeLabel: {
     fontSize: Typography.sizes.xs,
@@ -542,99 +582,126 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: '700',
   } as TextStyle,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-  } as ViewStyle,
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   } as ViewStyle,
-  statusTextSmall: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '700',
-  } as TextStyle,
-  infoSection: {
-    marginTop: Spacing.lg,
-    gap: Spacing.md,
-  } as ViewStyle,
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: BorderRadius['2xl'],
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    ...Shadows.md,
-  } as ViewStyle,
-  infoIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.xl,
-    backgroundColor: 'rgba(249, 115, 22, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(249, 115, 22, 0.3)',
-  } as ViewStyle,
-  infoContent: {
-    flex: 1,
-  } as ViewStyle,
-  infoLabel: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  } as TextStyle,
-  infoValue: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.light,
-    lineHeight: 20,
-  } as TextStyle,
   statsSection: {
     marginTop: Spacing.xl,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   } as ViewStyle,
+  statsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+    overflow: 'hidden',
+  } as ViewStyle,
   statsGrid: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
   } as ViewStyle,
-  statCard: {
+  statItem: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.lg,
     alignItems: 'center',
     gap: Spacing.xs,
-    ...Shadows.md,
+  } as ViewStyle,
+  statIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
   } as ViewStyle,
   statValue: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: '800',
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
     color: Colors.text.light,
   } as TextStyle,
   statLabel: {
     fontSize: Typography.sizes.xs,
     color: Colors.text.secondary,
-    fontWeight: '600',
+    fontWeight: '500',
   } as TextStyle,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  } as ViewStyle,
   sectionTitle: {
     fontSize: Typography.sizes.base,
     fontWeight: '700',
     color: Colors.text.light,
     letterSpacing: -0.1,
+  } as TextStyle,
+  infoCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+    overflow: 'hidden',
+  } as ViewStyle,
+  infoList: {
+    gap: Spacing.sm,
+  } as ViewStyle,
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+  } as ViewStyle,
+  infoIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  infoTextContainer: {
+    flex: 1,
+    gap: 2,
+  } as ViewStyle,
+  infoLabel: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    marginBottom: 2,
+  } as TextStyle,
+  infoText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.light,
+    lineHeight: 18,
+  } as TextStyle,
+  descriptionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+    overflow: 'hidden',
+  } as ViewStyle,
+  descriptionText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.light,
+    lineHeight: 20,
+    marginTop: Spacing.sm,
   } as TextStyle,
   statusBadge: {
     backgroundColor: '#D1FAE5',
@@ -655,6 +722,44 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: '700',
     color: '#10B981',
+  } as TextStyle,
+  partnerCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+    overflow: 'hidden',
+  } as ViewStyle,
+  partnerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  } as ViewStyle,
+  partnerIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  partnerInfo: {
+    flex: 1,
+    gap: 2,
+  } as ViewStyle,
+  partnerName: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+    color: Colors.text.light,
+  } as TextStyle,
+  partnerEmail: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
   } as TextStyle,
   storeDetailPartner: {
     marginTop: Spacing.xl,
@@ -691,36 +796,48 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   } as ViewStyle,
+  promotionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+    overflow: 'hidden',
+  } as ViewStyle,
   promotionHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+  } as ViewStyle,
+  promotionIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+  } as ViewStyle,
+  promotionContent: {
+    flex: 1,
+    gap: Spacing.xs,
   } as ViewStyle,
   promotionLabel: {
-    fontSize: Typography.sizes.base,
-    fontWeight: '700',
-    color: Colors.text.light,
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.text.secondary,
   } as TextStyle,
-  promotionCard: {
-    backgroundColor: 'rgba(255, 107, 107, 0.15)',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 107, 107, 0.4)',
-    borderRadius: BorderRadius['3xl'],
-    padding: Spacing.xl,
-    alignItems: 'center',
-    ...Shadows.xl,
-  } as ViewStyle,
   promotionDiscount: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: '900',
-    color: '#FF6B6B',
-    marginBottom: Spacing.xs,
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '800',
+    color: Colors.accent.rose,
   } as TextStyle,
   promotionDescription: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.light,
-    textAlign: 'center',
+    lineHeight: 18,
   } as TextStyle,
 });
 
