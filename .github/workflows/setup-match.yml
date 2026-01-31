@@ -129,7 +129,7 @@ jobs:
           git_url("${{ secrets.MATCH_GIT_URL }}")
           storage_mode("git")
           type("appstore")
-          app_identifier(["com.maya.connect"])
+          app_identifier(["com.mayaconnect.app"])
           api_key_path("fastlane/keys/api_key.json")
 
       # ------------------------------
