@@ -840,6 +840,24 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          # Configuration TestFlight - Groupes de testeurs
+          # Format: "Internal Testers,QA Team,Beta Testers" (séparés par des virgules)
+          # Laisse vide pour distribuer à tous les testeurs internes
+          TESTFLIGHT_GROUPS: ${{ secrets.TESTFLIGHT_GROUPS || '' }}
+          # Distribution aux testeurs externes (true/false)
+          TESTFLIGHT_DISTRIBUTE_EXTERNAL: ${{ secrets.TESTFLIGHT_DISTRIBUTE_EXTERNAL || 'false' }}
+          # Notifier les testeurs externes (true/false)
+          TESTFLIGHT_NOTIFY_EXTERNAL: ${{ secrets.TESTFLIGHT_NOTIFY_EXTERNAL || 'false' }}
+          # Description pour les testeurs (optionnel)
+          TESTFLIGHT_BETA_DESCRIPTION: ${{ secrets.TESTFLIGHT_BETA_DESCRIPTION || 'Nouvelle version de Maya disponible pour test' }}
+          # Informations de contact pour la review (requis si distribute_external: true)
+          TESTFLIGHT_CONTACT_EMAIL: ${{ secrets.TESTFLIGHT_CONTACT_EMAIL || secrets.FASTLANE_APPLE_ID }}
+          TESTFLIGHT_CONTACT_FIRST_NAME: ${{ secrets.TESTFLIGHT_CONTACT_FIRST_NAME || 'Maya' }}
+          TESTFLIGHT_CONTACT_LAST_NAME: ${{ secrets.TESTFLIGHT_CONTACT_LAST_NAME || 'Team' }}
+          TESTFLIGHT_CONTACT_PHONE: ${{ secrets.TESTFLIGHT_CONTACT_PHONE || '' }}
+          TESTFLIGHT_DEMO_ACCOUNT: ${{ secrets.TESTFLIGHT_DEMO_ACCOUNT || '' }}
+          TESTFLIGHT_DEMO_PASSWORD: ${{ secrets.TESTFLIGHT_DEMO_PASSWORD || '' }}
+          TESTFLIGHT_REVIEW_NOTES: ${{ secrets.TESTFLIGHT_REVIEW_NOTES || 'Application de test pour Maya' }}
 
       - name: 📤 Upload iOS artifact
         uses: actions/upload-artifact@v4

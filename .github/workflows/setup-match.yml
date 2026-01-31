@@ -129,8 +129,73 @@ jobs:
           git_url("${{ secrets.MATCH_GIT_URL }}")
           storage_mode("git")
           type("appstore")
-          app_identifier(["com.maya.connect"])
+          app_identifier(["com.mayaconnect.app"])
           api_key_path("fastlane/keys/api_key.json")
+
+      # ------------------------------
+      # Diagnostic de l'authentification Git
+      # ------------------------------
+      - name: 🔍 Test Git Authentication
+        shell: bash
+        env:
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "🔍 Testing Git authentication..."
+          echo "Repository URL: ${MATCH_GIT_URL}"
+          
+          # Vérifier que les secrets sont définis
+          if [ -z "${MATCH_GIT_URL}" ]; then
+            echo "❌ ERROR: MATCH_GIT_URL is not set"
+            exit 1
+          fi
+          
+          if [ -z "${MATCH_GIT_BASIC_AUTHORIZATION}" ]; then
+            echo "❌ ERROR: MATCH_GIT_BASIC_AUTHORIZATION is not set"
+            exit 1
+          fi
+          
+          # Décoder et vérifier le format de l'authentification
+          echo "🔐 Decoding authentication (first 20 chars only for security)..."
+          DECODED=$(echo "${MATCH_GIT_BASIC_AUTHORIZATION}" | base64 -d 2>/dev/null || echo "INVALID_BASE64")
+          if [ "${DECODED}" = "INVALID_BASE64" ]; then
+            echo "❌ ERROR: MATCH_GIT_BASIC_AUTHORIZATION is not valid base64"
+            exit 1
+          fi
+          
+          # Vérifier le format username:token
+          if [[ ! "${DECODED}" =~ ^[^:]+:.+$ ]]; then
+            echo "❌ ERROR: Authentication format should be 'username:token', got: ${DECODED:0:20}..."
+            exit 1
+          fi
+          
+          USERNAME=$(echo "${DECODED}" | cut -d: -f1)
+          echo "✅ Username detected: ${USERNAME}"
+          echo "✅ Authentication format is correct"
+          
+          # Tester l'accès au repository
+          echo "🔍 Testing repository access..."
+          TEMP_DIR=$(mktemp -d)
+          trap "rm -rf ${TEMP_DIR}" EXIT
+          
+          if git clone \
+            -c http.extraheader="Authorization: Basic ${MATCH_GIT_BASIC_AUTHORIZATION}" \
+            "${MATCH_GIT_URL}" \
+            "${TEMP_DIR}/test-clone" \
+            2>&1; then
+            echo "✅ Repository access successful!"
+            rm -rf "${TEMP_DIR}"
+          else
+            echo "❌ ERROR: Cannot access repository"
+            echo "Please check:"
+            echo "  1. Repository exists and is private"
+            echo "  2. PAT token has 'repo' scope"
+            echo "  3. PAT token has access to this repository"
+            echo "  4. Username in base64 matches your GitHub username"
+            exit 1
+          fi
 
       # ------------------------------
       # Initialisation de match
