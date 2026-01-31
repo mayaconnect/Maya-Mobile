@@ -92,28 +92,32 @@ jobs:
           echo "${APP_STORE_CONNECT_KEY_BASE64}" | base64 -d > "${p8_path}"
           chmod 600 "${p8_path}"
 
-          KEY_ESCAPED="$(python3 - <<'PY'
+          # 2) Créer api_key.json pour fastlane (key_id, issuer_id, key)
+          # Utiliser Python pour créer le JSON correctement échappé
+          python3 <<PY
           import json
           import os
           from pathlib import Path
 
           key_id = os.environ['APP_STORE_CONNECT_KEY_ID']
-          p = Path(f'ios/fastlane/keys/AuthKey_{key_id}.p8')
-          text = p.read_text(encoding='utf-8')
-
-          # json.dumps ajoute des guillemets autour, on les retire pour injecter dans JSON
-          print(json.dumps(text)[1:-1])
-          PY
-          )"
-
-          # 3) Créer api_key.json pour fastlane (key_id, issuer_id, key)
-          cat > ios/fastlane/keys/api_key.json <<EOF
-          {
-            "key_id": "${APP_STORE_CONNECT_KEY_ID}",
-            "issuer_id": "${APP_STORE_CONNECT_ISSUER_ID}",
-            "key": "${KEY_ESCAPED}"
+          issuer_id = os.environ['APP_STORE_CONNECT_ISSUER_ID']
+          p8_path = Path(f'ios/fastlane/keys/AuthKey_{key_id}.p8')
+          
+          # Lire la clé privée
+          key_content = p8_path.read_text(encoding='utf-8')
+          
+          # Créer le dictionnaire JSON
+          api_key_data = {
+              "key_id": key_id,
+              "issuer_id": issuer_id,
+              "key": key_content
           }
-          EOF
+          
+          # Écrire le fichier JSON avec échappement correct
+          api_key_path = Path('ios/fastlane/keys/api_key.json')
+          with open(api_key_path, 'w', encoding='utf-8') as f:
+              json.dump(api_key_data, f, indent=2, ensure_ascii=False)
+          PY
 
           echo "✅ API Key files created"
 
