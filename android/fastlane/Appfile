@@ -1,2 +1,2 @@
 json_key_file("./fastlane/google-play-service-account.json")
-package_name("com.maya.connect")
+package_name("com.mayaconnect.app")

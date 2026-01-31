@@ -54,16 +54,43 @@ platform :ios do
     # Build the app
     build
 
+    # Configuration des groupes de testeurs TestFlight
+    # Les groupes doivent être créés dans App Store Connect avant d'être utilisés ici
+    # Exemple de noms de groupes : "Internal Testers", "Beta Testers", "QA Team", etc.
+    testflight_groups = ENV["TESTFLIGHT_GROUPS"] ? ENV["TESTFLIGHT_GROUPS"].split(",").map(&:strip) : []
+    distribute_external = ENV["TESTFLIGHT_DISTRIBUTE_EXTERNAL"] == "true"
+    notify_external_testers = ENV["TESTFLIGHT_NOTIFY_EXTERNAL"] == "true"
+
     # Upload to TestFlight
     upload_to_testflight(
       api_key: api_key,
       skip_waiting_for_build_processing: true,
       skip_submission: true,
-      distribute_external: false,
-      notify_external_testers: false
+      # Distribution aux testeurs
+      distribute_external: distribute_external,
+      notify_external_testers: notify_external_testers,
+      # Groupes de testeurs (optionnel - si vide, distribue à tous les testeurs internes)
+      groups: testflight_groups.empty? ? nil : testflight_groups,
+      # Informations pour les testeurs (optionnel)
+      beta_app_description: ENV["TESTFLIGHT_BETA_DESCRIPTION"] || "Nouvelle version de Maya disponible pour test",
+      # Review info (requis si distribute_external: true)
+      beta_app_review_info: distribute_external ? {
+        contact_email: ENV["TESTFLIGHT_CONTACT_EMAIL"] || ENV["FASTLANE_APPLE_ID"],
+        contact_first_name: ENV["TESTFLIGHT_CONTACT_FIRST_NAME"] || "Maya",
+        contact_last_name: ENV["TESTFLIGHT_CONTACT_LAST_NAME"] || "Team",
+        contact_phone: ENV["TESTFLIGHT_CONTACT_PHONE"] || "",
+        demo_account_name: ENV["TESTFLIGHT_DEMO_ACCOUNT"] || "",
+        demo_account_password: ENV["TESTFLIGHT_DEMO_PASSWORD"] || "",
+        notes: ENV["TESTFLIGHT_REVIEW_NOTES"] || "Application de test pour Maya"
+      } : nil
     )
 
     puts "✅ Successfully uploaded to TestFlight!"
+    if testflight_groups.any?
+      puts "📱 Distribué aux groupes : #{testflight_groups.join(', ')}"
+    else
+      puts "📱 Distribué à tous les testeurs internes"
+    end
     puts "🔗 Check status at: https://appstoreconnect.apple.com/"
   end
 

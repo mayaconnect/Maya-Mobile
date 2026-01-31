@@ -4,7 +4,7 @@ storage_mode("git")
 
 type("appstore") # Can be appstore, adhoc, development, enterprise
 
-app_identifier(["com.maya.app"])
+app_identifier(["com.mayaconnect.app"])
 
 username(ENV["FASTLANE_APPLE_ID"] || "votre-email@apple.com") # Your Apple Developer Portal username
 
