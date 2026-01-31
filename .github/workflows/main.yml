@@ -1,0 +1,174 @@
+name: Setup Match (One-Time iOS Certificates) - API Key Only
+
+# ---------------------------------------------------------------------------
+#  ⚠️  Ce workflow s'exécute UNE SEULE FOIS pour initialiser fastlane match
+#      - Utilise UNIQUEMENT une App Store Connect API Key (pas d'Apple ID / 2FA)
+#      - Crée les certificats iOS + provisioning profiles
+#      - Stocke tout dans votre repo Git (MATCH_GIT_URL)
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-match:
+    name: 🔐 Initialize Match & Create iOS Certificates (API Key)
+    runs-on: macos-15 # macOS 15 has Xcode 16.x
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # ------------------------------
+      #  Node & dépendances JS
+      # ------------------------------
+      - name: 📦 Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+
+      - name: 🗑️ Remove expo-dev-client (not needed for production builds)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm uninstall expo-dev-client
+
+      # ------------------------------
+      #  iOS native project (Expo)
+      # ------------------------------
+      - name: 🔧 Select Xcode 16.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+
+      - name: 🔨 Generate iOS native folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform ios --clean
+
+      - name: 🔧 Fix iOS nullability issues
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+
+      # ------------------------------
+      #  Ruby & fastlane
+      # ------------------------------
+      - name: 💎 Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      # ------------------------------
+      #  App Store Connect API Key
+      #  - Décode la clé .p8 depuis le secret BASE64
+      #  - Génère ios/fastlane/keys/api_key.json au format attendu par fastlane
+      # ------------------------------
+      - name: 🔐 Create App Store Connect API Key files (p8 + api_key.json)
+        shell: bash
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ios/fastlane/keys
+
+          # 1) Écrire le fichier .p8 à partir du secret base64
+          p8_path="ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          echo "${APP_STORE_CONNECT_KEY_BASE64}" | base64 -d > "${p8_path}"
+          chmod 600 "${p8_path}"
+
+          KEY_ESCAPED="$(python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          key_id = os.environ['APP_STORE_CONNECT_KEY_ID']
+          p = Path(f'ios/fastlane/keys/AuthKey_{key_id}.p8')
+          text = p.read_text(encoding='utf-8')
+
+          # json.dumps ajoute des guillemets autour, on les retire pour injecter dans JSON
+          print(json.dumps(text)[1:-1])
+          PY
+          )"
+
+          # 3) Créer api_key.json pour fastlane (key_id, issuer_id, key)
+          cat > ios/fastlane/keys/api_key.json <<EOF
+          {
+            "key_id": "${APP_STORE_CONNECT_KEY_ID}",
+            "issuer_id": "${APP_STORE_CONNECT_ISSUER_ID}",
+            "key": "${KEY_ESCAPED}"
+          }
+          EOF
+
+          echo "✅ API Key files created"
+
+      # ------------------------------
+      # Matchfile (configuration de fastlane match)
+      # ------------------------------
+      - name: 📝 Create Matchfile (API Key only)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > ios/fastlane/Matchfile <<EOF
+          git_url("${{ secrets.MATCH_GIT_URL }}")
+          storage_mode("git")
+          type("appstore")
+          app_identifier(["com.mayaconnect.app"])
+          api_key_path("fastlane/keys/api_key.json")
+
+      # ------------------------------
+      # Initialisation de match
+      # ------------------------------
+      - name: 🎫 Initialize Match and Create Certificates (API Key)
+        working-directory: ios
+        shell: bash
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "🔐 Initializing Match with App Store Connect API Key..."
+          bundle exec fastlane match appstore --verbose --force --skip_certificate_matching
+
+          echo "✅ Match initialized successfully!"
+          echo "✅ Certificates and profiles stored in: ${{ secrets.MATCH_GIT_URL }}"
+
+      # ------------------------------
+      # Résumé
+      # ------------------------------
+      - name: ✅ Success - Match is ready!
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "======================================"
+          echo "🎉 MATCH SETUP COMPLETED!"
+          echo "======================================"
+          echo ""
+          echo "✅ iOS Certificates created"
+          echo "✅ Provisioning Profiles created"
+          echo "✅ Everything stored in: ${{ secrets.MATCH_GIT_URL }}"
+          echo ""
+          echo "📋 Next steps:"
+          echo "1. The deploy workflow can now build iOS"
+          echo "2. You can disable or delete this workflow"
+          echo ""
+
