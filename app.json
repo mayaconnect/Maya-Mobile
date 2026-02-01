@@ -7,7 +7,7 @@
     "icon": "./assets/images/logo2.png",
     "scheme": "maya",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/logo2.png",
       "resizeMode": "contain",
@@ -67,7 +67,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
     },
     "extra": {
       "googleClientId": "535870809549-kanp7rd1hmu5ubq88aejlg2pk78htjhi.apps.googleusercontent.com",

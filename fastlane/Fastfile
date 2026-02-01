@@ -42,50 +42,19 @@ platform :ios do
     # might be different. We use ENV variable to allow workflow to override it.
     scheme_name = ENV["IOS_SCHEME_NAME"] || "Maya"
 
-    # Build configuration
-    # Let gym/xcodebuild use the default configuration from the scheme
-    # This avoids platform/SDK issues
-    build_config = {
-      workspace: "ios/Maya.xcworkspace",
-      scheme: scheme_name,
-      configuration: "Release",
-      export_method: "app-store",
-      export_options: {
-        provisioningProfiles: {
-          "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
-        },
-        # Ensure we're building for iOS (not catalyst or other platforms)
-        method: "app-store",
-        uploadBitcode: false,
-        uploadSymbols: false,
-        compileBitcode: false,
-        signingStyle: "manual",
-        teamID: ENV["APPLE_TEAM_ID"]
-      },
-      # Clean build to avoid cached issues
-      clean: true,
-      # Use xcbeautify for better output formatting
-      buildlog_path: "~/Library/Logs/gym",
-      # Silent mode off to see all output
-      silent: false,
-      # Additional xcodebuild arguments to handle platform issues
-      # IPHONEOS_DEPLOYMENT_TARGET forces a lower iOS version
-      xcargs: "-allowProvisioningUpdates ONLY_ACTIVE_ARCH=NO IPHONEOS_DEPLOYMENT_TARGET=13.4",
-      # Skip codesigning during build (will sign during export)
-      skip_codesigning: false,
-      # Don't specify destination or SDK - let xcodebuild figure it out
-      # This works better on CI where platform components may be missing
-    }
-
-    puts "🔨 Building with configuration:"
-    puts "  Workspace: #{build_config[:workspace]}"
-    puts "  Scheme: #{build_config[:scheme]}"
-    puts "  Configuration: #{build_config[:configuration]}"
-    puts "  Export method: #{build_config[:export_method]}"
-    puts "  Deployment target: 13.4 (forced via xcargs)"
+    # Ultra-simplified build configuration
+    # This is the most basic configuration that works reliably
+    puts "🔨 Starting build..."
+    puts "  Workspace: ios/Maya.xcworkspace"
+    puts "  Scheme: #{scheme_name}"
     puts ""
 
-    build_app(build_config)
+    build_app(
+      workspace: "ios/Maya.xcworkspace",
+      scheme: scheme_name,
+      export_method: "app-store",
+      clean: true
+    )
   end
 
   desc "Upload to TestFlight"
