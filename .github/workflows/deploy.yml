@@ -821,11 +821,11 @@ jobs:
         run: |
           set -euo pipefail
           
-          mkdir -p ios/fastlane/keys
+          mkdir -p fastlane/keys
           
           # Décoder et créer le fichier .p8
-          echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-          chmod 600 ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          chmod 600 fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
           
           # Créer api_key.json avec la clé inline (format requis par fastlane/spaceship)
           python3 <<PY
@@ -836,7 +836,7 @@ jobs:
           issuer_id = os.environ['APP_STORE_CONNECT_ISSUER_ID']
           
           # Lire la clé privée depuis le fichier
-          with open(f'ios/fastlane/keys/AuthKey_{key_id}.p8', 'r', encoding='utf-8') as f:
+          with open(f'fastlane/keys/AuthKey_{key_id}.p8', 'r', encoding='utf-8') as f:
               key_content = f.read().strip()
           
           # Créer le dictionnaire JSON
@@ -848,7 +848,7 @@ jobs:
           }
           
           # Écrire le fichier JSON
-          with open('ios/fastlane/keys/api_key.json', 'w', encoding='utf-8') as f:
+          with open('fastlane/keys/api_key.json', 'w', encoding='utf-8') as f:
               json.dump(api_key_data, f, indent=2)
           
           print("✅ api_key.json created successfully")
@@ -857,7 +857,6 @@ jobs:
           echo "✅ App Store Connect API Key configured"
 
       - name: 📜 Setup Match certificates
-        working-directory: ios
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
@@ -917,7 +916,6 @@ jobs:
           bundle exec fastlane match appstore --readonly
 
       - name: 🚀 Build and Deploy to TestFlight
-        working-directory: ios
         run: bundle exec fastlane beta
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
