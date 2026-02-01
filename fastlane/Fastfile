@@ -56,12 +56,8 @@ platform :ios do
           "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
         }
       },
-      # Explicitly disable xcpretty to see full xcodebuild output
-      xcpretty_args: "--no-color",
       # Use xcbeautify for better output formatting
       buildlog_path: "~/Library/Logs/gym",
-      # Skip package IPA to see if archiving works first
-      skip_package_ipa: false,
       # Silent mode off to see all output
       silent: false
     }
