@@ -526,13 +526,34 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > ios/fastlane/Matchfile <<EOF
+          echo "📝 Creating Matchfile..."
+          cat > ios/fastlane/Matchfile <<-EOF
           git_url("${{ secrets.MATCH_GIT_URL }}")
           storage_mode("git")
           type("appstore")
           app_identifier(["com.mayaconnect.app"])
           api_key_path("fastlane/keys/api_key.json")
           EOF
+
+          echo "✅ Matchfile created"
+          echo ""
+          echo "📋 Matchfile content:"
+          cat ios/fastlane/Matchfile
+          echo ""
+          
+          # Verify Matchfile is readable
+          if [ ! -f "ios/fastlane/Matchfile" ]; then
+            echo "❌ ERROR: Matchfile was not created"
+            exit 1
+          fi
+          
+          # Verify app_identifier is present
+          if ! grep -q "app_identifier" ios/fastlane/Matchfile; then
+            echo "❌ ERROR: app_identifier not found in Matchfile"
+            exit 1
+          fi
+          
+          echo "✅ Matchfile validation passed"
 
       # ------------------------------
       # Diagnostic de l'authentification Git
