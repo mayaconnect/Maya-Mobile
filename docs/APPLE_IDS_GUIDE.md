@@ -124,11 +124,14 @@ Ce document liste **tous les identifiants Apple** nécessaires pour configurer e
 
 **Comment le convertir en base64 (pour GitHub Actions) :**
 
+**⚠️ IMPORTANT : Le secret base64 ne doit contenir AUCUN espace ni retour à la ligne !**
+
 **Sous Windows (PowerShell) :**
 ```powershell
 $path = "AuthKey_XXXXXXXXXX.p8"  # Remplace par le nom réel du fichier
-act```
-Le contenu base64 est maintenant dans le presse-papier.
+[Convert]::ToBase64String([System.IO.File]::ReadAllBytes($path)) | Set-Clipboard
+```
+Le contenu base64 est maintenant dans le presse-papier (sans espaces ni retours à la ligne).
 
 **Sous macOS/Linux :**
 ```bash
@@ -140,6 +143,25 @@ base64 AuthKey_XXXXXXXXXX.p8 | xclip -selection clipboard  # Linux
 **Où l'utiliser :**
 - Secret GitHub : `APP_STORE_CONNECT_KEY_BASE64`
 - Le fichier `.p8` doit être placé dans `ios/fastlane/keys/AuthKey_XXXXXXXXXX.p8` (localement)
+
+**⚠️ Dépannage - Erreur "invalid curve name" :**
+
+Cette erreur se produit quand le fichier `.p8` est corrompu ou mal formaté. Solutions :
+
+1. **Le secret base64 contient des espaces ou retours à la ligne** :
+   - Le secret `APP_STORE_CONNECT_KEY_BASE64` doit être **une seule ligne** sans espaces
+   - Vérifie dans GitHub → Settings → Secrets → `APP_STORE_CONNECT_KEY_BASE64`
+   - Si tu vois des espaces ou retours à la ligne, supprime-les et recrée le secret
+
+2. **Recréer le secret base64 correctement** :
+   - Télécharge à nouveau le fichier `.p8` depuis App Store Connect
+   - Reconvertis-le en base64 avec la commande PowerShell ci-dessus
+   - **Important** : copie-colle directement dans le secret GitHub (pas de modification manuelle)
+
+3. **Vérifier le format du fichier .p8** :
+   - Le fichier doit commencer par `-----BEGIN PRIVATE KEY-----`
+   - Le fichier doit se terminer par `-----END PRIVATE KEY-----`
+   - Pas d'espaces ou caractères supplémentaires
 
 **⚠️ Dépannage - Erreur "Authentication credentials are missing or invalid" :**
 

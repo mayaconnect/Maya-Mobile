@@ -9,6 +9,7 @@ name: Setup Match (One-Time iOS Certificates) - API Key Only
 
 on:
   workflow_dispatch:
+  
 
 jobs:
   setup-match:
@@ -87,13 +88,38 @@ jobs:
 
           mkdir -p ios/fastlane/keys
 
-          # 1) Écrire le fichier .p8 à partir du secret base64
+          # 1) Nettoyer et décoder le secret base64 (supprimer espaces et retours à la ligne)
+          echo "🔍 Decoding App Store Connect API Key..."
+          CLEAN_BASE64=$(echo "${APP_STORE_CONNECT_KEY_BASE64}" | tr -d '[:space:]')
+          
+          # 2) Écrire le fichier .p8 à partir du secret base64 nettoyé
           p8_path="ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          echo "${APP_STORE_CONNECT_KEY_BASE64}" | base64 -d > "${p8_path}"
+          echo "${CLEAN_BASE64}" | base64 -d > "${p8_path}"
           chmod 600 "${p8_path}"
+          
+          # 3) Vérifier que le fichier .p8 est valide
+          if [ ! -s "${p8_path}" ]; then
+            echo "❌ ERROR: Decoded .p8 file is empty!"
+            exit 1
+          fi
+          
+          # Vérifier le format du fichier .p8
+          if ! head -1 "${p8_path}" | grep -q "BEGIN PRIVATE KEY"; then
+            echo "❌ ERROR: .p8 file format is invalid (should start with '-----BEGIN PRIVATE KEY-----')"
+            echo "First 100 chars: $(head -c 100 "${p8_path}")"
+            exit 1
+          fi
+          
+          if ! tail -1 "${p8_path}" | grep -q "END PRIVATE KEY"; then
+            echo "❌ ERROR: .p8 file format is invalid (should end with '-----END PRIVATE KEY-----')"
+            exit 1
+          fi
+          
+          echo "✅ .p8 file decoded and validated successfully"
 
-          # 2) Créer api_key.json pour fastlane (key_id, issuer_id, key)
+          # 4) Créer api_key.json pour fastlane (key_id, issuer_id, key)
           # Utiliser Python pour créer le JSON correctement échappé
+          echo "📝 Creating api_key.json..."
           python3 <<PY
           import json
           import os
@@ -103,8 +129,14 @@ jobs:
           issuer_id = os.environ['APP_STORE_CONNECT_ISSUER_ID']
           p8_path = Path(f'ios/fastlane/keys/AuthKey_{key_id}.p8')
           
-          # Lire la clé privée
-          key_content = p8_path.read_text(encoding='utf-8')
+          # Lire la clé privée et nettoyer (supprimer retours à la ligne en fin de fichier)
+          key_content = p8_path.read_text(encoding='utf-8').strip()
+          
+          # Vérifier que la clé commence et se termine correctement
+          if not key_content.startswith('-----BEGIN PRIVATE KEY-----'):
+              raise ValueError("Invalid .p8 file: missing BEGIN PRIVATE KEY header")
+          if not key_content.endswith('-----END PRIVATE KEY-----'):
+              raise ValueError("Invalid .p8 file: missing END PRIVATE KEY footer")
           
           # Créer le dictionnaire JSON
           api_key_data = {
@@ -117,7 +149,14 @@ jobs:
           api_key_path = Path('ios/fastlane/keys/api_key.json')
           with open(api_key_path, 'w', encoding='utf-8') as f:
               json.dump(api_key_data, f, indent=2, ensure_ascii=False)
+          
+          print("✅ api_key.json created successfully")
           PY
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: Failed to create api_key.json"
+            exit 1
+          fi
 
           echo "✅ API Key files created"
           
@@ -175,13 +214,78 @@ jobs:
           print(f"  Key preview: {key_preview}...")
           PY
           
-          # Tester l'authentification avec une commande simple
-          echo "🔐 Testing authentication with App Store Connect..."
-          if bundle exec fastlane spaceship --help > /dev/null 2>&1; then
-            echo "✅ Fastlane is ready"
-          else
-            echo "⚠️  Warning: Could not verify fastlane, but continuing..."
+          # Vérifier le format du fichier .p8
+          echo "🔍 Validating .p8 file format..."
+          key_id=$(python3 -c "import json; print(json.load(open('fastlane/keys/api_key.json'))['key_id'])")
+          p8_file="fastlane/keys/AuthKey_${key_id}.p8"
+          
+          if [ ! -f "${p8_file}" ]; then
+            echo "❌ ERROR: .p8 file not found: ${p8_file}"
+            exit 1
           fi
+          
+          # Vérifier que le fichier .p8 commence par la bonne entête
+          if ! head -1 "${p8_file}" | grep -q "BEGIN PRIVATE KEY"; then
+            echo "❌ ERROR: .p8 file format is invalid (should start with '-----BEGIN PRIVATE KEY-----')"
+            echo "First line: $(head -1 "${p8_file}")"
+            exit 1
+          fi
+          
+          # Vérifier que le fichier .p8 se termine correctement
+          if ! tail -1 "${p8_file}" | grep -q "END PRIVATE KEY"; then
+            echo "❌ ERROR: .p8 file format is invalid (should end with '-----END PRIVATE KEY-----')"
+            exit 1
+          fi
+          
+          echo "✅ .p8 file format is valid"
+          
+          # Tester l'authentification avec fastlane spaceship
+          echo "🔐 Testing authentication with App Store Connect API..."
+          echo "   This will attempt to connect to App Store Connect..."
+          
+          # Créer un script Ruby temporaire pour tester l'authentification
+          cat > /tmp/test_auth.rb <<'RUBY_SCRIPT'
+          require 'spaceship'
+          
+          api_key_path = 'fastlane/keys/api_key.json'
+          
+          begin
+            # Charger la clé API
+            api_key = Spaceship::ConnectAPI::Token.from_json_file(api_key_path)
+            
+            # Tester l'authentification en récupérant les apps
+            Spaceship::ConnectAPI.token = api_key
+            apps = Spaceship::ConnectAPI::App.all
+            
+            puts "✅ Authentication successful!"
+            puts "   Found #{apps.length} app(s) in App Store Connect"
+            if apps.length > 0
+              puts "   First app: #{apps.first.name} (#{apps.first.bundle_id})"
+            end
+          rescue => e
+            puts "❌ ERROR: Authentication failed"
+            puts "   Error: #{e.message}"
+            puts ""
+            puts "   Possible causes:"
+            puts "   1. API key is expired or revoked"
+            puts "   2. .p8 file is corrupted or incorrectly encoded"
+            puts "   3. Key ID or Issuer ID is incorrect"
+            puts "   4. API key doesn't have required permissions"
+            exit 1
+          end
+          RUBY_SCRIPT
+          
+          if bundle exec ruby /tmp/test_auth.rb; then
+            echo "✅ App Store Connect API authentication test passed"
+          else
+            echo ""
+            echo "❌ CRITICAL: App Store Connect authentication failed"
+            echo "   Please verify your API key in App Store Connect:"
+            echo "   https://appstoreconnect.apple.com/access/api"
+            exit 1
+          fi
+          
+          rm -f /tmp/test_auth.rb
 
       # ------------------------------
       # Matchfile (configuration de fastlane match)
