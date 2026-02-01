@@ -124,14 +124,27 @@ Ce document liste **tous les identifiants Apple** nécessaires pour configurer e
 
 **Comment le convertir en base64 (pour GitHub Actions) :**
 
-**⚠️ IMPORTANT : Le secret base64 ne doit contenir AUCUN espace ni retour à la ligne !**
+**⚠️ TRÈS IMPORTANT :**
+- Le secret doit contenir le **CONTENU BASE64** du fichier `.p8`, **PAS le chemin du fichier** !
+- Le secret base64 ne doit contenir **AUCUN espace ni retour à la ligne** !
+- Ne mets **PAS** le chemin du fichier (ex: `C:\Users\...\AuthKey_XXX.p8`) dans le secret !
 
 **Sous Windows (PowerShell) :**
 ```powershell
-$path = "AuthKey_XXXXXXXXXX.p8"  # Remplace par le nom réel du fichier
+# 1. Télécharge le fichier .p8 depuis App Store Connect
+# 2. Place-le dans un dossier accessible (ex: Downloads)
+# 3. Exécute cette commande (remplace par le vrai nom de fichier) :
+
+$path = "C:\Users\TON_USERNAME\Downloads\AuthKey_XXXXXXXXXX.p8"
 [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($path)) | Set-Clipboard
 ```
+
 Le contenu base64 est maintenant dans le presse-papier (sans espaces ni retours à la ligne).
+
+**⚠️ Vérification :**
+- Le secret doit commencer par des caractères base64 (ex: `MIGTAgEAMBMGByqGSM49...`)
+- Le secret ne doit **PAS** commencer par un chemin (ex: `C:\Users\...` ou `AuthKey_...`)
+- Le secret ne doit **PAS** contenir le texte du fichier .p8 directement (ex: `-----BEGIN PRIVATE KEY-----`)
 
 **Sous macOS/Linux :**
 ```bash
