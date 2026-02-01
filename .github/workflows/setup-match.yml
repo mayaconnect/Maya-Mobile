@@ -88,25 +88,65 @@ jobs:
 
           mkdir -p ios/fastlane/keys
 
-          # 1) Nettoyer et décoder le secret base64 (supprimer espaces et retours à la ligne)
+          # 1) Vérifier que le secret base64 n'est pas un chemin de fichier
           echo "🔍 Decoding App Store Connect API Key..."
+          
+          # Détecter si le secret contient un chemin de fichier au lieu du contenu base64
+          if echo "${APP_STORE_CONNECT_KEY_BASE64}" | grep -qE "^[A-Z]:\\|^/|^\./|AuthKey_|\.p8"; then
+            echo "❌ ERROR: The secret APP_STORE_CONNECT_KEY_BASE64 contains a file path instead of base64 content!"
+            echo ""
+            echo "The secret should contain the BASE64-ENCODED content of the .p8 file, not the file path."
+            echo ""
+            echo "To fix this:"
+            echo "1. Download the .p8 file from App Store Connect"
+            echo "2. Encode it to base64 using PowerShell:"
+            echo "   \$path = \"AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8\""
+            echo "   [Convert]::ToBase64String([System.IO.File]::ReadAllBytes(\$path)) | Set-Clipboard"
+            echo "3. Paste the base64 string (not the file path) into the GitHub secret"
+            exit 1
+          fi
+          
+          # Nettoyer et décoder le secret base64 (supprimer espaces et retours à la ligne)
           CLEAN_BASE64=$(echo "${APP_STORE_CONNECT_KEY_BASE64}" | tr -d '[:space:]')
+          
+          # Vérifier que le secret base64 n'est pas vide après nettoyage
+          if [ -z "${CLEAN_BASE64}" ]; then
+            echo "❌ ERROR: APP_STORE_CONNECT_KEY_BASE64 secret is empty or contains only whitespace!"
+            exit 1
+          fi
           
           # 2) Écrire le fichier .p8 à partir du secret base64 nettoyé
           p8_path="ios/fastlane/keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-          echo "${CLEAN_BASE64}" | base64 -d > "${p8_path}"
+          
+          # Décoder en vérifiant les erreurs
+          if ! echo "${CLEAN_BASE64}" | base64 -d > "${p8_path}" 2>/dev/null; then
+            echo "❌ ERROR: Failed to decode base64 content!"
+            echo "   The secret APP_STORE_CONNECT_KEY_BASE64 may contain invalid base64 data."
+            echo "   Please verify that you copied the complete base64 string without any modifications."
+            exit 1
+          fi
+          
           chmod 600 "${p8_path}"
           
           # 3) Vérifier que le fichier .p8 est valide
           if [ ! -s "${p8_path}" ]; then
             echo "❌ ERROR: Decoded .p8 file is empty!"
+            echo "   The base64 content may be incorrect or incomplete."
             exit 1
           fi
           
           # Vérifier le format du fichier .p8
-          if ! head -1 "${p8_path}" | grep -q "BEGIN PRIVATE KEY"; then
+          FIRST_LINE=$(head -1 "${p8_path}")
+          if ! echo "${FIRST_LINE}" | grep -q "BEGIN PRIVATE KEY"; then
             echo "❌ ERROR: .p8 file format is invalid (should start with '-----BEGIN PRIVATE KEY-----')"
-            echo "First 100 chars: $(head -c 100 "${p8_path}")"
+            echo "First line: ${FIRST_LINE}"
+            echo ""
+            echo "This usually means:"
+            echo "1. The secret contains a file path instead of base64 content"
+            echo "2. The base64 encoding is incorrect"
+            echo "3. The secret was modified after encoding"
+            echo ""
+            echo "Please verify that APP_STORE_CONNECT_KEY_BASE64 contains the base64-encoded content of the .p8 file."
             exit 1
           fi
           
@@ -138,11 +178,12 @@ jobs:
           if not key_content.endswith('-----END PRIVATE KEY-----'):
               raise ValueError("Invalid .p8 file: missing END PRIVATE KEY footer")
           
-          # Créer le dictionnaire JSON
+          # Créer le dictionnaire JSON avec tous les champs requis
           api_key_data = {
               "key_id": key_id,
               "issuer_id": issuer_id,
-              "key": key_content
+              "key": key_content,
+              "in_house": False  # False pour les comptes App Store standard (pas enterprise)
           }
           
           # Écrire le fichier JSON avec échappement correct
@@ -198,31 +239,67 @@ jobs:
             exit 1
           fi
           
-          # Afficher les informations (sans la clé complète pour la sécurité)
+          # Afficher et valider les informations
           echo "📋 API Key Info:"
           python3 <<PY
           import json
+          import sys
           from pathlib import Path
           
           api_key_path = Path('fastlane/keys/api_key.json')
           with open(api_key_path, 'r') as f:
               data = json.load(f)
           
-          print(f"  Key ID: {data.get('key_id', 'MISSING')}")
-          print(f"  Issuer ID: {data.get('issuer_id', 'MISSING')}")
-          key_preview = data.get('key', '')[:50] if data.get('key') else 'MISSING'
+          # Vérifier que tous les champs requis sont présents
+          required_fields = ['key_id', 'issuer_id', 'key']
+          missing_fields = [field for field in required_fields if not data.get(field)]
+          
+          if missing_fields:
+              print(f"❌ ERROR: Missing required fields in api_key.json: {', '.join(missing_fields)}")
+              sys.exit(1)
+          
+          # Afficher les informations
+          print(f"  Key ID: {data.get('key_id')}")
+          print(f"  Issuer ID: {data.get('issuer_id')}")
+          print(f"  In House: {data.get('in_house', False)}")
+          
+          # Vérifier le format de la clé
+          key_content = data.get('key', '')
+          if not key_content.startswith('-----BEGIN PRIVATE KEY-----'):
+              print("❌ ERROR: Key content doesn't start with '-----BEGIN PRIVATE KEY-----'")
+              sys.exit(1)
+          if not key_content.endswith('-----END PRIVATE KEY-----'):
+              print("❌ ERROR: Key content doesn't end with '-----END PRIVATE KEY-----'")
+              sys.exit(1)
+          
+          key_preview = key_content[:50] if key_content else 'MISSING'
           print(f"  Key preview: {key_preview}...")
+          print("✅ All required fields present and valid")
           PY
           
-          # Vérifier le format du fichier .p8
-          echo "🔍 Validating .p8 file format..."
-          key_id=$(python3 -c "import json; print(json.load(open('fastlane/keys/api_key.json'))['key_id'])")
-          p8_file="fastlane/keys/AuthKey_${key_id}.p8"
-          
-          if [ ! -f "${p8_file}" ]; then
-            echo "❌ ERROR: .p8 file not found: ${p8_file}"
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: api_key.json validation failed"
             exit 1
           fi
+          
+          # Vérifier le format du fichier .p8 et la correspondance avec api_key.json
+          echo "🔍 Validating .p8 file format and consistency..."
+          
+          # Récupérer le Key ID depuis api_key.json
+          key_id=$(python3 -c "import json; print(json.load(open('fastlane/keys/api_key.json'))['key_id'])")
+          expected_p8_file="fastlane/keys/AuthKey_${key_id}.p8"
+          
+          echo "  Expected .p8 file: ${expected_p8_file}"
+          echo "  Key ID from api_key.json: ${key_id}"
+          
+          if [ ! -f "${expected_p8_file}" ]; then
+            echo "❌ ERROR: .p8 file not found: ${expected_p8_file}"
+            echo "   The .p8 filename must match: AuthKey_${key_id}.p8"
+            echo "   Please verify that APP_STORE_CONNECT_KEY_ID matches the Key ID in App Store Connect"
+            exit 1
+          fi
+          
+          p8_file="${expected_p8_file}"
           
           # Vérifier que le fichier .p8 commence par la bonne entête
           if ! head -1 "${p8_file}" | grep -q "BEGIN PRIVATE KEY"; then
