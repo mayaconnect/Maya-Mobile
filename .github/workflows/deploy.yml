@@ -745,16 +745,79 @@ jobs:
           chmod +x scripts/fix-ios-nullability.sh
           bash scripts/fix-ios-nullability.sh
 
-      - name: 🔧 Set iOS deployment target in Xcode project
+      - name: 🔧 Set iOS deployment target and development team in Xcode project
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           # Find the Xcode project file dynamically
           PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
           if [ -n "$PROJECT_FILE" ]; then
             echo "📱 Found Xcode project at: $PROJECT_FILE"
+            
+            # Set IPHONEOS_DEPLOYMENT_TARGET
             sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$PROJECT_FILE"
             echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 13.4"
-            # Verify the change
-            echo "🔍 Verification:"
+            
+            # Set DEVELOPMENT_TEAM for all build configurations
+            if [ -n "$APPLE_TEAM_ID" ]; then
+              echo "🔧 Setting DEVELOPMENT_TEAM to: $APPLE_TEAM_ID"
+              
+              # First, try to update existing DEVELOPMENT_TEAM entries
+              sed -i '' "s/DEVELOPMENT_TEAM = [^;]*/DEVELOPMENT_TEAM = $APPLE_TEAM_ID/g" "$PROJECT_FILE"
+              
+              # Then, add DEVELOPMENT_TEAM to buildSettings sections that don't have it
+              # This uses awk to add DEVELOPMENT_TEAM after buildSettings = {
+              python3 <<PY
+          import re
+          
+          team_id = "$APPLE_TEAM_ID"
+          project_file = "$PROJECT_FILE"
+          
+          with open(project_file, 'r') as f:
+              lines = f.readlines()
+          
+          new_lines = []
+          i = 0
+          while i < len(lines):
+              line = lines[i]
+              new_lines.append(line)
+              
+              # Look for "buildSettings = {" line
+              if 'buildSettings = {' in line:
+                  # Check if next few lines already have DEVELOPMENT_TEAM
+                  has_team = False
+                  j = i + 1
+                  while j < len(lines) and j < i + 20:
+                      if 'DEVELOPMENT_TEAM' in lines[j]:
+                          has_team = True
+                          break
+                      if lines[j].strip() == '};':
+                          break
+                      j += 1
+                  
+                  # If no DEVELOPMENT_TEAM found, add it after the buildSettings line
+                  if not has_team:
+                      # Find the indentation level
+                      indent = len(line) - len(line.lstrip())
+                      new_lines.append(' ' * (indent + 4) + f'DEVELOPMENT_TEAM = {team_id};\n')
+              
+              i += 1
+          
+          with open(project_file, 'w') as f:
+              f.writelines(new_lines)
+          
+          print("✅ DEVELOPMENT_TEAM set successfully")
+          PY
+              
+              # Verify the change
+              echo "🔍 Verification:"
+              grep "DEVELOPMENT_TEAM" "$PROJECT_FILE" | head -n 5 || echo "DEVELOPMENT_TEAM not found (may need manual check)"
+            else
+              echo "⚠️ Warning: APPLE_TEAM_ID not set, skipping DEVELOPMENT_TEAM configuration"
+            fi
+            
+            # Verify IPHONEOS_DEPLOYMENT_TARGET
+            echo "🔍 IPHONEOS_DEPLOYMENT_TARGET verification:"
             grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
           else
             echo "⚠️ Warning: Could not find Xcode project.pbxproj file"

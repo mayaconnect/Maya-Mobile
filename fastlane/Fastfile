@@ -34,7 +34,9 @@ platform :ios do
       scheme: "Maya",
       export_method: "app-store",
       destination: "generic/platform=iOS",
+      codesigning_identity: "Apple Distribution",
       export_options: {
+        teamID: ENV["APPLE_TEAM_ID"],
         provisioningProfiles: {
           "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
         }
