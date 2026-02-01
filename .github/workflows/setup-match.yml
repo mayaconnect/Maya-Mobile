@@ -157,9 +157,9 @@ jobs:
           
           echo "✅ .p8 file decoded and validated successfully"
 
-          # 4) Créer api_key.json pour fastlane (key_id, issuer_id, key)
-          # Utiliser Python pour créer le JSON correctement échappé
-          echo "📝 Creating api_key.json..."
+          # 4) Créer api_key.json pour fastlane (key_id, issuer_id, key_filepath)
+          # Utiliser key_filepath au lieu d'embarquer la clé (plus sûr et recommandé)
+          echo "📝 Creating api_key.json (using key_filepath)..."
           python3 <<PY
           import json
           import os
@@ -169,7 +169,11 @@ jobs:
           issuer_id = os.environ['APP_STORE_CONNECT_ISSUER_ID']
           p8_path = Path(f'ios/fastlane/keys/AuthKey_{key_id}.p8')
           
-          # Lire la clé privée et nettoyer (supprimer retours à la ligne en fin de fichier)
+          # Vérifier que le fichier .p8 existe
+          if not p8_path.exists():
+              raise ValueError(f"P8 file not found: {p8_path}")
+          
+          # Lire la clé privée pour validation
           key_content = p8_path.read_text(encoding='utf-8').strip()
           
           # Vérifier que la clé commence et se termine correctement
@@ -178,20 +182,21 @@ jobs:
           if not key_content.endswith('-----END PRIVATE KEY-----'):
               raise ValueError("Invalid .p8 file: missing END PRIVATE KEY footer")
           
-          # Créer le dictionnaire JSON avec tous les champs requis
+          # Créer le dictionnaire JSON avec key_filepath (plus sûr que d'embarquer la clé)
+          # Le chemin est relatif au répertoire de travail (ios/)
           api_key_data = {
               "key_id": key_id,
               "issuer_id": issuer_id,
-              "key": key_content,
+              "key_filepath": f"fastlane/keys/AuthKey_{key_id}.p8",
               "in_house": False  # False pour les comptes App Store standard (pas enterprise)
           }
           
-          # Écrire le fichier JSON avec échappement correct
+          # Écrire le fichier JSON
           api_key_path = Path('ios/fastlane/keys/api_key.json')
           with open(api_key_path, 'w', encoding='utf-8') as f:
               json.dump(api_key_data, f, indent=2, ensure_ascii=False)
           
-          print("✅ api_key.json created successfully")
+          print("✅ api_key.json created successfully (using key_filepath)")
           PY
           
           if [ $? -ne 0 ]; then
@@ -223,6 +228,32 @@ jobs:
           echo "✅ Files validated successfully"
 
       # ------------------------------
+      # Diagnostic système et versions
+      # ------------------------------
+      - name: 🔍 System Diagnostics
+        working-directory: ios
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          echo "📋 System Information:"
+          echo "  Date (UTC): $(date -u)"
+          echo "  Date (Local): $(date)"
+          echo ""
+          echo "📦 Fastlane Version:"
+          bundle exec fastlane --version || echo "  ⚠️  Could not get fastlane version"
+          echo ""
+          echo "💎 Ruby Version:"
+          bundle exec ruby -v || echo "  ⚠️  Could not get Ruby version"
+          echo ""
+          echo "📦 Fastlane/Spaceship versions from Gemfile.lock:"
+          if [ -f "../Gemfile.lock" ]; then
+            grep -E "^\s+(fastlane|spaceship)" ../Gemfile.lock | head -5 || echo "  ⚠️  Could not find fastlane/spaceship in Gemfile.lock"
+          else
+            echo "  ⚠️  Gemfile.lock not found"
+          fi
+
+      # ------------------------------
       # Validation des credentials App Store Connect
       # ------------------------------
       - name: 🔍 Validate App Store Connect API Key
@@ -251,11 +282,19 @@ jobs:
               data = json.load(f)
           
           # Vérifier que tous les champs requis sont présents
-          required_fields = ['key_id', 'issuer_id', 'key']
+          # On accepte soit 'key' (ancien format) soit 'key_filepath' (nouveau format recommandé)
+          required_fields = ['key_id', 'issuer_id']
           missing_fields = [field for field in required_fields if not data.get(field)]
+          
+          has_key = 'key' in data and data.get('key')
+          has_key_filepath = 'key_filepath' in data and data.get('key_filepath')
           
           if missing_fields:
               print(f"❌ ERROR: Missing required fields in api_key.json: {', '.join(missing_fields)}")
+              sys.exit(1)
+          
+          if not has_key and not has_key_filepath:
+              print("❌ ERROR: api_key.json must contain either 'key' or 'key_filepath'")
               sys.exit(1)
           
           # Afficher les informations
@@ -263,17 +302,34 @@ jobs:
           print(f"  Issuer ID: {data.get('issuer_id')}")
           print(f"  In House: {data.get('in_house', False)}")
           
-          # Vérifier le format de la clé
-          key_content = data.get('key', '')
-          if not key_content.startswith('-----BEGIN PRIVATE KEY-----'):
-              print("❌ ERROR: Key content doesn't start with '-----BEGIN PRIVATE KEY-----'")
-              sys.exit(1)
-          if not key_content.endswith('-----END PRIVATE KEY-----'):
-              print("❌ ERROR: Key content doesn't end with '-----END PRIVATE KEY-----'")
-              sys.exit(1)
+          if has_key_filepath:
+              key_filepath = data.get('key_filepath')
+              print(f"  Key Filepath: {key_filepath}")
+              # Vérifier que le fichier existe
+              key_file = Path(key_filepath)
+              if not key_file.exists():
+                  print(f"❌ ERROR: Key file not found: {key_filepath}")
+                  sys.exit(1)
+              # Lire et valider le fichier
+              key_content = key_file.read_text(encoding='utf-8').strip()
+              if not key_content.startswith('-----BEGIN PRIVATE KEY-----'):
+                  print("❌ ERROR: Key file doesn't start with '-----BEGIN PRIVATE KEY-----'")
+                  sys.exit(1)
+              if not key_content.endswith('-----END PRIVATE KEY-----'):
+                  print("❌ ERROR: Key file doesn't end with '-----END PRIVATE KEY-----'")
+                  sys.exit(1)
+              print(f"  Key file preview: {key_content[:50]}...")
+          elif has_key:
+              key_content = data.get('key', '')
+              if not key_content.startswith('-----BEGIN PRIVATE KEY-----'):
+                  print("❌ ERROR: Key content doesn't start with '-----BEGIN PRIVATE KEY-----'")
+                  sys.exit(1)
+              if not key_content.endswith('-----END PRIVATE KEY-----'):
+                  print("❌ ERROR: Key content doesn't end with '-----END PRIVATE KEY-----'")
+                  sys.exit(1)
+              print(f"  Key preview: {key_content[:50]}...")
+              print("  ⚠️  WARNING: Using embedded 'key' field. Consider using 'key_filepath' instead.")
           
-          key_preview = key_content[:50] if key_content else 'MISSING'
-          print(f"  Key preview: {key_preview}...")
           print("✅ All required fields present and valid")
           PY
           
@@ -281,6 +337,32 @@ jobs:
             echo "❌ ERROR: api_key.json validation failed"
             exit 1
           fi
+          
+          # Afficher la structure de api_key.json (masquée pour sécurité)
+          echo ""
+          echo "📋 api_key.json structure (values masked):"
+          python3 <<PY
+          import json
+          from pathlib import Path
+          
+          api_key_path = Path('fastlane/keys/api_key.json')
+          with open(api_key_path, 'r') as f:
+              data = json.load(f)
+          
+          # Afficher la structure avec valeurs masquées
+          masked_data = {}
+          for key, value in data.items():
+              if key == 'key':
+                  masked_data[key] = f"*** ({len(str(value))} chars)" if value else "MISSING"
+              elif key == 'key_filepath':
+                  masked_data[key] = value  # Le chemin n'est pas sensible
+              elif key in ['key_id', 'issuer_id']:
+                  masked_data[key] = "***" if value else "MISSING"
+              else:
+                  masked_data[key] = value
+          
+          print(json.dumps(masked_data, indent=2))
+          PY
           
           # Vérifier le format du fichier .p8 et la correspondance avec api_key.json
           echo "🔍 Validating .p8 file format and consistency..."
@@ -320,37 +402,77 @@ jobs:
           echo "🔐 Testing authentication with App Store Connect API..."
           echo "   This will attempt to connect to App Store Connect..."
           
-          # Créer un script Ruby temporaire pour tester l'authentification
-          cat > /tmp/test_auth.rb <<'RUBY_SCRIPT'
-          require 'spaceship'
-          
-          api_key_path = 'fastlane/keys/api_key.json'
-          
-          begin
-            # Charger la clé API
-            api_key = Spaceship::ConnectAPI::Token.from_json_file(api_key_path)
-            
-            # Tester l'authentification en récupérant les apps
-            Spaceship::ConnectAPI.token = api_key
-            apps = Spaceship::ConnectAPI::App.all
-            
-            puts "✅ Authentication successful!"
-            puts "   Found #{apps.length} app(s) in App Store Connect"
-            if apps.length > 0
-              puts "   First app: #{apps.first.name} (#{apps.first.bundle_id})"
-            end
-          rescue => e
-            puts "❌ ERROR: Authentication failed"
-            puts "   Error: #{e.message}"
-            puts ""
-            puts "   Possible causes:"
-            puts "   1. API key is expired or revoked"
-            puts "   2. .p8 file is corrupted or incorrectly encoded"
-            puts "   3. Key ID or Issuer ID is incorrect"
-            puts "   4. API key doesn't have required permissions"
-            exit 1
-          end
-          RUBY_SCRIPT
+  # Afficher les informations de diagnostic
+  echo "📋 Diagnostic Information:"
+  python3 <<PY
+  import json
+  from pathlib import Path
+  
+  api_key_path = Path('fastlane/keys/api_key.json')
+  with open(api_key_path, 'r') as f:
+      data = json.load(f)
+  
+  print(f"  Key ID: {data.get('key_id')}")
+  print(f"  Issuer ID: {data.get('issuer_id')}")
+  print("")
+  print("🔍 Please verify in App Store Connect:")
+  print(f"   1. Go to https://appstoreconnect.apple.com/access/api")
+  print(f"   2. Find the key with Key ID: {data.get('key_id')}")
+  print(f"   3. Verify:")
+  print(f"      - Status is 'Active' (not 'Expired' or 'Revoked')")
+  print(f"      - Expiration date has not passed")
+  print(f"      - Role is 'App Manager' or 'Admin'")
+  print(f"   4. Verify Issuer ID at top of page matches: {data.get('issuer_id')}")
+  PY
+  
+  # Créer un script Ruby temporaire pour tester l'authentification
+  cat > /tmp/test_auth.rb <<'RUBY_SCRIPT'
+  require 'spaceship'
+  
+  api_key_path = 'fastlane/keys/api_key.json'
+  
+  begin
+    # Charger la clé API
+    api_key = Spaceship::ConnectAPI::Token.from_json_file(api_key_path)
+    
+    # Tester l'authentification en récupérant les apps
+    Spaceship::ConnectAPI.token = api_key
+    apps = Spaceship::ConnectAPI::App.all
+    
+    puts "✅ Authentication successful!"
+    puts "   Found #{apps.length} app(s) in App Store Connect"
+    if apps.length > 0
+      puts "   First app: #{apps.first.name} (#{apps.first.bundle_id})"
+    end
+  rescue Spaceship::UnauthorizedAccessError => e
+    puts "❌ ERROR: Authentication failed - Unauthorized"
+    puts "   Error: #{e.message}"
+    puts ""
+    puts "   This usually means:"
+    puts "   1. ❌ API key is EXPIRED or REVOKED in App Store Connect"
+    puts "   2. ❌ Key ID or Issuer ID is INCORRECT"
+    puts "   3. ❌ The .p8 file doesn't match the Key ID"
+    puts ""
+    puts "   ACTION REQUIRED:"
+    puts "   1. Go to https://appstoreconnect.apple.com/access/api"
+    puts "   2. Check if the API key is still active"
+    puts "   3. If expired/revoked, create a NEW API key"
+    puts "   4. Download the new .p8 file"
+    puts "   5. Update all GitHub secrets with the new values"
+    exit 1
+  rescue => e
+    puts "❌ ERROR: Authentication failed"
+    puts "   Error: #{e.message}"
+    puts "   Error class: #{e.class}"
+    puts ""
+    puts "   Possible causes:"
+    puts "   1. API key is expired or revoked"
+    puts "   2. .p8 file is corrupted or incorrectly encoded"
+    puts "   3. Key ID or Issuer ID is incorrect"
+    puts "   4. API key doesn't have required permissions"
+    exit 1
+  end
+  RUBY_SCRIPT
           
           if bundle exec ruby /tmp/test_auth.rb; then
             echo "✅ App Store Connect API authentication test passed"
