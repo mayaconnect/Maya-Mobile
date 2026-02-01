@@ -986,10 +986,10 @@ jobs:
           echo "Current directory: $(pwd)"
           echo ""
           echo "📋 Checking for workspace..."
-          if [ -f "ios/maya.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "✅ Workspace found"
+          if [ -f "ios/Maya.xcworkspace/contents.xcworkspacedata" ]; then
+            echo "✅ Workspace found at ios/Maya.xcworkspace"
           else
-            echo "❌ ERROR: Workspace not found at ios/maya.xcworkspace"
+            echo "❌ ERROR: Workspace not found at ios/Maya.xcworkspace"
             echo "Files in ios/:"
             ls -la ios/ | head -20
             exit 1
@@ -997,10 +997,10 @@ jobs:
           
           echo ""
           echo "📋 Checking for Xcode project..."
-          if [ -d "ios/maya.xcodeproj" ]; then
-            echo "✅ Xcode project found"
+          if [ -d "ios/Maya.xcodeproj" ]; then
+            echo "✅ Xcode project found at ios/Maya.xcodeproj"
           else
-            echo "❌ ERROR: Xcode project not found at ios/maya.xcodeproj"
+            echo "❌ ERROR: Xcode project not found at ios/Maya.xcodeproj"
             exit 1
           fi
           

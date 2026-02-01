@@ -77,12 +77,6 @@ android/fastlane/google-play-service-account.json
 android/fastlane/*.json
 
 # iOS Security - NE JAMAIS COMMITER
-ios/fastlane/keys/
-ios/fastlane/*.p8
-ios/fastlane/*.p12
-ios/fastlane/*.mobileprovision
-ios/fastlane/*.cer
-ios/fastlane/*.certSigningRequest
 fastlane/keys/
 fastlane/*.p8
 fastlane/*.p12
@@ -95,8 +89,6 @@ fastlane/*.certSigningRequest
 
 # Mais garder les dossiers de structure
 !android/fastlane/.gitkeep
-!ios/fastlane/.gitkeep
-!ios/fastlane/keys/.gitkeep
 !fastlane/keys/.gitkeep
 
 # @generated expo-cli sync-2b81b286409207a5da26e14c78851eb30d8ccbdb

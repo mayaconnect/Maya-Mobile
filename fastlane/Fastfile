@@ -15,7 +15,7 @@ platform :ios do
   desc "Increment build number"
   lane :increment_build do
     increment_build_number(
-      xcodeproj: "ios/maya.xcodeproj"
+      xcodeproj: "ios/Maya.xcodeproj"
     )
   end
 
@@ -24,19 +24,25 @@ platform :ios do
     # Get certificates
     setup_certificates
 
+    # Configure development team in Xcode project
+    if ENV["APPLE_TEAM_ID"]
+      update_project_team(
+        path: "ios/Maya.xcodeproj",
+        teamid: ENV["APPLE_TEAM_ID"]
+      )
+    end
+
     # Increment build number
     increment_build
 
     # Build the app (no clean needed, expo prebuild already does --clean)
     # Note: paths are relative to project root where fastlane is executed
     build_app(
-      workspace: "ios/maya.xcworkspace",
+      workspace: "ios/Maya.xcworkspace",
       scheme: "Maya",
       export_method: "app-store",
       destination: "generic/platform=iOS",
-      codesigning_identity: "Apple Distribution",
       export_options: {
-        teamID: ENV["APPLE_TEAM_ID"],
         provisioningProfiles: {
           "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
         }
