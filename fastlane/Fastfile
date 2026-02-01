@@ -37,10 +37,14 @@ platform :ios do
 
     # Build the app (no clean needed, expo prebuild already does --clean)
     # Note: paths are relative to project root where fastlane is executed
-    # Removed explicit destination - let Xcode select appropriate one automatically
+    # Use the scheme name created by Expo (usually the app name from app.json or "App")
+    # IMPORTANT: Expo generates the workspace as "Maya.xcworkspace" but the scheme
+    # might be different. We use ENV variable to allow workflow to override it.
+    scheme_name = ENV["IOS_SCHEME_NAME"] || "App"
+
     build_app(
       workspace: "ios/Maya.xcworkspace",
-      scheme: "Maya",
+      scheme: scheme_name,
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {

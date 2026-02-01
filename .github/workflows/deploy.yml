@@ -758,12 +758,40 @@ jobs:
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
-      - name: 📋 Verify iOS build destinations
+      - name: 🔍 Detect iOS scheme name
+        id: detect-scheme
         run: |
-          echo "📋 Verifying available build destinations..."
-          xcodebuild -workspace ios/Maya.xcworkspace -scheme Maya -showdestinations 2>&1 || true
+          echo "🔍 Detecting iOS scheme name from workspace..."
+
+          # List all schemes in the workspace
+          SCHEMES=$(xcodebuild -workspace ios/Maya.xcworkspace -list | grep -A 100 "Schemes:" | tail -n +2 | sed 's/^[[:space:]]*//' | grep -v "^$" | head -20)
+
+          echo "📋 Available schemes:"
+          echo "$SCHEMES"
           echo ""
-          echo "✅ Destination verification complete"
+
+          # Try to find the main app scheme (usually "Maya" or "App")
+          if echo "$SCHEMES" | grep -q "^Maya$"; then
+            SCHEME_NAME="Maya"
+            echo "✅ Found scheme: Maya"
+          elif echo "$SCHEMES" | grep -q "^App$"; then
+            SCHEME_NAME="App"
+            echo "✅ Found scheme: App"
+          else
+            # Use the first scheme as fallback
+            SCHEME_NAME=$(echo "$SCHEMES" | head -1)
+            echo "⚠️  Using first available scheme: $SCHEME_NAME"
+          fi
+
+          # Export for next steps
+          echo "IOS_SCHEME_NAME=$SCHEME_NAME" >> $GITHUB_ENV
+          echo "scheme=$SCHEME_NAME" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "📋 Verifying build destinations for scheme: $SCHEME_NAME"
+          xcodebuild -workspace ios/Maya.xcworkspace -scheme "$SCHEME_NAME" -showdestinations 2>&1 || true
+          echo ""
+          echo "✅ Scheme detection complete: $SCHEME_NAME"
 
       - name: 🔧 Fix iOS nullability issues
         run: |
@@ -1030,6 +1058,8 @@ jobs:
           fi
           
           echo ""
+          echo "📋 Using iOS scheme: ${IOS_SCHEME_NAME}"
+          echo ""
           echo "🔐 Running fastlane beta..."
           bundle exec fastlane beta
         env:
@@ -1039,6 +1069,8 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          # iOS scheme name detected from workspace (auto-detected in previous step)
+          # IOS_SCHEME_NAME is already set via $GITHUB_ENV, but we keep it here for clarity
           # Configuration TestFlight - Groupes de testeurs
           # Format: "Internal Testers,QA Team,Beta Testers" (séparés par des virgules)
           # Laisse vide pour distribuer à tous les testeurs internes
