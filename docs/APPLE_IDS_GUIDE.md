@@ -141,6 +141,46 @@ base64 AuthKey_XXXXXXXXXX.p8 | xclip -selection clipboard  # Linux
 - Secret GitHub : `APP_STORE_CONNECT_KEY_BASE64`
 - Le fichier `.p8` doit être placé dans `ios/fastlane/keys/AuthKey_XXXXXXXXXX.p8` (localement)
 
+**⚠️ Dépannage - Erreur "Authentication credentials are missing or invalid" :**
+
+Si tu obtiens une erreur d'authentification App Store Connect, vérifie :
+
+1. **La clé API n'est pas expirée** :
+   - Va sur [appstoreconnect.apple.com/access/api](https://appstoreconnect.apple.com/access/api)
+   - Vérifie que la clé est toujours active (pas expirée)
+   - Si elle est expirée, crée une nouvelle clé et mets à jour les secrets
+
+2. **Le Key ID correspond au fichier .p8** :
+   - Le nom du fichier doit être `AuthKey_KEYID.p8` où `KEYID` = `APP_STORE_CONNECT_KEY_ID`
+   - Vérifie que les deux correspondent exactement
+
+3. **Le fichier .p8 est correctement encodé en base64** :
+   - Le secret `APP_STORE_CONNECT_KEY_BASE64` doit contenir le contenu du fichier .p8 encodé en base64
+   - Vérifie qu'il n'y a pas d'espaces ou de retours à la ligne supplémentaires
+   - Teste le décodage : `echo "BASE64_STRING" | base64 -d` doit afficher le contenu du fichier .p8
+
+4. **L'Issuer ID est correct** :
+   - Va sur [appstoreconnect.apple.com/access/api](https://appstoreconnect.apple.com/access/api)
+   - Copie l'Issuer ID affiché en haut de la page
+   - Vérifie qu'il correspond exactement au secret `APP_STORE_CONNECT_ISSUER_ID`
+
+5. **La clé a les bonnes permissions** :
+   - La clé doit avoir le rôle **App Manager** (minimum) ou **Admin**
+   - Vérifie dans App Store Connect → Users and Access → Keys
+   - Si les permissions sont insuffisantes, crée une nouvelle clé avec plus de permissions
+
+6. **Le Bundle ID existe** :
+   - Vérifie que le Bundle ID `com.mayaconnect.app` existe dans App Store Connect
+   - Va dans App Store Connect → My Apps → vérifie que l'app existe
+
+7. **Recréer les secrets si nécessaire** :
+   - Si rien ne fonctionne, recrée la clé API :
+     1. Supprime l'ancienne clé dans App Store Connect
+     2. Crée une nouvelle clé avec le rôle **Admin**
+     3. Télécharge le nouveau fichier .p8
+     4. Reconvertis en base64
+     5. Mets à jour tous les secrets GitHub
+
 ---
 
 ### 7. **App Store Connect Team ID (optionnel)**
