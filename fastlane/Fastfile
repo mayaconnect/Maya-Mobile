@@ -43,29 +43,47 @@ platform :ios do
     scheme_name = ENV["IOS_SCHEME_NAME"] || "Maya"
 
     # Build configuration
-    # IMPORTANT: Use sdk instead of destination to avoid "iOS 18.1 is not installed" error
-    # The destination "generic/platform=iOS" requires the iOS platform to be installed,
-    # but using sdk="iphoneos" works with just the SDK installed
+    # Let gym/xcodebuild use the default configuration from the scheme
+    # This avoids platform/SDK issues
     build_config = {
       workspace: "ios/Maya.xcworkspace",
       scheme: scheme_name,
-      sdk: "iphoneos",  # Use SDK instead of destination
+      configuration: "Release",
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {
           "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
-        }
+        },
+        # Ensure we're building for iOS (not catalyst or other platforms)
+        method: "app-store",
+        uploadBitcode: false,
+        uploadSymbols: false,
+        compileBitcode: false,
+        signingStyle: "manual",
+        teamID: ENV["APPLE_TEAM_ID"]
       },
+      # Clean build to avoid cached issues
+      clean: true,
       # Use xcbeautify for better output formatting
       buildlog_path: "~/Library/Logs/gym",
       # Silent mode off to see all output
-      silent: false
+      silent: false,
+      # Additional xcodebuild arguments to handle platform issues
+      # IPHONEOS_DEPLOYMENT_TARGET forces a lower iOS version
+      xcargs: "-allowProvisioningUpdates ONLY_ACTIVE_ARCH=NO IPHONEOS_DEPLOYMENT_TARGET=13.4",
+      # Skip codesigning during build (will sign during export)
+      skip_codesigning: false,
+      # Don't specify destination or SDK - let xcodebuild figure it out
+      # This works better on CI where platform components may be missing
     }
 
-    # Override SDK if specified in environment (e.g., "iphoneos18.1")
-    if ENV["IOS_SDK"]
-      build_config[:sdk] = ENV["IOS_SDK"]
-    end
+    puts "🔨 Building with configuration:"
+    puts "  Workspace: #{build_config[:workspace]}"
+    puts "  Scheme: #{build_config[:scheme]}"
+    puts "  Configuration: #{build_config[:configuration]}"
+    puts "  Export method: #{build_config[:export_method]}"
+    puts "  Deployment target: 13.4 (forced via xcargs)"
+    puts ""
 
     build_app(build_config)
   end

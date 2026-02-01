@@ -748,6 +748,12 @@ jobs:
           # Accept Xcode license if needed
           sudo xcodebuild -license accept || true
 
+          # Install iOS 18.1 components if missing
+          echo ""
+          echo "📥 Installing iOS components..."
+          # Download platform if needed (this can take time but fixes the issue)
+          sudo xcodebuild -downloadPlatform iOS || echo "⚠️  Platform download not needed or failed"
+
           # List available simulators and runtimes
           echo ""
           echo "📋 Available iOS runtimes:"
@@ -758,10 +764,14 @@ jobs:
           echo "📋 Available iOS SDKs:"
           xcodebuild -showsdks
 
-          # List available devices/destinations
+          # Ensure at least one simulator is booted (helps with some build processes)
           echo ""
-          echo "📋 Available iOS devices:"
-          xcrun xctrace list devices 2>&1 | grep -i iphone || true
+          echo "📱 Ensuring iOS simulator is available..."
+          SIMULATOR_ID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -o "([0-9A-F-]*)" | tr -d '()')
+          if [ -n "$SIMULATOR_ID" ]; then
+            echo "Found simulator: $SIMULATOR_ID"
+            xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || echo "Simulator already booted or boot not needed"
+          fi
 
           echo "✅ iOS platform setup complete"
 
@@ -1106,13 +1116,46 @@ jobs:
           TESTFLIGHT_DEMO_PASSWORD: ${{ secrets.TESTFLIGHT_DEMO_PASSWORD || '' }}
           TESTFLIGHT_REVIEW_NOTES: ${{ secrets.TESTFLIGHT_REVIEW_NOTES || 'Application de test pour Maya' }}
 
+      - name: 📋 Display build logs on failure
+        if: failure()
+        run: |
+          echo "❌ Build failed. Displaying logs..."
+          echo ""
+          echo "=== Fastlane gym log ==="
+          if [ -f ~/Library/Logs/gym/App-Maya.log ]; then
+            echo "Last 200 lines of build log:"
+            tail -200 ~/Library/Logs/gym/App-Maya.log
+          else
+            echo "⚠️  Log file not found at ~/Library/Logs/gym/App-Maya.log"
+            echo "Looking for other log files..."
+            find ~/Library/Logs/gym -name "*.log" -type f | head -5
+          fi
+
+          echo ""
+          echo "=== Xcode build settings ==="
+          xcodebuild -workspace ios/Maya.xcworkspace -scheme Maya -sdk iphoneos -showBuildSettings 2>&1 | head -100 || true
+
       - name: 📤 Upload iOS artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ios-release-ipa
-          path: ios/*.ipa
+          path: |
+            *.ipa
+            ios/*.ipa
           retention-days: 30
+          if-no-files-found: warn
+
+      - name: 📤 Upload build logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-build-logs
+          path: |
+            ~/Library/Logs/gym/
+            ~/Library/Logs/scan/
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: ✅ iOS deployment success
         if: success()
