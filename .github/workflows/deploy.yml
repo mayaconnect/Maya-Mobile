@@ -737,8 +737,33 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
           xcodebuild -version
 
+      - name: 📲 Setup iOS Platform & SDKs
+        run: |
+          echo "📲 Setting up iOS platform and SDKs..."
+
+          # Run first launch to ensure Xcode is fully installed
+          echo "Running Xcode first launch setup..."
+          sudo xcodebuild -runFirstLaunch
+
+          # Accept Xcode license if needed
+          sudo xcodebuild -license accept || true
+
+          # List available SDKs
+          echo ""
+          echo "📋 Available iOS SDKs:"
+          xcodebuild -showsdks | grep -i ios || true
+
+          echo "✅ iOS platform setup complete"
+
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
+
+      - name: 📋 Verify iOS build destinations
+        run: |
+          echo "📋 Verifying available build destinations..."
+          xcodebuild -workspace ios/Maya.xcworkspace -scheme Maya -showdestinations 2>&1 || true
+          echo ""
+          echo "✅ Destination verification complete"
 
       - name: 🔧 Fix iOS nullability issues
         run: |

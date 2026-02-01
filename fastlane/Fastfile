@@ -37,11 +37,11 @@ platform :ios do
 
     # Build the app (no clean needed, expo prebuild already does --clean)
     # Note: paths are relative to project root where fastlane is executed
+    # Removed explicit destination - let Xcode select appropriate one automatically
     build_app(
       workspace: "ios/Maya.xcworkspace",
       scheme: "Maya",
       export_method: "app-store",
-      destination: "generic/platform=iOS",
       export_options: {
         provisioningProfiles: {
           "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
