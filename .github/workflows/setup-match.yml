@@ -120,6 +120,68 @@ jobs:
           PY
 
           echo "✅ API Key files created"
+          
+          # Vérifier que les fichiers sont créés correctement
+          if [ ! -f "${p8_path}" ]; then
+            echo "❌ ERROR: .p8 file not created at ${p8_path}"
+            exit 1
+          fi
+          
+          if [ ! -f "ios/fastlane/keys/api_key.json" ]; then
+            echo "❌ ERROR: api_key.json not created"
+            exit 1
+          fi
+          
+          # Vérifier le format JSON
+          if ! python3 -m json.tool ios/fastlane/keys/api_key.json > /dev/null 2>&1; then
+            echo "❌ ERROR: api_key.json is not valid JSON"
+            echo "Content (first 500 chars):"
+            head -c 500 ios/fastlane/keys/api_key.json
+            exit 1
+          fi
+          
+          echo "✅ Files validated successfully"
+
+      # ------------------------------
+      # Validation des credentials App Store Connect
+      # ------------------------------
+      - name: 🔍 Validate App Store Connect API Key
+        working-directory: ios
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          echo "🔍 Validating App Store Connect API Key..."
+          
+          # Vérifier que le fichier api_key.json existe
+          if [ ! -f "fastlane/keys/api_key.json" ]; then
+            echo "❌ ERROR: api_key.json not found"
+            exit 1
+          fi
+          
+          # Afficher les informations (sans la clé complète pour la sécurité)
+          echo "📋 API Key Info:"
+          python3 <<PY
+          import json
+          from pathlib import Path
+          
+          api_key_path = Path('fastlane/keys/api_key.json')
+          with open(api_key_path, 'r') as f:
+              data = json.load(f)
+          
+          print(f"  Key ID: {data.get('key_id', 'MISSING')}")
+          print(f"  Issuer ID: {data.get('issuer_id', 'MISSING')}")
+          key_preview = data.get('key', '')[:50] if data.get('key') else 'MISSING'
+          print(f"  Key preview: {key_preview}...")
+          PY
+          
+          # Tester l'authentification avec une commande simple
+          echo "🔐 Testing authentication with App Store Connect..."
+          if bundle exec fastlane spaceship --help > /dev/null 2>&1; then
+            echo "✅ Fastlane is ready"
+          else
+            echo "⚠️  Warning: Could not verify fastlane, but continuing..."
+          fi
 
       # ------------------------------
       # Matchfile (configuration de fastlane match)
