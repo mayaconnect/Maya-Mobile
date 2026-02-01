@@ -37,21 +37,41 @@ platform :ios do
 
     # Build the app (no clean needed, expo prebuild already does --clean)
     # Note: paths are relative to project root where fastlane is executed
-    # Use the scheme name created by Expo (usually the app name from app.json or "App")
+    # Use the scheme name created by Expo (usually the app name from app.json or "Maya" or "App")
     # IMPORTANT: Expo generates the workspace as "Maya.xcworkspace" but the scheme
     # might be different. We use ENV variable to allow workflow to override it.
-    scheme_name = ENV["IOS_SCHEME_NAME"] || "App"
+    scheme_name = ENV["IOS_SCHEME_NAME"] || "Maya"
 
-    build_app(
+    # Build configuration
+    # IMPORTANT: Use sdk instead of destination to avoid "iOS 18.1 is not installed" error
+    # The destination "generic/platform=iOS" requires the iOS platform to be installed,
+    # but using sdk="iphoneos" works with just the SDK installed
+    build_config = {
       workspace: "ios/Maya.xcworkspace",
       scheme: scheme_name,
+      sdk: "iphoneos",  # Use SDK instead of destination
       export_method: "app-store",
       export_options: {
         provisioningProfiles: {
           "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
         }
-      }
-    )
+      },
+      # Explicitly disable xcpretty to see full xcodebuild output
+      xcpretty_args: "--no-color",
+      # Use xcbeautify for better output formatting
+      buildlog_path: "~/Library/Logs/gym",
+      # Skip package IPA to see if archiving works first
+      skip_package_ipa: false,
+      # Silent mode off to see all output
+      silent: false
+    }
+
+    # Override SDK if specified in environment (e.g., "iphoneos18.1")
+    if ENV["IOS_SDK"]
+      build_config[:sdk] = ENV["IOS_SDK"]
+    end
+
+    build_app(build_config)
   end
 
   desc "Upload to TestFlight"

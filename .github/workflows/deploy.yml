@@ -748,10 +748,20 @@ jobs:
           # Accept Xcode license if needed
           sudo xcodebuild -license accept || true
 
+          # List available simulators and runtimes
+          echo ""
+          echo "📋 Available iOS runtimes:"
+          xcrun simctl list runtimes ios || xcodebuild -showsdks | grep -i ios
+
           # List available SDKs
           echo ""
           echo "📋 Available iOS SDKs:"
-          xcodebuild -showsdks | grep -i ios || true
+          xcodebuild -showsdks
+
+          # List available devices/destinations
+          echo ""
+          echo "📋 Available iOS devices:"
+          xcrun xctrace list devices 2>&1 | grep -i iphone || true
 
           echo "✅ iOS platform setup complete"
 
@@ -764,13 +774,13 @@ jobs:
           echo "🔍 Detecting iOS scheme name from workspace..."
 
           # List all schemes in the workspace
-          SCHEMES=$(xcodebuild -workspace ios/Maya.xcworkspace -list | grep -A 100 "Schemes:" | tail -n +2 | sed 's/^[[:space:]]*//' | grep -v "^$" | head -20)
+          SCHEMES=$(xcodebuild -workspace ios/Maya.xcworkspace -list | grep -A 100 "Schemes:" | tail -n +2 | sed 's/^[[:space:]]*//' | grep -v "^$")
 
           echo "📋 Available schemes:"
           echo "$SCHEMES"
           echo ""
 
-          # Try to find the main app scheme (usually "Maya" or "App")
+          # Try to find the main app scheme (priority: Maya > App > first non-EX scheme)
           if echo "$SCHEMES" | grep -q "^Maya$"; then
             SCHEME_NAME="Maya"
             echo "✅ Found scheme: Maya"
@@ -778,9 +788,15 @@ jobs:
             SCHEME_NAME="App"
             echo "✅ Found scheme: App"
           else
-            # Use the first scheme as fallback
-            SCHEME_NAME=$(echo "$SCHEMES" | head -1)
-            echo "⚠️  Using first available scheme: $SCHEME_NAME"
+            # Filter out Expo internal schemes (EX*, Expo*) and use first remaining
+            SCHEME_NAME=$(echo "$SCHEMES" | grep -v "^EX" | grep -v "^Expo" | head -1)
+            if [ -z "$SCHEME_NAME" ]; then
+              # Fallback to Maya if no other scheme found
+              SCHEME_NAME="Maya"
+              echo "⚠️  No app scheme found, defaulting to: Maya"
+            else
+              echo "✅ Using first non-Expo scheme: $SCHEME_NAME"
+            fi
           fi
 
           # Export for next steps
