@@ -909,8 +909,12 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
 
-      - name: 🧹 Clean Xcode Derived Data
-        run: rm -rf ~/Library/Developer/Xcode/DerivedData
+      - name: 🧹 Clean Xcode caches
+        run: |
+          echo "Cleaning Xcode caches..."
+          rm -rf ~/Library/Developer/Xcode/DerivedData
+          rm -rf ~/Library/Caches/CocoaPods
+          echo "✅ Caches cleaned"
 
       - name: 🔧 Configure Podfile build settings
         working-directory: ios
@@ -1121,19 +1125,32 @@ jobs:
         run: |
           echo "❌ Build failed. Displaying logs..."
           echo ""
-          echo "=== Fastlane gym log ==="
-          if [ -f ~/Library/Logs/gym/App-Maya.log ]; then
-            echo "Last 200 lines of build log:"
-            tail -200 ~/Library/Logs/gym/App-Maya.log
-          else
-            echo "⚠️  Log file not found at ~/Library/Logs/gym/App-Maya.log"
-            echo "Looking for other log files..."
-            find ~/Library/Logs/gym -name "*.log" -type f | head -5
-          fi
 
-          echo ""
-          echo "=== Xcode build settings ==="
-          xcodebuild -workspace ios/Maya.xcworkspace -scheme Maya -sdk iphoneos -showBuildSettings 2>&1 | head -100 || true
+          # Find all log files
+          echo "=== Finding log files ==="
+          find ~/Library/Logs/gym -name "*.log" -type f 2>/dev/null || echo "No gym logs directory"
+
+          # Read the Maya-Maya.log specifically
+          LOG_FILE="$HOME/Library/Logs/gym/Maya-Maya.log"
+
+          if [ -f "$LOG_FILE" ]; then
+            echo ""
+            echo "=== FULL BUILD LOG (last 500 lines) ==="
+            tail -500 "$LOG_FILE"
+
+            echo ""
+            echo "=== ERRORS IN BUILD LOG ==="
+            grep -i "error:" "$LOG_FILE" || echo "No 'error:' found"
+
+            echo ""
+            echo "=== FAILURES IN BUILD LOG ==="
+            grep -i "failed" "$LOG_FILE" | head -20 || echo "No 'failed' found"
+          else
+            echo "❌ Log file not found at: $LOG_FILE"
+            echo ""
+            echo "=== Directory contents ==="
+            ls -la ~/Library/Logs/gym/ 2>/dev/null || echo "Directory doesn't exist"
+          fi
 
       - name: 📤 Upload iOS artifact
         uses: actions/upload-artifact@v4
