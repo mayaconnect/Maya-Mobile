@@ -815,20 +815,83 @@ jobs:
           fi
 
       - name: 🔐 Setup App Store Connect API Key
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          set -euo pipefail
+          
           mkdir -p ios/fastlane/keys
+          
+          # Décoder et créer le fichier .p8
           echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
           chmod 600 ios/fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-          echo "App Store Connect API Key configured"
+          
+          # Créer api_key.json avec la clé inline (format requis par fastlane/spaceship)
+          python3 <<PY
+          import json
+          import os
+          
+          key_id = os.environ['APP_STORE_CONNECT_KEY_ID']
+          issuer_id = os.environ['APP_STORE_CONNECT_ISSUER_ID']
+          
+          # Lire la clé privée depuis le fichier
+          with open(f'ios/fastlane/keys/AuthKey_{key_id}.p8', 'r', encoding='utf-8') as f:
+              key_content = f.read().strip()
+          
+          # Créer le dictionnaire JSON
+          api_key_data = {
+              "key_id": key_id,
+              "issuer_id": issuer_id,
+              "key": key_content,
+              "in_house": False
+          }
+          
+          # Écrire le fichier JSON
+          with open('ios/fastlane/keys/api_key.json', 'w', encoding='utf-8') as f:
+              json.dump(api_key_data, f, indent=2)
+          
+          print("✅ api_key.json created successfully")
+          PY
+          
+          echo "✅ App Store Connect API Key configured"
 
       - name: 📜 Setup Match certificates
         working-directory: ios
-        run: bundle exec fastlane match appstore --readonly
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          
+          echo "🔍 Verifying Matchfile..."
+          if [ ! -f "fastlane/Matchfile" ]; then
+            echo "❌ ERROR: Matchfile not found at fastlane/Matchfile"
+            exit 1
+          fi
+          
+          echo "📋 Matchfile content:"
+          cat fastlane/Matchfile
+          echo ""
+          
+          # Verify app_identifier is present
+          if ! grep -q "app_identifier" fastlane/Matchfile; then
+            echo "❌ ERROR: app_identifier not found in Matchfile"
+            exit 1
+          fi
+          
+          # Verify api_key.json exists
+          if [ ! -f "fastlane/keys/api_key.json" ]; then
+            echo "❌ ERROR: api_key.json not found at fastlane/keys/api_key.json"
+            exit 1
+          fi
+          
+          echo "✅ Matchfile and api_key.json verified"
+          echo ""
+          echo "🔐 Running match..."
+          bundle exec fastlane match appstore --readonly
 
       - name: 🚀 Build and Deploy to TestFlight
         working-directory: ios
