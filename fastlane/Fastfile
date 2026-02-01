@@ -15,7 +15,7 @@ platform :ios do
   desc "Increment build number"
   lane :increment_build do
     increment_build_number(
-      xcodeproj: "ios/maya.xcodeproj"
+      xcodeproj: "maya.xcodeproj"
     )
   end
 
@@ -29,13 +29,13 @@ platform :ios do
 
     # Build the app (no clean needed, expo prebuild already does --clean)
     build_app(
-      workspace: "ios/maya.xcworkspace",
+      workspace: "maya.xcworkspace",
       scheme: "Maya",
       export_method: "app-store",
       destination: "generic/platform=iOS",
       export_options: {
         provisioningProfiles: {
-          "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
+          "com.maya.app" => "match AppStore com.maya.app"
         }
       }
     )

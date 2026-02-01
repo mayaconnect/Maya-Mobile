@@ -916,7 +916,34 @@ jobs:
           bundle exec fastlane match appstore --readonly
 
       - name: 🚀 Build and Deploy to TestFlight
-        run: bundle exec fastlane beta
+        run: |
+          set -euo pipefail
+          
+          echo "🔍 Verifying iOS project structure..."
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "📋 Checking for workspace..."
+          if [ -f "ios/maya.xcworkspace/contents.xcworkspacedata" ]; then
+            echo "✅ Workspace found"
+          else
+            echo "❌ ERROR: Workspace not found at ios/maya.xcworkspace"
+            echo "Files in ios/:"
+            ls -la ios/ | head -20
+            exit 1
+          fi
+          
+          echo ""
+          echo "📋 Checking for Xcode project..."
+          if [ -d "ios/maya.xcodeproj" ]; then
+            echo "✅ Xcode project found"
+          else
+            echo "❌ ERROR: Xcode project not found at ios/maya.xcodeproj"
+            exit 1
+          fi
+          
+          echo ""
+          echo "🔐 Running fastlane beta..."
+          bundle exec fastlane beta
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
