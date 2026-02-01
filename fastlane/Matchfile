@@ -12,7 +12,7 @@ app_identifier(["com.mayaconnect.app"])
 
 # API Key authentication (preferred over username/password)
 # The api_key_path will be set by the workflow or can be set via ENV
-api_key_path(ENV["MATCH_API_KEY_PATH"] || "fastlane/keys/api_key.json")
+
 
 # Username is optional when using API Key, but can be set for fallback
 # username(ENV["FASTLANE_APPLE_ID"] || "votre-email@apple.com")
