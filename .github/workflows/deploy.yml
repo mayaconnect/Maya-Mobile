@@ -866,9 +866,19 @@ jobs:
         run: |
           set -euo pipefail
           
+          echo "🔍 Verifying environment..."
+          echo "Current directory: $(pwd)"
+          echo "MATCH_GIT_URL: ${MATCH_GIT_URL}"
+          echo ""
+          
           echo "🔍 Verifying Matchfile..."
           if [ ! -f "fastlane/Matchfile" ]; then
             echo "❌ ERROR: Matchfile not found at fastlane/Matchfile"
+            echo "Files in current directory:"
+            ls -la
+            echo ""
+            echo "Files in fastlane directory:"
+            ls -la fastlane/ || echo "fastlane directory not found"
             exit 1
           fi
           
@@ -882,11 +892,24 @@ jobs:
             exit 1
           fi
           
+          # Extract app_identifier value
+          APP_ID=$(grep "app_identifier" fastlane/Matchfile | head -1)
+          echo "✅ Found app_identifier: ${APP_ID}"
+          echo ""
+          
           # Verify api_key.json exists
           if [ ! -f "fastlane/keys/api_key.json" ]; then
             echo "❌ ERROR: api_key.json not found at fastlane/keys/api_key.json"
+            echo "Files in fastlane/keys/:"
+            ls -la fastlane/keys/ || echo "fastlane/keys directory not found"
             exit 1
           fi
+          
+          echo "✅ api_key.json found"
+          echo "📋 api_key.json content (first 200 chars):"
+          head -c 200 fastlane/keys/api_key.json
+          echo ""
+          echo ""
           
           echo "✅ Matchfile and api_key.json verified"
           echo ""
