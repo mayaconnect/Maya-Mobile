@@ -1,0 +1,51 @@
+diff --git a/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift b/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
+index ffca254..8fa04a2 100644
+--- a/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
++++ b/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
+@@ -82,14 +82,26 @@ public class DefaultMediaLibraryPermissionRequester: NSObject {}
+ extension DefaultMediaLibraryPermissionRequester {
+   @objc
+   public func requestPermissions(resolver resolve: @escaping EXPromiseResolveBlock, rejecter reject: EXPromiseRejectBlock) {
+-    PHPhotoLibrary.requestAuthorization(for: self.accessLevel()) { [weak self] (_: PHAuthorizationStatus) in
+-      resolve(self?.getPermissions())
++    if #available(iOS 14.0, tvOS 14.0, *) {
++      PHPhotoLibrary.requestAuthorization(for: self.accessLevel()) { [weak self] (_: PHAuthorizationStatus) in
++        resolve(self?.getPermissions())
++      }
++    } else {
++      PHPhotoLibrary.requestAuthorization { [weak self] (_: PHAuthorizationStatus) in
++        resolve(self?.getPermissions())
++      }
+     }
+   }
+ 
+   @objc
+   public func getPermissions() -> [AnyHashable: Any] {
+-    let authorizationStatus = PHPhotoLibrary.authorizationStatus(for: self.accessLevel())
++    let authorizationStatus: PHAuthorizationStatus
++    if #available(iOS 14.0, tvOS 14.0, *) {
++      authorizationStatus = PHPhotoLibrary.authorizationStatus(for: self.accessLevel())
++    } else {
++      authorizationStatus = PHPhotoLibrary.authorizationStatus()
++    }
++    
+     var status: EXPermissionStatus
+     var scope: String
+ 
+@@ -98,8 +110,14 @@ extension DefaultMediaLibraryPermissionRequester {
+       status = EXPermissionStatusGranted
+       scope = "all"
+     case .limited:
+-      status = EXPermissionStatusGranted
+-      scope = "limited"
++      if #available(iOS 14.0, tvOS 14.0, *) {
++        status = EXPermissionStatusGranted
++        scope = "limited"
++      } else {
++        // Fallback for iOS < 14.0 (limited doesn't exist)
++        status = EXPermissionStatusGranted
++        scope = "all"
++      }
+     case .denied, .restricted:
+       status = EXPermissionStatusDenied
+       scope = "none"

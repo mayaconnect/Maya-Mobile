@@ -1,0 +1,26 @@
+diff --git a/node_modules/expo-font/ios/FontUtilsModule.swift b/node_modules/expo-font/ios/FontUtilsModule.swift
+index 2311f0e..5047893 100644
+--- a/node_modules/expo-font/ios/FontUtilsModule.swift
++++ b/node_modules/expo-font/ios/FontUtilsModule.swift
+@@ -15,11 +15,20 @@ public final class FontUtilsModule: Module {
+         UIFont.systemFont(ofSize: options.size)
+       }
+ 
++      let foregroundColor: UIColor
++      if #available(iOS 14.0, *) {
++        foregroundColor = UIColor(options.color)
++      } else {
++        // Fallback for iOS < 14.0: use black as default
++        // Note: SwiftUI Color conversion to UIColor is only available on iOS 14+
++        foregroundColor = .black
++      }
++      
+       let attributedString = NSAttributedString(
+         string: glyphs,
+         attributes: [
+           .font: font,
+-          .foregroundColor: UIColor(options.color)
++          .foregroundColor: foregroundColor
+         ]
+       )
+ 
