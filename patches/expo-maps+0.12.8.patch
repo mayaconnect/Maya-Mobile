@@ -1,0 +1,33 @@
+diff --git a/node_modules/expo-maps/ios/MapPermissionRequester.swift b/node_modules/expo-maps/ios/MapPermissionRequester.swift
+index 6a5ec3d..39976fd 100644
+--- a/node_modules/expo-maps/ios/MapPermissionRequester.swift
++++ b/node_modules/expo-maps/ios/MapPermissionRequester.swift
+@@ -41,7 +41,11 @@ class MapPermissionRequester: NSObject, EXPermissionsRequester, CLLocationManage
+     let description = Bundle.main.infoDictionary?["NSLocationWhenInUseUsageDescription"] as? String
+ 
+     if description != nil {
+-      systemStatus = locationManager.authorizationStatus
++      if #available(iOS 14.0, *) {
++        systemStatus = locationManager.authorizationStatus
++      } else {
++        systemStatus = CLLocationManager.authorizationStatus()
++      }
+     } else {
+       EXFatal(EXErrorWithMessage("""
+       This app is missing 'NSLocationWhenInUseUsageDescription',
+@@ -54,7 +58,14 @@ class MapPermissionRequester: NSObject, EXPermissionsRequester, CLLocationManage
+   }
+ 
+   func requestPermissions(resolver resolve: @escaping EXPromiseResolveBlock, rejecter reject: @escaping EXPromiseRejectBlock) {
+-    if locationManager.authorizationStatus == .notDetermined {
++    let currentStatus: CLAuthorizationStatus
++    if #available(iOS 14.0, *) {
++      currentStatus = locationManager.authorizationStatus
++    } else {
++      currentStatus = CLLocationManager.authorizationStatus()
++    }
++    
++    if currentStatus == .notDetermined {
+       locationManager.requestWhenInUseAuthorization()
+       self.resolve = resolve
+       self.reject = reject
