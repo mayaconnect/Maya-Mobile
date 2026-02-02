@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.28.0",
+    "version": ">= 13.4.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -40,9 +40,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "$APPLE_ID",
-        "ascAppId": "$ASC_APP_ID",
-        "appleTeamId": "$APPLE_TEAM_ID"
+        "ascAppId": "6758561059"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
