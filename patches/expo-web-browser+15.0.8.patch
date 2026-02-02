@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-web-browser/ios/WebAuthSession.swift b/node_modules/expo-web-browser/ios/WebAuthSession.swift
-index fb228d4..8bead9c 100644
+index fb228d4..5b22e42 100644
 --- a/node_modules/expo-web-browser/ios/WebAuthSession.swift
 +++ b/node_modules/expo-web-browser/ios/WebAuthSession.swift
 @@ -6,7 +6,18 @@ import AuthenticationServices
@@ -22,6 +22,17 @@ index fb228d4..8bead9c 100644
      #else
      return NSApp.mainWindow ?? ASPresentationAnchor()
      #endif
+@@ -35,7 +46,9 @@ final internal class WebAuthSession {
+         ])
+       }
+     )
+-    self.authSession?.prefersEphemeralWebBrowserSession = options.preferEphemeralSession
++    if #available(iOS 13.0, *) {
++      self.authSession?.prefersEphemeralWebBrowserSession = options.preferEphemeralSession
++    }
+   }
+ 
+   func open(_ promise: Promise) {
 diff --git a/node_modules/expo-web-browser/ios/WebBrowserSession.swift b/node_modules/expo-web-browser/ios/WebBrowserSession.swift
 index d3d2981..a3b82c3 100644
 --- a/node_modules/expo-web-browser/ios/WebBrowserSession.swift

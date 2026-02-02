@@ -1,0 +1,34 @@
+diff --git a/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeActionView.swift b/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeActionView.swift
+index 1a0ef1d..7098f5a 100644
+--- a/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeActionView.swift
++++ b/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeActionView.swift
+@@ -108,8 +108,10 @@ class LinkPreviewNativeActionView: ExpoView, LinkPreviewMenuUpdatable {
+         options.insert(.displayAsPalette)
+       }
+     }
+-    if singleSelection {
+-      options.insert(.singleSelection)
++    if #available(iOS 15.0, *) {
++      if singleSelection {
++        options.insert(.singleSelection)
++      }
+     }
+     if displayInline {
+       options.insert(.displayInline)
+diff --git a/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeView.swift b/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeView.swift
+index 5ffe4f5..b2f8e4c 100644
+--- a/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeView.swift
++++ b/node_modules/expo-router/ios/LinkPreview/LinkPreviewNativeView.swift
+@@ -189,8 +189,10 @@ class NativeLinkPreviewView: ExpoView, UIContextMenuInteractionDelegate,
+   }
+ 
+   func updateMenu() {
+-    self.interaction?.updateVisibleMenu { _ in
+-      self.createContextMenu()
++    if #available(iOS 14.0, *) {
++      self.interaction?.updateVisibleMenu { _ in
++        self.createContextMenu()
++      }
+     }
+   }
+ 
