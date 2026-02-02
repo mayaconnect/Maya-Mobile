@@ -54,21 +54,12 @@ jobs:
           echo "📦 Installing patch-package..."
           npm install --save-dev patch-package --no-save --legacy-peer-deps
 
-      - name: 🔍 Auto-fix iOS API compatibility issues
+      - name: 🔍 Auto-fix iOS API compatibility issues (before prebuild)
         run: |
           echo "🔍 Scanning and auto-fixing iOS API compatibility issues..."
+          echo "   This runs BEFORE expo prebuild to ensure patches are ready"
           node scripts/auto-fix-and-patch-ios.js
         continue-on-error: false
-
-      - name: 📦 Apply patches
-        run: |
-          if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
-            echo "📦 Applying patches..."
-            npx patch-package
-            echo "✅ Patches applied successfully"
-          else
-            echo "⚠️  No patches found, skipping..."
-          fi
 
       - name: 🔧 Setup Xcode with iOS SDKs
         uses: maxim-lobanov/setup-xcode@v1
@@ -170,6 +161,20 @@ jobs:
             echo "   This is normal if pod install failed. Will retry pod install manually."
           else
             echo "✅ iOS workspace verified"
+          fi
+
+      - name: 📦 Apply patches (after prebuild)
+        run: |
+          echo "📦 Applying patches to node_modules (after expo prebuild)..."
+          if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
+            echo "📋 Found patches:"
+            ls -la patches/*.patch
+            echo ""
+            echo "📦 Applying patches..."
+            npx patch-package
+            echo "✅ Patches applied successfully"
+          else
+            echo "⚠️  No patches found, skipping..."
           fi
 
       - name: 🔍 Detect iOS scheme name

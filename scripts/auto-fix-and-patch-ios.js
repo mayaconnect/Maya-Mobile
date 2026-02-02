@@ -316,9 +316,14 @@ function main() {
   if (totalFixed > 0) {
     console.log(`\n✅ All issues have been automatically fixed and patched!`);
     console.log(`   The build should now succeed.`);
+    console.log(`\n💡 Note: New patches have been created.`);
+    console.log(`   Consider committing them to the repository.`);
   } else {
     console.log(`\n✅ No issues found - all packages are compatible!`);
   }
+  
+  // Exit with success code (0) - don't fail the build
+  process.exit(0);
 }
 
 if (require.main === module) {
