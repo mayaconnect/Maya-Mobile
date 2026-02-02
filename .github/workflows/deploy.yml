@@ -732,6 +732,18 @@ jobs:
       - name: 📦 Install dependencies (excluding dev dependencies for Release)
         run: npm ci --omit=dev
 
+      - name: 🔧 Install patch-package and apply patches (fix react-native-screens New Architecture bug)
+        run: |
+          echo "📦 Installing patch-package..."
+          npm install --save-dev patch-package --no-save
+          if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
+            echo "📦 Applying patches..."
+            npx patch-package
+            echo "✅ Patches applied successfully"
+          else
+            echo "⚠️  No patches found, skipping..."
+          fi
+
       - name: 🔧 Select Xcode 16.1
         run: |
           sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
