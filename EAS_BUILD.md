@@ -32,24 +32,22 @@ Si vous avez déjà des certificats, vous pouvez les uploader via l'interface EA
 
 ## 🏗️ Lancer un build iOS
 
-### Méthode simple (tout-en-un)
+### Méthode simple (recommandée)
 ```bash
-npm run eas:build:ios
+npm run build:ios
 ```
 
-Cette commande :
-1. ✅ Applique automatiquement les patches iOS
-2. ✅ Corrige les problèmes de compatibilité API
-3. ✅ Lance le build sur EAS
+Cette commande lance directement le build EAS. Les patches sont appliqués automatiquement via le script `postinstall` lors de l'installation des dépendances.
 
-### Méthode étape par étape
+### Méthode avec préparation manuelle
 
-1. **Préparer le projet** :
+Si vous voulez préparer manuellement avant le build :
 ```bash
 npm run eas:prepare
+npm run build:ios
 ```
 
-2. **Lancer le build** :
+### Méthode directe avec EAS CLI
 ```bash
 npx eas build --platform ios --profile production
 ```
@@ -58,12 +56,12 @@ npx eas build --platform ios --profile production
 
 ### Build Android
 ```bash
-npm run eas:build:android
+npm run build:android
 ```
 
 ### Build iOS + Android
 ```bash
-npm run eas:build:all
+npm run build:all
 ```
 
 ### Soumettre à TestFlight (après le build)

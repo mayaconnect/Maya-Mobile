@@ -13,6 +13,9 @@
     "fix-all-ios-apis": "node scripts/auto-fix-all-ios-issues.js --dry-run",
     "fix-all-ios-apis:apply": "node scripts/auto-fix-all-ios-issues.js --auto-patch",
     "ci-fix-ios": "node scripts/auto-fix-and-patch-ios.js",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:android": "eas build --platform android --profile production",
+    "build:all": "eas build --platform all --profile production",
     "eas:prepare": "bash scripts/prepare-eas-build.sh",
     "eas:build:ios": "npm run eas:prepare && eas build --platform ios --profile production",
     "eas:build:android": "npm run eas:prepare && eas build --platform android --profile production",
@@ -35,7 +38,7 @@
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "prepare": "husky install || true",
     "postinstall": "patch-package || echo 'patch-package not found, skipping patches'",
-    "eas:postinstall": "node scripts/auto-fix-and-patch-ios.js && bash scripts/fix-ios-nullability.sh || true"
+    "eas:postinstall": "node scripts/auto-fix-and-patch-ios.js && bash scripts/fix-ios-nullability.sh || true",
     "commit": "git-cz",
     "server:start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-server.ps1",
     "server:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-server.ps1",
