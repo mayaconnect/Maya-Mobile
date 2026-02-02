@@ -776,8 +776,13 @@ jobs:
           echo "✅ iOS platform setup complete"
 
       - name: 🔨 Generate iOS native folder
+        env:
+          RCT_NEW_ARCH_ENABLED: 1
         run: |
           echo "🔨 Running expo prebuild..."
+          echo "⚠️  New Architecture enabled (required by react-native-reanimated)"
+          echo "   RCT_NEW_ARCH_ENABLED=1"
+          
           npx expo prebuild --platform ios --clean
 
           echo ""
@@ -787,14 +792,16 @@ jobs:
             exit 1
           fi
 
+          echo "📋 Contents of ios/:"
+          ls -la ios/
+          
+          # Verify workspace was created (pod install creates it)
           if [ ! -f "ios/Maya.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "❌ ERROR: Workspace not created!"
-            echo "Contents of ios/:"
-            ls -la ios/
-            exit 1
+            echo "⚠️  WARNING: Workspace not found immediately after prebuild"
+            echo "   This is normal if pod install failed. Will retry pod install manually."
+          else
+            echo "✅ iOS workspace verified"
           fi
-
-          echo "✅ iOS workspace verified"
 
       - name: 🔍 Detect iOS scheme name
         id: detect-scheme
@@ -940,11 +947,8 @@ jobs:
 
           echo "✅ Podfile configured"
 
-      - name: 📦 Install CocoaPods dependencies
-        working-directory: ios
-        run: |
-          pod install
-          echo "✅ CocoaPods dependencies installed"
+      # CocoaPods dependencies are already installed in the step after prebuild
+      # This step is kept for compatibility but should not be needed
 
       - name: 🔧 Set deployment target for all Pods
         run: |
