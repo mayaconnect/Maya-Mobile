@@ -22,33 +22,40 @@ patch_delegate_file() {
   # Backup original file
   cp "$file_path" "$file_path.bak" 2>/dev/null || true
 
-  # Fix nullability annotations
+  # Fix nullability annotations - match the original file structure
   cat > "$file_path" << 'EOF'
 // Copyright 2015-present 650 Industries. All rights reserved.
 
 #import <Foundation/Foundation.h>
+#import <ExpoModulesCore/EXDefines.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@protocol EXSessionTaskDelegate <NSObject>
+@interface EXSessionTaskDelegate : NSObject
 
-- (void)URLSession:(NSURLSession * _Nonnull)session
-              task:(NSURLSessionTask * _Nonnull)task
-didCompleteWithError:(NSError * _Nullable)error;
+@property (nonatomic, strong, readonly) EXPromiseResolveBlock _Nonnull resolve;
+@property (nonatomic, strong, readonly) EXPromiseRejectBlock _Nonnull reject;
 
-- (void)URLSession:(NSURLSession * _Nonnull)session
-          dataTask:(NSURLSessionDataTask * _Nonnull)dataTask
-    didReceiveData:(NSData * _Nonnull)data;
+- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock _Nonnull)resolve
+                                 reject:(EXPromiseRejectBlock _Nonnull)reject;
 
-- (void)URLSession:(NSURLSession * _Nonnull)session
-      downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask
-didFinishDownloadingToURL:(NSURL * _Nonnull)location;
+- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask didFinishDownloadingToURL:(NSURL * _Nonnull)location;
 
-- (void)URLSession:(NSURLSession * _Nonnull)session
-              task:(NSURLSessionTask * _Nonnull)task
-   didSendBodyData:(int64_t)bytesSent
-    totalBytesSent:(int64_t)totalBytesSent
-totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
+- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task didCompleteWithError:(NSError * _Nullable)error;
+
+- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask
+                                           didWriteData:(int64_t)bytesWritten
+                                      totalBytesWritten:(int64_t)totalBytesWritten
+                              totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
+
+- (void)URLSession:(NSURLSession * _Nonnull)session dataTask:(NSURLSessionDataTask * _Nonnull)dataTask didReceiveData:(NSData * _Nonnull)data;
+
+- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task
+                                didSendBodyData:(int64_t)bytesSent
+                                 totalBytesSent:(int64_t)totalBytesSent
+                       totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
+
+- (NSDictionary * _Nonnull)parseServerResponse:(NSURLResponse * _Nonnull)response;
 
 @end
 
@@ -115,10 +122,46 @@ PODS_HEADERS_DIR="ios/Pods/Headers/Public/ExpoFileSystem"
 if [ -d "$PODS_HEADERS_DIR" ]; then
   echo "🔍 Checking Pods Headers..."
   PODS_HEADERS_FILE="${PODS_HEADERS_DIR}/EXSessionTaskDelegate.h"
-  if [ -f "$PODS_HEADERS_FILE" ]; then
+  
+  # Create EXSessionTaskDelegate.h if it doesn't exist in Headers
+  if [ ! -f "$PODS_HEADERS_FILE" ]; then
+    echo "📝 Creating missing EXSessionTaskDelegate.h in Pods Headers..."
     patch_delegate_file "$PODS_HEADERS_FILE"
-    echo "✅ Fixed in Pods Headers"
+  else
+    patch_delegate_file "$PODS_HEADERS_FILE"
   fi
+  
+  # Ensure it's included in the umbrella header
+  UMBRELLA_HEADER="${PODS_HEADERS_DIR}/ExpoFileSystem-umbrella.h"
+  if [ -f "$UMBRELLA_HEADER" ]; then
+    echo "📝 Ensuring EXSessionTaskDelegate.h is in umbrella header..."
+    if ! grep -q '#import "EXSessionTaskDelegate.h"' "$UMBRELLA_HEADER"; then
+      # Find a good place to insert (after Foundation import, before other EXSession files)
+      if grep -q 'EXSessionUploadTaskDelegate.h' "$UMBRELLA_HEADER"; then
+        # Insert before EXSessionUploadTaskDelegate
+        sed -i '' '/EXSessionUploadTaskDelegate\.h/i\
+#import "EXSessionTaskDelegate.h"
+' "$UMBRELLA_HEADER"
+        echo "✅ Added EXSessionTaskDelegate.h to umbrella header"
+      elif grep -q 'EXSessionDownloadTaskDelegate.h' "$UMBRELLA_HEADER"; then
+        # Insert before EXSessionDownloadTaskDelegate
+        sed -i '' '/EXSessionDownloadTaskDelegate\.h/i\
+#import "EXSessionTaskDelegate.h"
+' "$UMBRELLA_HEADER"
+        echo "✅ Added EXSessionTaskDelegate.h to umbrella header"
+      else
+        # Add at the end before the final #endif
+        sed -i '' '/^#endif$/i\
+#import "EXSessionTaskDelegate.h"
+' "$UMBRELLA_HEADER"
+        echo "✅ Added EXSessionTaskDelegate.h to umbrella header"
+      fi
+    else
+      echo "✅ EXSessionTaskDelegate.h already in umbrella header"
+    fi
+  fi
+  
+  echo "✅ Fixed in Pods Headers"
 fi
 
 echo ""
