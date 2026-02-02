@@ -1135,26 +1135,55 @@ jobs:
           echo "❌ Build failed. Displaying logs..."
           echo ""
           
-          # Find the actual log file (gym creates logs with scheme name)
-          LOG_FILE="/Users/runner/Library/Logs/gym/Maya-Maya.log"
-          if [ ! -f "$LOG_FILE" ]; then
-            # Try to find any gym log
-            LOG_FILE=$(find /Users/runner/Library/Logs/gym -name "*.log" -type f | head -1)
+          # Find the actual log file (gym creates logs with different naming patterns)
+          LOG_DIR="/Users/runner/Library/Logs/gym"
+          
+          # Try different possible log file names
+          LOG_FILE=""
+          for pattern in "App-Maya.log" "Maya-Maya.log" "Maya.log"; do
+            if [ -f "$LOG_DIR/$pattern" ]; then
+              LOG_FILE="$LOG_DIR/$pattern"
+              echo "✅ Found log: $pattern"
+              break
+            fi
+          done
+          
+          # If still not found, find any .log file
+          if [ -z "$LOG_FILE" ]; then
+            LOG_FILE=$(find "$LOG_DIR" -name "*.log" -type f 2>/dev/null | head -1)
+            if [ -n "$LOG_FILE" ]; then
+              echo "✅ Found log: $(basename "$LOG_FILE")"
+            fi
           fi
           
           if [ -f "$LOG_FILE" ]; then
-            echo "=== Fastlane gym log (last 200 lines) ==="
-            tail -n 200 "$LOG_FILE"
+            echo ""
+            echo "=== Fastlane gym log (last 300 lines) ==="
+            tail -n 300 "$LOG_FILE"
             echo ""
             echo "=== Errors in gym log ==="
-            grep -n "error:" "$LOG_FILE" | tail -n 50 || true
+            grep -n -i "error:" "$LOG_FILE" | tail -n 100 || echo "No 'error:' found"
             echo ""
             echo "=== Signing/Provisioning errors ==="
-            grep -iE "Code Sign error|Provisioning profile|No signing certificate|requires a provisioning profile|Bundle identifier|entitlements|signing" "$LOG_FILE" | tail -n 80 || true
+            grep -iE "Code Sign|Provisioning profile|No signing certificate|requires a provisioning profile|Bundle identifier|entitlements|signing|DEVELOPMENT_TEAM" "$LOG_FILE" | tail -n 100 || echo "No signing errors found"
+            echo ""
+            echo "=== Build failures ==="
+            grep -iE "failed|failure|BUILD FAILED|ARCHIVE FAILED" "$LOG_FILE" | tail -n 50 || echo "No build failure messages found"
+            echo ""
+            echo "=== Last 50 lines with context around errors ==="
+            # Show lines around errors
+            grep -n -i "error:" "$LOG_FILE" | tail -n 10 | while IFS=: read line_num rest; do
+              echo "--- Error at line $line_num ---"
+              sed -n "$((line_num - 5)),$((line_num + 10))p" "$LOG_FILE" 2>/dev/null || true
+              echo ""
+            done
           else
             echo "⚠️  Gym log not found"
-            echo "Available log files:"
-            ls -la /Users/runner/Library/Logs/gym/ 2>/dev/null || echo "Log directory not found"
+            echo "Available log files in $LOG_DIR:"
+            ls -la "$LOG_DIR" 2>/dev/null || echo "Log directory not found"
+            echo ""
+            echo "Searching for log files..."
+            find /Users/runner/Library/Logs -name "*Maya*" -type f 2>/dev/null | head -10 || echo "No Maya logs found"
           fi
 
       - name: 📤 Upload iOS artifact
