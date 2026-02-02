@@ -54,6 +54,9 @@ const iOS15APIs = [
   { pattern: /\.singleSelection/g, name: 'UIMenu.Options.singleSelection', version: '15.0' },
   { pattern: /\.displayAsPalette/g, name: 'UIMenu.Options.displayAsPalette', version: '15.0' },
   { pattern: /\.keepsMenuPresented/g, name: 'UIMenuElement.Attributes.keepsMenuPresented', version: '15.0' },
+  { pattern: /configuration\.selection\s*=/g, name: 'PHPickerConfiguration.selection', version: '15.0' },
+  { pattern: /\.selection\s*=\s*\.ordered/g, name: 'PHPickerConfiguration.selection = .ordered', version: '15.0' },
+  { pattern: /\.selection\s*=\s*\.default/g, name: 'PHPickerConfiguration.selection = .default', version: '15.0' },
 ];
 
 // APIs that require iOS 16.0+

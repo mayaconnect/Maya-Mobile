@@ -65,7 +65,7 @@ index 476910d..98a2252 100644
    func setResultHandler(_ handler: ImagePickerHandler) {
      self.delegate = handler
 diff --git a/node_modules/expo-image-picker/ios/ImagePickerModule.swift b/node_modules/expo-image-picker/ios/ImagePickerModule.swift
-index 4b7bf34..a513576 100644
+index 4b7bf34..c7b31ca 100644
 --- a/node_modules/expo-image-picker/ios/ImagePickerModule.swift
 +++ b/node_modules/expo-image-picker/ios/ImagePickerModule.swift
 @@ -92,7 +92,12 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
@@ -82,26 +82,30 @@ index 4b7bf34..a513576 100644
      } else {
        self.launchLegacyImagePicker(sourceType: sourceType, pickingContext: pickingContext)
      }
-@@ -152,18 +157,23 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
+@@ -152,18 +157,26 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
    }
  
    private func launchMultiSelectPicker(pickingContext: PickingContext) {
 -    var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
 -    let options = pickingContext.options
-+    if #available(iOS 14.0, *) {
-+      var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
-+      let options = pickingContext.options
- 
+-
 -    // selection limit = 1 --> single selection, reflects the old picker behavior
 -    configuration.selectionLimit = options.allowsMultipleSelection ? options.selectionLimit : SINGLE_SELECTION
 -    configuration.filter = options.toPickerFilter()
 -    configuration.preferredAssetRepresentationMode = options.preferredAssetRepresentationMode.toAssetRepresentationMode()
 -    configuration.selection = options.orderedSelection ? .ordered : .default
++    if #available(iOS 14.0, *) {
++      var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
++      let options = pickingContext.options
++
 +      // selection limit = 1 --> single selection, reflects the old picker behavior
 +      configuration.selectionLimit = options.allowsMultipleSelection ? options.selectionLimit : SINGLE_SELECTION
 +      configuration.filter = options.toPickerFilter()
 +      configuration.preferredAssetRepresentationMode = options.preferredAssetRepresentationMode.toAssetRepresentationMode()
-+      configuration.selection = options.orderedSelection ? .ordered : .default
++      // configuration.selection is only available in iOS 15.0+
++      if #available(iOS 15.0, *) {
++        configuration.selection = options.orderedSelection ? .ordered : .default
++      }
  
 -    let picker = PHPickerViewController(configuration: configuration)
 +      let picker = PHPickerViewController(configuration: configuration)
@@ -115,7 +119,7 @@ index 4b7bf34..a513576 100644
    }
  
    private func presentPickerUI(_ picker: PickerUIController, pickingContext context: PickingContext) {
-@@ -198,6 +208,7 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
+@@ -198,6 +211,7 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
      self.currentPickingContext = nil
    }
  
@@ -123,7 +127,7 @@ index 4b7bf34..a513576 100644
    func didPickMultipleMedia(selection: [PHPickerResult]) {
      guard let options = self.currentPickingContext?.options,
            let promise = self.currentPickingContext?.promise else {
-@@ -237,15 +248,22 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
+@@ -237,15 +251,22 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
      // Clean up the currently stored picking context
      self.currentPickingContext = nil
  
