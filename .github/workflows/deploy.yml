@@ -776,48 +776,57 @@ jobs:
           echo "✅ iOS platform setup complete"
 
       - name: 🔨 Generate iOS native folder
-        run: npx expo prebuild --platform ios --clean
+        run: |
+          echo "🔨 Running expo prebuild..."
+          npx expo prebuild --platform ios --clean
+
+          echo ""
+          echo "✅ Prebuild complete. Verifying..."
+          if [ ! -d "ios" ]; then
+            echo "❌ ERROR: ios directory not created!"
+            exit 1
+          fi
+
+          if [ ! -f "ios/Maya.xcworkspace/contents.xcworkspacedata" ]; then
+            echo "❌ ERROR: Workspace not created!"
+            echo "Contents of ios/:"
+            ls -la ios/
+            exit 1
+          fi
+
+          echo "✅ iOS workspace verified"
 
       - name: 🔍 Detect iOS scheme name
         id: detect-scheme
         run: |
           echo "🔍 Detecting iOS scheme name from workspace..."
 
-          # List all schemes in the workspace
-          SCHEMES=$(xcodebuild -workspace ios/Maya.xcworkspace -list | grep -A 100 "Schemes:" | tail -n +2 | sed 's/^[[:space:]]*//' | grep -v "^$")
+          # Verify workspace exists before proceeding
+          if [ ! -f "ios/Maya.xcworkspace/contents.xcworkspacedata" ]; then
+            echo "❌ ERROR: Workspace not found!"
+            exit 1
+          fi
 
-          echo "📋 Available schemes:"
-          echo "$SCHEMES"
-          echo ""
+          # Just use Maya as the scheme name (it's always created by expo prebuild)
+          SCHEME_NAME="Maya"
 
-          # Try to find the main app scheme (priority: Maya > App > first non-EX scheme)
-          if echo "$SCHEMES" | grep -q "^Maya$"; then
-            SCHEME_NAME="Maya"
-            echo "✅ Found scheme: Maya"
-          elif echo "$SCHEMES" | grep -q "^App$"; then
-            SCHEME_NAME="App"
-            echo "✅ Found scheme: App"
+          # Verify the scheme exists
+          echo "📋 Verifying scheme 'Maya' exists..."
+          SCHEMES=$(xcodebuild -workspace ios/Maya.xcworkspace -list 2>&1 | grep "Maya" || echo "")
+
+          if [ -z "$SCHEMES" ]; then
+            echo "⚠️  Warning: Maya scheme not found in workspace"
+            echo "Available schemes:"
+            xcodebuild -workspace ios/Maya.xcworkspace -list 2>&1 || true
           else
-            # Filter out Expo internal schemes (EX*, Expo*) and use first remaining
-            SCHEME_NAME=$(echo "$SCHEMES" | grep -v "^EX" | grep -v "^Expo" | head -1)
-            if [ -z "$SCHEME_NAME" ]; then
-              # Fallback to Maya if no other scheme found
-              SCHEME_NAME="Maya"
-              echo "⚠️  No app scheme found, defaulting to: Maya"
-            else
-              echo "✅ Using first non-Expo scheme: $SCHEME_NAME"
-            fi
+            echo "✅ Found scheme: Maya"
           fi
 
           # Export for next steps
           echo "IOS_SCHEME_NAME=$SCHEME_NAME" >> $GITHUB_ENV
           echo "scheme=$SCHEME_NAME" >> $GITHUB_OUTPUT
 
-          echo ""
-          echo "📋 Verifying build destinations for scheme: $SCHEME_NAME"
-          xcodebuild -workspace ios/Maya.xcworkspace -scheme "$SCHEME_NAME" -showdestinations 2>&1 || true
-          echo ""
-          echo "✅ Scheme detection complete: $SCHEME_NAME"
+          echo "✅ Using scheme: $SCHEME_NAME"
 
       - name: 🔧 Fix iOS nullability issues
         run: |
