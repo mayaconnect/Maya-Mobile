@@ -95,6 +95,7 @@ fastlane/*.certSigningRequest
 .eas-secrets/
 .eas-secrets/**
 *.p8
+EAS_CREDENTIALS_REFERENCE.json
 
 # Mais garder les dossiers de structure
 !android/fastlane/.gitkeep
