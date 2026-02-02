@@ -762,19 +762,36 @@ jobs:
 
           # Install iOS 18.1 components if missing
           echo ""
-          echo "📥 Installing iOS components..."
-          # Download platform if needed (this can take time but fixes the issue)
-          sudo xcodebuild -downloadPlatform iOS || echo "⚠️  Platform download not needed or failed"
+          echo "📥 Installing iOS 18.1 platform (this may take a few minutes)..."
+          # Download platform - this is required for building
+          if sudo xcodebuild -downloadPlatform iOS; then
+            echo "✅ iOS platform download completed"
+          else
+            echo "⚠️  Platform download command returned non-zero, but continuing..."
+          fi
+
+          # Wait a bit for the download to complete
+          echo "⏳ Waiting for platform installation to complete..."
+          sleep 10
+
+          # Verify iOS 18.1 SDK is available
+          echo ""
+          echo "📋 Checking available iOS SDKs:"
+          xcodebuild -showsdks | grep -i ios || true
+          
+          # Check if iOS 18.1 SDK is present
+          if xcodebuild -showsdks | grep -q "iphoneos18.1"; then
+            echo "✅ iOS 18.1 SDK is available"
+          else
+            echo "⚠️  iOS 18.1 SDK not found in showsdks output"
+            echo "📋 Full SDK list:"
+            xcodebuild -showsdks
+          fi
 
           # List available simulators and runtimes
           echo ""
           echo "📋 Available iOS runtimes:"
-          xcrun simctl list runtimes ios || xcodebuild -showsdks | grep -i ios
-
-          # List available SDKs
-          echo ""
-          echo "📋 Available iOS SDKs:"
-          xcodebuild -showsdks
+          xcrun simctl list runtimes ios 2>/dev/null || echo "Could not list runtimes"
 
           # Ensure at least one simulator is booted (helps with some build processes)
           echo ""
@@ -783,6 +800,8 @@ jobs:
           if [ -n "$SIMULATOR_ID" ]; then
             echo "Found simulator: $SIMULATOR_ID"
             xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || echo "Simulator already booted or boot not needed"
+          else
+            echo "⚠️  No iPhone simulator found"
           fi
 
           echo "✅ iOS platform setup complete"
