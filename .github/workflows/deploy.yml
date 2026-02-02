@@ -89,6 +89,7 @@ jobs:
           echo "🔧 Fixing iOS nullability issues in node_modules (BEFORE expo prebuild)..."
           chmod +x scripts/fix-ios-nullability.sh
           bash scripts/fix-ios-nullability.sh
+          node scripts/fix-react-native-maps-nullability.js || true
           echo "✅ Nullability fixes applied to node_modules"
 
       - name: 🔧 Setup Xcode with iOS SDKs
@@ -272,6 +273,7 @@ jobs:
         run: |
           chmod +x scripts/fix-ios-nullability.sh
           bash scripts/fix-ios-nullability.sh
+          node scripts/fix-react-native-maps-nullability.js || true
 
       - name: 🔧 Set iOS deployment target and development team in Xcode project
         env:
