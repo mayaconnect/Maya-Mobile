@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Platform to deploy'
+        description: 'Platform to deployJJ'
         required: true
         type: choice
         options:
@@ -30,6 +30,10 @@ jobs:
   # ==========================================
   deploy-ios:
     name: 🍎 iOS → TestFlight
+    # Annule les anciens jobs en queue quand un nouveau est déclenché
+    concurrency:
+      group: deploy-ios
+      cancel-in-progress: true
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' &&
