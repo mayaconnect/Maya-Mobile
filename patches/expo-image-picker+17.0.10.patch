@@ -1,3 +1,89 @@
+diff --git a/node_modules/expo-image-picker/ios/ImagePickerOptions.swift b/node_modules/expo-image-picker/ios/ImagePickerOptions.swift
+index 38bfea9..a731b59 100644
+--- a/node_modules/expo-image-picker/ios/ImagePickerOptions.swift
++++ b/node_modules/expo-image-picker/ios/ImagePickerOptions.swift
+@@ -56,19 +56,38 @@ internal struct ImagePickerOptions: Record {
+   var orderedSelection: Bool = false
+ 
+   func toMediaTypesArray() -> [String] {
+-    var mediaTypesArray = mediaTypes.map { mediaType in
+-      mediaType.toUTTypeString()
+-    }
++    if #available(iOS 14.0, *) {
++      var mediaTypesArray = mediaTypes.map { mediaType in
++        mediaType.toUTTypeString()
++      }
+ 
+-    // For legacy picker selecting only livePhotos is not allowed
+-    if mediaTypes.contains(.livePhotos) && !mediaTypes.contains(.images) {
+-      mediaTypesArray.append(UTType.image.identifier)
+-    }
++      // For legacy picker selecting only livePhotos is not allowed
++      if mediaTypes.contains(.livePhotos) && !mediaTypes.contains(.images) {
++        mediaTypesArray.append(UTType.image.identifier)
++      }
+ 
+-    if mediaTypesArray.isEmpty {
+-      return [UTType.image.identifier]
++      if mediaTypesArray.isEmpty {
++        return [UTType.image.identifier]
++      }
++      return mediaTypesArray
++    } else {
++      // Fallback for iOS < 14.0: use legacy kUTType constants
++      var mediaTypesArray: [String] = []
++      for mediaType in mediaTypes {
++        switch mediaType {
++        case .images:
++          mediaTypesArray.append(kUTTypeImage as String)
++        case .videos:
++          mediaTypesArray.append(kUTTypeMovie as String)
++        case .livePhotos:
++          mediaTypesArray.append(kUTTypeImage as String) // Fallback to image
++        }
++      }
++      if mediaTypesArray.isEmpty {
++        return [kUTTypeImage as String]
++      }
++      return mediaTypesArray
+     }
+-    return mediaTypesArray
+   }
+ 
+   func toPickerFilter() -> PHPickerFilter {
+@@ -176,13 +195,25 @@ internal enum MediaType: String, Enumerable {
+   case livePhotos
+ 
+   func toUTTypeString() -> String {
+-    switch self {
+-    case .images:
+-      return UTType.image.identifier
+-    case .videos:
+-      return UTType.movie.identifier
+-    case .livePhotos:
+-      return UTType.livePhoto.identifier
++    if #available(iOS 14.0, *) {
++      switch self {
++      case .images:
++        return UTType.image.identifier
++      case .videos:
++        return UTType.movie.identifier
++      case .livePhotos:
++        return UTType.livePhoto.identifier
++      }
++    } else {
++      // Fallback for iOS < 14.0: use legacy kUTType constants
++      switch self {
++      case .images:
++        return kUTTypeImage as String
++      case .videos:
++        return kUTTypeMovie as String
++      case .livePhotos:
++        return kUTTypeImage as String // Fallback to image
++      }
+     }
+   }
+ 
 diff --git a/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift b/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
 index ffca254..8fa04a2 100644
 --- a/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
@@ -49,3 +135,75 @@ index ffca254..8fa04a2 100644
      case .denied, .restricted:
        status = EXPermissionStatusDenied
        scope = "none"
+diff --git a/node_modules/expo-image-picker/ios/ImageUtils.swift b/node_modules/expo-image-picker/ios/ImageUtils.swift
+index d9d1cd4..3faaa5a 100644
+--- a/node_modules/expo-image-picker/ios/ImageUtils.swift
++++ b/node_modules/expo-image-picker/ios/ImageUtils.swift
+@@ -6,12 +6,14 @@ import ImageIO
+ import Photos
+ import UniformTypeIdentifiers
+ 
++@available(iOS 14.0, *)
+ extension UTType {
+   static var avif: UTType {
+     UTType(importedAs: "public.avif")
+   }
+ }
+ 
++@available(iOS 14.0, *)
+ internal struct ImageUtils {
+   static func readImageFrom(mediaInfo: MediaInfo, shouldReadCroppedImage: Bool) -> UIImage? {
+     // ---------------------------------------------------------------------------
+diff --git a/node_modules/expo-image-picker/ios/MediaHandler.swift b/node_modules/expo-image-picker/ios/MediaHandler.swift
+index 6e4fbe1..9f78287 100644
+--- a/node_modules/expo-image-picker/ios/MediaHandler.swift
++++ b/node_modules/expo-image-picker/ios/MediaHandler.swift
+@@ -6,6 +6,7 @@ import Photos
+ import PhotosUI
+ import UniformTypeIdentifiers
+ 
++@available(iOS 14.0, *)
+ internal struct MediaHandler {
+   internal weak var fileSystem: EXFileSystemInterface?
+   internal let options: ImagePickerOptions
+@@ -292,7 +293,15 @@ internal struct MediaHandler {
+   }
+ 
+   private func getMimeType(from pathExtension: String) -> String? {
+-    return UTType(filenameExtension: pathExtension)?.preferredMIMEType
++    if #available(iOS 14.0, *) {
++      return UTType(filenameExtension: pathExtension)?.preferredMIMEType
++    } else {
++      // Fallback for iOS < 14.0: use legacy UTTypeCreatePreferredIdentifierForTag
++      guard let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as CFString, nil)?.takeRetainedValue() else {
++        return nil
++      }
++      return UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() as String?
++    }
+   }
+ 
+   // MARK: - Video
+diff --git a/node_modules/expo-image-picker/ios/NSItemProvider+Async.swift b/node_modules/expo-image-picker/ios/NSItemProvider+Async.swift
+index 08cdf4c..28fa1f8 100644
+--- a/node_modules/expo-image-picker/ios/NSItemProvider+Async.swift
++++ b/node_modules/expo-image-picker/ios/NSItemProvider+Async.swift
+@@ -1,6 +1,7 @@
+ import Foundation
+ import Photos
+ 
++@available(iOS 14.0, *)
+ internal extension NSItemProvider {
+   func loadObject(ofClass objectClass: any NSItemProviderReading.Type) async throws -> NSItemProviderReading? {
+     return try await withCheckedThrowingContinuation { continuation in
+diff --git a/node_modules/expo-image-picker/ios/VideoUtils.swift b/node_modules/expo-image-picker/ios/VideoUtils.swift
+index f78c50d..2a3d49e 100644
+--- a/node_modules/expo-image-picker/ios/VideoUtils.swift
++++ b/node_modules/expo-image-picker/ios/VideoUtils.swift
+@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
+ import Photos
+ import ExpoModulesCore
+ 
++@available(iOS 14.0, *)
+ internal struct VideoUtils {
+   static func tryCopyingVideo(at: URL, to: URL) throws {
+     do {

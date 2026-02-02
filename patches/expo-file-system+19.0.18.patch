@@ -1,0 +1,27 @@
+diff --git a/node_modules/expo-file-system/ios/FileSystemFile.swift b/node_modules/expo-file-system/ios/FileSystemFile.swift
+index 4cb36d0..aa1cdf5 100644
+--- a/node_modules/expo-file-system/ios/FileSystemFile.swift
++++ b/node_modules/expo-file-system/ios/FileSystemFile.swift
+@@ -68,9 +68,19 @@ internal final class FileSystemFile: FileSystemPath {
+ 
+   var type: String? {
+     let pathExtension = url.pathExtension
+-    if let utType = UTType(filenameExtension: pathExtension),
+-      let mimeType = utType.preferredMIMEType {
+-      return mimeType
++    if #available(iOS 14.0, *) {
++      if let utType = UTType(filenameExtension: pathExtension),
++        let mimeType = utType.preferredMIMEType {
++        return mimeType
++      }
++    } else {
++      // Fallback for iOS < 14.0: use legacy UTTypeCreatePreferredIdentifierForTag
++      guard let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as CFString, nil)?.takeRetainedValue() else {
++        return nil
++      }
++      if let mimeType = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() as String? {
++        return mimeType
++      }
+     }
+     return nil
+   }
