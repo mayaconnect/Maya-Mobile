@@ -49,10 +49,19 @@ jobs:
       - name: 📦 Install dependencies (excluding dev dependencies for Release)
         run: npm ci --omit=dev --legacy-peer-deps
 
-      - name: 🔧 Install patch-package and apply patches (fix react-native-screens New Architecture bug)
+      - name: 🔧 Install patch-package
         run: |
           echo "📦 Installing patch-package..."
           npm install --save-dev patch-package --no-save --legacy-peer-deps
+
+      - name: 🔍 Auto-fix iOS API compatibility issues
+        run: |
+          echo "🔍 Scanning and auto-fixing iOS API compatibility issues..."
+          node scripts/auto-fix-and-patch-ios.js
+        continue-on-error: false
+
+      - name: 📦 Apply patches
+        run: |
           if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
             echo "📦 Applying patches..."
             npx patch-package

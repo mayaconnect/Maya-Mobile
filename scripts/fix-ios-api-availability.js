@@ -44,6 +44,9 @@ const iOS14APIs = [
   
   // SwiftUI Color to UIColor iOS 14+
   { pattern: /UIColor\(options\.color\)/g, name: 'UIColor(SwiftUI.Color)', version: '14.0' },
+  
+  // SDWebImage iOS 14+
+  { pattern: /SDImageAWebPCoder/g, name: 'SDImageAWebPCoder', version: '14.0' },
 ];
 
 // APIs that require iOS 15.0+

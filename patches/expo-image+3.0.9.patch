@@ -22,3 +22,41 @@ index 2596fa5..0839395 100644
  }
  
  /**
+diff --git a/node_modules/expo-image/ios/WebPCoder.swift b/node_modules/expo-image/ios/WebPCoder.swift
+index e29e93c..3fb179e 100644
+--- a/node_modules/expo-image/ios/WebPCoder.swift
++++ b/node_modules/expo-image/ios/WebPCoder.swift
+@@ -18,7 +18,13 @@ internal final class WebPCoder: NSObject, SDAnimatedImageCoder {
+     if let instantiatedCoder {
+       return instantiatedCoder
+     }
+-    return self.useAppleWebpCodec ? SDImageAWebPCoder.shared : SDImageWebPCoder.shared
++    // SDImageAWebPCoder is only available on iOS 14.0+
++    if #available(iOS 14.0, *) {
++      return self.useAppleWebpCodec ? SDImageAWebPCoder.shared : SDImageWebPCoder.shared
++    } else {
++      // Fallback to SDImageWebPCoder for iOS < 14.0
++      return SDImageWebPCoder.shared
++    }
+   }
+ 
+   override init() {
+@@ -30,9 +36,15 @@ internal final class WebPCoder: NSObject, SDAnimatedImageCoder {
+   convenience init(animatedImageData data: Data?, options: [SDImageCoderOption: Any]? = nil) {
+     self.init()
+     self.useAppleWebpCodec = options?[imageCoderOptionUseAppleWebpCodec] as? Bool ?? true
+-    self.instantiatedCoder = self.useAppleWebpCodec
+-      ? SDImageAWebPCoder.init(animatedImageData: data, options: options)
+-      : SDImageWebPCoder.init(animatedImageData: data, options: options)
++    // SDImageAWebPCoder is only available on iOS 14.0+
++    if #available(iOS 14.0, *) {
++      self.instantiatedCoder = self.useAppleWebpCodec
++        ? SDImageAWebPCoder.init(animatedImageData: data, options: options)
++        : SDImageWebPCoder.init(animatedImageData: data, options: options)
++    } else {
++      // Fallback to SDImageWebPCoder for iOS < 14.0
++      self.instantiatedCoder = SDImageWebPCoder.init(animatedImageData: data, options: options)
++    }
+   }
+ 
+   func canDecode(from data: Data?) -> Bool {
