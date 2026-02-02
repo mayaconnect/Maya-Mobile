@@ -1,0 +1,27 @@
+diff --git a/node_modules/expo-symbols/ios/SymbolView.swift b/node_modules/expo-symbols/ios/SymbolView.swift
+index 5e59ad5..1436a36 100644
+--- a/node_modules/expo-symbols/ios/SymbolView.swift
++++ b/node_modules/expo-symbols/ios/SymbolView.swift
+@@ -84,13 +84,19 @@ class SymbolView: ExpoView {
+         config = config.applying(UIImage.SymbolConfiguration.preferringMonochrome())
+       }
+     case .hierarchical:
+-      config = config.applying(UIImage.SymbolConfiguration(hierarchicalColor: tint ?? .systemBlue))
++      if #available(iOS 15.0, tvOS 15.0, *) {
++        config = config.applying(UIImage.SymbolConfiguration(hierarchicalColor: tint ?? .systemBlue))
++      }
+     case .palette:
+       if palette.count > 1 {
+-        config = config.applying(UIImage.SymbolConfiguration(paletteColors: palette))
++        if #available(iOS 15.0, tvOS 15.0, *) {
++          config = config.applying(UIImage.SymbolConfiguration(paletteColors: palette))
++        }
+       }
+     case .multicolor:
+-      config = config.applying(UIImage.SymbolConfiguration.preferringMulticolor())
++      if #available(iOS 15.0, tvOS 15.0, *) {
++        config = config.applying(UIImage.SymbolConfiguration.preferringMulticolor())
++      }
+     }
+ 
+     return config
