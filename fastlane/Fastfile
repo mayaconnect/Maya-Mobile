@@ -32,6 +32,33 @@ platform :ios do
       )
     end
 
+    # Get the provisioning profile name from match context
+    # match stores the profile mapping in lane_context after execution
+    # Format: {"com.mayaconnect.app" => "match AppStore com.mayaconnect.app"}
+    profile_mapping = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING] || {}
+    profile_name = profile_mapping["com.mayaconnect.app"]
+    
+    if profile_name.nil?
+      # Fallback to standard match naming convention if context is not available
+      profile_name = "match AppStore com.mayaconnect.app"
+      puts "⚠️  Warning: Could not get profile name from match context, using default: #{profile_name}"
+    else
+      puts "✅ Using provisioning profile: #{profile_name}"
+    end
+
+    # Configure code signing to use manual provisioning profile
+    # This ensures the project uses the App Store profile installed by match
+    if ENV["APPLE_TEAM_ID"]
+      update_code_signing_settings(
+        use_automatic_signing: false,
+        path: "ios/Maya.xcodeproj",
+        team_id: ENV["APPLE_TEAM_ID"],
+        code_sign_identity: "Apple Distribution",
+        profile_name: profile_name,
+        bundle_identifier: "com.mayaconnect.app"
+      )
+    end
+
     # Increment build number
     increment_build
 
@@ -48,6 +75,7 @@ platform :ios do
     puts "  Workspace: ios/Maya.xcworkspace"
     puts "  Scheme: #{scheme_name}"
     puts "  Export method: app-store"
+    puts "  Provisioning profile: #{profile_name}"
     puts ""
 
     build_app(
@@ -57,9 +85,11 @@ platform :ios do
       destination: "generic/platform=iOS",
       export_options: {
         provisioningProfiles: {
-          "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
-        }
+          "com.mayaconnect.app" => profile_name
+        },
+        teamID: ENV["APPLE_TEAM_ID"]
       },
+      xcargs: "-allowProvisioningUpdates",
       clean: true
     )
   end
