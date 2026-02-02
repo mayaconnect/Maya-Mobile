@@ -91,6 +91,11 @@ fastlane/*.certSigningRequest
 *.p12
 *.cer
 
+# EAS Secrets - NE JAMAIS COMMITER
+.eas-secrets/
+.eas-secrets/**
+*.p8
+
 # Mais garder les dossiers de structure
 !android/fastlane/.gitkeep
 !fastlane/keys/.gitkeep

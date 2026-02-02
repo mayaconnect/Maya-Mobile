@@ -1,5 +1,5 @@
-app_identifier("com.maya.app")
-apple_id(ENV["FASTLANE_APPLE_ID"] || "guillaumel1103@gmail.com") # Remplacer par votre email Apple
+app_identifier("com.mayaconnect.app")
+#apple_id(ENV["FASTLANE_APPLE_ID"] || "guillaumel1103@gmail.com") # Remplacer par votre email Apple
 team_id(ENV["APPLE_TEAM_ID"])
 
 # Uncomment if you use Apple Developer Portal
