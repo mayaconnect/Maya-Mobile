@@ -909,12 +909,8 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
 
-      - name: 🧹 Clean Xcode caches
-        run: |
-          echo "Cleaning Xcode caches..."
-          rm -rf ~/Library/Developer/Xcode/DerivedData
-          rm -rf ~/Library/Caches/CocoaPods
-          echo "✅ Caches cleaned"
+      - name: 🧹 Clean Xcode Derived Data
+        run: rm -rf ~/Library/Developer/Xcode/DerivedData
 
       - name: 🔧 Configure Podfile build settings
         working-directory: ios
@@ -1125,31 +1121,27 @@ jobs:
         run: |
           echo "❌ Build failed. Displaying logs..."
           echo ""
-
-          # Find all log files
-          echo "=== Finding log files ==="
-          find ~/Library/Logs/gym -name "*.log" -type f 2>/dev/null || echo "No gym logs directory"
-
-          # Read the Maya-Maya.log specifically
-          LOG_FILE="$HOME/Library/Logs/gym/Maya-Maya.log"
-
+          
+          # Find the actual log file (gym creates logs with scheme name)
+          LOG_FILE="/Users/runner/Library/Logs/gym/Maya-Maya.log"
+          if [ ! -f "$LOG_FILE" ]; then
+            # Try to find any gym log
+            LOG_FILE=$(find /Users/runner/Library/Logs/gym -name "*.log" -type f | head -1)
+          fi
+          
           if [ -f "$LOG_FILE" ]; then
+            echo "=== Fastlane gym log (last 200 lines) ==="
+            tail -n 200 "$LOG_FILE"
             echo ""
-            echo "=== FULL BUILD LOG (last 500 lines) ==="
-            tail -500 "$LOG_FILE"
-
+            echo "=== Errors in gym log ==="
+            grep -n "error:" "$LOG_FILE" | tail -n 50 || true
             echo ""
-            echo "=== ERRORS IN BUILD LOG ==="
-            grep -i "error:" "$LOG_FILE" || echo "No 'error:' found"
-
-            echo ""
-            echo "=== FAILURES IN BUILD LOG ==="
-            grep -i "failed" "$LOG_FILE" | head -20 || echo "No 'failed' found"
+            echo "=== Signing/Provisioning errors ==="
+            grep -iE "Code Sign error|Provisioning profile|No signing certificate|requires a provisioning profile|Bundle identifier|entitlements|signing" "$LOG_FILE" | tail -n 80 || true
           else
-            echo "❌ Log file not found at: $LOG_FILE"
-            echo ""
-            echo "=== Directory contents ==="
-            ls -la ~/Library/Logs/gym/ 2>/dev/null || echo "Directory doesn't exist"
+            echo "⚠️  Gym log not found"
+            echo "Available log files:"
+            ls -la /Users/runner/Library/Logs/gym/ 2>/dev/null || echo "Log directory not found"
           fi
 
       - name: 📤 Upload iOS artifact

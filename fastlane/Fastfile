@@ -42,17 +42,24 @@ platform :ios do
     # might be different. We use ENV variable to allow workflow to override it.
     scheme_name = ENV["IOS_SCHEME_NAME"] || "Maya"
 
-    # Ultra-simplified build configuration
-    # This is the most basic configuration that works reliably
-    puts "🔨 Starting build..."
+    # Simplified build configuration
+    # Force destination to avoid "multiple matching destinations" issues
+    puts "🔨 Building with configuration:"
     puts "  Workspace: ios/Maya.xcworkspace"
     puts "  Scheme: #{scheme_name}"
+    puts "  Export method: app-store"
     puts ""
 
     build_app(
       workspace: "ios/Maya.xcworkspace",
       scheme: scheme_name,
       export_method: "app-store",
+      destination: "generic/platform=iOS",
+      export_options: {
+        provisioningProfiles: {
+          "com.mayaconnect.app" => "match AppStore com.mayaconnect.app"
+        }
+      },
       clean: true
     )
   end
