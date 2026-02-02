@@ -25,3 +25,101 @@ index 4cb36d0..aa1cdf5 100644
      }
      return nil
    }
+diff --git a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
+index 61daeda..168aa58 100644
+--- a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
++++ b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
+@@ -3,30 +3,34 @@
+ #import <Foundation/Foundation.h>
+ #import <ExpoModulesCore/EXDefines.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
+ @interface EXSessionTaskDelegate : NSObject
+ 
+-@property (nonatomic, strong, readonly) EXPromiseResolveBlock resolve;
+-@property (nonatomic, strong, readonly) EXPromiseRejectBlock reject;
++@property (nonatomic, strong, readonly) EXPromiseResolveBlock _Nonnull resolve;
++@property (nonatomic, strong, readonly) EXPromiseRejectBlock _Nonnull reject;
+ 
+-- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock)resolve
+-                                 reject:(EXPromiseRejectBlock)reject;
++- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock _Nonnull)resolve
++                                 reject:(EXPromiseRejectBlock _Nonnull)reject;
+ 
+-- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location;
++- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask didFinishDownloadingToURL:(NSURL * _Nonnull)location;
+ 
+-- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error;
++- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task didCompleteWithError:(NSError * _Nullable)error;
+ 
+-- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask
++- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask
+                                            didWriteData:(int64_t)bytesWritten
+                                       totalBytesWritten:(int64_t)totalBytesWritten
+                               totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
+ 
+-- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data;
++- (void)URLSession:(NSURLSession * _Nonnull)session dataTask:(NSURLSessionDataTask * _Nonnull)dataTask didReceiveData:(NSData * _Nonnull)data;
+ 
+-- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
++- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task
+                                 didSendBodyData:(int64_t)bytesSent
+                                  totalBytesSent:(int64_t)totalBytesSent
+                        totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
+ 
+-- (NSDictionary *)parseServerResponse:(NSURLResponse *)response;
++- (NSDictionary * _Nonnull)parseServerResponse:(NSURLResponse * _Nonnull)response;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
+index 61daeda..168aa58 100644
+--- a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
++++ b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
+@@ -3,30 +3,34 @@
+ #import <Foundation/Foundation.h>
+ #import <ExpoModulesCore/EXDefines.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
+ @interface EXSessionTaskDelegate : NSObject
+ 
+-@property (nonatomic, strong, readonly) EXPromiseResolveBlock resolve;
+-@property (nonatomic, strong, readonly) EXPromiseRejectBlock reject;
++@property (nonatomic, strong, readonly) EXPromiseResolveBlock _Nonnull resolve;
++@property (nonatomic, strong, readonly) EXPromiseRejectBlock _Nonnull reject;
+ 
+-- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock)resolve
+-                                 reject:(EXPromiseRejectBlock)reject;
++- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock _Nonnull)resolve
++                                 reject:(EXPromiseRejectBlock _Nonnull)reject;
+ 
+-- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location;
++- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask didFinishDownloadingToURL:(NSURL * _Nonnull)location;
+ 
+-- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error;
++- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task didCompleteWithError:(NSError * _Nullable)error;
+ 
+-- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask
++- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask
+                                            didWriteData:(int64_t)bytesWritten
+                                       totalBytesWritten:(int64_t)totalBytesWritten
+                               totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
+ 
+-- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data;
++- (void)URLSession:(NSURLSession * _Nonnull)session dataTask:(NSURLSessionDataTask * _Nonnull)dataTask didReceiveData:(NSData * _Nonnull)data;
+ 
+-- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
++- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task
+                                 didSendBodyData:(int64_t)bytesSent
+                                  totalBytesSent:(int64_t)totalBytesSent
+                        totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
+ 
+-- (NSDictionary *)parseServerResponse:(NSURLResponse *)response;
++- (NSDictionary * _Nonnull)parseServerResponse:(NSURLResponse * _Nonnull)response;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
