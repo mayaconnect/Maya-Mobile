@@ -89,7 +89,7 @@ platform :ios do
         },
         teamID: ENV["APPLE_TEAM_ID"]
       },
-      xcargs: "-allowProvisioningUpdates",
+      xcargs: "-allowProvisioningUpdates -sdk iphoneos",
       clean: true
     )
   end

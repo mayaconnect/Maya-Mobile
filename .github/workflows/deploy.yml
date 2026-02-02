@@ -61,10 +61,11 @@ jobs:
             echo "⚠️  No patches found, skipping..."
           fi
 
-      - name: 🔧 Select Xcode 16.1
-        run: |
-          sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
-          xcodebuild -version
+      - name: 🔧 Setup Xcode with iOS SDKs
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.1'
+          xcode-select: true
 
       - name: 📲 Setup iOS Platform & SDKs
         run: |
@@ -81,15 +82,27 @@ jobs:
           echo ""
           echo "📥 Installing iOS 18.1 platform (this may take a few minutes)..."
           # Download platform - this is required for building
-          if sudo xcodebuild -downloadPlatform iOS; then
-            echo "✅ iOS platform download completed"
-          else
-            echo "⚠️  Platform download command returned non-zero, but continuing..."
-          fi
+          # Try multiple times as the download can be flaky
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if sudo xcodebuild -downloadPlatform iOS; then
+              echo "✅ iOS platform download completed"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⚠️  Platform download failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
+                sleep 5
+              else
+                echo "⚠️  Platform download failed after $MAX_RETRIES attempts, but continuing..."
+              fi
+            fi
+          done
 
           # Wait a bit for the download to complete
           echo "⏳ Waiting for platform installation to complete..."
-          sleep 10
+          sleep 15
 
           # Verify iOS 18.1 SDK is available
           echo ""
@@ -100,26 +113,25 @@ jobs:
           if xcodebuild -showsdks | grep -q "iphoneos18.1"; then
             echo "✅ iOS 18.1 SDK is available"
           else
-            echo "⚠️  iOS 18.1 SDK not found in showsdks output"
+            echo "❌ ERROR: iOS 18.1 SDK not found!"
             echo "📋 Full SDK list:"
             xcodebuild -showsdks
+            echo ""
+            echo "⚠️  Attempting to install iOS 18.1 runtime via simctl..."
+            # Try to install iOS 18.1 runtime if available
+            xcrun simctl runtime list 2>/dev/null || true
+            echo ""
+            echo "💡 If iOS 18.1 is not available, you may need to:"
+            echo "   1. Use a different Xcode version"
+            echo "   2. Lower the deployment target in your project"
+            echo "   3. Use a self-hosted runner with iOS 18.1 pre-installed"
+            # Don't fail here, let the build try and fail with a clearer error
           fi
 
           # List available simulators and runtimes
           echo ""
           echo "📋 Available iOS runtimes:"
           xcrun simctl list runtimes ios 2>/dev/null || echo "Could not list runtimes"
-
-          # Ensure at least one simulator is booted (helps with some build processes)
-          echo ""
-          echo "📱 Ensuring iOS simulator is available..."
-          SIMULATOR_ID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -o "([0-9A-F-]*)" | tr -d '()')
-          if [ -n "$SIMULATOR_ID" ]; then
-            echo "Found simulator: $SIMULATOR_ID"
-            xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || echo "Simulator already booted or boot not needed"
-          else
-            echo "⚠️  No iPhone simulator found"
-          fi
 
           echo "✅ iOS platform setup complete"
 
