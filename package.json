@@ -3,6 +3,12 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
+    "check-ios-apis": "node scripts/fix-ios-api-availability.js",
+    "fix-ios-apis": "node scripts/auto-fix-ios-apis.js --dry-run",
+    "fix-ios-apis:apply": "node scripts/auto-fix-ios-apis.js",
+    "ios-api-report": "node scripts/generate-ios-api-report.js",
+    "ios-api-report:json": "node scripts/generate-ios-api-report.js --json",
+    "check-compatibility": "node scripts/check-compatibility.js",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",

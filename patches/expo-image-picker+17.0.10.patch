@@ -1,8 +1,164 @@
+diff --git a/node_modules/expo-image-picker/ios/ImagePickerHandler.swift b/node_modules/expo-image-picker/ios/ImagePickerHandler.swift
+index 476910d..98a2252 100644
+--- a/node_modules/expo-image-picker/ios/ImagePickerHandler.swift
++++ b/node_modules/expo-image-picker/ios/ImagePickerHandler.swift
+@@ -6,6 +6,7 @@ import PhotosUI
+  Protocol that describes scenarios we care about while the user is picking media.
+  */
+ protocol OnMediaPickingResultHandler {
++  @available(iOS 14.0, *)
+   func didPickMultipleMedia(selection: [PHPickerResult])
+   func didPickMedia(mediaInfo: MediaInfo)
+   func didCancelPicking()
+@@ -21,7 +22,6 @@ protocol OnMediaPickingResultHandler {
+  2) it separates some logic from the main module class and hopefully makes it cleaner.
+  */
+ internal class ImagePickerHandler: NSObject,
+-                                   PHPickerViewControllerDelegate,
+                                    UINavigationControllerDelegate,
+                                    UIImagePickerControllerDelegate,
+                                    UIAdaptivePresentationControllerDelegate {
+@@ -39,6 +39,7 @@ internal class ImagePickerHandler: NSObject,
+     onMediaPickingResultHandler.didPickMedia(mediaInfo: mediaInfo)
+   }
+ 
++  @available(iOS 14.0, *)
+   private func handlePickedMedia(selection: [PHPickerResult]) {
+     statusBarVisibilityController.maybeRestoreStatusBarVisibility()
+     onMediaPickingResultHandler.didPickMultipleMedia(selection: selection)
+@@ -63,15 +64,7 @@ internal class ImagePickerHandler: NSObject,
+ 
+   // MARK: - PHPickerViewControllerDelegate
+   
+-  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+-    // The PHPickerViewController returns empty collection when canceled
+-    if results.isEmpty {
+-      handlePickingCancellation()
+-    } else {
+-      handlePickedMedia(selection: results)
+-    }
+-    picker.dismiss(animated: true)
+-  }
++  // Note: PHPickerViewControllerDelegate conformance is handled via extension below
+ 
+   // MARK: - UIAdaptivePresentationControllerDelegate
+ 
+@@ -100,6 +93,20 @@ extension UIImagePickerController: PickerUIController {
+   }
+ }
+ 
++@available(iOS 14.0, *)
++extension ImagePickerHandler: PHPickerViewControllerDelegate {
++  func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
++    // The PHPickerViewController returns empty collection when canceled
++    if results.isEmpty {
++      handlePickingCancellation()
++    } else {
++      handlePickedMedia(selection: results)
++    }
++    picker.dismiss(animated: true)
++  }
++}
++
++@available(iOS 14.0, *)
+ extension PHPickerViewController: PickerUIController {
+   func setResultHandler(_ handler: ImagePickerHandler) {
+     self.delegate = handler
+diff --git a/node_modules/expo-image-picker/ios/ImagePickerModule.swift b/node_modules/expo-image-picker/ios/ImagePickerModule.swift
+index 4b7bf34..a513576 100644
+--- a/node_modules/expo-image-picker/ios/ImagePickerModule.swift
++++ b/node_modules/expo-image-picker/ios/ImagePickerModule.swift
+@@ -92,7 +92,12 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
+                                         imagePickerHandler: imagePickerDelegate)
+ 
+     if !options.allowsEditing && sourceType != .camera {
+-      self.launchMultiSelectPicker(pickingContext: pickingContext)
++      if #available(iOS 14.0, *) {
++        self.launchMultiSelectPicker(pickingContext: pickingContext)
++      } else {
++        // Fallback to legacy picker for iOS < 14.0
++        self.launchLegacyImagePicker(sourceType: sourceType, pickingContext: pickingContext)
++      }
+     } else {
+       self.launchLegacyImagePicker(sourceType: sourceType, pickingContext: pickingContext)
+     }
+@@ -152,18 +157,23 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
+   }
+ 
+   private func launchMultiSelectPicker(pickingContext: PickingContext) {
+-    var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
+-    let options = pickingContext.options
++    if #available(iOS 14.0, *) {
++      var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
++      let options = pickingContext.options
+ 
+-    // selection limit = 1 --> single selection, reflects the old picker behavior
+-    configuration.selectionLimit = options.allowsMultipleSelection ? options.selectionLimit : SINGLE_SELECTION
+-    configuration.filter = options.toPickerFilter()
+-    configuration.preferredAssetRepresentationMode = options.preferredAssetRepresentationMode.toAssetRepresentationMode()
+-    configuration.selection = options.orderedSelection ? .ordered : .default
++      // selection limit = 1 --> single selection, reflects the old picker behavior
++      configuration.selectionLimit = options.allowsMultipleSelection ? options.selectionLimit : SINGLE_SELECTION
++      configuration.filter = options.toPickerFilter()
++      configuration.preferredAssetRepresentationMode = options.preferredAssetRepresentationMode.toAssetRepresentationMode()
++      configuration.selection = options.orderedSelection ? .ordered : .default
+ 
+-    let picker = PHPickerViewController(configuration: configuration)
++      let picker = PHPickerViewController(configuration: configuration)
+ 
+-    presentPickerUI(picker, pickingContext: pickingContext)
++      presentPickerUI(picker, pickingContext: pickingContext)
++    } else {
++      // Fallback to legacy picker for iOS < 14.0
++      launchLegacyImagePicker(sourceType: .photoLibrary, pickingContext: pickingContext)
++    }
+   }
+ 
+   private func presentPickerUI(_ picker: PickerUIController, pickingContext context: PickingContext) {
+@@ -198,6 +208,7 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
+     self.currentPickingContext = nil
+   }
+ 
++  @available(iOS 14.0, *)
+   func didPickMultipleMedia(selection: [PHPickerResult]) {
+     guard let options = self.currentPickingContext?.options,
+           let promise = self.currentPickingContext?.promise else {
+@@ -237,15 +248,22 @@ public class ImagePickerModule: Module, OnMediaPickingResultHandler {
+     // Clean up the currently stored picking context
+     self.currentPickingContext = nil
+ 
+-    let mediaHandler = MediaHandler(fileSystem: fileSystem,
+-                                    options: options)
+-    Task {
+-      do {
+-        let asset = try await mediaHandler.handleMedia(mediaInfo)
+-        promise.resolve(ImagePickerResponse(assets: [asset], canceled: false))
+-      } catch {
+-        promise.reject(error)
++    if #available(iOS 14.0, *) {
++      let mediaHandler = MediaHandler(fileSystem: fileSystem,
++                                      options: options)
++      Task {
++        do {
++          let asset = try await mediaHandler.handleMedia(mediaInfo)
++          promise.resolve(ImagePickerResponse(assets: [asset], canceled: false))
++        } catch {
++          promise.reject(error)
++        }
+       }
++    } else {
++      // Fallback for iOS < 14.0: use legacy UIImagePickerController handling
++      // This should not happen in practice as didPickMedia is called from UIImagePickerController
++      // which works on iOS < 14.0, but MediaHandler requires iOS 14.0+
++      promise.reject(Exception(name: "UnsupportediOSVersion", description: "MediaHandler requires iOS 14.0 or newer"))
+     }
+   }
+ }
 diff --git a/node_modules/expo-image-picker/ios/ImagePickerOptions.swift b/node_modules/expo-image-picker/ios/ImagePickerOptions.swift
-index 38bfea9..a731b59 100644
+index 38bfea9..765733c 100644
 --- a/node_modules/expo-image-picker/ios/ImagePickerOptions.swift
 +++ b/node_modules/expo-image-picker/ios/ImagePickerOptions.swift
-@@ -56,19 +56,38 @@ internal struct ImagePickerOptions: Record {
+@@ -56,21 +56,41 @@ internal struct ImagePickerOptions: Record {
    var orderedSelection: Bool = false
  
    func toMediaTypesArray() -> [String] {
@@ -50,8 +206,19 @@ index 38bfea9..a731b59 100644
 -    return mediaTypesArray
    }
  
++  @available(iOS 14.0, *)
    func toPickerFilter() -> PHPickerFilter {
-@@ -176,13 +195,25 @@ internal enum MediaType: String, Enumerable {
+     let allowedArray = mediaTypes.map { mediaType in
+       mediaType.toPickerFilter()
+@@ -132,6 +152,7 @@ internal enum PreferredAssetRepresentationMode: String, Enumerable {
+   case compatible
+   case current
+ 
++  @available(iOS 14.0, *)
+   func toAssetRepresentationMode() -> PHPickerConfiguration.AssetRepresentationMode {
+     switch self {
+     case .automatic:
+@@ -176,13 +197,25 @@ internal enum MediaType: String, Enumerable {
    case livePhotos
  
    func toUTTypeString() -> String {
@@ -84,11 +251,27 @@ index 38bfea9..a731b59 100644
      }
    }
  
+@@ -197,6 +230,7 @@ internal enum MediaType: String, Enumerable {
+     }
+   }
+ 
++  @available(iOS 14.0, *)
+   func toPickerFilter() -> PHPickerFilter {
+     switch self {
+     case .images:
 diff --git a/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift b/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
-index ffca254..8fa04a2 100644
+index ffca254..99777e3 100644
 --- a/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
 +++ b/node_modules/expo-image-picker/ios/ImagePickerPermissionRequesters.swift
-@@ -82,14 +82,26 @@ public class DefaultMediaLibraryPermissionRequester: NSObject {}
+@@ -59,6 +59,7 @@ public class MediaLibraryWriteOnlyPermissionRequester: DefaultMediaLibraryPermis
+     return "mediaLibraryWriteOnly"
+   }
+ 
++  @available(iOS 14.0, *)
+   override internal func accessLevel() -> PHAccessLevel {
+     return PHAccessLevel.addOnly
+   }
+@@ -82,14 +83,26 @@ public class DefaultMediaLibraryPermissionRequester: NSObject {}
  extension DefaultMediaLibraryPermissionRequester {
    @objc
    public func requestPermissions(resolver resolve: @escaping EXPromiseResolveBlock, rejecter reject: EXPromiseRejectBlock) {
@@ -118,7 +301,7 @@ index ffca254..8fa04a2 100644
      var status: EXPermissionStatus
      var scope: String
  
-@@ -98,8 +110,14 @@ extension DefaultMediaLibraryPermissionRequester {
+@@ -98,8 +111,14 @@ extension DefaultMediaLibraryPermissionRequester {
        status = EXPermissionStatusGranted
        scope = "all"
      case .limited:
@@ -135,6 +318,14 @@ index ffca254..8fa04a2 100644
      case .denied, .restricted:
        status = EXPermissionStatusDenied
        scope = "none"
+@@ -117,6 +136,7 @@ extension DefaultMediaLibraryPermissionRequester {
+   }
+ 
+   @objc
++  @available(iOS 14.0, *)
+   internal func accessLevel() -> PHAccessLevel {
+     return PHAccessLevel.readWrite
+   }
 diff --git a/node_modules/expo-image-picker/ios/ImageUtils.swift b/node_modules/expo-image-picker/ios/ImageUtils.swift
 index d9d1cd4..3faaa5a 100644
 --- a/node_modules/expo-image-picker/ios/ImageUtils.swift

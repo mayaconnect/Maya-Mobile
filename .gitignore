@@ -17,6 +17,10 @@ yarn-error.log
 .DS_Store
 *.pem
 
+# iOS API reports
+ios-api-report*.txt
+ios-api-report*.json
+
 # Debug
 *.log
 
