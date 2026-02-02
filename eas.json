@@ -34,7 +34,7 @@
       "env": {
         "RCT_NEW_ARCH_ENABLED": "1"
       },
-      "node": "20.x"
+      "node": "20.19.4"
     }
   },
   "submit": {
