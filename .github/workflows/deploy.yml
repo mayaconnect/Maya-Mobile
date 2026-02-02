@@ -61,6 +61,20 @@ jobs:
           node scripts/auto-fix-and-patch-ios.js
         continue-on-error: false
 
+      - name: 📦 Apply patches (before prebuild)
+        run: |
+          echo "📦 Applying patches to node_modules (BEFORE expo prebuild)..."
+          if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
+            echo "📋 Found patches:"
+            ls -la patches/*.patch
+            echo ""
+            echo "📦 Applying patches..."
+            npx patch-package
+            echo "✅ Patches applied successfully"
+          else
+            echo "⚠️  No patches found, skipping..."
+          fi
+
       - name: 🔧 Setup Xcode with iOS SDKs
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -163,19 +177,43 @@ jobs:
             echo "✅ iOS workspace verified"
           fi
 
-      - name: 📦 Apply patches (after prebuild)
+      - name: 📦 Re-apply patches and reinstall pods (after prebuild)
         run: |
-          echo "📦 Applying patches to node_modules (after expo prebuild)..."
+          echo "📦 Re-applying patches and reinstalling pods (after expo prebuild)..."
           if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
             echo "📋 Found patches:"
             ls -la patches/*.patch
             echo ""
-            echo "📦 Applying patches..."
+            echo "📦 Re-applying patches to node_modules..."
             npx patch-package
-            echo "✅ Patches applied successfully"
+            echo "✅ Patches re-applied successfully"
           else
             echo "⚠️  No patches found, skipping..."
           fi
+          
+          echo ""
+          echo "🧹 Cleaning CocoaPods cache and Pods directory..."
+          cd ios
+          
+          # Clean Pods directory and lock file
+          if [ -d "Pods" ]; then
+            echo "🗑️  Removing Pods directory..."
+            rm -rf Pods
+          fi
+          
+          if [ -f "Podfile.lock" ]; then
+            echo "🗑️  Removing Podfile.lock..."
+            rm -f Podfile.lock
+          fi
+          
+          # Clean CocoaPods cache
+          echo "🧹 Cleaning CocoaPods cache..."
+          pod cache clean --all || true
+          
+          echo ""
+          echo "🔄 Reinstalling CocoaPods with clean state..."
+          pod install --repo-update || pod install
+          echo "✅ CocoaPods reinstalled successfully"
 
       - name: 🔍 Detect iOS scheme name
         id: detect-scheme
