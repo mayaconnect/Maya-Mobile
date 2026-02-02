@@ -1,0 +1,48 @@
+diff --git a/node_modules/expo-web-browser/ios/WebAuthSession.swift b/node_modules/expo-web-browser/ios/WebAuthSession.swift
+index fb228d4..8bead9c 100644
+--- a/node_modules/expo-web-browser/ios/WebAuthSession.swift
++++ b/node_modules/expo-web-browser/ios/WebAuthSession.swift
+@@ -6,7 +6,18 @@ import AuthenticationServices
+ private class PresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+   func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+     #if os(iOS)
+-    return UIApplication.shared.keyWindow ?? ASPresentationAnchor()
++    // Get key window - compatible with iOS 13+
++    if #available(iOS 13.0, *) {
++      if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
++         let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }) {
++        return keyWindow
++      }
++    } else {
++      if let keyWindow = UIApplication.shared.keyWindow {
++        return keyWindow
++      }
++    }
++    return ASPresentationAnchor()
+     #else
+     return NSApp.mainWindow ?? ASPresentationAnchor()
+     #endif
+diff --git a/node_modules/expo-web-browser/ios/WebBrowserSession.swift b/node_modules/expo-web-browser/ios/WebBrowserSession.swift
+index d3d2981..a3b82c3 100644
+--- a/node_modules/expo-web-browser/ios/WebBrowserSession.swift
++++ b/node_modules/expo-web-browser/ios/WebBrowserSession.swift
+@@ -30,7 +30,18 @@ internal class WebBrowserSession: NSObject, SFSafariViewControllerDelegate, UIAd
+   }
+ 
+   func open() {
+-    var currentViewController = UIApplication.shared.keyWindow?.rootViewController
++    // Get root view controller - compatible with iOS 13+
++    var currentViewController: UIViewController?
++    if #available(iOS 13.0, *) {
++      currentViewController = UIApplication.shared.connectedScenes
++        .compactMap { $0 as? UIWindowScene }
++        .flatMap { $0.windows }
++        .first { $0.isKeyWindow }?
++        .rootViewController
++    } else {
++      currentViewController = UIApplication.shared.keyWindow?.rootViewController
++    }
++    
+     while currentViewController?.presentedViewController != nil {
+       currentViewController = currentViewController?.presentedViewController
+     }

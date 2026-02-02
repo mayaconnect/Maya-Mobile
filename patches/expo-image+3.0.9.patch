@@ -1,0 +1,24 @@
+diff --git a/node_modules/expo-image/ios/Loaders/PhotoLibraryAssetLoader.swift b/node_modules/expo-image/ios/Loaders/PhotoLibraryAssetLoader.swift
+index 2596fa5..0839395 100644
+--- a/node_modules/expo-image/ios/Loaders/PhotoLibraryAssetLoader.swift
++++ b/node_modules/expo-image/ios/Loaders/PhotoLibraryAssetLoader.swift
+@@ -77,8 +77,17 @@ private func assetLocalIdentifier(fromUrl url: URL) -> String? {
+  Checks whether the app is authorized to read the Photo Library.
+  */
+ private func isPhotoLibraryStatusAuthorized() -> Bool {
+-  let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+-  return status == .authorized || status == .limited
++  let status: PHAuthorizationStatus
++  if #available(iOS 14.0, tvOS 14.0, *) {
++    status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
++  } else {
++    status = PHPhotoLibrary.authorizationStatus()
++  }
++  if #available(iOS 14.0, tvOS 14.0, *) {
++    return status == .authorized || status == .limited
++  } else {
++    return status == .authorized
++  }
+ }
+ 
+ /**

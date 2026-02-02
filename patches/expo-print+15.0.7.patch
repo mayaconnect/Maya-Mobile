@@ -1,0 +1,50 @@
+diff --git a/node_modules/expo-print/ios/ExpoPrintWithPrinter.swift b/node_modules/expo-print/ios/ExpoPrintWithPrinter.swift
+index 9ef2bd3..965df5f 100644
+--- a/node_modules/expo-print/ios/ExpoPrintWithPrinter.swift
++++ b/node_modules/expo-print/ios/ExpoPrintWithPrinter.swift
+@@ -76,7 +76,19 @@ public class ExpoPrintWithPrinter {
+     let printerUrl = options.printerUrl ?? ""
+     let candidateUrl = URL(string: printerUrl) ?? URL(fileURLWithPath: printerUrl)
+ 
+-    guard let rootController = UIApplication.shared.keyWindow?.rootViewController else {
++    // Get root view controller - compatible with iOS 13+
++    let rootController: UIViewController?
++    if #available(iOS 13.0, *) {
++      rootController = UIApplication.shared.connectedScenes
++        .compactMap { $0 as? UIWindowScene }
++        .flatMap { $0.windows }
++        .first { $0.isKeyWindow }?
++        .rootViewController
++    } else {
++      rootController = UIApplication.shared.keyWindow?.rootViewController
++    }
++    
++    guard let rootController = rootController else {
+       promise.reject(ViewControllerNotFoundException())
+       return
+     }
+diff --git a/node_modules/expo-print/ios/ExpoPrinterSelector.swift b/node_modules/expo-print/ios/ExpoPrinterSelector.swift
+index 8427942..de8d0ee 100644
+--- a/node_modules/expo-print/ios/ExpoPrinterSelector.swift
++++ b/node_modules/expo-print/ios/ExpoPrinterSelector.swift
+@@ -10,7 +10,19 @@ public class ExpoPrinterSelector {
+   }
+ 
+   func selectPrinter(promise: Promise) {
+-    guard let rootController = UIApplication.shared.keyWindow?.rootViewController else {
++    // Get root view controller - compatible with iOS 13+
++    let rootController: UIViewController?
++    if #available(iOS 13.0, *) {
++      rootController = UIApplication.shared.connectedScenes
++        .compactMap { $0 as? UIWindowScene }
++        .flatMap { $0.windows }
++        .first { $0.isKeyWindow }?
++        .rootViewController
++    } else {
++      rootController = UIApplication.shared.keyWindow?.rootViewController
++    }
++    
++    guard let rootController = rootController else {
+       promise.reject(ViewControllerNotFoundException())
+       return
+     }

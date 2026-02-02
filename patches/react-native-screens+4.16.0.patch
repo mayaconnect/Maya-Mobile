@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-screens/ios/RNSScreenStackHeaderConfig.mm b/node_modules/react-native-screens/ios/RNSScreenStackHeaderConfig.mm
-index 57ff861..7c7382a 100644
+index 57ff861..5288d75 100644
 --- a/node_modules/react-native-screens/ios/RNSScreenStackHeaderConfig.mm
 +++ b/node_modules/react-native-screens/ios/RNSScreenStackHeaderConfig.mm
 @@ -37,8 +37,8 @@
@@ -31,3 +31,25 @@ index 57ff861..7c7382a 100644
      NSString *largeWeight = config.largeTitleFontWeight ?: nil;
      if (largeFamily || largeWeight) {
        largeAttrs[NSFontAttributeName] = [RCTFont updateFont:nil
+@@ -804,7 +804,9 @@ RNS_IGNORE_SUPER_CALL_END
+   prevItem.backButtonTitle = resolvedBackTitle;
+   // This has any effect only in case the `backBarButtonItem` is not set.
+   // We apply it before we configure the back item, because it might get overriden.
+-  prevItem.backButtonDisplayMode = config.backButtonDisplayMode;
++  if (@available(iOS 14.0, *)) {
++    prevItem.backButtonDisplayMode = config.backButtonDisplayMode;
++  }
+ 
+   if (config.isBackTitleVisible) {
+     RNSBackBarButtonItem *backBarButtonItem = [[RNSBackBarButtonItem alloc] initWithTitle:resolvedBackTitle
+@@ -848,7 +850,9 @@ RNS_IGNORE_SUPER_CALL_END
+   } else {
+     // back button title should be not visible next to back button,
+     // but it should still appear in back menu
+-    prevItem.backButtonDisplayMode = UINavigationItemBackButtonDisplayModeMinimal;
++    if (@available(iOS 14.0, *)) {
++      prevItem.backButtonDisplayMode = UINavigationItemBackButtonDisplayModeMinimal;
++    }
+   }
+ #endif
+ }
