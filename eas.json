@@ -34,7 +34,7 @@
       "env": {
         "RCT_NEW_ARCH_ENABLED": "1"
       },
-      "prebuildCommand": "bash scripts/prepare-eas-build.sh"
+      "node": "20.x"
     }
   },
   "submit": {

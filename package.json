@@ -35,6 +35,7 @@
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "prepare": "husky install || true",
     "postinstall": "patch-package || echo 'patch-package not found, skipping patches'",
+    "eas:postinstall": "node scripts/auto-fix-and-patch-ios.js && bash scripts/fix-ios-nullability.sh || true"
     "commit": "git-cz",
     "server:start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-server.ps1",
     "server:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-server.ps1",
