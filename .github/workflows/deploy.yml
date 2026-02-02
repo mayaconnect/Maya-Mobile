@@ -75,6 +75,13 @@ jobs:
             echo "⚠️  No patches found, skipping..."
           fi
 
+      - name: 🔧 Fix iOS nullability issues (before prebuild)
+        run: |
+          echo "🔧 Fixing iOS nullability issues in node_modules (BEFORE expo prebuild)..."
+          chmod +x scripts/fix-ios-nullability.sh
+          bash scripts/fix-ios-nullability.sh
+          echo "✅ Nullability fixes applied to node_modules"
+
       - name: 🔧 Setup Xcode with iOS SDKs
         uses: maxim-lobanov/setup-xcode@v1
         with:
