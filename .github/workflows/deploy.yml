@@ -567,7 +567,7 @@ jobs:
   # ==========================================
   notify-success:
     name: 📢 Deployment Summary
-    needs: [deploy-android, deploy-ios]
+    needs: [ deploy-ios]
     if: always()
     runs-on: ubuntu-latest
 
@@ -578,12 +578,8 @@ jobs:
           echo "🎉 DEPLOYMENT COMPLETED"
           echo "======================================"
           echo ""
-          echo "Android Status: ${{ needs.deploy-android.result }}"
-          echo "iOS Status: ${{ needs.deploy-ios.result }}"
+       
           echo ""
-          if [ "${{ needs.deploy-android.result }}" == "success" ]; then
-            echo "✅ Android: https://play.google.com/console/"
-          fi
           if [ "${{ needs.deploy-ios.result }}" == "success" ]; then
             echo "✅ iOS: https://appstoreconnect.apple.com/"
           fi
