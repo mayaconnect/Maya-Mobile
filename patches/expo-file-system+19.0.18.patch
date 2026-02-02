@@ -23,9 +23,7 @@ index 4cb36d0..3f398cb 100644
  import ExpoModulesCore
  import CryptoKit
  import UniformTypeIdentifiers
-+#if !os(iOS) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_14_0
 +import MobileCoreServices
-+#endif
  
  internal final class FileSystemFile: FileSystemPath {
    init(url: URL) {

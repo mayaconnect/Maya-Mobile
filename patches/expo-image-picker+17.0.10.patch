@@ -353,9 +353,10 @@ diff --git a/node_modules/expo-image-picker/ios/MediaHandler.swift b/node_module
 index 6e4fbe1..9f78287 100644
 --- a/node_modules/expo-image-picker/ios/MediaHandler.swift
 +++ b/node_modules/expo-image-picker/ios/MediaHandler.swift
-@@ -6,6 +6,7 @@ import Photos
+@@ -6,6 +7,7 @@ import Photos
  import PhotosUI
  import UniformTypeIdentifiers
++import MobileCoreServices
  
 +@available(iOS 14.0, *)
  internal struct MediaHandler {
