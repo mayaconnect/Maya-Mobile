@@ -1,8 +1,35 @@
+diff --git a/node_modules/expo-file-system/ios/FilePickingHandler.swift b/node_modules/expo-file-system/ios/FilePickingHandler.swift
+index db4e2ca..b6bd723 100644
+--- a/node_modules/expo-file-system/ios/FilePickingHandler.swift
++++ b/node_modules/expo-file-system/ios/FilePickingHandler.swift
+@@ -5,10 +5,12 @@
+ import ExpoModulesCore
+ import UIKit
+ 
++@available(iOS 14.0, *)
+ internal class FilePickingHandler: FilePickingResultHandler {
+   private weak var module: FileSystemModule?
+   internal var filePickingContext: FilePickingContext?
+ 
++  @available(iOS 14.0, *)
+   init(module: FileSystemModule) {
+     self.module = module
+   }
 diff --git a/node_modules/expo-file-system/ios/FileSystemFile.swift b/node_modules/expo-file-system/ios/FileSystemFile.swift
-index 4cb36d0..aa1cdf5 100644
+index 4cb36d0..3f398cb 100644
 --- a/node_modules/expo-file-system/ios/FileSystemFile.swift
 +++ b/node_modules/expo-file-system/ios/FileSystemFile.swift
-@@ -68,9 +68,19 @@ internal final class FileSystemFile: FileSystemPath {
+@@ -2,6 +2,9 @@ import Foundation
+ import ExpoModulesCore
+ import CryptoKit
+ import UniformTypeIdentifiers
++#if !os(iOS) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_14_0
++import MobileCoreServices
++#endif
+ 
+ internal final class FileSystemFile: FileSystemPath {
+   init(url: URL) {
+@@ -68,9 +71,19 @@ internal final class FileSystemFile: FileSystemPath {
  
    var type: String? {
      let pathExtension = url.pathExtension
@@ -25,55 +52,51 @@ index 4cb36d0..aa1cdf5 100644
      }
      return nil
    }
-diff --git a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
-index 61daeda..168aa58 100644
---- a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
-+++ b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
-@@ -3,30 +3,34 @@
- #import <Foundation/Foundation.h>
- #import <ExpoModulesCore/EXDefines.h>
+diff --git a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionDownloadTaskDelegate.h b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionDownloadTaskDelegate.h
+index add56c8..408b8e7 100644
+--- a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionDownloadTaskDelegate.h
++++ b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionDownloadTaskDelegate.h
+@@ -4,9 +4,9 @@
  
-+NS_ASSUME_NONNULL_BEGIN
-+
- @interface EXSessionTaskDelegate : NSObject
- 
--@property (nonatomic, strong, readonly) EXPromiseResolveBlock resolve;
--@property (nonatomic, strong, readonly) EXPromiseRejectBlock reject;
-+@property (nonatomic, strong, readonly) EXPromiseResolveBlock _Nonnull resolve;
-+@property (nonatomic, strong, readonly) EXPromiseRejectBlock _Nonnull reject;
+ @interface EXSessionDownloadTaskDelegate : EXSessionTaskDelegate
  
 -- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock)resolve
--                                 reject:(EXPromiseRejectBlock)reject;
+-                                 reject:(EXPromiseRejectBlock)reject
+-                               localUrl:(NSURL *)localUrl
 +- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock _Nonnull)resolve
-+                                 reject:(EXPromiseRejectBlock _Nonnull)reject;
- 
--- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask didFinishDownloadingToURL:(NSURL *)location;
-+- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask didFinishDownloadingToURL:(NSURL * _Nonnull)location;
- 
--- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error;
-+- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task didCompleteWithError:(NSError * _Nullable)error;
- 
--- (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)downloadTask
-+- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask
-                                            didWriteData:(int64_t)bytesWritten
-                                       totalBytesWritten:(int64_t)totalBytesWritten
-                               totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
- 
--- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data;
-+- (void)URLSession:(NSURLSession * _Nonnull)session dataTask:(NSURLSessionDataTask * _Nonnull)dataTask didReceiveData:(NSData * _Nonnull)data;
- 
--- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
-+- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task
-                                 didSendBodyData:(int64_t)bytesSent
-                                  totalBytesSent:(int64_t)totalBytesSent
-                        totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
- 
--- (NSDictionary *)parseServerResponse:(NSURLResponse *)response;
-+- (NSDictionary * _Nonnull)parseServerResponse:(NSURLResponse * _Nonnull)response;
++                                 reject:(EXPromiseRejectBlock _Nonnull)reject
++                               localUrl:(NSURL * _Nonnull)localUrl
+                      shouldCalculateMd5:(BOOL)shouldCalculateMd5;
  
  @end
-+
-+NS_ASSUME_NONNULL_END
+diff --git a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionResumableDownloadTaskDelegate.h b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionResumableDownloadTaskDelegate.h
+index da7bf56..0121108 100644
+--- a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionResumableDownloadTaskDelegate.h
++++ b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionResumableDownloadTaskDelegate.h
+@@ -3,16 +3,16 @@
+ #import <ExpoFileSystem/EXSessionDownloadTaskDelegate.h>
+ #import <ExpoFileSystem/EXTaskHandlersManager.h>
+ 
+-typedef void (^EXDownloadDelegateOnWriteCallback)(NSURLSessionDownloadTask *task, int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite);
++typedef void (^EXDownloadDelegateOnWriteCallback)(NSURLSessionDownloadTask * _Nonnull task, int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite);
+ 
+ @interface EXSessionResumableDownloadTaskDelegate : EXSessionDownloadTaskDelegate
+ 
+-- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock)resolve
+-                                 reject:(EXPromiseRejectBlock)reject
+-                               localUrl:(NSURL *)localUrl
++- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock _Nonnull)resolve
++                                 reject:(EXPromiseRejectBlock _Nonnull)reject
++                               localUrl:(NSURL * _Nonnull)localUrl
+                      shouldCalculateMd5:(BOOL)shouldCalculateMd5
+-                        onWriteCallback:(EXDownloadDelegateOnWriteCallback)onWriteCallback
+-                       resumableManager:(EXTaskHandlersManager *)manager
+-                                   uuid:(NSString *)uuid;
++                        onWriteCallback:(EXDownloadDelegateOnWriteCallback _Nonnull)onWriteCallback
++                       resumableManager:(EXTaskHandlersManager * _Nonnull)manager
++                                   uuid:(NSString * _Nonnull)uuid;
+ 
+ @end
 diff --git a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
 index 61daeda..168aa58 100644
 --- a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h
