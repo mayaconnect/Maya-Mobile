@@ -100,9 +100,24 @@ fix_delegate_imports() {
 # Patch in node_modules (before pod install)
 NODE_MODULES_DIR="node_modules/expo-file-system/ios/Legacy/EXSessionTasks"
 NODE_MODULES_FILE="${NODE_MODULES_DIR}/EXSessionTaskDelegate.h"
-if patch_delegate_file "$NODE_MODULES_FILE"; then
+
+# Ensure directory exists
+mkdir -p "$NODE_MODULES_DIR"
+
+# Create or patch the file
+if [ -f "$NODE_MODULES_FILE" ]; then
+  echo "📝 File exists, patching..."
+  patch_delegate_file "$NODE_MODULES_FILE"
+else
+  echo "📝 File doesn't exist, creating..."
+  patch_delegate_file "$NODE_MODULES_FILE"
+fi
+
+if [ -f "$NODE_MODULES_FILE" ]; then
   echo "✅ Fixed in node_modules"
   fix_delegate_imports "$NODE_MODULES_DIR"
+else
+  echo "❌ Failed to create/patch file in node_modules"
 fi
 
 # Patch in Pods (after pod install, if Pods exists)
