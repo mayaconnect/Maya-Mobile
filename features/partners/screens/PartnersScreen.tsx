@@ -7,17 +7,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PartnersGridView } from '../components/PartnersGridView';
@@ -329,15 +329,25 @@ export default function PartnersScreen() {
     }
 
     const storesMarkers = stores
+      .filter((store) => {
+        // Vérifier les coordonnées dans latitude/longitude (depuis le mapper) ou dans address
+        const storeWithCoords = store as PartnerUI & { latitude?: number; longitude?: number; address?: any };
+        return (storeWithCoords.latitude && storeWithCoords.longitude) || 
+               (storeWithCoords.address?.latitude && storeWithCoords.address?.longitude);
+      })
       .map((store) => {
-        const storeWithCoords = store as PartnerUI & { latitude?: number; longitude?: number };
-        if (!storeWithCoords.latitude || !storeWithCoords.longitude) return null;
+        const storeWithCoords = store as PartnerUI & { latitude?: number; longitude?: number; address?: any };
+        // Utiliser latitude/longitude directement (depuis le mapper) ou depuis address
+        const lat = storeWithCoords.latitude || storeWithCoords.address?.latitude;
+        const lng = storeWithCoords.longitude || storeWithCoords.address?.longitude;
+        
+        if (!lat || !lng) return null;
         
         const color = store.isOpen ? '#10B981' : '#EF4444';
         const escapedName = store.name.replace(/"/g, '&quot;').replace(/'/g, "\\'").replace(/\n/g, ' ');
-        const escapedAddress = (store.address || '').replace(/"/g, '&quot;').replace(/'/g, "\\'").replace(/\n/g, ' ');
+        const escapedAddress = (typeof store.address === 'string' ? store.address : storeWithCoords.address?.street || store.address || '').replace(/"/g, '&quot;').replace(/'/g, "\\'").replace(/\n/g, ' ');
         return `
-          L.marker([${storeWithCoords.latitude}, ${storeWithCoords.longitude}], {
+          L.marker([${lat}, ${lng}], {
             icon: L.divIcon({
               className: 'store-marker',
               html: '<div style="background-color: ${color}; width: 32px; height: 32px; border-radius: 50%; border: 3px solid #1A0A0E; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%;"></div></div>',
@@ -1014,8 +1024,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 2,
+        borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing.md,
@@ -1283,8 +1292,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md + 2,
     paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 2,
+        borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     minHeight: 42,
     gap: Spacing.xs + 2,
@@ -1325,8 +1333,7 @@ const styles = StyleSheet.create({
   // Cards de grille
   gridCard: {
     width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
+        borderRadius: BorderRadius.xl,
     marginBottom: Spacing.md,
     overflow: 'hidden',
     borderWidth: 1,
@@ -1346,8 +1353,7 @@ const styles = StyleSheet.create({
   gridCardImage: {
     width: '100%',
     height: 120,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
+        justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   } as ViewStyle,
@@ -1427,8 +1433,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     ...Shadows.md,
   } as ViewStyle,
@@ -1474,8 +1479,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   } as ViewStyle,
   mapControlButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     width: 48,
     height: 48,
@@ -1489,8 +1493,7 @@ const styles = StyleSheet.create({
     bottom: Spacing.md,
     left: Spacing.md,
     right: Spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     padding: Spacing.md,
     borderRadius: BorderRadius.lg,
@@ -1596,8 +1599,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: Spacing.sm,
+        marginBottom: Spacing.sm,
   } as ViewStyle,
   modalLoadingText: {
     color: Colors.text.light,
@@ -1790,8 +1792,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   } as TextStyle,
   modalLocationCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
@@ -1833,8 +1834,7 @@ const styles = StyleSheet.create({
     color: '#8B2F3F',
   } as TextStyle,
   modalStatusCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
@@ -2048,8 +2048,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
+        justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.3)',

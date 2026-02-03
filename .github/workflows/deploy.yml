@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Platform to deployJJ'
+        description: 'Platform to deploy'
         required: true
         type: choice
         options:
@@ -24,21 +24,17 @@ jobs:
   # ==========================================
   # JOB ANDROID - Build et Deploy sur Google Play
   # ==========================================
-  
-  # ==========================================
-  # JOB iOS - Build et Deploy sur TestFlight
-  # ==========================================
-  deploy-ios:
-    name: 🍎 iOS → TestFlight
+  deploy-android:
+    name: 🤖 Android → Google Play (EAS Build)
     # Annule les anciens jobs en queue quand un nouveau est déclenché
     concurrency:
-      group: deploy-ios
+      group: deploy-android
       cancel-in-progress: true
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' &&
-       (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both'))
-    runs-on: macos-15  # macOS 15 has Xcode 16.x
+       (github.event.inputs.platform == 'android' || github.event.inputs.platform == 'both'))
+    runs-on: ubuntu-latest
 
     steps:
       - name: 📥 Checkout code
@@ -50,611 +46,117 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: 📦 Install dependencies (excluding dev dependencies for Release)
-        run: npm ci --omit=dev --legacy-peer-deps
+      - name: 📦 Install dependencies
+        run: npm ci --legacy-peer-deps
 
-      - name: 🔧 Install patch-package
+      - name: 🔧 Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: 🔐 Setup EAS credentials
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          echo "📦 Installing patch-package..."
-          npm install --save-dev patch-package --no-save --legacy-peer-deps
+          echo "🔐 Configuring EAS credentials..."
+          eas login --non-interactive --token $EXPO_TOKEN
+          echo "✅ EAS authenticated"
 
-      - name: 🔍 Auto-fix iOS API compatibility issues (before prebuild)
+      - name: 🏗️ Build Android with EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          echo "🔍 Scanning and auto-fixing iOS API compatibility issues..."
-          echo "   This runs BEFORE expo prebuild to ensure patches are ready"
-          node scripts/auto-fix-and-patch-ios.js
-        continue-on-error: false
+          echo "🏗️ Building Android app with EAS Build..."
+          echo "   Profile: production"
+          echo "   Platform: android"
+          echo ""
+          eas build --platform android --profile production --non-interactive --wait
+          echo "✅ Build completed successfully"
 
-      - name: 📦 Apply patches (before prebuild)
+      - name: 📤 Submit to Google Play
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          echo "📦 Applying patches to node_modules (BEFORE expo prebuild)..."
-          if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
-            echo "📋 Found patches:"
-            ls -la patches/*.patch
-            echo ""
-            echo "📦 Applying patches..."
-            if npx patch-package; then
-              echo "✅ Patches applied successfully"
-            else
-              echo "⚠️  Some patches failed to apply, but continuing..."
-              echo "   This may be normal if patches were already applied or files changed"
-              # Try to continue anyway - patches may not be critical at this stage
-            fi
-          else
-            echo "⚠️  No patches found, skipping..."
-          fi
+          echo "📤 Submitting latest build to Google Play..."
+          eas submit --platform android --profile production --latest --non-interactive
+          echo "✅ Submission to Google Play completed"
 
-      - name: 🔧 Fix iOS nullability issues (before prebuild)
+      - name: ✅ Android deployment success
+        if: success()
         run: |
-          echo "🔧 Fixing iOS nullability issues in node_modules (BEFORE expo prebuild)..."
-          chmod +x scripts/fix-ios-nullability.sh
-          bash scripts/fix-ios-nullability.sh
-          node scripts/fix-react-native-maps-nullability.js || true
-          echo "✅ Nullability fixes applied to node_modules"
+          echo "✅ Android app successfully built and deployed to Google Play!"
+          echo "📱 Go to Google Play Console to test: https://play.google.com/console/"
+          echo "📊 View builds: https://expo.dev/accounts/[your-account]/projects/maya-mobile-app/builds"
 
-      - name: 🔧 Setup Xcode with iOS SDKs
-        uses: maxim-lobanov/setup-xcode@v1
+  # ==========================================
+  # JOB iOS - Build et Deploy sur TestFlight
+  # ==========================================
+  deploy-ios:
+    name: 🍎 iOS → TestFlight (EAS Build)
+    # Annule les anciens jobs en queue quand un nouveau est déclenché
+    concurrency:
+      group: deploy-ios
+      cancel-in-progress: true
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          xcode-version: '16.1'
-          xcode-select: true
+          node-version: '20'
+          cache: 'npm'
 
-      - name: 📲 Setup iOS Platform & SDKs
-        run: |
-          echo "📲 Setting up iOS platform and SDKs..."
+      - name: 📦 Install dependencies
+        run: npm ci --legacy-peer-deps
 
-          # Run first launch to ensure Xcode is fully installed
-          echo "Running Xcode first launch setup..."
-          sudo xcodebuild -runFirstLaunch
+      - name: 🔧 Install EAS CLI
+        run: npm install -g eas-cli
 
-          # Accept Xcode license if needed
-          sudo xcodebuild -license accept || true
-
-          # Install iOS 18.1 components if missing
-          echo ""
-          echo "📥 Installing iOS 18.1 platform (this may take a few minutes)..."
-          # Download platform - this is required for building
-          # Try multiple times as the download can be flaky
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if sudo xcodebuild -downloadPlatform iOS; then
-              echo "✅ iOS platform download completed"
-              break
-            else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "⚠️  Platform download failed, retrying ($RETRY_COUNT/$MAX_RETRIES)..."
-                sleep 5
-              else
-                echo "⚠️  Platform download failed after $MAX_RETRIES attempts, but continuing..."
-              fi
-            fi
-          done
-
-          # Wait a bit for the download to complete
-          echo "⏳ Waiting for platform installation to complete..."
-          sleep 15
-
-          # Verify iOS 18.1 SDK is available
-          echo ""
-          echo "📋 Checking available iOS SDKs:"
-          xcodebuild -showsdks | grep -i ios || true
-          
-          # Check if iOS 18.1 SDK is present
-          if xcodebuild -showsdks | grep -q "iphoneos18.1"; then
-            echo "✅ iOS 18.1 SDK is available"
-          else
-            echo "❌ ERROR: iOS 18.1 SDK not found!"
-            echo "📋 Full SDK list:"
-            xcodebuild -showsdks
-            echo ""
-            echo "⚠️  Attempting to install iOS 18.1 runtime via simctl..."
-            # Try to install iOS 18.1 runtime if available
-            xcrun simctl runtime list 2>/dev/null || true
-            echo ""
-            echo "💡 If iOS 18.1 is not available, you may need to:"
-            echo "   1. Use a different Xcode version"
-            echo "   2. Lower the deployment target in your project"
-            echo "   3. Use a self-hosted runner with iOS 18.1 pre-installed"
-            # Don't fail here, let the build try and fail with a clearer error
-          fi
-
-          # List available simulators and runtimes
-          echo ""
-          echo "📋 Available iOS runtimes:"
-          xcrun simctl list runtimes ios 2>/dev/null || echo "Could not list runtimes"
-
-          echo "✅ iOS platform setup complete"
-
-      - name: 🔨 Generate iOS native folder
+      - name: 🔐 Setup EAS credentials
         env:
-          RCT_NEW_ARCH_ENABLED: 1
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          echo "🔨 Running expo prebuild..."
-          echo "⚠️  New Architecture enabled (required by react-native-reanimated)"
-          echo "   RCT_NEW_ARCH_ENABLED=1"
-          
-          npx expo prebuild --platform ios --clean
+          echo "🔐 Configuring EAS credentials..."
+          eas login --non-interactive --token $EXPO_TOKEN
+          echo "✅ EAS authenticated"
 
-          echo ""
-          echo "✅ Prebuild complete. Verifying..."
-          if [ ! -d "ios" ]; then
-            echo "❌ ERROR: ios directory not created!"
-            exit 1
-          fi
-
-          echo "📋 Contents of ios/:"
-          ls -la ios/
-          
-          # Verify workspace was created (pod install creates it)
-          if [ ! -f "ios/Maya.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "⚠️  WARNING: Workspace not found immediately after prebuild"
-            echo "   This is normal if pod install failed. Will retry pod install manually."
-          else
-            echo "✅ iOS workspace verified"
-          fi
-
-      - name: 📦 Re-apply patches and reinstall pods (after prebuild)
-        run: |
-          echo "📦 Re-applying patches and reinstalling pods (after expo prebuild)..."
-          if [ -d "patches" ] && [ -n "$(ls -A patches/*.patch 2>/dev/null)" ]; then
-            echo "📋 Found patches:"
-            ls -la patches/*.patch
-            echo ""
-            echo "📦 Re-applying patches to node_modules..."
-            if npx patch-package; then
-              echo "✅ Patches re-applied successfully"
-            else
-              echo "⚠️  Some patches failed to apply"
-              echo "   Attempting to continue anyway..."
-              # Continue - patches may have been partially applied
-            fi
-          else
-            echo "⚠️  No patches found, skipping..."
-          fi
-          
-          echo ""
-          echo "🧹 Cleaning CocoaPods cache and Pods directory..."
-          cd ios
-          
-          # Clean Pods directory and lock file
-          if [ -d "Pods" ]; then
-            echo "🗑️  Removing Pods directory..."
-            rm -rf Pods
-          fi
-          
-          if [ -f "Podfile.lock" ]; then
-            echo "🗑️  Removing Podfile.lock..."
-            rm -f Podfile.lock
-          fi
-          
-          # Clean CocoaPods cache
-          echo "🧹 Cleaning CocoaPods cache..."
-          pod cache clean --all || true
-          
-          echo ""
-          echo "🔄 Reinstalling CocoaPods with clean state..."
-          pod install --repo-update || pod install
-          echo "✅ CocoaPods reinstalled successfully"
-
-      - name: 🔍 Detect iOS scheme name
-        id: detect-scheme
-        run: |
-          echo "🔍 Detecting iOS scheme name from workspace..."
-
-          # Verify workspace exists before proceeding
-          if [ ! -f "ios/Maya.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "❌ ERROR: Workspace not found!"
-            exit 1
-          fi
-
-          # Just use Maya as the scheme name (it's always created by expo prebuild)
-          SCHEME_NAME="Maya"
-
-          # Verify the scheme exists
-          echo "📋 Verifying scheme 'Maya' exists..."
-          SCHEMES=$(xcodebuild -workspace ios/Maya.xcworkspace -list 2>&1 | grep "Maya" || echo "")
-
-          if [ -z "$SCHEMES" ]; then
-            echo "⚠️  Warning: Maya scheme not found in workspace"
-            echo "Available schemes:"
-            xcodebuild -workspace ios/Maya.xcworkspace -list 2>&1 || true
-          else
-            echo "✅ Found scheme: Maya"
-          fi
-
-          # Export for next steps
-          echo "IOS_SCHEME_NAME=$SCHEME_NAME" >> $GITHUB_ENV
-          echo "scheme=$SCHEME_NAME" >> $GITHUB_OUTPUT
-
-          echo "✅ Using scheme: $SCHEME_NAME"
-
-      - name: 🔧 Fix iOS nullability issues
-        run: |
-          chmod +x scripts/fix-ios-nullability.sh
-          bash scripts/fix-ios-nullability.sh
-          node scripts/fix-react-native-maps-nullability.js || true
-
-      - name: 🔧 Set iOS deployment target and development team in Xcode project
+      - name: 🏗️ Build iOS with EAS
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          # Find the Xcode project file dynamically
-          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
-          if [ -n "$PROJECT_FILE" ]; then
-            echo "📱 Found Xcode project at: $PROJECT_FILE"
-            
-            # Set IPHONEOS_DEPLOYMENT_TARGET
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$PROJECT_FILE"
-            echo "✅ Set IPHONEOS_DEPLOYMENT_TARGET to 13.4"
-            
-            # Set DEVELOPMENT_TEAM for all build configurations
-            if [ -n "$APPLE_TEAM_ID" ]; then
-              echo "🔧 Setting DEVELOPMENT_TEAM to: $APPLE_TEAM_ID"
-              
-              # First, try to update existing DEVELOPMENT_TEAM entries
-              sed -i '' "s/DEVELOPMENT_TEAM = [^;]*/DEVELOPMENT_TEAM = $APPLE_TEAM_ID/g" "$PROJECT_FILE"
-              
-              # Then, add DEVELOPMENT_TEAM to buildSettings sections that don't have it
-              # This uses awk to add DEVELOPMENT_TEAM after buildSettings = {
-              python3 <<PY
-          import re
-          
-          team_id = "$APPLE_TEAM_ID"
-          project_file = "$PROJECT_FILE"
-          
-          with open(project_file, 'r') as f:
-              lines = f.readlines()
-          
-          new_lines = []
-          i = 0
-          while i < len(lines):
-              line = lines[i]
-              new_lines.append(line)
-              
-              # Look for "buildSettings = {" line
-              if 'buildSettings = {' in line:
-                  # Check if next few lines already have DEVELOPMENT_TEAM
-                  has_team = False
-                  j = i + 1
-                  while j < len(lines) and j < i + 20:
-                      if 'DEVELOPMENT_TEAM' in lines[j]:
-                          has_team = True
-                          break
-                      if lines[j].strip() == '};':
-                          break
-                      j += 1
-                  
-                  # If no DEVELOPMENT_TEAM found, add it after the buildSettings line
-                  if not has_team:
-                      # Find the indentation level
-                      indent = len(line) - len(line.lstrip())
-                      new_lines.append(' ' * (indent + 4) + f'DEVELOPMENT_TEAM = {team_id};\n')
-              
-              i += 1
-          
-          with open(project_file, 'w') as f:
-              f.writelines(new_lines)
-          
-          print("✅ DEVELOPMENT_TEAM set successfully")
-          PY
-              
-              # Verify the change
-              echo "🔍 Verification:"
-              grep "DEVELOPMENT_TEAM" "$PROJECT_FILE" | head -n 5 || echo "DEVELOPMENT_TEAM not found (may need manual check)"
-            else
-              echo "⚠️ Warning: APPLE_TEAM_ID not set, skipping DEVELOPMENT_TEAM configuration"
-            fi
-            
-            # Verify IPHONEOS_DEPLOYMENT_TARGET
-            echo "🔍 IPHONEOS_DEPLOYMENT_TARGET verification:"
-            grep "IPHONEOS_DEPLOYMENT_TARGET" "$PROJECT_FILE" | head -n 3
-          else
-            echo "⚠️ Warning: Could not find Xcode project.pbxproj file"
-            exit 1
-          fi
+          echo "🏗️ Building iOS app with EAS Build..."
+          echo "   Profile: production"
+          echo "   Platform: ios"
+          echo ""
+          eas build --platform ios --profile production --non-interactive --wait
+          echo "✅ Build completed successfully"
 
-      - name: 💎 Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: true
-
-      - name: 🧹 Clean Xcode Derived Data
-        run: rm -rf ~/Library/Developer/Xcode/DerivedData
-
-      - name: 🔧 Configure Podfile build settings
-        working-directory: ios
-        run: |
-          echo "🔧 Adding custom build settings to Podfile post_install hook"
-
-          # Insert custom build settings into the existing post_install hook
-          sed -i '' '/post_install do |installer|/a\
-          \  # Custom build settings\
-          \  installer.pods_project.targets.each do |target|\
-          \    target.build_configurations.each do |config|\
-          \      config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.4"\
-          \      config.build_settings["GCC_WARN_INHIBIT_ALL_WARNINGS"] = "YES"\
-          \      config.build_settings["SWIFT_SUPPRESS_WARNINGS"] = "YES"\
-          \    end\
-          \  end\
-          ' Podfile
-
-          echo "✅ Podfile configured"
-
-      # CocoaPods dependencies are already installed in the step after prebuild
-      # This step is kept for compatibility but should not be needed
-
-      - name: 🔧 Set deployment target for all Pods
-        run: |
-          cd ios
-          echo "Setting IPHONEOS_DEPLOYMENT_TARGET for all Pods to 13.4"
-          find Pods -name "project.pbxproj" -type f | while read -r file; do
-            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [^;]*/IPHONEOS_DEPLOYMENT_TARGET = 13.4/g' "$file"
-          done
-          echo "✅ All Pods deployment targets updated"
-
-      - name: 🔧 Disable Swift 6 strict concurrency checking
-        run: |
-          PROJECT_FILE=$(find ios -name "project.pbxproj" -type f | head -n 1)
-          if [ -n "$PROJECT_FILE" ]; then
-            echo "📱 Disabling strict concurrency checking in: $PROJECT_FILE"
-            awk '/buildSettings = \{/ {print; print "\t\t\t\tSWIFT_STRICT_CONCURRENCY = minimal;"; next}1' "$PROJECT_FILE" > "$PROJECT_FILE.tmp"
-            mv "$PROJECT_FILE.tmp" "$PROJECT_FILE"
-            echo "✅ Swift strict concurrency checking disabled"
-          fi
-
-      - name: 🔐 Setup App Store Connect API Key
+      - name: 📤 Submit to TestFlight
         env:
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          set -euo pipefail
-          
-          mkdir -p fastlane/keys
-          
-          # Décoder et créer le fichier .p8
-          echo "${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}" | base64 -d > fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-          chmod 600 fastlane/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-          
-          # Créer api_key.json avec la clé inline (format requis par fastlane/spaceship)
-          python3 <<PY
-          import json
-          import os
-          
-          key_id = os.environ['APP_STORE_CONNECT_KEY_ID']
-          issuer_id = os.environ['APP_STORE_CONNECT_ISSUER_ID']
-          
-          # Lire la clé privée depuis le fichier
-          with open(f'fastlane/keys/AuthKey_{key_id}.p8', 'r', encoding='utf-8') as f:
-              key_content = f.read().strip()
-          
-          # Créer le dictionnaire JSON
-          api_key_data = {
-              "key_id": key_id,
-              "issuer_id": issuer_id,
-              "key": key_content,
-              "in_house": False
-          }
-          
-          # Écrire le fichier JSON
-          with open('fastlane/keys/api_key.json', 'w', encoding='utf-8') as f:
-              json.dump(api_key_data, f, indent=2)
-          
-          print("✅ api_key.json created successfully")
-          PY
-          
-          echo "✅ App Store Connect API Key configured"
-
-      - name: 📜 Setup Match certificates
-        env:
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
-        run: |
-          set -euo pipefail
-          
-          echo "🔍 Verifying environment..."
-          echo "Current directory: $(pwd)"
-          echo "MATCH_GIT_URL: ${MATCH_GIT_URL}"
-          echo ""
-          
-          echo "🔍 Verifying Matchfile..."
-          if [ ! -f "fastlane/Matchfile" ]; then
-            echo "❌ ERROR: Matchfile not found at fastlane/Matchfile"
-            echo "Files in current directory:"
-            ls -la
-            echo ""
-            echo "Files in fastlane directory:"
-            ls -la fastlane/ || echo "fastlane directory not found"
-            exit 1
-          fi
-          
-          echo "📋 Matchfile content:"
-          cat fastlane/Matchfile
-          echo ""
-          
-          # Verify app_identifier is present
-          if ! grep -q "app_identifier" fastlane/Matchfile; then
-            echo "❌ ERROR: app_identifier not found in Matchfile"
-            exit 1
-          fi
-          
-          # Extract app_identifier value
-          APP_ID=$(grep "app_identifier" fastlane/Matchfile | head -1)
-          echo "✅ Found app_identifier: ${APP_ID}"
-          echo ""
-          
-          # Verify api_key.json exists
-          if [ ! -f "fastlane/keys/api_key.json" ]; then
-            echo "❌ ERROR: api_key.json not found at fastlane/keys/api_key.json"
-            echo "Files in fastlane/keys/:"
-            ls -la fastlane/keys/ || echo "fastlane/keys directory not found"
-            exit 1
-          fi
-          
-          echo "✅ api_key.json found"
-          echo "📋 api_key.json content (first 200 chars):"
-          head -c 200 fastlane/keys/api_key.json
-          echo ""
-          echo ""
-          
-          echo "✅ Matchfile and api_key.json verified"
-          echo ""
-          echo "🔐 Running match..."
-          bundle exec fastlane match appstore --readonly
-
-      - name: 🚀 Build and Deploy to TestFlight
-        run: |
-          set -euo pipefail
-          
-          echo "🔍 Verifying iOS project structure..."
-          echo "Current directory: $(pwd)"
-          echo ""
-          echo "📋 Checking for workspace..."
-          if [ -f "ios/Maya.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "✅ Workspace found at ios/Maya.xcworkspace"
-          else
-            echo "❌ ERROR: Workspace not found at ios/Maya.xcworkspace"
-            echo "Files in ios/:"
-            ls -la ios/ | head -20
-            exit 1
-          fi
-          
-          echo ""
-          echo "📋 Checking for Xcode project..."
-          if [ -d "ios/Maya.xcodeproj" ]; then
-            echo "✅ Xcode project found at ios/Maya.xcodeproj"
-          else
-            echo "❌ ERROR: Xcode project not found at ios/Maya.xcodeproj"
-            exit 1
-          fi
-          
-          echo ""
-          echo "📋 Using iOS scheme: ${IOS_SCHEME_NAME}"
-          echo ""
-          echo "🔐 Running fastlane beta..."
-          bundle exec fastlane beta
-        env:
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          # iOS scheme name detected from workspace (auto-detected in previous step)
-          # IOS_SCHEME_NAME is already set via $GITHUB_ENV, but we keep it here for clarity
-          # Configuration TestFlight - Groupes de testeurs
-          # Format: "Internal Testers,QA Team,Beta Testers" (séparés par des virgules)
-          # Laisse vide pour distribuer à tous les testeurs internes
-          TESTFLIGHT_GROUPS: ${{ secrets.TESTFLIGHT_GROUPS || '' }}
-          # Distribution aux testeurs externes (true/false)
-          TESTFLIGHT_DISTRIBUTE_EXTERNAL: ${{ secrets.TESTFLIGHT_DISTRIBUTE_EXTERNAL || 'false' }}
-          # Notifier les testeurs externes (true/false)
-          TESTFLIGHT_NOTIFY_EXTERNAL: ${{ secrets.TESTFLIGHT_NOTIFY_EXTERNAL || 'false' }}
-          # Description pour les testeurs (optionnel)
-          TESTFLIGHT_BETA_DESCRIPTION: ${{ secrets.TESTFLIGHT_BETA_DESCRIPTION || 'Nouvelle version de Maya disponible pour test' }}
-          # Informations de contact pour la review (requis si distribute_external: true)
-          TESTFLIGHT_CONTACT_EMAIL: ${{ secrets.TESTFLIGHT_CONTACT_EMAIL || secrets.FASTLANE_APPLE_ID }}
-          TESTFLIGHT_CONTACT_FIRST_NAME: ${{ secrets.TESTFLIGHT_CONTACT_FIRST_NAME || 'Maya' }}
-          TESTFLIGHT_CONTACT_LAST_NAME: ${{ secrets.TESTFLIGHT_CONTACT_LAST_NAME || 'Team' }}
-          TESTFLIGHT_CONTACT_PHONE: ${{ secrets.TESTFLIGHT_CONTACT_PHONE || '' }}
-          TESTFLIGHT_DEMO_ACCOUNT: ${{ secrets.TESTFLIGHT_DEMO_ACCOUNT || '' }}
-          TESTFLIGHT_DEMO_PASSWORD: ${{ secrets.TESTFLIGHT_DEMO_PASSWORD || '' }}
-          TESTFLIGHT_REVIEW_NOTES: ${{ secrets.TESTFLIGHT_REVIEW_NOTES || 'Application de test pour Maya' }}
-
-      - name: 📋 Display build logs on failure
-        if: failure()
-        run: |
-          echo "❌ Build failed. Displaying logs..."
-          echo ""
-          
-          # Find the actual log file (gym creates logs with different naming patterns)
-          LOG_DIR="/Users/runner/Library/Logs/gym"
-          
-          # Try different possible log file names
-          LOG_FILE=""
-          for pattern in "App-Maya.log" "Maya-Maya.log" "Maya.log"; do
-            if [ -f "$LOG_DIR/$pattern" ]; then
-              LOG_FILE="$LOG_DIR/$pattern"
-              echo "✅ Found log: $pattern"
-              break
-            fi
-          done
-          
-          # If still not found, find any .log file
-          if [ -z "$LOG_FILE" ]; then
-            LOG_FILE=$(find "$LOG_DIR" -name "*.log" -type f 2>/dev/null | head -1)
-            if [ -n "$LOG_FILE" ]; then
-              echo "✅ Found log: $(basename "$LOG_FILE")"
-            fi
-          fi
-          
-          if [ -f "$LOG_FILE" ]; then
-            echo ""
-            echo "=== Fastlane gym log (last 300 lines) ==="
-            tail -n 300 "$LOG_FILE"
-            echo ""
-            echo "=== Errors in gym log ==="
-            grep -n -i "error:" "$LOG_FILE" | tail -n 100 || echo "No 'error:' found"
-            echo ""
-            echo "=== Signing/Provisioning errors ==="
-            grep -iE "Code Sign|Provisioning profile|No signing certificate|requires a provisioning profile|Bundle identifier|entitlements|signing|DEVELOPMENT_TEAM" "$LOG_FILE" | tail -n 100 || echo "No signing errors found"
-            echo ""
-            echo "=== Build failures ==="
-            grep -iE "failed|failure|BUILD FAILED|ARCHIVE FAILED" "$LOG_FILE" | tail -n 50 || echo "No build failure messages found"
-            echo ""
-            echo "=== Last 50 lines with context around errors ==="
-            # Show lines around errors
-            grep -n -i "error:" "$LOG_FILE" | tail -n 10 | while IFS=: read line_num rest; do
-              echo "--- Error at line $line_num ---"
-              sed -n "$((line_num - 5)),$((line_num + 10))p" "$LOG_FILE" 2>/dev/null || true
-              echo ""
-            done
-          else
-            echo "⚠️  Gym log not found"
-            echo "Available log files in $LOG_DIR:"
-            ls -la "$LOG_DIR" 2>/dev/null || echo "Log directory not found"
-            echo ""
-            echo "Searching for log files..."
-            find /Users/runner/Library/Logs -name "*Maya*" -type f 2>/dev/null | head -10 || echo "No Maya logs found"
-          fi
-
-      - name: 📤 Upload iOS artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: ios-release-ipa
-          path: |
-            *.ipa
-            ios/*.ipa
-          retention-days: 30
-          if-no-files-found: warn
-
-      - name: 📤 Upload build logs
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: ios-build-logs
-          path: |
-            ~/Library/Logs/gym/
-            ~/Library/Logs/scan/
-          retention-days: 7
-          if-no-files-found: warn
+          echo "📤 Submitting latest build to TestFlight..."
+          eas submit --platform ios --profile production --latest --non-interactive
+          echo "✅ Submission to TestFlight completed"
 
       - name: ✅ iOS deployment success
         if: success()
         run: |
-          echo "✅ iOS app successfully deployed to TestFlight!"
+          echo "✅ iOS app successfully built and deployed to TestFlight!"
           echo "📱 Go to App Store Connect to test: https://appstoreconnect.apple.com/"
+          echo "📊 View builds: https://expo.dev/accounts/[your-account]/projects/maya-mobile-app/builds"
 
   # ==========================================
   # JOB NOTIFICATION - Résumé final
   # ==========================================
   notify-success:
     name: 📢 Deployment Summary
-    needs: [ deploy-ios]
+    needs: [deploy-ios, deploy-android]
     if: always()
     runs-on: ubuntu-latest
 
@@ -665,10 +167,11 @@ jobs:
           echo "🎉 DEPLOYMENT COMPLETED"
           echo "======================================"
           echo ""
-       
-          echo ""
           if [ "${{ needs.deploy-ios.result }}" == "success" ]; then
             echo "✅ iOS: https://appstoreconnect.apple.com/"
+          fi
+          if [ "${{ needs.deploy-android.result }}" == "success" ]; then
+            echo "✅ Android: https://play.google.com/console/"
           fi
           echo ""
           echo "======================================"

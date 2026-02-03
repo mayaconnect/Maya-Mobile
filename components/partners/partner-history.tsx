@@ -266,8 +266,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing.md,
@@ -355,8 +354,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   } as TextStyle,
   historyCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,

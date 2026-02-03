@@ -173,8 +173,7 @@ const styles = StyleSheet.create({
   } as TextStyle,
   refreshButton: {
     padding: Spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: BorderRadius.md,
+        borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   } as ViewStyle,
@@ -182,8 +181,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.xl * 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: BorderRadius.xl,
+        borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing.lg,
   } as ViewStyle,
   emptyStateTitle: {
@@ -215,8 +213,7 @@ const styles = StyleSheet.create({
     maxHeight: 400,
   } as ViewStyle,
   transactionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,

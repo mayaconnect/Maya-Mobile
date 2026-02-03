@@ -229,3 +229,157 @@ export async function uploadAvatar(imageUri: string): Promise<PublicUser> {
   }
 }
 
+/**
+ * Supprime l'avatar de l'utilisateur actuel (DELETE /auth/remove-avatar)
+ * @returns L'utilisateur mis à jour sans avatar
+ * @throws Error si la suppression échoue
+ */
+export async function removeAvatar(): Promise<PublicUser> {
+  try {
+    log.info('Début de la suppression de l\'avatar');
+
+    // Récupérer le token d'authentification
+    const tokens = await getTokens();
+    
+    if (!tokens?.accessToken) {
+      log.error('Aucun token d\'authentification disponible pour la suppression');
+      throw new Error('Utilisateur non authentifié');
+    }
+
+    // Appel API DELETE
+    const url = `${API_BASE_URL}/auth/remove-avatar`;
+    
+    log.debug('Appel API remove-avatar', { url });
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${tokens.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || errorData.detail || errorMessage;
+        log.error('Erreur API lors de la suppression', new Error(errorMessage), { 
+          status: response.status,
+          errorData 
+        });
+      } catch {
+        log.error('Erreur API lors de la suppression', new Error(errorText), { 
+          status: response.status 
+        });
+      }
+      
+      // Messages d'erreur spécifiques selon le code HTTP
+      if (response.status === 401) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.');
+      }
+      if (response.status === 404) {
+        throw new Error('Avatar introuvable ou déjà supprimé.');
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    // Parser la réponse JSON
+    let responseData: any;
+    try {
+      const responseText = await response.text();
+      
+      if (!responseText || responseText.trim().length === 0) {
+        log.warn('Réponse vide, récupération des informations utilisateur');
+        // Si la réponse est vide, récupérer les infos utilisateur
+        const meResponse = await apiCall<any>('/auth/me', {
+          method: 'GET',
+        });
+        responseData = meResponse;
+      } else {
+        responseData = JSON.parse(responseText);
+      }
+    } catch (parseError) {
+      log.error('Erreur lors du parsing JSON', parseError as Error, {
+        status: response.status,
+      });
+      // En cas d'erreur de parsing, récupérer les infos utilisateur
+      const meResponse = await apiCall<any>('/auth/me', {
+        method: 'GET',
+      });
+      responseData = meResponse;
+    }
+
+    // Extraire les données utilisateur de la réponse
+    let userData: PublicUser | null = null;
+    
+    // Format 1: { user: {...} }
+    if (responseData?.user && typeof responseData.user === 'object' && responseData.user.id) {
+      userData = responseData.user as PublicUser;
+      log.debug('Données utilisateur trouvées dans responseData.user');
+    }
+    // Format 2: { data: { user: {...} } }
+    else if (responseData?.data?.user && typeof responseData.data.user === 'object' && responseData.data.user.id) {
+      userData = responseData.data.user as PublicUser;
+      log.debug('Données utilisateur trouvées dans responseData.data.user');
+    }
+    // Format 3: { data: {...} }
+    else if (responseData?.data && typeof responseData.data === 'object' && responseData.data.id) {
+      userData = responseData.data as PublicUser;
+      log.debug('Données utilisateur trouvées dans responseData.data');
+    }
+    // Format 4: La réponse est directement l'utilisateur
+    else if (responseData && typeof responseData === 'object' && responseData.id) {
+      userData = responseData as PublicUser;
+      log.debug('Données utilisateur trouvées directement dans la réponse');
+    }
+
+    if (!userData || !userData.id) {
+      log.warn('Aucune donnée utilisateur dans la réponse, récupération depuis /auth/me');
+      // Récupérer les informations utilisateur complètes
+      try {
+        const meResponse = await apiCall<any>('/auth/me', {
+          method: 'GET',
+        });
+
+        const maybeUser: PublicUser | undefined = meResponse?.user ?? meResponse;
+        if (maybeUser && maybeUser.id) {
+          userData = maybeUser;
+          log.debug('Informations utilisateur récupérées après suppression', { userId: userData.id });
+        } else {
+          throw new Error('Aucune donnée utilisateur dans la réponse /auth/me');
+        }
+      } catch (fetchError) {
+        log.error('Erreur lors de la récupération des informations utilisateur après suppression', fetchError as Error);
+        throw new Error('Suppression réussie mais impossible de récupérer les informations utilisateur mises à jour');
+      }
+    }
+
+    // Mettre à jour le cache local
+    await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
+    log.info('Avatar supprimé avec succès', { 
+      userId: userData.id,
+      hasAvatar: !!userData.avatarBase64 
+    });
+
+    return userData;
+  } catch (error) {
+    log.error('Erreur lors de la suppression de l\'avatar', error as Error);
+    
+    // Messages d'erreur plus explicites
+    if (error instanceof Error) {
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.');
+      }
+      if (error.message.includes('404') || error.message.includes('Not Found')) {
+        throw new Error('Avatar introuvable ou déjà supprimé.');
+      }
+    }
+    
+    throw error;
+  }
+}
+

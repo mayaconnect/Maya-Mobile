@@ -1,7 +1,7 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, View, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 
 interface HomeStatsCardsProps {
   totalSavings?: number;
@@ -41,10 +41,9 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
-    borderWidth: 1,
+    borderWidth: 0.2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     ...Shadows.lg,
     alignItems: 'center',

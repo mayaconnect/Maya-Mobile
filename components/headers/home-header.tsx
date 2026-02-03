@@ -163,8 +163,7 @@ const styles = StyleSheet.create({
   balanceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.lg,
+        borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     width: '100%',
     borderWidth: 1,

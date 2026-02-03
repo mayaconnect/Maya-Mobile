@@ -964,8 +964,7 @@ const styles = StyleSheet.create<SignupStyles>({
     flex: 1,
     height: 4,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
+      },
   progressSegmentActive: {
     backgroundColor: Colors.text.light,
     ...Shadows.sm,

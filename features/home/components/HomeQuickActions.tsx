@@ -2,7 +2,7 @@ import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 export const HomeQuickActions: React.FC = () => {
   return (
@@ -54,8 +54,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   quickAction: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
+        borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
