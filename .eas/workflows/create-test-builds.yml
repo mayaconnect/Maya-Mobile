@@ -1,0 +1,21 @@
+name: Create Test Builds
+
+# Workflow pour créer des builds de test (preview)
+# Utilise le profile "preview" défini dans eas.json
+# Ces builds sont destinés aux tests internes et aux bêta-testeurs
+
+jobs:
+  build_android_test:
+    type: build
+    name: Build Android Test (APK)
+    params:
+      platform: android
+      profile: preview
+
+  build_ios_test:
+    type: build
+    name: Build iOS Test
+    params:
+      platform: ios
+      profile: preview
+

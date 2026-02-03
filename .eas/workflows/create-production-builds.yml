@@ -1,0 +1,20 @@
+name: Create Production Builds
+
+# Workflow pour créer des builds de production
+# Utilise le profile "production" défini dans eas.json
+# Ces builds sont destinés à la distribution en production (App Store & Google Play)
+
+jobs:
+  build_android_production:
+    type: build
+    name: Build Android Production (AAB)
+    params:
+      platform: android
+      profile: production
+
+  build_ios_production:
+    type: build
+    name: Build iOS Production
+    params:
+      platform: ios
+      profile: production

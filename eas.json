@@ -42,9 +42,9 @@
       "ios": {
         "ascAppId": "6758561059",
         "appleTeamId": "4MTHCVHX8J",
-        "ascApiKeyPath": "./fastlane/keys/AuthKey_V829N9XD36.p8",
+        "ascApiKeyPath": "./fastlane/keys/AuthKey_44Z65DA5ZQ.p8",
         "ascApiKeyIssuerId": "5a1bb2ff-02b3-4d58-b9d9-ab4639893fba",
-        "ascApiKeyId": "V829N9XD36"
+        "ascApiKeyId": "44Z65DA5ZQ"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
