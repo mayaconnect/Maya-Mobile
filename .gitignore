@@ -12,6 +12,7 @@ yarn-error.log
 .env
 .env.local
 .env.*.local
+.env.fastlane
 
 # OS
 .DS_Store
@@ -82,6 +83,7 @@ android/fastlane/*.json
 
 # iOS Security - NE JAMAIS COMMITER
 fastlane/keys/
+fastlane/.env
 fastlane/*.p8
 fastlane/*.p12
 fastlane/*.mobileprovision
