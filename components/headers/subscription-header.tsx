@@ -159,8 +159,7 @@ const styles = StyleSheet.create({
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.lg,
+        borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     width: '100%',
     borderWidth: 1,
@@ -169,8 +168,7 @@ const styles = StyleSheet.create({
   planIcon: {
     width: 40,
     height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: BorderRadius.md,
+        borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,

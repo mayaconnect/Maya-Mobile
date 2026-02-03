@@ -4,15 +4,15 @@ import { responsiveIconSize, responsiveSpacing, scaleFont, scaleHeight, scaleSiz
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  ImageStyle,
-  StyleSheet,
-  Text,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle,
+    ActivityIndicator,
+    Image,
+    ImageStyle,
+    StyleSheet,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle,
 } from 'react-native';
 
 interface HomeQRCodeCardProps {
@@ -180,8 +180,7 @@ export const HomeQRCodeCard: React.FC<HomeQRCodeCardProps> = ({
 
 const styles = StyleSheet.create({
   qrCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: scaleSize(BorderRadius['2xl']),
+        borderRadius: scaleSize(BorderRadius['2xl']),
     padding: responsiveSpacing(Spacing.xl),
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',

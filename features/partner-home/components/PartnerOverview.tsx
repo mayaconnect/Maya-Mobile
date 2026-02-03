@@ -50,10 +50,10 @@ export function PartnerOverview({
   return (
     <>
       {/* Statistiques */}
-      <View style={styles.statsContainer}>
+      <BlurView intensity={15} tint="dark" style={styles.statsContainer}>
         {/* Première ligne : Montant global et Réductions */}
         <View style={styles.statsRow}>
-          <BlurView intensity={20} tint="dark" style={styles.statCard}>
+          <BlurView intensity={15} tint="dark" style={styles.statCard}>
             <View style={styles.statCardHeader}>
               <View style={[styles.statIconContainer, { backgroundColor: 'rgba(139, 47, 63, 0.25)' }]}>
                 <Ionicons name="cash" size={20} color="#8B2F3F" />
@@ -67,7 +67,7 @@ export function PartnerOverview({
               </View>
             </View>
           </BlurView>
-          <BlurView intensity={20} tint="dark" style={styles.statCard}>
+          <BlurView intensity={15} tint="dark" style={styles.statCard}>
             <View style={styles.statCardHeader}>
               <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.25)' }]}>
                 <Ionicons name="pricetag" size={20} color={Colors.status.success} />
@@ -85,7 +85,7 @@ export function PartnerOverview({
         
         {/* Deuxième ligne : Scans total */}
         <View style={styles.statsRow}>
-          <BlurView intensity={20} tint="dark" style={[styles.statCard, styles.statCardFull]}>
+          <BlurView intensity={15} tint="dark" style={[styles.statCard, styles.statCardFull]}>
             <View style={styles.statCardHeader}>
               <View style={[styles.statIconContainer, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="scan" size={20} color={Colors.accent.orange} />
@@ -108,7 +108,7 @@ export function PartnerOverview({
             </View>
           </BlurView>
         </View>
-      </View>
+      </BlurView>
 
       {/* Compteurs détaillés de scans */}
       {scanCounts && (
@@ -156,10 +156,10 @@ export function PartnerOverview({
 
 
       {/* Actions rapides */}
-      <View style={styles.quickActionsSection}>
+      <BlurView intensity={15} tint="dark" style={styles.quickActionsSection}>
         <Text style={styles.sectionTitle}>Actions rapides</Text>
         <View style={styles.quickActionsGrid}>
-          <BlurView intensity={20} tint="dark" style={styles.quickActionCardBlur}>
+          <BlurView intensity={15} tint="dark" style={styles.quickActionCardBlur}>
             <TouchableOpacity 
               style={[styles.quickActionCard, validatingQR && styles.quickActionCardDisabled]}
               onPress={onScanQR || (() => console.warn('onScanQR non défini'))}
@@ -176,7 +176,7 @@ export function PartnerOverview({
               <Text style={styles.quickActionSubtext}>Code client</Text>
             </TouchableOpacity>
           </BlurView>
-          <BlurView intensity={20} tint="dark" style={styles.quickActionCardBlur}>
+          <BlurView intensity={10} tint="dark" style={styles.quickActionCardBlur}>
             <TouchableOpacity 
               style={styles.quickActionCard}
               onPress={onExportData}
@@ -186,7 +186,7 @@ export function PartnerOverview({
               <Text style={styles.quickActionSubtext}>Données</Text>
             </TouchableOpacity>
           </BlurView>
-          <BlurView intensity={20} tint="dark" style={styles.quickActionCardBlur}>
+          <BlurView intensity={15} tint="dark" style={styles.quickActionCardBlur}>
             <TouchableOpacity style={styles.quickActionCard}>
               <Ionicons name="settings-outline" size={24} color={Colors.text.light} />
               <Text style={styles.quickActionLabel}>Paramètres</Text>
@@ -194,7 +194,7 @@ export function PartnerOverview({
             </TouchableOpacity>
           </BlurView>
         </View>
-      </View>
+      </BlurView>
 
       {/* Scans récents */}
       <BlurView intensity={15} tint="dark" style={styles.recentSection}>
@@ -281,8 +281,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
@@ -339,8 +338,7 @@ const styles = StyleSheet.create({
   scanCountCard: {
     flex: 1,
     minWidth: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
@@ -375,14 +373,13 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   } as ViewStyle,
   quickActionCardBlur: {
-    flex: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
-    borderRadius: BorderRadius.lg,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.md,
     overflow: 'hidden',
   } as ViewStyle,
   quickActionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
 
     flex: 1,
     paddingVertical: Spacing.md,
@@ -404,7 +401,6 @@ const styles = StyleSheet.create({
   } as TextStyle,
   recentSection: {
     position: 'relative',
-    right:15,
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
     marginBottom: Spacing.md,

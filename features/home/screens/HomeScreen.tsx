@@ -598,8 +598,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   quickAction: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
+        borderRadius: BorderRadius.xl,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
@@ -630,8 +629,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   } as TextStyle,
   qrCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius['2xl'],
+        borderRadius: BorderRadius['2xl'],
     padding: Spacing.xl,
     marginBottom: Spacing.lg,
     borderWidth: 1,
@@ -780,8 +778,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
+        borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',

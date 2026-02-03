@@ -315,8 +315,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   } as TextStyle,
   statsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
@@ -375,8 +374,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   periodStatCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
@@ -410,8 +408,7 @@ const styles = StyleSheet.create({
     color: '#10B981',
   } as TextStyle,
   performanceCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,

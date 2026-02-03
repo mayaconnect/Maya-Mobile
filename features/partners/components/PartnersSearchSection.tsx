@@ -2,7 +2,7 @@ import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ViewStyle, TextStyle } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 interface PartnersSearchSectionProps {
   searchQuery: string;
@@ -152,8 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md + 2,
     paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 2,
+        borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     minHeight: 42,
     gap: Spacing.xs + 2,

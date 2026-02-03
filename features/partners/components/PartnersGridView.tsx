@@ -1,16 +1,16 @@
-import { Colors, Spacing, Typography, BorderRadius } from '@/constants/design-system';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-  TextStyle,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Partner } from '../types';
@@ -127,8 +127,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   gridCard: {
     width: '48%',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
+        borderRadius: BorderRadius.xl,
     marginBottom: Spacing.md,
     overflow: 'hidden',
     borderWidth: 1,
@@ -148,8 +147,7 @@ const styles = StyleSheet.create({
   gridCardImage: {
     width: '100%',
     height: 120,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'center',
+        justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   } as ViewStyle,

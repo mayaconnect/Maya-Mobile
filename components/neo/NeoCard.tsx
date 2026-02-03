@@ -35,8 +35,7 @@ export function NeoCard({ children, style, variant = 'glass', gradient }: NeoCar
 
 const styles = StyleSheet.create({
   glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius['2xl'],
+        borderRadius: BorderRadius['2xl'],
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',

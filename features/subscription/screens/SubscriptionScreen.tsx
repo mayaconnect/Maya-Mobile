@@ -9,18 +9,18 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Modal,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextStyle,
-  TouchableOpacity,
-  View,
-  ViewStyle
+    ActivityIndicator,
+    Alert,
+    Linking,
+    Modal,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextStyle,
+    TouchableOpacity,
+    View,
+    ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -1057,8 +1057,7 @@ const styles = StyleSheet.create({
   partnerModeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -1085,8 +1084,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   billingToggle: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.xs,
@@ -1127,8 +1125,7 @@ const styles = StyleSheet.create({
     color: Colors.text.light,
   } as TextStyle,
   planCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
@@ -1292,8 +1289,7 @@ const styles = StyleSheet.create({
   
   // Récapitulatif
   summaryCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
@@ -1350,8 +1346,7 @@ const styles = StyleSheet.create({
   paymentMethodCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 2,
+        borderWidth: 2,
     borderColor: 'transparent',
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
@@ -1558,8 +1553,7 @@ const styles = StyleSheet.create({
   managementOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+        borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,

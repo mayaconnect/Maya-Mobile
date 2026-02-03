@@ -178,8 +178,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: BorderRadius.md,
+        borderRadius: BorderRadius.md,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
   } as ViewStyle,
@@ -214,7 +213,6 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginHorizontal: Spacing.xs,
+        marginHorizontal: Spacing.xs,
   } as ViewStyle,
 });

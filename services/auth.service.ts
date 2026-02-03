@@ -82,7 +82,7 @@ import { USER_STORAGE_KEY } from './auth/auth.config';
 import { signIn as signInUser, signUp as signUpUser } from './auth/auth.login';
 import { signInWithGoogle as signInWithGoogleOAuth } from './auth/auth.oauth';
 import { requestPasswordReset, requestPasswordResetCode, resetPassword, verifyPasswordResetCode } from './auth/auth.password-reset';
-import { updateCurrentUser as updateCurrentUserProfile, uploadAvatar as uploadAvatarProfile } from './auth/auth.profile';
+import { updateCurrentUser as updateCurrentUserProfile, uploadAvatar as uploadAvatarProfile, removeAvatar as removeAvatarProfile } from './auth/auth.profile';
 import { clearTokens as clearTokensModule, getTokens } from './auth/auth.tokens';
 
 // Wrapper pour clearTokens qui nettoie aussi USER_STORAGE_KEY
@@ -658,6 +658,13 @@ export const AuthService = {
    * Upload un avatar (POST /auth/upload-avatar, multipart, max 5MB)
    */
   uploadAvatar: uploadAvatarProfile,
+
+  /**
+   * Supprime l'avatar de l'utilisateur actuel (DELETE /auth/remove-avatar)
+   * @returns L'utilisateur mis à jour sans avatar
+   * @throws Error si la suppression échoue
+   */
+  removeAvatar: removeAvatarProfile,
 
   /**
    * Connexion via Google OAuth

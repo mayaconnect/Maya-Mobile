@@ -158,8 +158,7 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: BorderRadius.xl,
+        borderRadius: BorderRadius.xl,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     ...Shadows.lg,
