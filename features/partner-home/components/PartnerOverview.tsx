@@ -2,7 +2,7 @@ import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-sy
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 
 interface PartnerOverviewProps {
   totalRevenue: number;
@@ -155,46 +155,7 @@ export function PartnerOverview({
       )}
 
 
-      {/* Actions rapides */}
-      <BlurView intensity={15} tint="dark" style={styles.quickActionsSection}>
-        <Text style={styles.sectionTitle}>Actions rapides</Text>
-        <View style={styles.quickActionsGrid}>
-          <BlurView intensity={15} tint="dark" style={styles.quickActionCardBlur}>
-            <TouchableOpacity 
-              style={[styles.quickActionCard, validatingQR && styles.quickActionCardDisabled]}
-              onPress={onScanQR || (() => console.warn('onScanQR non défini'))}
-              disabled={validatingQR || !onScanQR}
-            >
-              {validatingQR ? (
-                <ActivityIndicator size="small" color={Colors.text.light} />
-              ) : (
-                <Ionicons name="qr-code-outline" size={24} color={Colors.text.light} />
-              )}
-              <Text style={styles.quickActionLabel}>
-                {validatingQR ? 'Validation...' : 'Scanner QR'}
-              </Text>
-              <Text style={styles.quickActionSubtext}>Code client</Text>
-            </TouchableOpacity>
-          </BlurView>
-          <BlurView intensity={10} tint="dark" style={styles.quickActionCardBlur}>
-            <TouchableOpacity 
-              style={styles.quickActionCard}
-              onPress={onExportData}
-            >
-              <Ionicons name="document-text-outline" size={24} color={Colors.text.light} />
-              <Text style={styles.quickActionLabel}>Exporter</Text>
-              <Text style={styles.quickActionSubtext}>Données</Text>
-            </TouchableOpacity>
-          </BlurView>
-          <BlurView intensity={15} tint="dark" style={styles.quickActionCardBlur}>
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Ionicons name="settings-outline" size={24} color={Colors.text.light} />
-              <Text style={styles.quickActionLabel}>Paramètres</Text>
-              <Text style={styles.quickActionSubtext}>Compte</Text>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
-      </BlurView>
+      
 
       {/* Scans récents */}
       <View style={styles.recentSection}>
@@ -210,10 +171,23 @@ export function PartnerOverview({
             <Text style={styles.errorText}>{scansError}</Text>
           </View>
         ) : scans.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="qr-code-outline" size={32} color={Colors.text.secondary} />
-            <Text style={styles.emptyText}>Aucun scan trouvé</Text>
-          </View>
+          <BlurView intensity={15} tint="dark" style={styles.emptyCard}>
+            <View style={styles.emptyContainer}>
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="qr-code-outline" size={48} color={Colors.text.secondary} />
+              </View>
+              <Text style={styles.emptyTitle}>Aucun scan pour le moment</Text>
+              <Text style={styles.emptySubtext}>
+                Scannez le QR code de vos clients pour commencer à enregistrer des transactions
+              </Text>
+              {onScanQR && (
+                <View style={styles.emptyActionContainer}>
+                  <Ionicons name="scan" size={20} color={Colors.text.light} />
+                  <Text style={styles.emptyActionText}>Utilisez le scanner pour commencer</Text>
+                </View>
+              )}
+            </View>
+          </BlurView>
         ) : (
           <>
             {scans.slice(0, 5).map((scan, index) => (
@@ -400,12 +374,6 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   } as TextStyle,
   recentSection: {
-    position: 'relative',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    right: 10,
-    width: 360,
-    
     marginBottom: Spacing.md,
   } as ViewStyle,
   sectionTitle: {
@@ -435,15 +403,58 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.status.error,
   } as TextStyle,
+  emptyCard: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    overflow: 'hidden',
+  } as ViewStyle,
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xl,
-    gap: Spacing.sm,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.md,
   } as ViewStyle,
-  emptyText: {
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  } as ViewStyle,
+  emptyTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.text.light,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+  } as TextStyle,
+  emptySubtext: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: Spacing.md,
+  } as TextStyle,
+  emptyActionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 47, 63, 0.3)',
+  } as ViewStyle,
+  emptyActionText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.light,
+    fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   scanCard: {
     borderWidth: 1,

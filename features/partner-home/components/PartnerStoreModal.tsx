@@ -15,7 +15,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface PartnerStoreModalProps {
   visible: boolean;
@@ -25,6 +25,7 @@ interface PartnerStoreModalProps {
 }
 
 export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: PartnerStoreModalProps) {
+  const insets = useSafeAreaInsets();
   const discountPercent =
     selectedStore?.avgDiscountPercent ??
     selectedStore?.discountPercent ??
@@ -43,15 +44,13 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.modalContainer}>
-        <LinearGradient
-          colors={Colors.gradients.primary as any}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradientBackground}
-        >
-        
-
+      <LinearGradient
+        colors={Colors.gradients.primary as any}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientBackground}
+      >
+        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
           <BlurView intensity={30} tint="dark" style={styles.modalHeader}>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <View style={styles.closeButtonInner}>
@@ -63,7 +62,14 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
           </BlurView>
 
           {selectedStore && (
-            <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer}>
+            <ScrollView 
+              style={styles.modalContent} 
+              contentContainerStyle={[
+                styles.modalContentContainer,
+                { paddingBottom: Math.max(insets.bottom, Spacing.xl) }
+              ]}
+              showsVerticalScrollIndicator={false}
+            >
               {loading && (
                 <View style={styles.modalLoading}>
                   <ActivityIndicator size="small" color={Colors.text.light} />
@@ -315,8 +321,8 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
               )}
             </ScrollView>
           )}
-        </LinearGradient>
-      </SafeAreaView>
+        </SafeAreaView>
+      </LinearGradient>
     </Modal>
   );
 }
@@ -324,11 +330,12 @@ export function PartnerStoreModal({ visible, selectedStore, loading, onClose }: 
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#13070B',
+    width: '100%',
   } as ViewStyle,
   gradientBackground: {
     flex: 1,
-    position: 'relative',
+    width: '100%',
+    height: '100%',
   } as ViewStyle,
   decorativeElements: {
     position: 'absolute',
@@ -403,8 +410,8 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   modalContentContainer: {
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    paddingBottom: Spacing['2xl'],
+    paddingTop: Spacing.md,
+    flexGrow: 1,
   } as ViewStyle,
   modalLoading: {
     flexDirection: 'row',
