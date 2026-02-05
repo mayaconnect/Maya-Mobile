@@ -29,7 +29,6 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="maya"/>
-        <data android:scheme="exp+maya-mobile-app"/>
       </intent-filter>
     </activity>
   </application>

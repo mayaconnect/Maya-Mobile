@@ -1,0 +1,20 @@
+diff --git a/node_modules/react-native-safe-area-context/ios/RNCOnInsetsChangeEvent.h b/node_modules/react-native-safe-area-context/ios/RNCOnInsetsChangeEvent.h
+index 0918429..1f25d79 100644
+--- a/node_modules/react-native-safe-area-context/ios/RNCOnInsetsChangeEvent.h
++++ b/node_modules/react-native-safe-area-context/ios/RNCOnInsetsChangeEvent.h
+@@ -1,6 +1,9 @@
+ #import <Foundation/Foundation.h>
+ #import <React/RCTEventDispatcherProtocol.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
+ @interface RNCOnInsetsChangeEvent : NSObject <RCTEvent>
+ 
+ - (instancetype)initWithEventName:(NSString *)eventName
+@@ -10,3 +13,5 @@
+                     coalescingKey:(uint16_t)coalescingKey NS_DESIGNATED_INITIALIZER;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END

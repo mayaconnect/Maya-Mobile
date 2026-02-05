@@ -104,47 +104,50 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        release {
-            if (project.hasProperty("MAYA_UPLOAD_STORE_FILE")) {
-                storeFile file(MAYA_UPLOAD_STORE_FILE)
-                storePassword MAYA_UPLOAD_STORE_PASSWORD
-                keyAlias MAYA_UPLOAD_KEY_ALIAS
-                keyPassword MAYA_UPLOAD_KEY_PASSWORD
-            }
-        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // CRITICAL: Always sign with release keystore (NEVER use debug for release builds)
-            // Fail the build if release keystore is not configured to prevent accidental debug signing
-            if (project.hasProperty("MAYA_UPLOAD_STORE_FILE")) {
-                signingConfig signingConfigs.release
-            } else {
-                throw new GradleException("ERROR: Release keystore not configured! " +
-                    "MAYA_UPLOAD_STORE_FILE must be set in gradle.properties. " +
-                    "This prevents accidental signing with debug certificate.")
-            }
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
+            signingConfig signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
-            
-            // Disable debug symbols generation to prevent debug certificate in release AAB
-            // Debug symbols are signed with debug certificate by default, which causes Google Play rejection
-            ndk {
-                debugSymbolLevel 'NONE'
-            }
         }
     }
     packagingOptions {
         jniLibs {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
+        }
+    }
+    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+// Apply static values from `gradle.properties` to the `android.packagingOptions`
+// Accepts values in comma delimited lists, example:
+// android.packagingOptions.pickFirsts=/LICENSE,**/picasa.ini
+["pickFirsts", "excludes", "merges", "doNotStrip"].each { prop ->
+    // Split option: 'foo,bar' -> ['foo', 'bar']
+    def options = (findProperty("android.packagingOptions.$prop") ?: "").split(",");
+    // Trim all elements in place.
+    for (i in 0..<options.size()) options[i] = options[i].trim();
+    // `[] - ""` is essentially `[""].filter(Boolean)` removing all empty strings.
+    options -= ""
+
+    if (options.length > 0) {
+        println "android.packagingOptions.$prop += $options ($options.length)"
+        // Ex: android.packagingOptions.pickFirsts += '**/SCCS/**'
+        options.each {
+            android.packagingOptions[prop] += it
         }
     }
 }

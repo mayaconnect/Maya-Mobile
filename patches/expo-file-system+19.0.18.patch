@@ -23,7 +23,9 @@ index 4cb36d0..3f398cb 100644
  import ExpoModulesCore
  import CryptoKit
  import UniformTypeIdentifiers
++#if !os(iOS) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_14_0
 +import MobileCoreServices
++#endif
  
  internal final class FileSystemFile: FileSystemPath {
    init(url: URL) {
@@ -78,7 +80,7 @@ index da7bf56..0121108 100644
 -typedef void (^EXDownloadDelegateOnWriteCallback)(NSURLSessionDownloadTask *task, int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite);
 +typedef void (^EXDownloadDelegateOnWriteCallback)(NSURLSessionDownloadTask * _Nonnull task, int64_t bytesWritten, int64_t totalBytesWritten, int64_t totalBytesExpectedToWrite);
  
- @interface EXSessionResumableDownloadTaskDelegate : EXSessionTaskDelegate
+ @interface EXSessionResumableDownloadTaskDelegate : EXSessionDownloadTaskDelegate
  
 -- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock)resolve
 -                                 reject:(EXPromiseRejectBlock)reject
@@ -136,7 +138,7 @@ index 61daeda..168aa58 100644
 +- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task
                                  didSendBodyData:(int64_t)bytesSent
                                   totalBytesSent:(int64_t)totalBytesSent
-                         totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
+                        totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
  
 -- (NSDictionary *)parseServerResponse:(NSURLResponse *)response;
 +- (NSDictionary * _Nonnull)parseServerResponse:(NSURLResponse * _Nonnull)response;
