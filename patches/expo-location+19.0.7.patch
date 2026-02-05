@@ -1,0 +1,20 @@
+diff --git a/node_modules/expo-location/ios/Requesters/EXBaseLocationRequester.h b/node_modules/expo-location/ios/Requesters/EXBaseLocationRequester.h
+index acc7341..6695662 100644
+--- a/node_modules/expo-location/ios/Requesters/EXBaseLocationRequester.h
++++ b/node_modules/expo-location/ios/Requesters/EXBaseLocationRequester.h
+@@ -5,6 +5,9 @@
+ #import <ExpoModulesCore/EXPermissionsInterface.h>
+ #import <CoreLocation/CLLocationManagerDelegate.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
+ @interface EXBaseLocationRequester : NSObject<EXPermissionsRequester, CLLocationManagerDelegate>
+ 
+ @property (nonatomic, strong) CLLocationManager *locationManager;
+@@ -18,3 +21,5 @@
+ - (NSDictionary *)parsePermissions:(CLAuthorizationStatus)systemStatus;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END

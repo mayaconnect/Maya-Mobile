@@ -1,0 +1,370 @@
+diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRDummyView.h b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRDummyView.h
+index 39428cd..77bff15 100644
+--- a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRDummyView.h
++++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRDummyView.h
+@@ -9,10 +9,15 @@
+ 
+ #import <UIKit/UIKit.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
+ 
+ @interface AIRDummyView : UIView
+ @property (nonatomic, weak) UIView *view;
+ - (instancetype)initWithView:(UIView*)view;
+ @end
+ 
++NS_ASSUME_NONNULL_END
++
+ #endif
+diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h
+index 8f21a3a..45fd70e 100644
+--- a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h
++++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h
+@@ -16,6 +16,39 @@
+ 
+ #import "AIRGoogleMapCoordinate.h"
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
+ 
+ @interface AIRGoogleMap : GMSMapView
+ 
+@@ -92,4 +125,6 @@
+              animated:(BOOL)animated;
+ @end
+ 
++NS_ASSUME_NONNULL_END
++
+ #endif
+diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h
+index 1cc6f33..094f666 100644
+--- a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h
++++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h
+@@ -14,6 +14,30 @@
+ #import "AIRGoogleMapCallout.h"
+ #import "AIRGoogleMapCalloutSubview.h"
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
+ @interface AIRGoogleMapMarker : UIView
+ 
+ @property (nonatomic, weak) RCTBridge *bridge;
+@@ -57,4 +81,6 @@
+ - (void) didInsertInMap:(AIRGoogleMap *) map;
+ @end
+ 
++NS_ASSUME_NONNULL_END
++
+ #endif
+diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapPolygon.h b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapPolygon.h
+index 59d2cd1..a514ca6 100644
+--- a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapPolygon.h
++++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapPolygon.h
+@@ -12,6 +12,9 @@
+ #import "AIRGoogleMapCoordinate.h"
+ #import "AIRGoogleMap.h"
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
+ @interface AIRGoogleMapPolygon : UIView
+ 
+ @property (nonatomic, weak) RCTBridge *bridge;
+@@ -30,4 +33,6 @@
+ - (void) didInsertInMap:(AIRGoogleMap *) map;
+ @end
+ 
++NS_ASSUME_NONNULL_END
++
+ #endif
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMap.h b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h
+index f1cc92b..0d62138 100644
+--- a/node_modules/react-native-maps/ios/AirMaps/AIRMap.h
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h
+@@ -15,6 +15,20 @@
+ #import "RCTConvert+AirMap.h"
+ #import "AIRMapCalloutSubview.h"
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++#ifdef __clang__
++#pragma clang assume_nonnull end
++#endif
++
++
+ 
+ @class AIRMapCoordinate;
+ @class AIRMapMarker;
+@@ -87,3 +101,5 @@ extern const NSInteger AIRMapMaxZoomLevel;
+ - (void)insertReactSubview:(id<RCTComponent>)subview atIndex:(NSInteger)atIndex;
+ -(void) fitToCoordinates:(NSArray<AIRMapCoordinate*>*) coordinates edgePadding:(UIEdgeInsets) edgeInsets animated:(Boolean) animated;
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMap.h.bak b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h.bak
+new file mode 100644
+index 0000000..f1cc92b
+--- /dev/null
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h.bak
+@@ -0,0 +1,89 @@
++/**
++ * Copyright (c) 2015-present, Facebook, Inc.
++ * All rights reserved.
++ *
++ * This source code is licensed under the BSD-style license found in the
++ * LICENSE file in the root directory of this source tree. An additional grant
++ * of patent rights can be found in the PATENTS file in the same directory.
++ */
++
++#import <MapKit/MapKit.h>
++#import <UIKit/UIKit.h>
++
++#import <React/RCTComponent.h>
++#import "SMCalloutView.h"
++#import "RCTConvert+AirMap.h"
++#import "AIRMapCalloutSubview.h"
++
++
++@class AIRMapCoordinate;
++@class AIRMapMarker;
++
++extern const NSTimeInterval AIRMapRegionChangeObserveInterval;
++extern const CGFloat AIRMapZoomBoundBuffer;
++extern const NSInteger AIRMapMaxZoomLevel;
++
++@interface AIRMap: MKMapView<SMCalloutViewDelegate>
++
++@property (nonatomic, strong) SMCalloutView *calloutView;
++@property (nonatomic, strong) UIImageView *cacheImageView;
++@property (nonatomic, strong) UIView *loadingView;
++
++@property (nonatomic, copy) NSString *userLocationAnnotationTitle;
++@property (nonatomic, assign) BOOL followsUserLocation;
++@property (nonatomic, assign) BOOL userLocationCalloutEnabled;
++@property (nonatomic, assign) BOOL hasStartedRendering;
++@property (nonatomic, assign) BOOL cacheEnabled;
++@property (nonatomic, assign) BOOL loadingEnabled;
++@property (nonatomic, assign) BOOL handlePanDrag;
++@property (nonatomic, assign) BOOL legacyZoomConstraintsEnabled;
++@property (nonatomic, strong) UIColor *loadingBackgroundColor;
++@property (nonatomic, strong) UIColor *loadingIndicatorColor;
++@property (nonatomic, assign) BOOL hasShownInitialLoading;
++@property (nonatomic, assign) CGFloat minDelta;
++@property (nonatomic, assign) CGFloat maxDelta;
++@property (nonatomic, assign) UIEdgeInsets legalLabelInsets;
++@property (nonatomic, assign) MKCoordinateRegion initialRegion;
++@property (nonatomic, retain) MKMapCamera *initialCamera;
++@property (nonatomic, assign) CGFloat minZoom;
++@property (nonatomic, assign) CGFloat maxZoom;
++@property (nonatomic, assign) CGPoint compassOffset;
++@property (nonatomic, assign) UIEdgeInsets mapPadding;
++@property (nonatomic, assign) BOOL showsPointsOfInterests;
++@property (nonatomic, copy) NSArray<NSString *> *pointsOfInterestFilter;
++
++@property (nonatomic, assign) CLLocationCoordinate2D pendingCenter;
++@property (nonatomic, assign) MKCoordinateSpan pendingSpan;
++
++
++@property (nonatomic, assign) BOOL ignoreRegionChanges;
++
++@property (nonatomic, copy) RCTDirectEventBlock onMapReady;
++@property (nonatomic, copy) RCTDirectEventBlock onRegionChangeStart;
++@property (nonatomic, copy) RCTDirectEventBlock onRegionChange;
++@property (nonatomic, copy) RCTDirectEventBlock onRegionChangeComplete;
++@property (nonatomic, copy) RCTBubblingEventBlock onPress;
++@property (nonatomic, copy) RCTBubblingEventBlock onLongPress;
++@property (nonatomic, copy) RCTDirectEventBlock onPanDrag;
++@property (nonatomic, copy) RCTDirectEventBlock onDoublePress;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerPress;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerSelect;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerDeselect;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerDragStart;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerDrag;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerDragEnd;
++
++@property (nonatomic, copy) RCTDirectEventBlock onCalloutPress;
++@property (nonatomic, copy) RCTDirectEventBlock onUserLocationChange;
++
++- (void)cacheViewIfNeeded;
++- (void)beginLoading;
++- (void)finishLoading;
++- (double)getZoomLevel;
++- (NSDictionary *)getMapBoundaries;
++
++- (AIRMapMarker*) markerAtPoint:(CGPoint)point;
++- (NSDictionary*) getMarkersFramesWithOnlyVisible:(BOOL)onlyVisible;
++- (void)insertReactSubview:(id<RCTComponent>)subview atIndex:(NSInteger)atIndex;
++-(void) fitToCoordinates:(NSArray<AIRMapCoordinate*>*) coordinates edgePadding:(UIEdgeInsets) edgeInsets animated:(Boolean) animated;
++@end
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h b/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h
+index 1d73b40..bcbf2d4 100644
+--- a/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h
+@@ -10,6 +10,12 @@
+ #import <React/RCTViewManager.h>
+ #import "AIRMap.h"
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
+ #define MERCATOR_RADIUS 85445659.44705395
+ #define MERCATOR_OFFSET 268435456
+ 
+@@ -27,3 +33,5 @@
+ - (double) zoomLevel:(AIRMap *)mapView;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.h b/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.h
+index bc1338a..658356f 100644
+--- a/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.h
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.h
+@@ -18,6 +18,9 @@
+ #import "SMCalloutView.h"
+ #import "RCTConvert+AirMap.h"
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
+ @class RCTBridge;
+ 
+ @interface AIRMapMarker : MKAnnotationView <MKAnnotation>
+@@ -62,3 +65,5 @@
+ 
+ @interface AIREmptyCalloutBackgroundView : SMCalloutBackgroundView
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapPolylineRenderer.h b/node_modules/react-native-maps/ios/AirMaps/AIRMapPolylineRenderer.h
+index f4684c6..a1791d5 100644
+--- a/node_modules/react-native-maps/ios/AirMaps/AIRMapPolylineRenderer.h
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMapPolylineRenderer.h
+@@ -8,6 +8,9 @@
+ 
+ #import <MapKit/MapKit.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
+ @interface AIRMapPolylineRenderer : MKOverlayPathRenderer
+ 
+ -(id)initWithOverlay:(id<MKOverlay>)overlay polyline:(MKPolyline*)polyline;
+@@ -17,3 +20,5 @@
+ @property (nonatomic, strong) NSArray<UIColor *> *strokeColors;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapSnapshot.h b/node_modules/react-native-maps/ios/AirMaps/AIRMapSnapshot.h
+index 49d3637..56d859d 100644
+--- a/node_modules/react-native-maps/ios/AirMaps/AIRMapSnapshot.h
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMapSnapshot.h
+@@ -1,3 +1,6 @@
++
++NS_ASSUME_NONNULL_BEGIN
++
+ //
+ //  AIRMapSnapshot.h
+ //  AirMaps
+@@ -14,4 +17,6 @@
+ - (void) drawToSnapshot:(MKMapSnapshot *) snapshot context:(CGContextRef) context;
+ @end
+ 
++NS_ASSUME_NONNULL_END
++
+ #endif /* AIRMapSnapshot_h */
+diff --git a/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h b/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h
+index fc360dd..5aaec7d 100644
+--- a/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h
++++ b/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h
+@@ -10,6 +10,18 @@
+ #import <CoreLocation/CoreLocation.h>
+ #import <React/RCTBridge.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
+ @protocol RNMapsAirModuleDelegate <NSObject>
+ @required
+ 
+@@ -22,3 +34,5 @@
+ - (NSDictionary *) getPointForCoordinates:(CLLocationCoordinate2D) location;
+ - (NSDictionary *) getCoordinatesForPoint:(CGPoint) point;
+ @end
++
++NS_ASSUME_NONNULL_END
