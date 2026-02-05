@@ -1,14 +1,14 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { SavingsByCategory } from '@/components/home/savings-by-category';
 import { UserTransactionsHistory } from '@/components/home/user-transactions-history';
-import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
-import { useAuth } from '@/hooks/use-auth';
+import { Colors, Spacing, Typography } from '@/constants/design-system';
 import { TransactionsApi } from '@/features/home/services/transactionsApi';
+import { useAuth } from '@/hooks/use-auth';
+import { responsiveSpacing } from '@/utils/responsive';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { responsiveSpacing } from '@/utils/responsive';
 import { HistoryHeader } from '../components/HistoryHeader';
 
 export default function HistoryScreen() {
@@ -128,6 +128,8 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   scrollView: {
+    position: 'relative',
+    paddingTop: Spacing.xl,
     flex: 1,
   },
   content: {

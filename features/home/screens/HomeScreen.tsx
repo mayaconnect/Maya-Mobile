@@ -14,7 +14,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeQRCodeCard } from '../components/HomeQRCodeCard';
-import { HomeQuickActions } from '../components/HomeQuickActions';
 import { HomeStatsCards } from '../components/HomeStatsCards';
 import { HomeWelcomeHeader } from '../components/HomeWelcomeHeader';
 
@@ -520,7 +519,6 @@ export default function HomeScreen() {
               totalVisits={transactions.length}
             />
 
-            <HomeQuickActions />
 
             <HomeQRCodeCard
               qrData={qrData}

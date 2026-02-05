@@ -1,3 +1,81 @@
+// Import des fonctions responsive
+import { scaleFont, scaleSize, scaleWidth } from '@/utils/responsive';
+
+// Calculer les valeurs responsive une fois au chargement du module
+// Cela garantit la compatibilité avec StyleSheet.create()
+const calculateResponsiveValues = () => {
+  // Valeurs de base pour la typographie
+  const BASE_TYPOGRAPHY_SIZES = {
+    xs: 12,
+    sm: 14,
+    base: 16,
+    lg: 18,
+    xl: 22,
+    '2xl': 30,
+    '3xl': 38,
+    '4xl': 48,
+    '5xl': 60,
+  };
+
+  // Valeurs de base pour les espacements
+  const BASE_SPACING = {
+    xs: 6,
+    sm: 12,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    '2xl': 44,
+    '3xl': 60,
+    '4xl': 84,
+  };
+
+  // Valeurs de base pour les border radius
+  const BASE_BORDER_RADIUS = {
+    sm: 12,
+    md: 16,
+    lg: 22,
+    xl: 28,
+    '2xl': 36,
+    '3xl': 44,
+    full: 9999,
+  };
+
+  return {
+    typography: {
+      xs: scaleFont(BASE_TYPOGRAPHY_SIZES.xs),
+      sm: scaleFont(BASE_TYPOGRAPHY_SIZES.sm),
+      base: scaleFont(BASE_TYPOGRAPHY_SIZES.base),
+      lg: scaleFont(BASE_TYPOGRAPHY_SIZES.lg),
+      xl: scaleFont(BASE_TYPOGRAPHY_SIZES.xl),
+      '2xl': scaleFont(BASE_TYPOGRAPHY_SIZES['2xl']),
+      '3xl': scaleFont(BASE_TYPOGRAPHY_SIZES['3xl']),
+      '4xl': scaleFont(BASE_TYPOGRAPHY_SIZES['4xl']),
+      '5xl': scaleFont(BASE_TYPOGRAPHY_SIZES['5xl']),
+    },
+    spacing: {
+      xs: scaleWidth(BASE_SPACING.xs),
+      sm: scaleWidth(BASE_SPACING.sm),
+      md: scaleWidth(BASE_SPACING.md),
+      lg: scaleWidth(BASE_SPACING.lg),
+      xl: scaleWidth(BASE_SPACING.xl),
+      '2xl': scaleWidth(BASE_SPACING['2xl']),
+      '3xl': scaleWidth(BASE_SPACING['3xl']),
+      '4xl': scaleWidth(BASE_SPACING['4xl']),
+    },
+    borderRadius: {
+      sm: scaleSize(BASE_BORDER_RADIUS.sm),
+      md: scaleSize(BASE_BORDER_RADIUS.md),
+      lg: scaleSize(BASE_BORDER_RADIUS.lg),
+      xl: scaleSize(BASE_BORDER_RADIUS.xl),
+      '2xl': scaleSize(BASE_BORDER_RADIUS['2xl']),
+      '3xl': scaleSize(BASE_BORDER_RADIUS['3xl']),
+      full: BASE_BORDER_RADIUS.full, // Full reste toujours 9999
+    },
+  };
+};
+
+const responsiveValues = calculateResponsiveValues();
+
 export const Colors = {
   primary: {
     50: '#f2f5ff',
@@ -62,18 +140,9 @@ export const Colors = {
   },
 } as const;
 
+// Typographie responsive - valeurs calculées au chargement
 export const Typography = {
-  sizes: {
-    xs: 12,
-    sm: 14,
-    base: 16,
-    lg: 18,
-    xl: 22,
-    '2xl': 30,
-    '3xl': 38,
-    '4xl': 48,
-    '5xl': 60,
-  },
+  sizes: responsiveValues.typography,
   weights: {
     light: '300',
     normal: '400',
@@ -90,26 +159,11 @@ export const Typography = {
   },
 } as const;
 
-export const Spacing = {
-  xs: 6,
-  sm: 12,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  '2xl': 44,
-  '3xl': 60,
-  '4xl': 84,
-};
+// Spacing responsive - valeurs calculées au chargement
+export const Spacing = responsiveValues.spacing;
 
-export const BorderRadius = {
-  sm: 12,
-  md: 16,
-  lg: 22,
-  xl: 28,
-  '2xl': 36,
-  '3xl': 44,
-  full: 9999,
-};
+// BorderRadius responsive - valeurs calculées au chargement
+export const BorderRadius = responsiveValues.borderRadius;
 
 export const Shadows = {
   sm: {

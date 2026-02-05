@@ -197,7 +197,7 @@ export function PartnerOverview({
       </BlurView>
 
       {/* Scans récents */}
-      <BlurView intensity={15} tint="dark" style={styles.recentSection}>
+      <View style={styles.recentSection}>
         <Text style={styles.sectionTitle}>Scans récents</Text>
         {scansLoading ? (
           <View style={styles.loadingContainer}>
@@ -263,7 +263,7 @@ export function PartnerOverview({
             ))}
           </>
         )}
-      </BlurView>
+      </View>
 
 
     </>
@@ -403,8 +403,10 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
+    right: 10,
+    width: 360,
+    
     marginBottom: Spacing.md,
-    overflow: 'hidden',
   } as ViewStyle,
   sectionTitle: {
     fontSize: Typography.sizes.lg,

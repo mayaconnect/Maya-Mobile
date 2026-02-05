@@ -1,6 +1,6 @@
 import { Colors, Spacing, Typography } from '@/constants/design-system';
 import React from 'react';
-import { StyleSheet, Text, View, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 
 interface HistoryHeaderProps {
   loading: boolean;
@@ -25,6 +25,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
+    backgroundColor: 'transparent',
   } as ViewStyle,
   title: {
     fontSize: Typography.sizes['3xl'],

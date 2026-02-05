@@ -423,7 +423,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               </View>
             </LinearGradient>
           )}
-          <View style={styles.onlineIndicator} />
         </TouchableOpacity>
         
         <View style={styles.profileInfo}>
@@ -451,26 +450,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           {/* Informations rapides */}
           <View style={styles.quickInfoRow}>
-            {userInfo?.birthDate && (
-              <View style={styles.quickInfoTag}>
-                <Ionicons name="calendar" size={12} color="#F6C756" />
-                <Text style={styles.quickInfoText}>
-                  {new Date(userInfo.birthDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                </Text>
-              </View>
-            )}
             {hasSubscription && (
               <View style={[styles.quickInfoTag, styles.subscriptionTag]}>
-                <Ionicons name="sparkles" size={12} color="#10B981" />
                 <Text style={[styles.quickInfoText, styles.subscriptionTagText]}>Abonné</Text>
               </View>
             )}
           </View>
         </View>
         
-        <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
-          <Ionicons name="refresh-circle" size={28} color={Colors.primary[400]} />
-        </TouchableOpacity>
+        
       </View>
     </LinearGradient>
   );
