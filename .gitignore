@@ -99,6 +99,9 @@ fastlane/*.certSigningRequest
 *.p8
 EAS_CREDENTIALS_REFERENCE.json
 
+# Google Service Account - NE JAMAIS COMMITER
+google-service-account.json
+
 # Mais garder les dossiers de structure
 !android/fastlane/.gitkeep
 !fastlane/keys/.gitkeep
