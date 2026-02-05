@@ -310,15 +310,8 @@ export default function SignupScreen() {
 
       await signUp(registerData);
       
-      // Attendre un court délai pour que l'état utilisateur soit mis à jour
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Rediriger selon le rôle de l'utilisateur
-      if (role === 'partners') {
-        router.replace('/(tabs)/partner-home');
-      } else {
-        router.replace('/(tabs)/home');
-      }
+      // Rediriger vers la page de login pour que l'utilisateur puisse s'identifier
+      router.replace('/connexion/login');
     } catch (error) {
       console.error('Erreur lors de l\'inscription:', error);
       if (error instanceof Error) {

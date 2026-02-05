@@ -71,6 +71,50 @@ export const apiCall = async <T>(
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
 
+    // Si erreur 401 (non autorisé), essayer de rafraîchir le token
+    if (response.status === 401 && token) {
+      console.log('🔄 [API Call] Token expiré (401), tentative de rafraîchissement...');
+      try {
+        const { getTokens } = await import('../auth/auth.tokens');
+        const tokens = await getTokens();
+        if (tokens?.refreshToken) {
+          const newTokens = await AuthService.refreshToken(tokens.refreshToken);
+          if (newTokens?.accessToken) {
+            const { saveTokens } = await import('../auth/auth.tokens');
+            await saveTokens({
+              accessToken: newTokens.accessToken,
+              refreshToken: newTokens.refreshToken || tokens.refreshToken,
+              expiresAt: newTokens.expiresAt || new Date(Date.now() + 3600000).toISOString(),
+              userId: tokens.userId,
+            });
+            console.log('✅ [API Call] Token rafraîchi, nouvelle tentative...');
+            
+            // Réessayer la requête avec le nouveau token
+            const newToken = newTokens.accessToken;
+            const retryHeaders = {
+              ...defaultHeaders,
+              'Authorization': `Bearer ${newToken}`,
+            };
+            const retryOptions: RequestInit = {
+              ...options,
+              headers: retryHeaders,
+            };
+            const retryResponse = await fetch(url, retryOptions);
+            if (retryResponse.ok) {
+              const retryData = await retryResponse.json();
+              return retryData as T;
+            }
+          }
+        }
+      } catch (refreshError) {
+        console.error('❌ [API Call] Échec du rafraîchissement du token:', refreshError);
+        // Si le refresh échoue, nettoyer les tokens
+        const { clearTokens } = await import('../auth/auth.tokens');
+        await clearTokens();
+        throw new Error('AUTHENTICATION_EXPIRED');
+      }
+    }
+
     console.error('❌ [API Call] Erreur HTTP:', {
       status: response.status,
       statusText: response.statusText,
