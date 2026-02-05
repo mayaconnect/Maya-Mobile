@@ -5,10 +5,15 @@
 import { PartnerApi } from '@/features/partners/services/partnerApi';
 import { ApiClient } from '@/services/shared/api-client';
 
-jest.mock('@/services/shared/api-client');
-jest.mock('@/services/auth/auth.config', () => ({
+// Mock API_BASE_URL avant l'import de PartnerApi
+jest.mock('@/services/auth.service', () => ({
   API_BASE_URL: 'https://api.example.com/api/v1',
+  AuthService: {
+    getAccessToken: jest.fn(),
+  },
 }));
+
+jest.mock('@/services/shared/api-client');
 
 describe('PartnerApi', () => {
   beforeEach(() => {

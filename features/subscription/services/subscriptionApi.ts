@@ -44,5 +44,14 @@ export const SubscriptionApi = {
       throw error;
     }
   },
+
+  cancelSubscription: async (): Promise<{ success: boolean; message?: string }> => {
+    try {
+      return await PaymentApi.cancelSubscription();
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation de l\'abonnement:', error);
+      throw error;
+    }
+  },
 };
 

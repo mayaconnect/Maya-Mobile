@@ -5,13 +5,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { offlineSync } from '@/utils/offline-sync';
 import { ApiClient } from '@/services/shared/api-client';
+import NetInfo from '@react-native-community/netinfo';
 
 jest.mock('@react-native-async-storage/async-storage');
 jest.mock('@/services/shared/api-client');
-jest.mock('@react-native-community/netinfo', () => ({
-  fetch: jest.fn().mockResolvedValue({ isConnected: true }),
-  addEventListener: jest.fn(() => () => {}),
-}), { virtual: true });
+// Le mock de @react-native-community/netinfo est défini dans jest.setup.js
 
 describe('OfflineSync', () => {
   beforeEach(() => {
@@ -21,6 +19,12 @@ describe('OfflineSync', () => {
     (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
     (ApiClient.get as jest.Mock).mockResolvedValue({});
     (ApiClient.post as jest.Mock).mockResolvedValue({});
+    // S'assurer que NetInfo.fetch retourne toujours un état connecté
+    (NetInfo.fetch as jest.Mock).mockResolvedValue({
+      isConnected: true,
+      isInternetReachable: true,
+      type: 'wifi',
+    });
   });
 
   describe('queueRequest', () => {

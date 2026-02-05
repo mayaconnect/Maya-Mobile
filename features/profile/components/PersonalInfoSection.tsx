@@ -2,12 +2,12 @@ import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 
 interface PersonalInfoSectionProps {
@@ -26,10 +26,11 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Informations personnelles</Text>
         <TouchableOpacity 
-          style={styles.ghostButton}
+          style={styles.editButton}
           onPress={onEditPress}
+          activeOpacity={0.7}
         >
-          <Text style={styles.ghostButtonText}>Modifier</Text>
+          <Ionicons name="create-outline" size={16} color={Colors.text.light} />
         </TouchableOpacity>
       </View>
       
@@ -49,7 +50,13 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
         <Ionicons name="mail" size={20} color={Colors.text.secondary} />
         <View style={styles.infoContent}>
           <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{userInfo.email || 'N/A'}</Text>
+          <Text 
+            style={styles.infoValue}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {userInfo.email || 'N/A'}
+          </Text>
         </View>
       </View>
 
@@ -130,15 +137,21 @@ const styles = StyleSheet.create({
     color: Colors.text.light,
     letterSpacing: -0.3,
   } as TextStyle,
-  ghostButton: {
-        borderWidth: 1,
-    borderColor: Colors.primary[200],
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(139, 47, 63, 0.4)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.lg,
+    ...Shadows.sm,
   } as ViewStyle,
-  ghostButtonText: {
-    color: Colors.text.primary,
+  editButtonText: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.sm,
     fontWeight: '600',
   } as TextStyle,
   infoRow: {

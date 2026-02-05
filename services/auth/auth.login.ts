@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { log } from '@/utils/logger';
 import { apiCall } from '@/services/shared/api';
 import { USER_STORAGE_KEY } from './auth.config';
-import { saveTokens } from './auth.tokens';
+import { saveTokens, getTokens } from './auth.tokens';
 import { PublicUser, User, LoginRequest, RegisterRequest, TokenData } from './auth.types';
 
 /**
@@ -144,6 +144,15 @@ export async function signUp(registerData: RegisterRequest): Promise<PublicUser>
       body: JSON.stringify(requestBody),
     });
 
+    log.info('📝 Réponse complète de l\'inscription', {
+      hasUser: !!registerResponse?.user,
+      hasId: !!registerResponse?.id,
+      userId: registerResponse?.user?.id || registerResponse?.id,
+      hasAccessToken: !!registerResponse?.accessToken,
+      responseKeys: Object.keys(registerResponse || {}),
+      fullResponse: JSON.stringify(registerResponse, null, 2).substring(0, 500),
+    });
+
     log.info('Compte créé avec succès', { userId: registerResponse?.user?.id || registerResponse?.id });
 
     // Stocker les tokens reçus après inscription
@@ -157,13 +166,70 @@ export async function signUp(registerData: RegisterRequest): Promise<PublicUser>
       
       await saveTokens(tokenData);
       log.info('Token sauvegardé après inscription');
+      
+      // Vérifier que le token a bien été sauvegardé
+      const savedTokens = await getTokens();
+      if (!savedTokens || savedTokens.accessToken !== registerResponse.accessToken) {
+        log.warn('⚠️ Le token n\'a pas été correctement sauvegardé');
+      } else {
+        log.info('✅ Token vérifié et correctement sauvegardé');
+      }
+    } else {
+      log.warn('⚠️ Aucun token reçu dans la réponse d\'inscription', {
+        responseKeys: Object.keys(registerResponse || {}),
+        hasUser: !!registerResponse?.user,
+      });
     }
 
-    // Appeler PUT /auth/me pour mettre à jour les infos complètes
-    let mergedUserData: any = registerResponse?.user ?? registerResponse;
-    if (!mergedUserData?.firstName && registerData.firstName) {
-      mergedUserData = {
-        ...mergedUserData,
+    // IMPORTANT: Récupérer le vrai ID utilisateur depuis l'API avec le token
+    // On ne doit JAMAIS utiliser "temp-id" si on a un token valide
+    let finalUserData: any = registerResponse?.user ?? registerResponse;
+    let userId = finalUserData?.id || registerResponse.id;
+    
+    // Si on a un token mais pas d'ID valide, OBLIGATOIREMENT récupérer depuis /auth/me
+    if (registerResponse.accessToken && (!userId || userId === 'temp-id')) {
+      try {
+        log.info('🔄 Récupération OBLIGATOIRE de l\'ID utilisateur depuis /auth/me avec le token');
+        
+        // Attendre un court délai pour que l'API finalise la création
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const meResponse = await apiCall<any>('/auth/me', {
+          method: 'GET',
+        });
+        
+        if (meResponse?.user?.id || meResponse?.id) {
+          userId = meResponse.user?.id || meResponse.id;
+          finalUserData = meResponse.user || meResponse;
+          log.info('✅ ID utilisateur réel récupéré depuis /auth/me:', userId);
+        } else {
+          log.error('❌ /auth/me n\'a pas retourné d\'ID utilisateur', {
+            responseKeys: Object.keys(meResponse || {}),
+            response: JSON.stringify(meResponse, null, 2).substring(0, 500),
+          });
+          throw new Error('Aucun ID utilisateur dans la réponse /auth/me');
+        }
+      } catch (error) {
+        log.error('❌ ERREUR CRITIQUE: Impossible de récupérer l\'ID depuis /auth/me', error);
+        // Si on a un token mais pas d'ID, c'est un problème grave
+        // On ne peut pas continuer avec temp-id si on a un token valide
+        throw new Error('Impossible de récupérer l\'ID utilisateur après l\'inscription. Le compte a peut-être été créé mais l\'authentification a échoué.');
+      }
+    } else if (!registerResponse.accessToken) {
+      log.error('❌ ERREUR: Aucun token reçu lors de l\'inscription');
+      throw new Error('Aucun token d\'authentification reçu lors de l\'inscription');
+    }
+    
+    // Vérification finale : on ne doit JAMAIS avoir temp-id si on a un token
+    if (userId === 'temp-id' && registerResponse.accessToken) {
+      log.error('❌ ERREUR CRITIQUE: ID utilisateur reste temp-id malgré la présence d\'un token');
+      throw new Error('Impossible de récupérer l\'ID utilisateur valide après l\'inscription');
+    }
+
+    // Merger les données si nécessaire
+    if (!finalUserData?.firstName && registerData.firstName) {
+      finalUserData = {
+        ...finalUserData,
         firstName: registerData.firstName,
         lastName: registerData.lastName,
         birthDate: registerData.birthDate,
@@ -173,16 +239,26 @@ export async function signUp(registerData: RegisterRequest): Promise<PublicUser>
 
     // Créer l'objet utilisateur avec les données mises à jour
     const newUser: User = {
-      id: mergedUserData?.id || registerResponse.user?.id || registerResponse.id || 'temp-id',
+      id: userId,
       email: registerData.email,
       password: registerData.password,
-      firstName: mergedUserData?.firstName ?? registerData.firstName,
-      lastName: mergedUserData?.lastName ?? registerData.lastName,
-      birthDate: mergedUserData?.birthDate ?? registerData.birthDate,
-      address: mergedUserData?.address ?? registerData.address,
+      firstName: finalUserData?.firstName ?? registerData.firstName,
+      lastName: finalUserData?.lastName ?? registerData.lastName,
+      birthDate: finalUserData?.birthDate ?? registerData.birthDate,
+      address: finalUserData?.address ?? registerData.address,
       avatarBase64: registerData.avatarBase64,
-      createdAt: new Date().toISOString(),
+      createdAt: finalUserData?.createdAt ?? new Date().toISOString(),
     };
+    
+    // Mettre à jour le userId dans les tokens si on a maintenant un vrai ID
+    if (userId !== 'temp-id' && registerResponse.accessToken) {
+      const tokens = await getTokens();
+      if (tokens) {
+        tokens.userId = userId;
+        await saveTokens(tokens);
+        log.info('✅ userId mis à jour dans les tokens:', userId);
+      }
+    }
 
     const publicUser: PublicUser = {
       id: newUser.id,

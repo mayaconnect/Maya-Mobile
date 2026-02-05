@@ -1,3 +1,4 @@
+import { BorderRadius, Spacing } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
@@ -30,28 +31,29 @@ export default function TabLayout() {
     <Tabs
       initialRouteName="home"
       screenOptions={{
-        tabBarActiveTintColor: '#8B2F3F',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
+        tabBarActiveTintColor: '#8B2F3F', // Couleur du design system pour l'icône active
+        tabBarInactiveTintColor: '#1A0A0E', // Même couleur que le fond de l'application
         headerShown: false,
         tabBarStyle: isPartner ? {
           display: 'none', // Masquer la barre de navigation pour les partenaires
         } : {
-          backgroundColor: '#1A0A0E',
-          borderTopWidth: 0,
-          paddingBottom: 12,
-          paddingTop: 12,
+          backgroundColor: '#FFFFFF', // Fond blanc
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(0, 0, 0, 0.1)', // Bordure subtile pour délimiter
+          paddingBottom: Spacing.md,
+          paddingTop: Spacing.md,
           height: 70,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 8,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
+          shadowRadius: 12,
+          elevation: 10,
+          borderTopLeftRadius: BorderRadius.xl,
+          borderTopRightRadius: BorderRadius.xl,
           position: 'absolute',
-          left: 8,
-          right: 8,
-          bottom: 8,
+          left: Spacing.sm,
+          right: Spacing.sm,
+          bottom: Spacing.sm,
         },
         sceneStyle: { paddingBottom: 0 },
         tabBarLabelStyle: {

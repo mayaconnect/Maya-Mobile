@@ -16,9 +16,27 @@ export async function updateCurrentUser(updates: Partial<Omit<PublicUser, 'id' |
   try {
     log.debug('Mise à jour du profil', { fields: Object.keys(updates) });
 
+    // Récupérer les informations utilisateur actuelles pour préserver StatusApp
+    let currentUserInfo: any = null;
+    try {
+      const meResponse = await apiCall<any>('/auth/me', {
+        method: 'GET',
+      });
+      currentUserInfo = meResponse?.user ?? meResponse;
+    } catch (error) {
+      log.warn('Impossible de récupérer les infos utilisateur actuelles, utilisation de StatusApp par défaut', error);
+    }
+
+    // Préparer les données de mise à jour avec StatusApp
+    const updateData: any = {
+      ...updates,
+      // Inclure StatusApp s'il existe dans les données actuelles, sinon utiliser une valeur par défaut
+      StatusApp: (currentUserInfo as any)?.StatusApp ?? (currentUserInfo as any)?.statusApp ?? 'Active',
+    };
+
     const response = await apiCall<any>('/auth/me', {
       method: 'PUT',
-      body: JSON.stringify(updates),
+      body: JSON.stringify(updateData),
     });
 
     const userData: PublicUser = response?.user ?? response;

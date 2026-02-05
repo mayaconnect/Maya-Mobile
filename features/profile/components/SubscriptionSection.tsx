@@ -1,9 +1,11 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { SubscriptionApi } from '@/features/subscription/services/subscriptionApi';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TextStyle,
@@ -16,13 +18,53 @@ interface SubscriptionSectionProps {
   subscription: any | null;
   hasSubscription: boolean;
   loading: boolean;
+  onSubscriptionUpdate?: () => void;
 }
 
 export const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
   subscription,
   hasSubscription,
   loading,
+  onSubscriptionUpdate,
 }) => {
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelSubscription = () => {
+    Alert.alert(
+      'Annuler l\'abonnement',
+      'Êtes-vous sûr de vouloir annuler votre abonnement ? Vous perdrez l\'accès à tous les avantages MayaConnect.',
+      [
+        {
+          text: 'Non',
+          style: 'cancel',
+        },
+        {
+          text: 'Oui, annuler',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              const result = await SubscriptionApi.cancelSubscription();
+              if (result.success) {
+                Alert.alert('Succès', result.message || 'Votre abonnement a été annulé avec succès');
+                // Rafraîchir les données de l'abonnement
+                if (onSubscriptionUpdate) {
+                  onSubscriptionUpdate();
+                }
+              } else {
+                Alert.alert('Erreur', result.message || 'Impossible d\'annuler l\'abonnement');
+              }
+            } catch (error) {
+              Alert.alert('Erreur', 'Une erreur est survenue lors de l\'annulation de l\'abonnement');
+              console.error('Erreur lors de l\'annulation:', error);
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  };
   if (loading) {
     return (
       <View style={styles.sectionCard}>
@@ -86,9 +128,31 @@ export const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
         </View>
         
         {subscription.isActive && (
-          <TouchableOpacity onPress={() => router.push('/subscription')}>
-            <Text style={styles.cancelLink}>Gérer l&apos;abonnement</Text>
-          </TouchableOpacity>
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity 
+              onPress={() => router.push('/subscription')}
+              style={styles.manageButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={18} color={Colors.primary[400]} />
+              <Text style={styles.manageButtonText}>Gérer l&apos;abonnement</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={handleCancelSubscription}
+              disabled={cancelling}
+              style={styles.cancelButton}
+              activeOpacity={0.7}
+            >
+              {cancelling ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={18} color="#EF4444" />
+                  <Text style={styles.cancelButtonText}>Annuler l&apos;abonnement</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     );
@@ -176,10 +240,48 @@ const styles = StyleSheet.create({
     color: Colors.status.success,
     fontWeight: '600',
   } as TextStyle,
-  cancelLink: {
-    color: '#ef4444',
-    fontWeight: '600',
-    marginTop: Spacing.sm,
+  actionsContainer: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 47, 63, 0.4)',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    ...Shadows.sm,
+  } as ViewStyle,
+  manageButtonText: {
+    color: Colors.primary[400],
+    fontWeight: '700',
+    fontSize: Typography.sizes.base,
+  } as TextStyle,
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    ...Shadows.sm,
+  } as ViewStyle,
+  cancelButtonText: {
+    color: '#EF4444',
+    fontWeight: '700',
+    fontSize: Typography.sizes.base,
   } as TextStyle,
   loadingSection: {
     flexDirection: 'row',

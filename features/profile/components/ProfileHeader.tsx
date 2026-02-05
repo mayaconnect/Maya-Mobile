@@ -7,15 +7,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 
 // Fonction helper pour convertir un Uint8Array en base64 (compatible React Native)
@@ -440,7 +440,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           
           <View style={styles.emailRow}>
             <Ionicons name="mail" size={14} color={Colors.text.secondary} />
-            <Text style={styles.userEmail}>{userInfo?.email || user?.email || 'Non connecté'}</Text>
+            <Text 
+              style={styles.userEmail}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {userInfo?.email || user?.email || 'Non connecté'}
+            </Text>
           </View>
           
           {/* Informations rapides */}
@@ -472,7 +478,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
 const styles = StyleSheet.create({
   profileCard: {
-        borderRadius: BorderRadius['2xl'],
+    borderRadius: BorderRadius['2xl'],
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
     marginHorizontal: Spacing.sm,

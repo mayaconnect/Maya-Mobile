@@ -23,7 +23,6 @@ interface HomeQRCodeCardProps {
   hasActiveSubscription: boolean | null;
   subscriptionLoading: boolean;
   hasProfilePhoto: boolean;
-  onShare: () => void;
   onReload: () => void;
   onRetry: () => void;
   onSubscribe: () => void;
@@ -38,7 +37,6 @@ export const HomeQRCodeCard: React.FC<HomeQRCodeCardProps> = ({
   hasActiveSubscription,
   subscriptionLoading,
   hasProfilePhoto,
-  onShare,
   onReload,
   onRetry,
   onSubscribe,
@@ -57,18 +55,6 @@ export const HomeQRCodeCard: React.FC<HomeQRCodeCardProps> = ({
           </View>
         </View>
         <View style={styles.qrHeaderActions}>
-          <TouchableOpacity
-            style={styles.qrActionButton}
-            onPress={onShare}
-            disabled={qrLoading || !qrData}
-          >
-            <Ionicons
-              name="share-outline"
-              size={responsiveIconSize(20)}
-              color={Colors.text.light}
-              style={(qrLoading || !qrData) && { opacity: 0.5 }}
-            />
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.qrReloadButton}
             onPress={onReload}
@@ -222,16 +208,6 @@ const styles = StyleSheet.create({
   qrHeaderActions: {
     flexDirection: 'row',
     gap: responsiveSpacing(Spacing.sm),
-  } as ViewStyle,
-  qrActionButton: {
-    width: scaleSize(40),
-    height: scaleSize(40),
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   } as ViewStyle,
   qrReloadButton: {
     width: scaleSize(40),

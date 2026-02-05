@@ -1,12 +1,12 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { QRScanner } from '@/components/qr/qr-scanner';
-import { Colors } from '@/constants/design-system';
+import { Colors, Spacing } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PartnerBottomNav, PartnerTab } from '../components/PartnerBottomNav';
 import { PartnerHeader } from '../components/PartnerHeader';
 import { PartnerHistory } from '../components/PartnerHistory';
@@ -24,6 +24,7 @@ import { styles } from './PartnerHomeScreen.styles';
 
 export default function PartnerHomeScreen() {
   const { user, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
   const [selectedTab, setSelectedTab] = useState<PartnerTab>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPeriod, setFilterPeriod] = useState<'all' | 'today' | 'week' | 'month'>('all');
@@ -171,7 +172,10 @@ export default function PartnerHomeScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.scrollContent, 
-              { paddingTop: selectedTab === 'overview' ? 180 : 120 }
+              { 
+                paddingTop: selectedTab === 'overview' ? Spacing.lg : 0, // Plus d'espace pour la page home
+                paddingBottom: Math.max(insets.bottom, 20) + 150, // Espace pour la navbar (75px) + bouton qui dépasse (76px) + marge
+              }
             ]}
           >
             {selectedTab === 'overview' && (
@@ -236,7 +240,12 @@ export default function PartnerHomeScreen() {
             )}
           </ScrollView>
 
-          <PartnerBottomNav selectedTab={selectedTab} onTabChange={setSelectedTab} />
+          <PartnerBottomNav 
+            selectedTab={selectedTab} 
+            onTabChange={setSelectedTab}
+            onScanQR={handleScanQR}
+            validatingQR={validatingQR}
+          />
         </SafeAreaView>
 
         <PartnerStoreModal
