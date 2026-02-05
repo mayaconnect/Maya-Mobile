@@ -82,7 +82,7 @@ import { USER_STORAGE_KEY } from './auth/auth.config';
 import { signIn as signInUser, signUp as signUpUser } from './auth/auth.login';
 import { signInWithGoogle as signInWithGoogleOAuth } from './auth/auth.oauth';
 import { requestPasswordReset, requestPasswordResetCode, resetPassword, verifyPasswordResetCode } from './auth/auth.password-reset';
-import { updateCurrentUser as updateCurrentUserProfile, uploadAvatar as uploadAvatarProfile, removeAvatar as removeAvatarProfile } from './auth/auth.profile';
+import { removeAvatar as removeAvatarProfile, updateCurrentUser as updateCurrentUserProfile, uploadAvatar as uploadAvatarProfile } from './auth/auth.profile';
 import { clearTokens as clearTokensModule, getTokens } from './auth/auth.tokens';
 
 // Wrapper pour clearTokens qui nettoie aussi USER_STORAGE_KEY
@@ -625,10 +625,68 @@ export const AuthService = {
 
   /**
    * Vérifier si un utilisateur est connecté
+   * Vérifie la présence et la validité du token
    */
   isAuthenticated: async (): Promise<boolean> => {
-    const tokens = await getTokens();
-    return tokens !== null && new Date(tokens.expiresAt) > new Date();
+    try {
+      const tokens = await getTokens();
+      if (!tokens || !tokens.accessToken) {
+        log.debug('Aucun token trouvé');
+        return false;
+      }
+
+      // Vérifier si le token est expiré
+      if (tokens.expiresAt) {
+        const expiresAt = new Date(tokens.expiresAt).getTime();
+        const now = Date.now();
+        const isValid = expiresAt > now;
+        
+        if (!isValid) {
+          log.debug('Token expiré', { 
+            expiresAt: new Date(tokens.expiresAt).toISOString(),
+            now: new Date().toISOString()
+          });
+          
+          // Si on a un refresh token, essayer de rafraîchir
+          if (tokens.refreshToken) {
+            try {
+              log.info('🔄 Tentative de rafraîchissement du token...');
+              const newTokens = await AuthService.refreshToken(tokens.refreshToken);
+              if (newTokens?.accessToken) {
+                const { saveTokens } = await import('./auth/auth.tokens');
+                await saveTokens({
+                  accessToken: newTokens.accessToken,
+                  refreshToken: newTokens.refreshToken || tokens.refreshToken,
+                  expiresAt: newTokens.expiresAt || new Date(Date.now() + 3600000).toISOString(),
+                  userId: tokens.userId,
+                });
+                log.info('✅ Token rafraîchi avec succès');
+                return true;
+              }
+            } catch (refreshError) {
+              log.warn('⚠️ Échec du rafraîchissement du token', { 
+                error: refreshError instanceof Error ? refreshError.message : String(refreshError) 
+              });
+              // Nettoyer les tokens expirés
+              await clearTokens();
+              return false;
+            }
+          } else {
+            // Pas de refresh token, nettoyer
+            await clearTokens();
+            return false;
+          }
+        }
+        
+        return isValid;
+      }
+      
+      // Si pas de date d'expiration, considérer le token comme valide s'il existe
+      return true;
+    } catch (error) {
+      log.error('Erreur lors de la vérification de l\'authentification', error as Error);
+      return false;
+    }
   },
 
   /**

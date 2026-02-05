@@ -23,32 +23,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   React.useEffect(() => {
     const loadUser = async () => {
       try {
+        // D'abord, charger l'utilisateur depuis le stockage local pour un affichage immédiat
+        const localUser = await AuthService.getCurrentUser();
+        if (localUser) {
+          setUser(localUser);
+          console.log('👤 Utilisateur chargé depuis le stockage local (affichage immédiat):', localUser.email);
+        }
+
+        // Ensuite, vérifier l'authentification et mettre à jour si nécessaire
         const isAuth = await AuthService.isAuthenticated();
         
         if (isAuth) {
-          // Essayer de récupérer les infos complètes depuis l'API
+          // Essayer de récupérer les infos complètes depuis l'API en arrière-plan
           try {
             const userInfo = await AuthService.getCurrentUserInfo();
             setUser(userInfo);
-            console.log('👤 Utilisateur chargé depuis l\'API:', userInfo.email);
-          } catch {
-            // Si l'API échoue, utiliser les données locales
-            console.log('⚠️ API indisponible, utilisation des données locales');
-            const currentUser = await AuthService.getCurrentUser();
-            if (currentUser) {
-              setUser(currentUser);
-              console.log('👤 Utilisateur chargé depuis le stockage local:', currentUser.email);
-            } else {
+            console.log('✅ Utilisateur mis à jour depuis l\'API:', userInfo.email);
+          } catch (apiError) {
+            // Si l'API échoue, garder les données locales si elles existent
+            console.log('⚠️ API indisponible, utilisation des données locales persistées');
+            if (!localUser) {
+              // Si on n'a pas de données locales non plus, déconnecter
               setUser(null);
+              console.log('❌ Aucune donnée locale trouvée, déconnexion');
             }
           }
         } else {
+          // Token invalide ou expiré, nettoyer
+          if (localUser) {
+            console.log('⚠️ Token invalide, nettoyage des données locales');
+            await AuthService.signOut();
+          }
           setUser(null);
           console.log('❌ Aucun utilisateur connecté');
         }
       } catch (error) {
         console.error('❌ Erreur lors du chargement de l\'utilisateur:', error);
-        setUser(null);
+        // En cas d'erreur, essayer de charger depuis le stockage local
+        try {
+          const localUser = await AuthService.getCurrentUser();
+          if (localUser) {
+            setUser(localUser);
+            console.log('👤 Utilisateur chargé depuis le stockage local (fallback):', localUser.email);
+          } else {
+            setUser(null);
+          }
+        } catch {
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -130,33 +152,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('MISSING_CREDENTIALS');
       }
       
-      // La méthode signUp crée le compte et met à jour les infos
+      // La méthode signUp crée le compte mais ne connecte PAS l'utilisateur
       const newUser = await AuthService.signUp(registerData);
-      setUser(newUser);
       console.log('✅ Inscription réussie:', newUser.email);
       
-      // Attendre un court délai pour que l'API reconnaisse le nouvel utilisateur
-      // et que les tokens soient complètement persistés
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Vérifier que les tokens sont bien disponibles avant d'appeler l'API
-      const token = await AuthService.getAccessToken();
-      if (!token) {
-        console.warn('⚠️ Aucun token disponible après inscription, utilisation des données de base');
-        return;
-      }
-      
-      // Essayer de récupérer les infos complètes depuis l'API en arrière-plan
-      try {
-        const updatedUserInfo = await AuthService.getCurrentUserInfo();
-        if (updatedUserInfo) {
-          setUser(updatedUserInfo);
-          console.log('🔄 Infos utilisateur mises à jour depuis l\'API');
-        }
-      } catch (error) {
-        console.log('⚠️ Impossible de récupérer les infos complètes, utilisation des données de base:', error);
-        // Ne pas échouer l'inscription si l'API ne répond pas, on garde les données de base
-      }
+      // Nettoyer les tokens et ne pas connecter l'utilisateur automatiquement
+      // L'utilisateur devra se connecter manuellement après l'inscription
+      await AuthService.signOut();
+      setUser(null);
+      console.log('👋 Utilisateur déconnecté après inscription - redirection vers login');
     } catch (error) {
       setUser(null);
       throw error;
