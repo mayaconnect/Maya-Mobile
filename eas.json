@@ -34,7 +34,10 @@
       "env": {
         "RCT_NEW_ARCH_ENABLED": "1"
       },
-      "node": "20.19.4"
+      "node": "20.19.4",
+      "hooks": {
+        "postInstall": "node scripts/eas-build-post-install.js"
+      }
     }
   },
   "submit": {
