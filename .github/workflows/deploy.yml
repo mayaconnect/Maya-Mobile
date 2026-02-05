@@ -52,18 +52,11 @@ jobs:
       - name: 🔧 Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: 🔐 Setup EAS credentials
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          echo "🔐 Configuring EAS credentials..."
-          eas login --non-interactive --token $EXPO_TOKEN
-          echo "✅ EAS authenticated"
-
       - name: 🏗️ Build Android with EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
+          echo "🔐 EAS credentials configured via EXPO_TOKEN"
           echo "🏗️ Building Android app with EAS Build..."
           echo "   Profile: production"
           echo "   Platform: android"
@@ -117,18 +110,11 @@ jobs:
       - name: 🔧 Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: 🔐 Setup EAS credentials
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          echo "🔐 Configuring EAS credentials..."
-          eas login --non-interactive --token $EXPO_TOKEN
-          echo "✅ EAS authenticated"
-
       - name: 🏗️ Build iOS with EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
+          echo "🔐 EAS credentials configured via EXPO_TOKEN"
           echo "🏗️ Building iOS app with EAS Build..."
           echo "   Profile: production"
           echo "   Platform: ios"
