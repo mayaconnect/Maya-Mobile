@@ -530,7 +530,6 @@ export default function HomeScreen() {
               hasActiveSubscription={hasActiveSubscription}
               subscriptionLoading={subscriptionLoading}
               hasProfilePhoto={hasProfilePhoto()}
-              onShare={handleShareQR}
               onReload={handleReloadQR}
               onRetry={() => loadQrToken(true)}
               onSubscribe={() => router.push('/subscription')}

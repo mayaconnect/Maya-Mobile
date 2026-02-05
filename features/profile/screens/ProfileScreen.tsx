@@ -127,6 +127,25 @@ export default function ProfileScreen() {
     router.replace('/connexion/login');
   };
 
+  const handleRefreshSubscription = async () => {
+    try {
+      setSubscriptionLoading(true);
+      const hasSub = await SubscriptionsApi.hasActiveSubscription();
+      if (hasSub) {
+        const sub = await SubscriptionsApi.getMyActiveSubscription();
+        setSubscription(sub);
+        setHasSubscription(true);
+      } else {
+        setSubscription(null);
+        setHasSubscription(false);
+      }
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement de l\'abonnement:', error);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     console.log('🔄 [Profile] Actualisation des informations...');
     setLoading(true);
@@ -206,6 +225,7 @@ export default function ProfileScreen() {
                 subscription={subscription}
                 hasSubscription={hasSubscription}
                 loading={subscriptionLoading}
+                onSubscriptionUpdate={handleRefreshSubscription}
               />
 
               {/* Paramètres */}

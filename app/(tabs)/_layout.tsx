@@ -3,7 +3,6 @@ import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
@@ -38,22 +37,22 @@ export default function TabLayout() {
     <Tabs
       initialRouteName="home"
       screenOptions={{
-        tabBarActiveTintColor: '#8B2F3F',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)',
+        tabBarActiveTintColor: '#FFFFFF', // Blanc pour l'icône active sur fond sombre
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.5)', // Blanc semi-transparent pour les icônes inactives
         headerShown: false,
         tabBarStyle: isPartner ? {
           display: 'none', // Masquer la barre de navigation pour les partenaires
         } : {
-          backgroundColor: '#1A0A0E',
-          borderTopWidth: 0,
+          backgroundColor: '#1A0A0E', // Même couleur que la navbar partenaire
+          borderTopWidth: 0, // Pas de bordure
           paddingBottom: bottomPadding,
           paddingTop: responsiveSpacing(12),
           height: 70 + (bottomPadding - responsiveSpacing(8)),
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 8,
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 10,
           borderTopLeftRadius: responsiveSpacing(20),
           borderTopRightRadius: responsiveSpacing(20),
           position: 'absolute',

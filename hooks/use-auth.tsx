@@ -135,6 +135,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(newUser);
       console.log('✅ Inscription réussie:', newUser.email);
       
+      // Attendre un court délai pour que l'API reconnaisse le nouvel utilisateur
+      // et que les tokens soient complètement persistés
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Vérifier que les tokens sont bien disponibles avant d'appeler l'API
+      const token = await AuthService.getAccessToken();
+      if (!token) {
+        console.warn('⚠️ Aucun token disponible après inscription, utilisation des données de base');
+        return;
+      }
+      
       // Essayer de récupérer les infos complètes depuis l'API en arrière-plan
       try {
         const updatedUserInfo = await AuthService.getCurrentUserInfo();
@@ -142,8 +153,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(updatedUserInfo);
           console.log('🔄 Infos utilisateur mises à jour depuis l\'API');
         }
-      } catch {
-        console.log('⚠️ Impossible de récupérer les infos complètes, utilisation des données de base');
+      } catch (error) {
+        console.log('⚠️ Impossible de récupérer les infos complètes, utilisation des données de base:', error);
+        // Ne pas échouer l'inscription si l'API ne répond pas, on garde les données de base
       }
     } catch (error) {
       setUser(null);

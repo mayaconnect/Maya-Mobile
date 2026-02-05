@@ -1,6 +1,7 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { PaymentApi } from '@/features/subscription/services/paymentApi';
+import { SubscriptionApi } from '@/features/subscription/services/subscriptionApi';
 import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
 import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,18 +10,18 @@ import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Linking,
-    Modal,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,6 +43,7 @@ export default function SubscriptionScreen() {
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const handlePartnerMode = () => {
     console.log('Mode partenaire');
@@ -127,6 +129,47 @@ export default function SubscriptionScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadActiveSubscription();
+  };
+
+  // Gérer l'annulation de l'abonnement
+  const handleCancelSubscription = () => {
+    Alert.alert(
+      'Annuler l\'abonnement',
+      'Êtes-vous sûr de vouloir annuler votre abonnement ? Vous perdrez l\'accès à tous les avantages MayaConnect.',
+      [
+        {
+          text: 'Non',
+          style: 'cancel',
+        },
+        {
+          text: 'Oui, annuler',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              const result = await SubscriptionApi.cancelSubscription();
+              if (result.success) {
+                Alert.alert('Succès', result.message || 'Votre abonnement a été annulé avec succès', [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      loadActiveSubscription();
+                    },
+                  },
+                ]);
+              } else {
+                Alert.alert('Erreur', result.message || 'Impossible d\'annuler l\'abonnement');
+              }
+            } catch (error) {
+              Alert.alert('Erreur', 'Une erreur est survenue lors de l\'annulation de l\'abonnement');
+              console.error('Erreur lors de l\'annulation:', error);
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Charger l'abonnement au montage du composant
@@ -551,6 +594,25 @@ export default function SubscriptionScreen() {
                   )}
                 </View>
 
+                {/* Bouton d'annulation */}
+                {activeSubscription.isActive && (
+                  <TouchableOpacity
+                    style={styles.cancelSubscriptionButton}
+                    onPress={handleCancelSubscription}
+                    disabled={cancelling}
+                    activeOpacity={0.7}
+                  >
+                    {cancelling ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <>
+                        <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+                        <Text style={styles.cancelSubscriptionButtonText}>Annuler l&apos;abonnement</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
                 {/* Options de gestion */}
                 <View style={styles.managementSection}>
                   <Text style={styles.managementTitle}>Options</Text>
@@ -581,35 +643,7 @@ export default function SubscriptionScreen() {
                     <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.managementOption, styles.managementOptionDanger]}
-                    onPress={() => {
-                      Alert.alert(
-                        'Résilier l\'abonnement',
-                        'Êtes-vous sûr de vouloir résilier votre abonnement ? Vous perdrez tous les avantages.',
-                        [
-                          { text: 'Annuler', style: 'cancel' },
-                          { text: 'Résilier', style: 'destructive', onPress: () => {
-                            // TODO: Implémenter la résiliation
-                            Alert.alert('À venir', 'La résiliation sera disponible prochainement.');
-                          }},
-                        ]
-                      );
-                    }}
-                  >
-                    <View style={styles.managementOptionIcon}>
-                      <Ionicons name="close-circle-outline" size={24} color={Colors.status.error} />
-                    </View>
-                    <View style={styles.managementOptionInfo}>
-                      <Text style={[styles.managementOptionTitle, styles.managementOptionDangerText]}>
-                        Résilier l'abonnement
-                      </Text>
-                      <Text style={styles.managementOptionDescription}>
-                        Annuler votre abonnement
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
-                  </TouchableOpacity>
+                  
                 </View>
               </>
             ) : (
@@ -1588,5 +1622,24 @@ const styles = StyleSheet.create({
   managementOptionDescription: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
+  } as TextStyle,
+  cancelSubscriptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.xl,
+    ...Shadows.md,
+  } as ViewStyle,
+  cancelSubscriptionButtonText: {
+    color: '#EF4444',
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
   } as TextStyle,
 });

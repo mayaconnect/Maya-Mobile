@@ -1,5 +1,16 @@
 // Jest setup file for React Native/Expo testing
 
+// Désactiver Expo Winter runtime pour les tests
+if (typeof global.TextDecoderStream === 'undefined') {
+  global.TextDecoderStream = class TextDecoderStream {};
+}
+if (typeof global.TextEncoderStream === 'undefined') {
+  global.TextEncoderStream = class TextEncoderStream {};
+}
+
+// Note: Les mocks Expo Winter sont dans jest.setup.winter.js
+// qui est chargé via setupFiles (avant les imports)
+
 // Mock expo-auth-session
 jest.mock('expo-auth-session', () => ({
   useAuthRequest: jest.fn(() => [null, null, jest.fn()]),
@@ -87,6 +98,81 @@ jest.mock('expo-image', () => ({
   Image: 'Image',
 }));
 
+// Mock expo-asset
+jest.mock('expo-asset', () => {
+  const mockAsset = {
+    name: 'mock-asset',
+    type: 'font',
+    uri: 'mock://asset',
+    hash: null,
+    height: null,
+    width: null,
+    fileHashes: null,
+    fileUris: null,
+    localUri: null,
+    downloadAsync: jest.fn(() => Promise.resolve(mockAsset)),
+    downloadRequired: false,
+  };
+
+  return {
+    Asset: {
+      fromModule: jest.fn((moduleId) => {
+        // Retourner un asset mocké pour n'importe quel moduleId
+        return mockAsset;
+      }),
+      fromURI: jest.fn(() => mockAsset),
+      fromMetadata: jest.fn(() => mockAsset),
+    },
+  };
+});
+
+// Mock expo-font
+jest.mock('expo-font', () => ({
+  loadAsync: jest.fn(() => Promise.resolve()),
+  isLoaded: jest.fn(() => true),
+  isLoading: jest.fn(() => false),
+  unloadAsync: jest.fn(() => Promise.resolve()),
+  FontDisplay: {
+    AUTO: 'auto',
+    BLOCK: 'block',
+    SWAP: 'swap',
+    FALLBACK: 'fallback',
+    OPTIONAL: 'optional',
+  },
+}));
+
+// Mock @expo/vector-icons pour éviter le chargement des polices
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  
+  // Créer un composant Icon mocké qui ne charge pas de polices
+  const Icon = (props) => {
+    return React.createElement(View, { ...props, testID: 'icon' });
+  };
+  
+  // Ajouter les méthodes statiques nécessaires
+  Icon.loadAsync = jest.fn(() => Promise.resolve());
+  
+  return {
+    __esModule: true,
+    default: Icon,
+    Ionicons: Icon,
+    MaterialIcons: Icon,
+    FontAwesome: Icon,
+    FontAwesome5: Icon,
+    MaterialCommunityIcons: Icon,
+    AntDesign: Icon,
+    Entypo: Icon,
+    Feather: Icon,
+    Fontisto: Icon,
+    Foundation: Icon,
+    Octicons: Icon,
+    SimpleLineIcons: Icon,
+    Zocial: Icon,
+  };
+});
+
 // Mock expo-constants
 jest.mock('expo-constants', () => ({
   Constants: {
@@ -167,6 +253,35 @@ jest.mock('expo-maps', () => ({
   MapView: 'MapView',
 }));
 
+// Mock @react-native-community/netinfo
+jest.mock('@react-native-community/netinfo', () => {
+  const defaultState = {
+    isConnected: true,
+    isInternetReachable: true,
+    type: 'wifi',
+    details: null,
+  };
+  
+  const mockFetch = jest.fn(() => Promise.resolve(defaultState));
+  const mockAddEventListener = jest.fn((callback) => {
+    // Simuler un événement immédiat
+    setTimeout(() => callback(defaultState), 0);
+    // Retourner une fonction de nettoyage
+    return () => {};
+  });
+  
+  return {
+    fetch: mockFetch,
+    addEventListener: mockAddEventListener,
+    configure: jest.fn(),
+    useNetInfo: jest.fn(() => defaultState),
+    default: {
+      fetch: mockFetch,
+      addEventListener: mockAddEventListener,
+    },
+  };
+}, { virtual: true });
+
 // Define __DEV__ for tests
 global.__DEV__ = true;
 
@@ -177,6 +292,57 @@ global.fetch = jest.fn(() =>
     json: () => Promise.resolve({}),
   })
 );
+
+// Mock expo-image-picker
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: 'granted' })
+  ),
+  requestCameraPermissionsAsync: jest.fn(() =>
+    Promise.resolve({ status: 'granted' })
+  ),
+  launchImageLibraryAsync: jest.fn(() =>
+    Promise.resolve({
+      canceled: false,
+      assets: [{ uri: 'file://test-image.jpg' }],
+    })
+  ),
+  launchCameraAsync: jest.fn(() =>
+    Promise.resolve({
+      canceled: false,
+      assets: [{ uri: 'file://test-photo.jpg' }],
+    })
+  ),
+  MediaTypeOptions: {
+    Images: 'Images',
+    Videos: 'Videos',
+    All: 'All',
+  },
+}));
+
+// Mock expo-file-system
+jest.mock('expo-file-system', () => ({
+  readAsStringAsync: jest.fn(() => Promise.resolve('base64-encoded-string')),
+  documentDirectory: 'file://test-documents/',
+  cacheDirectory: 'file://test-cache/',
+}));
+
+// Mock expo-blur
+jest.mock('expo-blur', () => ({
+  BlurView: 'BlurView',
+}));
+
+// Mock expo-web-browser
+jest.mock('expo-web-browser', () => ({
+  openBrowserAsync: jest.fn(() => Promise.resolve({ type: 'dismiss' })),
+}));
+
+// Mock react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: ({ children }) => children,
+  SafeAreaView: ({ children }) => children,
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 
 // Console error filter to reduce noise during tests
 const originalConsoleError = console.error;

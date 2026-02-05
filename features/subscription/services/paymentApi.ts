@@ -385,5 +385,39 @@ export const PaymentApi = {
       };
     }
   },
+
+  /**
+   * Annule l'abonnement actuel de l'utilisateur
+   * POST /api/payments/cancel-subscription
+   */
+  cancelSubscription: async (): Promise<{ success: boolean; message?: string }> => {
+    try {
+      log.info('Annulation de l\'abonnement');
+
+      const response = await paymentsApiCall<{ success: boolean; message?: string }>(
+        '/payments/cancel-subscription',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      log.info('Abonnement annulé avec succès', { response });
+      return {
+        success: true,
+        message: response?.message || 'Abonnement annulé avec succès',
+      };
+    } catch (error) {
+      log.error('Erreur lors de l\'annulation de l\'abonnement', error as Error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'annulation de l\'abonnement';
+      return {
+        success: false,
+        message: errorMessage,
+      };
+    }
+  },
 };
 

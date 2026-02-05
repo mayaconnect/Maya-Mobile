@@ -2,15 +2,16 @@ import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    Animated,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  Alert,
+  Animated,
+  Linking,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
-import { PartnerPromotion } from './partner-promotion';
 
 export interface Partner {
   id: string;
@@ -23,6 +24,8 @@ export interface Partner {
   closingTime: string | null;
   category: string;
   image: string;
+  latitude?: number;
+  longitude?: number;
   promotion?: {
     discount: string;
     description: string;
@@ -53,8 +56,32 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
     }).start();
   };
 
-  const handleGoThere = () => {
-    console.log(`Aller à ${partner.name}`);
+  const handleGoThere = async () => {
+    try {
+      let url = '';
+      
+      // Si on a les coordonnées GPS, utiliser celles-ci (plus précis)
+      if (partner.latitude && partner.longitude) {
+        url = `https://www.google.com/maps/search/?api=1&query=${partner.latitude},${partner.longitude}`;
+      } else if (partner.address) {
+        // Sinon, utiliser l'adresse
+        const encodedAddress = encodeURIComponent(partner.address);
+        url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+      } else {
+        Alert.alert('Erreur', 'Aucune adresse disponible pour ce partenaire');
+        return;
+      }
+
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Erreur', 'Impossible d\'ouvrir Google Maps');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture de Google Maps:', error);
+      Alert.alert('Erreur', 'Impossible d\'ouvrir Google Maps');
+    }
   };
 
   const handleUsePromotion = () => {
@@ -145,11 +172,17 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
 
         {/* Promotion */}
         {partner.promotion && partner.promotion.isActive && (
-          <PartnerPromotion
-            promotion={partner.promotion}
-            onUsePromotion={handleUsePromotion}
-            style={styles.promotion}
-          />
+          <View style={styles.promotion}>
+            <View style={styles.promotionContent}>
+              <View style={styles.promotionBadgeInline}>
+                <Ionicons name="sparkles" size={14} color={Colors.accent.gold} />
+                <Text style={styles.promotionDiscount}>{partner.promotion.discount}</Text>
+              </View>
+              <Text style={styles.promotionDescription} numberOfLines={1}>
+                {partner.promotion.description}
+              </Text>
+            </View>
+          </View>
         )}
       </TouchableOpacity>
     </Animated.View>
@@ -333,5 +366,35 @@ const styles = StyleSheet.create({
   } as TextStyle,
   promotion: {
     marginTop: Spacing.md,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   } as ViewStyle,
+  promotionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  promotionBadgeInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+  } as ViewStyle,
+  promotionDiscount: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '700',
+    color: Colors.status.success,
+  } as TextStyle,
+  promotionDescription: {
+    flex: 1,
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.light,
+    fontWeight: '500',
+  } as TextStyle,
 });

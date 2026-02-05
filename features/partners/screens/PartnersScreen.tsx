@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -119,6 +120,35 @@ export default function PartnersScreen() {
       averageRating,
     };
   }, [partners]);
+
+  // Fonction pour ouvrir Google Maps avec l'adresse du partenaire
+  const handleOpenInMaps = useCallback(async (partner: PartnerUI) => {
+    try {
+      let url = '';
+      
+      // Si on a les coordonnées GPS, utiliser celles-ci (plus précis)
+      if (partner.latitude && partner.longitude) {
+        url = `https://www.google.com/maps/search/?api=1&query=${partner.latitude},${partner.longitude}`;
+      } else if (partner.address) {
+        // Sinon, utiliser l'adresse
+        const encodedAddress = encodeURIComponent(partner.address);
+        url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+      } else {
+        Alert.alert('Erreur', 'Aucune adresse disponible pour ce partenaire');
+        return;
+      }
+
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Erreur', 'Impossible d\'ouvrir Google Maps');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture de Google Maps:', error);
+      Alert.alert('Erreur', 'Impossible d\'ouvrir Google Maps');
+    }
+  }, []);
 
   // Filtrage des partenaires
   const filteredPartners = partners.filter(partner => {
@@ -727,7 +757,7 @@ export default function PartnersScreen() {
                         <View style={styles.modalImageWrapper}>
                           <Ionicons 
                             name="storefront" 
-                            size={48} 
+                            size={36} 
                             color="rgba(255, 255, 255, 0.9)" 
                           />
                         </View>
@@ -738,7 +768,7 @@ export default function PartnersScreen() {
                             end={{ x: 1, y: 0 }}
                             style={styles.modalImagePromoBadge}
                           >
-                            <Ionicons name="pricetag" size={14} color={Colors.text.light} />
+                            <Ionicons name="pricetag" size={11} color={Colors.text.light} />
                             <Text style={styles.modalImagePromoText}>
                               {selectedPartner.promotion.discount}
                             </Text>
@@ -762,7 +792,7 @@ export default function PartnersScreen() {
                             end={{ x: 1, y: 0 }}
                             style={styles.modalRatingBadge}
                           >
-                            <Ionicons name="star" size={16} color={Colors.accent.gold} />
+                            <Ionicons name="star" size={12} color={Colors.accent.gold} />
                             <Text style={styles.modalRatingText}>
                               {selectedPartner.rating?.toFixed(1) || '4.0'}
                             </Text>
@@ -770,7 +800,7 @@ export default function PartnersScreen() {
 
                           {/* Category Badge */}
                           <View style={styles.modalCategoryBadge}>
-                            <Ionicons name="pricetag-outline" size={14} color={Colors.text.light} />
+                            <Ionicons name="pricetag-outline" size={11} color={Colors.text.light} />
                             <Text style={styles.modalCategoryText}>
                               {selectedPartner.category}
                             </Text>
@@ -799,7 +829,7 @@ export default function PartnersScreen() {
                     {/* Carte de description */}
                     <View style={styles.modalDescriptionCard}>
                       <View style={styles.modalSectionHeader}>
-                        <Ionicons name="information-circle" size={20} color="#8B2F3F" />
+                        <Ionicons name="information-circle" size={16} color="#8B2F3F" />
                         <Text style={styles.modalSectionTitle}>À propos</Text>
                       </View>
                       <Text style={styles.modalDescription}>{selectedPartner.description}</Text>
@@ -816,7 +846,7 @@ export default function PartnersScreen() {
                             end={{ x: 1, y: 1 }}
                             style={styles.modalInfoGridIconInner}
                           >
-                            <Ionicons name="location" size={24} color="#8B2F3F" />
+                            <Ionicons name="location" size={18} color="#8B2F3F" />
                           </LinearGradient>
                         </View>
                         <Text style={styles.modalInfoGridLabel}>Adresse</Text>
@@ -848,7 +878,7 @@ export default function PartnersScreen() {
                           >
                             <Ionicons 
                               name="time-outline" 
-                              size={24} 
+                              size={18} 
                               color={selectedPartner.isOpen ? Colors.status.success : Colors.status.error} 
                             />
                           </LinearGradient>
@@ -891,7 +921,7 @@ export default function PartnersScreen() {
                                 end={{ x: 1, y: 0 }}
                                 style={styles.modalPromotionIcon}
                               >
-                                <Ionicons name="gift" size={24} color={Colors.text.light} />
+                                <Ionicons name="gift" size={18} color={Colors.text.light} />
                               </LinearGradient>
                             </View>
                             <View style={styles.modalPromotionHeaderText}>
@@ -922,6 +952,7 @@ export default function PartnersScreen() {
                         <TouchableOpacity 
                           style={styles.modalActionButton}
                           activeOpacity={0.8}
+                          onPress={() => handleOpenInMaps(selectedPartner)}
                         >
                           <LinearGradient
                             colors={['#8B2F3F', '#6B1F2F']}
@@ -1587,8 +1618,8 @@ const styles = StyleSheet.create({
     flex: 1,
   } as ViewStyle,
   modalContentContainer: {
-    padding: Spacing.lg,
-    paddingTop: Spacing.md,
+    padding: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingBottom: Spacing.xl,
   } as ViewStyle,
   modalLoading: {
@@ -1625,21 +1656,21 @@ const styles = StyleSheet.create({
   } as TextStyle,
   // Hero Section
   modalHeroSection: {
-    marginBottom: Spacing.xl,
-    gap: Spacing.lg,
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
   } as ViewStyle,
   modalImageContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: BorderRadius['3xl'],
+    width: 100,
+    height: 100,
+    borderRadius: BorderRadius['2xl'],
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     position: 'relative',
     overflow: 'visible',
-    ...Shadows.xl,
+    ...Shadows.lg,
   } as ViewStyle,
   modalImageWrapper: {
     width: '100%',
@@ -1650,23 +1681,23 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   modalImagePromoBadge: {
     position: 'absolute',
-    top: -10,
-    right: -10,
+    top: -6,
+    right: -6,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    gap: 4,
-    borderWidth: 3,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    gap: 3,
+    borderWidth: 2,
     borderColor: '#1A0A0E',
-    ...Shadows.xl,
+    ...Shadows.md,
   } as ViewStyle,
   modalImagePromoText: {
     fontSize: Typography.sizes.xs,
-    fontWeight: '900',
+    fontWeight: '800',
     color: Colors.text.light,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   } as TextStyle,
   
   // Hero Info
@@ -1681,15 +1712,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   } as ViewStyle,
   modalName: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: '900',
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '800', 
     color: Colors.text.light,
     textAlign: 'center',
-    letterSpacing: -0.8,
+    letterSpacing: -0.5,
     flex: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   } as TextStyle,
   modalVerifiedBadge: {
     marginLeft: -Spacing.xs,
@@ -1698,50 +1726,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     flexWrap: 'wrap',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
   } as ViewStyle,
   modalRatingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
-    gap: 4,
+    gap: 3,
     borderWidth: 1,
     borderColor: 'rgba(251, 191, 36, 0.3)',
-    ...Shadows.sm,
   } as ViewStyle,
   modalRatingText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '800',
+    fontSize: Typography.sizes.xs,
+    fontWeight: '700',
     color: Colors.accent.gold,
   } as TextStyle,
   modalCategoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(139, 47, 63, 0.25)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
-    gap: 4,
+    gap: 3,
     borderWidth: 1,
     borderColor: 'rgba(139, 47, 63, 0.4)',
   } as ViewStyle,
   modalCategoryText: {
     fontSize: Typography.sizes.xs,
     color: Colors.text.light,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   } as TextStyle,
   modalQuickStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
-    gap: 4,
+    gap: 3,
     borderWidth: 1,
   } as ViewStyle,
   modalQuickStatusOpen: {
@@ -1768,27 +1795,27 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.md,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    ...Shadows.sm,
   } as ViewStyle,
   modalSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   modalSectionTitle: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.base,
     fontWeight: '700',
     color: Colors.text.light,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   } as TextStyle,
   modalDescription: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
-    lineHeight: 24,
+    lineHeight: 20,
     fontWeight: '400',
   } as TextStyle,
   modalLocationCard: {
@@ -1889,26 +1916,26 @@ const styles = StyleSheet.create({
   // Info Grid (nouveau design)
   modalInfoGrid: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   modalInfoGridCard: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    ...Shadows.md,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    ...Shadows.sm,
     alignItems: 'center',
   } as ViewStyle,
   modalInfoGridIcon: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   modalInfoGridIconInner: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius['2xl'],
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
@@ -1963,27 +1990,27 @@ const styles = StyleSheet.create({
   } as TextStyle,
   
   modalPromotionWrapper: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   modalPromotion: {
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: Colors.status.success,
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    ...Shadows.md,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    ...Shadows.sm,
   } as ViewStyle,
   modalPromotionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   } as ViewStyle,
   modalPromotionIconWrapper: {
-    marginRight: Spacing.sm,
+    marginRight: Spacing.xs,
   } as ViewStyle,
   modalPromotionIcon: {
-    width: 56,
-    height: 56,
+    width: 40,
+    height: 40,
     borderRadius: BorderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
@@ -2014,16 +2041,16 @@ const styles = StyleSheet.create({
     flex: 1,
   } as ViewStyle,
   modalPromotionTitle: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.xs,
     fontWeight: '700',
     color: Colors.status.success,
     marginBottom: 2,
   } as TextStyle,
   modalPromotionText: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.light,
     fontWeight: '500',
-    lineHeight: 20,
+    lineHeight: 18,
   } as TextStyle,
   modalActionWrapper: {
     marginTop: Spacing.lg,
