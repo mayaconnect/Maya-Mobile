@@ -96,6 +96,24 @@ function verifyGradlew() {
       process.exit(1);
     }
     
+    // Vérifier si le dossier android existe et s'il est complet
+    const androidDir = path.join(process.cwd(), 'android');
+    if (fs.existsSync(androidDir)) {
+      const gradlewPath = path.join(androidDir, 'gradlew');
+      if (!fs.existsSync(gradlewPath)) {
+        console.log('⚠️  Dossier android incomplet (gradlew manquant), suppression...');
+        try {
+          fs.rmSync(androidDir, { recursive: true, force: true });
+          console.log('✅ Dossier android supprimé, sera régénéré par prebuild');
+        } catch (e) {
+          console.log(`⚠️  Impossible de supprimer android: ${e.message}`);
+          console.log('   On continue quand même...');
+        }
+      } else {
+        console.log('✅ Dossier android existe et contient gradlew');
+      }
+    }
+    
     // Exécuter prebuild pour Android avec nettoyage
     const success = runCommand(
       'npx expo prebuild --platform android --clean',

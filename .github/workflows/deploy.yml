@@ -82,67 +82,68 @@ jobs:
   # ==========================================
   # JOB iOS - Build et Deploy sur TestFlight
   # ==========================================
-  deploy-ios:
-    name: 🍎 iOS → TestFlight (EAS Build)
-    # Annule les anciens jobs en queue quand un nouveau est déclenché
-    concurrency:
-      group: deploy-ios
-      cancel-in-progress: true
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' &&
-       (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both'))
-    runs-on: ubuntu-latest
+  # deploy-ios:
+  #   name: 🍎 iOS → TestFlight (EAS Build)
+  #   # Annule les anciens jobs en queue quand un nouveau est déclenché
+  #   concurrency:
+  #     group: deploy-ios
+  #     cancel-in-progress: true
+  #   if: |
+  #     github.event_name == 'push' ||
+  #     (github.event_name == 'workflow_dispatch' &&
+  #      (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both'))
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: 📥 Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+  #     - name: 🟢 Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #         cache: 'npm'
 
-      - name: 📦 Install dependencies
-        run: npm ci --legacy-peer-deps
+  #     - name: 📦 Install dependencies
+  #       run: npm ci --legacy-peer-deps
 
-      - name: 🔧 Install EAS CLI
-        run: npm install -g eas-cli
+  #     - name: 🔧 Install EAS CLI
+  #       run: npm install -g eas-cli
 
-      - name: 🏗️ Build iOS with EAS
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          echo "🔐 EAS credentials configured via EXPO_TOKEN"
-          echo "🏗️ Building iOS app with EAS Build..."
-          echo "   Profile: production"
-          echo "   Platform: ios"
-          echo ""
-          eas build --platform ios --profile production --non-interactive --wait
-          echo "✅ Build completed successfully"
+  #     - name: 🏗️ Build iOS with EAS
+  #       env:
+  #         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+  #       run: |
+  #         echo "🔐 EAS credentials configured via EXPO_TOKEN"
+  #         echo "🏗️ Building iOS app with EAS Build..."
+  #         echo "   Profile: production"
+  #         echo "   Platform: ios"
+  #         echo ""
+  #         eas build --platform ios --profile production --non-interactive --wait
+  #         echo "✅ Build completed successfully"
 
-      - name: 📤 Submit to TestFlight
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          echo "📤 Submitting latest build to TestFlight..."
-          eas submit --platform ios --profile production --latest --non-interactive
-          echo "✅ Submission to TestFlight completed"
+  #     - name: 📤 Submit to TestFlight
+  #       env:
+  #         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+  #       run: |
+  #         echo "📤 Submitting latest build to TestFlight..."
+  #         eas submit --platform ios --profile production --latest --non-interactive
+  #         echo "✅ Submission to TestFlight completed"
 
-      - name: ✅ iOS deployment success
-        if: success()
-        run: |
-          echo "✅ iOS app successfully built and deployed to TestFlight!"
-          echo "📱 Go to App Store Connect to test: https://appstoreconnect.apple.com/"
-          echo "📊 View builds: https://expo.dev/accounts/[your-account]/projects/maya-mobile-app/builds"
+  #     - name: ✅ iOS deployment success
+  #       if: success()
+  #       run: |
+  #         echo "✅ iOS app successfully built and deployed to TestFlight!"
+  #         echo "📱 Go to App Store Connect to test: https://appstoreconnect.apple.com/"
+  #         echo "📊 View builds: https://expo.dev/accounts/[your-account]/projects/maya-mobile-app/builds"
 
   # ==========================================
   # JOB NOTIFICATION - Résumé final
   # ==========================================
   notify-success:
     name: 📢 Deployment Summary
-    needs: [deploy-ios, deploy-android]
+    needs: [deploy-android]
+    # needs: [deploy-ios, deploy-android]  # iOS commenté
     if: always()
     runs-on: ubuntu-latest
 
@@ -153,9 +154,9 @@ jobs:
           echo "🎉 DEPLOYMENT COMPLETED"
           echo "======================================"
           echo ""
-          if [ "${{ needs.deploy-ios.result }}" == "success" ]; then
-            echo "✅ iOS: https://appstoreconnect.apple.com/"
-          fi
+          # if [ "${{ needs.deploy-ios.result }}" == "success" ]; then
+          #   echo "✅ iOS: https://appstoreconnect.apple.com/"
+          # fi
           if [ "${{ needs.deploy-android.result }}" == "success" ]; then
             echo "✅ Android: https://play.google.com/console/"
           fi
