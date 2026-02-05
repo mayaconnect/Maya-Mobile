@@ -128,7 +128,7 @@ function verifyGradlew() {
     // Attendre un peu pour que les fichiers soient écrits
     console.log('⏳ Attente de l\'écriture des fichiers...');
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-    await sleep(2000);
+    await sleep(3000); // Augmenter le délai pour s'assurer que les fichiers sont écrits
     
     // Vérifier que le dossier android existe
     const androidDir = path.join(process.cwd(), 'android');
@@ -171,46 +171,82 @@ function verifyGradlew() {
       }
       
       // Attendre à nouveau
-      await sleep(2000);
+      await sleep(3000);
       
       // Vérifier à nouveau
       if (!verifyGradlew()) {
         console.error('❌ ERREUR CRITIQUE: gradlew toujours absent après régénération!');
         
-        // Chercher tous les fichiers gradlew dans le projet
-        console.log('   Recherche de fichiers gradlew dans le projet...');
-        function findGradlew(dir, depth = 0) {
-          if (depth > 5) return; // Limiter la profondeur
-          try {
-            const files = fs.readdirSync(dir);
-            for (const file of files) {
-              const filePath = path.join(dir, file);
-              const stats = fs.statSync(filePath);
-              if (stats.isDirectory() && !file.startsWith('.') && file !== 'node_modules') {
-                findGradlew(filePath, depth + 1);
-              } else if (file === 'gradlew' || file === 'gradlew.bat') {
-                console.log(`     Trouvé: ${filePath}`);
-              }
-            }
-          } catch (e) {
-            // Ignorer les erreurs
+        // Tentative de génération manuelle de gradlew avec Gradle
+        console.log('   Tentative de génération manuelle de gradlew...');
+        try {
+          // Vérifier si gradle est disponible
+          execSync('gradle --version', { stdio: 'pipe' });
+          console.log('   Gradle trouvé, génération du wrapper...');
+          
+          // Générer le wrapper Gradle
+          console.log(`   Exécution de: gradle wrapper --gradle-version 8.14.3`);
+          console.log(`   Dans le répertoire: ${androidDir}`);
+          execSync('gradle wrapper --gradle-version 8.14.3', { 
+            stdio: 'inherit', 
+            cwd: androidDir 
+          });
+          console.log('✅ Gradle wrapper généré avec succès');
+          
+          await sleep(2000);
+          if (verifyGradlew()) {
+            console.log('✅ gradlew généré avec succès via Gradle wrapper!');
+          } else {
+            console.error('❌ gradlew toujours absent après génération Gradle wrapper');
+            process.exit(1);
           }
+        } catch (e) {
+          console.log('   Gradle n\'est pas disponible, impossible de générer le wrapper');
+          console.log(`   Erreur: ${e.message}`);
+          
+          // Chercher tous les fichiers gradlew dans le projet
+          console.log('   Recherche de fichiers gradlew dans le projet...');
+          function findGradlew(dir, depth = 0) {
+            if (depth > 5) return; // Limiter la profondeur
+            try {
+              const files = fs.readdirSync(dir);
+              for (const file of files) {
+                const filePath = path.join(dir, file);
+                const stats = fs.statSync(filePath);
+                if (stats.isDirectory() && !file.startsWith('.') && file !== 'node_modules') {
+                  findGradlew(filePath, depth + 1);
+                } else if (file === 'gradlew' || file === 'gradlew.bat') {
+                  console.log(`     Trouvé: ${filePath}`);
+                }
+              }
+            } catch (e) {
+              // Ignorer les erreurs
+            }
+          }
+          findGradlew(process.cwd());
+          
+          process.exit(1);
         }
-        findGradlew(process.cwd());
-        
-        process.exit(1);
       }
     }
     
     // Vérifier si EAS Build cherche dans build/android (problème connu)
-    // Créer une copie si nécessaire pour éviter l'erreur de chemin
+    // TOUJOURS créer/copier dans build/android pour éviter l'erreur de chemin
     const buildAndroidDir = path.join(process.cwd(), 'build', 'android');
-    if (!fs.existsSync(buildAndroidDir) && fs.existsSync(androidDir)) {
-      console.log('⚠️  EAS Build pourrait chercher dans build/android, création du dossier...');
+    const gradlewPath = path.join(androidDir, 'gradlew');
+    
+    if (fs.existsSync(gradlewPath)) {
+      console.log('📦 Préparation de build/android pour EAS Build...');
       try {
         const buildDir = path.join(process.cwd(), 'build');
         if (!fs.existsSync(buildDir)) {
           fs.mkdirSync(buildDir, { recursive: true });
+        }
+        
+        // Supprimer build/android s'il existe déjà pour une copie propre
+        if (fs.existsSync(buildAndroidDir)) {
+          console.log('   Suppression de l\'ancien build/android...');
+          fs.rmSync(buildAndroidDir, { recursive: true, force: true });
         }
         
         // Fonction pour copier récursivement (compatible cross-platform)
@@ -240,16 +276,39 @@ function verifyGradlew() {
           try {
             fs.chmodSync(buildGradlew, 0o755);
             console.log('✅ gradlew dans build/android rendu exécutable');
+            
+            // Vérification finale
+            const buildStats = fs.statSync(buildGradlew);
+            console.log(`   Taille: ${buildStats.size} bytes`);
+            console.log(`   Chemin: ${buildGradlew}`);
           } catch (e) {
             console.log('⚠️  Impossible de changer les permissions (normal sur Windows)');
           }
         } else {
-          console.log('⚠️  gradlew non trouvé dans build/android après copie');
+          console.error('❌ ERREUR: gradlew non trouvé dans build/android après copie!');
+          console.log('   Vérification du contenu de build/android...');
+          try {
+            const buildFiles = fs.readdirSync(buildAndroidDir);
+            buildFiles.forEach(file => {
+              const filePath = path.join(buildAndroidDir, file);
+              const stats = fs.statSync(filePath);
+              const type = stats.isDirectory() ? 'DIR' : 'FILE';
+              console.log(`     ${type}: ${file}`);
+            });
+          } catch (e) {
+            console.log('     (Impossible de lire le dossier)');
+          }
+          process.exit(1);
         }
       } catch (e) {
-        console.log('⚠️  Impossible de créer build/android (peut être normal)');
-        console.log(`   Erreur: ${e.message}`);
+        console.error('❌ ERREUR: Impossible de créer build/android!');
+        console.error(`   Erreur: ${e.message}`);
+        console.error(`   Stack: ${e.stack}`);
+        process.exit(1);
       }
+    } else {
+      console.error('❌ ERREUR: gradlew n\'existe pas dans android, impossible de copier vers build/android!');
+      process.exit(1);
     }
     
     console.log('✅ Prebuild Android completed');
