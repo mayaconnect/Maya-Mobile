@@ -60,13 +60,13 @@ function verifyGradlew() {
     console.log(`   Cherché à: ${gradlewPath}`);
     
     // Lister le contenu du dossier android
-    const androidDir = path.join(process.cwd(), 'android');
-    if (fs.existsSync(androidDir)) {
+    const androidDirPath = path.join(process.cwd(), 'android');
+    if (fs.existsSync(androidDirPath)) {
       console.log(`   Contenu du dossier android:`);
       try {
-        const files = fs.readdirSync(androidDir);
+        const files = fs.readdirSync(androidDirPath);
         files.forEach(file => {
-          const filePath = path.join(androidDir, file);
+          const filePath = path.join(androidDirPath, file);
           const stats = fs.statSync(filePath);
           const type = stats.isDirectory() ? 'DIR' : 'FILE';
           console.log(`     ${type}: ${file}`);
@@ -130,8 +130,7 @@ function verifyGradlew() {
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     await sleep(3000); // Augmenter le délai pour s'assurer que les fichiers sont écrits
     
-    // Vérifier que le dossier android existe
-    const androidDir = path.join(process.cwd(), 'android');
+    // Vérifier que le dossier android existe (androidDir est déjà déclaré plus haut)
     if (!fs.existsSync(androidDir)) {
       console.error('❌ ERREUR: Le dossier android n\'a pas été créé!');
       console.log('   Contenu du répertoire actuel:');
