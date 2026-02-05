@@ -22,7 +22,6 @@ export const PartnersHeader: React.FC<PartnersHeaderProps> = ({
       <View style={styles.headerContent}>
         <View style={styles.headerTextContainer}>
           <View style={styles.titleRow}>
-            <Ionicons name="business" size={28} color="#F6C756" style={styles.titleIcon} />
             <Text style={styles.title}>Explorer</Text>
           </View>
           <Text style={styles.subtitle}>Trouvez vos partenaires MayaConnect</Text>
