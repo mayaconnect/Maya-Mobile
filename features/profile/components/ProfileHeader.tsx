@@ -4,7 +4,6 @@ import { removeAvatar as removeAvatarApi, uploadAvatar as uploadAvatarApi } from
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -45,6 +44,7 @@ interface ProfileHeaderProps {
   userInfo: any;
   user: any;
   hasSubscription: boolean;
+  subscription?: any;
   onRefresh: () => void;
   onAvatarUpdate?: (updatedUser: any) => void;
 }
@@ -53,6 +53,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   userInfo,
   user,
   hasSubscription,
+  subscription,
   onRefresh,
   onAvatarUpdate,
 }) => {
@@ -375,14 +376,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const finalAvatarBase64 = avatarBase64 || userInfo?.avatarBase64;
   const avatarUrl = (userInfo as any)?.avatarUrl || (userInfo as any)?.avatar || '';
 
+  const subscriptionPlanName = subscription?.planCode || subscription?.plan?.name || 'Plan family';
+  const isActive = subscription?.isActive || hasSubscription;
+
   return (
-    <LinearGradient
-      colors={['rgba(139, 47, 63, 0.3)', 'rgba(139, 47, 63, 0.15)', 'rgba(139, 47, 63, 0.05)']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.profileCard}
-    >
+    <View style={styles.profileCard}>
       <View style={styles.profileHeader}>
+        {/* Avatar centré */}
         <TouchableOpacity 
           style={styles.avatarContainer} 
           onPress={handleAvatarPress}
@@ -405,133 +405,114 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 }}
               />
               <View style={styles.avatarEditOverlay}>
-                <Ionicons name="camera" size={20} color={Colors.text.light} />
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
               </View>
             </View>
           ) : (
-            <LinearGradient
-              colors={['#8B2F3F', '#A53F51']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.avatarBadge}
-            >
+            <View style={styles.avatarBadge}>
               <Text style={styles.avatarInitials}>
                 {userInfo ? `${userInfo.firstName?.charAt(0) || ''}${userInfo.lastName?.charAt(0) || ''}`.toUpperCase() : 'U'}
               </Text>
               <View style={styles.avatarEditIcon}>
-                <Ionicons name="camera" size={16} color={Colors.text.light} />
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
               </View>
-            </LinearGradient>
+            </View>
           )}
         </TouchableOpacity>
         
-        <View style={styles.profileInfo}>
-          <View style={styles.userNameRow}>
-            <Text style={styles.userName}>
-              {userInfo ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur'}
-            </Text>
-            {hasSubscription && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-              </View>
-            )}
-          </View>
-          
-          <View style={styles.emailRow}>
-            <Ionicons name="mail" size={14} color={Colors.text.secondary} />
-            <Text 
-              style={styles.userEmail}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {userInfo?.email || user?.email || 'Non connecté'}
-            </Text>
-          </View>
-          
-          {/* Informations rapides */}
-          <View style={styles.quickInfoRow}>
-            {hasSubscription && (
-              <View style={[styles.quickInfoTag, styles.subscriptionTag]}>
-                <Text style={[styles.quickInfoText, styles.subscriptionTagText]}>Abonné</Text>
-              </View>
-            )}
-          </View>
+        {/* Nom */}
+        <Text style={styles.userName}>
+          {userInfo ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'Utilisateur' : 'Utilisateur'}
+        </Text>
+        
+        {/* Email */}
+        <Text 
+          style={styles.userEmail}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {userInfo?.email || user?.email || 'Non connecté'}
+        </Text>
+        
+        {/* Badges */}
+        <View style={styles.badgesRow}>
+          {hasSubscription && (
+            <View style={[styles.badge, styles.planBadge]}>
+              <Text style={styles.badgeText}>{subscriptionPlanName}</Text>
+            </View>
+          )}
+          {isActive && (
+            <View style={[styles.badge, styles.activeBadge]}>
+              <Text style={styles.badgeText}>Actif</Text>
+            </View>
+          )}
         </View>
-        
-        
       </View>
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   profileCard: {
-    borderRadius: BorderRadius['2xl'],
-    padding: Spacing.xl,
     marginBottom: Spacing.xl,
     marginHorizontal: Spacing.sm,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    ...Shadows.xl,
-    maxWidth: '100%',
-    overflow: 'hidden',
   } as ViewStyle,
   profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.lg,
+    alignItems: 'center',
+    gap: Spacing.sm,
   } as ViewStyle,
   avatarContainer: {
     position: 'relative',
   } as ViewStyle,
   avatarBadge: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     ...Shadows.lg,
     position: 'relative',
   } as ViewStyle,
   avatarImageContainer: {
     position: 'relative',
-    width: 88,
-    height: 88,
+    width: 100,
+    height: 100,
   } as ViewStyle,
   avatarImage: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   } as ViewStyle,
   avatarEditOverlay: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: '#8B5CF6',
     borderRadius: BorderRadius.full,
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   } as ViewStyle,
   avatarEditIcon: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#8B5CF6',
     borderRadius: BorderRadius.full,
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
   } as ViewStyle,
   onlineIndicator: {
     position: 'absolute',
@@ -550,63 +531,44 @@ const styles = StyleSheet.create({
     color: Colors.text.light,
     letterSpacing: -1,
   } as TextStyle,
-  profileInfo: {
-    flex: 1,
-    gap: Spacing.xs,
-  } as ViewStyle,
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.xs,
-  } as ViewStyle,
   userName: {
     fontSize: Typography.sizes.xl,
     fontWeight: '900',
     color: Colors.text.light,
     letterSpacing: -0.5,
+    marginTop: Spacing.sm,
   } as TextStyle,
-  verifiedBadge: {
-    marginLeft: 4,
-  } as ViewStyle,
-  emailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
   userEmail: {
     fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
   } as TextStyle,
-  quickInfoRow: {
+  badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginTop: Spacing.sm,
     flexWrap: 'wrap',
+    justifyContent: 'center',
   } as ViewStyle,
-  quickInfoTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+  badge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
   } as ViewStyle,
-  quickInfoText: {
+  planBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.3)',
+    borderColor: 'rgba(99, 102, 241, 0.5)',
+  } as ViewStyle,
+  activeBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  } as ViewStyle,
+  badgeText: {
     fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
+    color: Colors.text.light,
     fontWeight: '700',
-  } as TextStyle,
-  subscriptionTag: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  } as ViewStyle,
-  subscriptionTagText: {
-    color: '#10B981',
   } as TextStyle,
   refreshButton: {
     padding: Spacing.xs,

@@ -146,26 +146,27 @@ export default function PartnerHomeScreen() {
         style={styles.container}
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <PartnerHeader
-            firstName={user?.firstName}
-            lastName={user?.lastName}
-            showWelcome={selectedTab === 'overview'}
-            title={
-              selectedTab === 'history' ? 'Historique' :
-              selectedTab === 'stats' ? 'Statistiques' :
-              selectedTab === 'me' ? 'Mon profil' :
-              undefined
-            }
-            onLogout={async () => {
-              try {
-                await signOut();
-                router.replace('/connexion/login');
-              } catch (error) {
-                console.error('Erreur lors de la déconnexion:', error);
-                Alert.alert('Erreur', 'Impossible de se déconnecter');
+          {selectedTab !== 'me' && (
+            <PartnerHeader
+              firstName={user?.firstName}
+              lastName={user?.lastName}
+              showWelcome={selectedTab === 'overview'}
+              title={
+                selectedTab === 'history' ? 'Historique' :
+                selectedTab === 'stats' ? 'Statistiques' :
+                undefined
               }
-            }}
-          />
+              onLogout={async () => {
+                try {
+                  await signOut();
+                  router.replace('/connexion/login');
+                } catch (error) {
+                  console.error('Erreur lors de la déconnexion:', error);
+                  Alert.alert('Erreur', 'Impossible de se déconnecter');
+                }
+              }}
+            />
+          )}
 
           <ScrollView 
             style={styles.content} 
@@ -186,12 +187,19 @@ export default function PartnerHomeScreen() {
                 scans={scans}
                 scansLoading={scansLoading}
                 scansError={scansError}
+                transactions={transactions}
                 clients={clients}
                 clientsLoading={clientsLoading}
                 clientsError={clientsError}
                 filteredClients={filteredClients}
                 onExportData={handleExportData}
                 onScanQR={handleScanQR}
+                onViewStats={() => {
+                  // TODO: Naviguer vers les stats détaillées
+                }}
+                onViewAllTransactions={() => {
+                  setSelectedTab('history');
+                }}
                 validatingQR={validatingQR}
               />
             )}
@@ -224,10 +232,22 @@ export default function PartnerHomeScreen() {
                 filteredStores={filteredStores}
                 activeStoreId={activeStoreId}
                 activeStore={activeStore}
+                transactions={transactions}
+                clients={clients}
+                scans={scans}
                 onSearchChange={setStoreSearchQuery}
                 onStoreSelect={handleStoreSelect}
                 onChangeStore={() => {
                   setShowActiveStoreSelection(true);
+                }}
+                onLogout={async () => {
+                  try {
+                    await signOut();
+                    router.replace('/connexion/login');
+                  } catch (error) {
+                    console.error('Erreur lors de la déconnexion:', error);
+                    Alert.alert('Erreur', 'Impossible de se déconnecter');
+                  }
                 }}
               />
             )}
