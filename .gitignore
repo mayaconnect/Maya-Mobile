@@ -56,6 +56,8 @@ android/*
 !android/settings.gradle
 !android/gradle/
 !android/gradle/**
+!android/gradlew
+!android/gradlew.bat
 ios/*
 !ios/fastlane/
 !ios/fastlane/**
