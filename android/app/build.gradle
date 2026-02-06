@@ -113,10 +113,72 @@ android {
         }
         release {
             if (keystorePropertiesFile.exists()) {
-                storeFile file(keystoreProperties['MAYA_UPLOAD_STORE_FILE'])
-                storePassword keystoreProperties['MAYA_UPLOAD_STORE_PASSWORD']
-                keyAlias keystoreProperties['MAYA_UPLOAD_KEY_ALIAS']
-                keyPassword keystoreProperties['MAYA_UPLOAD_KEY_PASSWORD']
+                def keystorePath = keystoreProperties['MAYA_UPLOAD_STORE_FILE']
+                // Le chemin est relatif au répertoire du module app (android/app/)
+                def keystoreFile = file(keystorePath)
+                def keystoreAlias = keystoreProperties['MAYA_UPLOAD_KEY_ALIAS']
+                def keystorePassword = keystoreProperties['MAYA_UPLOAD_STORE_PASSWORD']
+                def keyPassword = keystoreProperties['MAYA_UPLOAD_KEY_PASSWORD']
+                
+                // Vérification du keystore
+                if (!keystoreFile.exists()) {
+                    throw new GradleException("ERREUR: Le keystore n'existe pas à: ${keystoreFile.absolutePath}")
+                }
+                
+                // Vérification et affichage du SHA1 du keystore
+                try {
+                    // Trouver keytool (chercher dans JAVA_HOME ou utiliser celui du PATH)
+                    def keytoolPath = "keytool"
+                    def javaHome = System.getenv("JAVA_HOME")
+                    if (javaHome) {
+                        def keytoolFile = new File(javaHome, "bin/keytool${System.getProperty('os.name').toLowerCase().contains('win') ? '.exe' : ''}")
+                        if (keytoolFile.exists()) {
+                            keytoolPath = keytoolFile.absolutePath
+                        }
+                    }
+                    
+                    def keytoolCmd = "\"${keytoolPath}\" -list -v -keystore \"${keystoreFile.absolutePath}\" -alias \"${keystoreAlias}\" -storepass \"${keystorePassword}\" -keypass \"${keyPassword}\""
+                    def process = keytoolCmd.execute(null, projectDir)
+                    def output = new StringBuffer()
+                    def error = new StringBuffer()
+                    process.consumeProcessOutput(output, error)
+                    process.waitFor()
+                    
+                    if (process.exitValue() == 0) {
+                        def sha1Match = output.toString() =~ /SHA1:\s*([0-9A-F:]+)/
+                        if (sha1Match) {
+                            def sha1 = sha1Match[0][1]
+                            println "=========================================="
+                            println "✓ VÉRIFICATION KEYSTORE RELEASE"
+                            println "=========================================="
+                            println "Chemin: ${keystoreFile.absolutePath}"
+                            println "Alias: ${keystoreAlias}"
+                            println "SHA1 trouvé: ${sha1}"
+                            println "SHA1 attendu: 36:C8:2E:65:14:AE:FD:02:0F:CC:3E:79:4E:A4:5D:76:90:4B:AB:99"
+                            if (sha1 == "36:C8:2E:65:14:AE:FD:02:0F:CC:3E:79:4E:A4:5D:76:90:4B:AB:99") {
+                                println "✓ SHA1 CORRECT - Le bon keystore sera utilisé"
+                            } else {
+                                println "⚠ ATTENTION: Le SHA1 ne correspond pas à celui attendu par Google Play!"
+                                println "  Le build continuera mais l'upload échouera."
+                            }
+                            println "=========================================="
+                        } else {
+                            println "⚠ Impossible d'extraire le SHA1 de la sortie keytool"
+                        }
+                    } else {
+                        println "⚠ Impossible de vérifier le SHA1 du keystore (code: ${process.exitValue()})"
+                        if (error.toString().trim()) {
+                            println "  Erreur: ${error.toString().trim()}"
+                        }
+                    }
+                } catch (Exception e) {
+                    println "⚠ Impossible de vérifier le SHA1 du keystore: ${e.message}"
+                }
+                
+                storeFile keystoreFile
+                storePassword keystorePassword
+                keyAlias keystoreAlias
+                keyPassword keyPassword
             }
         }
     }

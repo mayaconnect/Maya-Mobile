@@ -30,8 +30,14 @@ fi
 echo ""
 echo "🔨 Génération des dossiers natifs (prebuild)..."
 # Toujours exécuter prebuild pour s'assurer que les dossiers sont à jour
-echo "📱 Exécution de expo prebuild --clean..."
-npx expo prebuild --clean
+# Sur Windows, --clean peut causer des problèmes de verrouillage, donc on l'évite
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+  echo "📱 Exécution de expo prebuild (Windows détecté, --clean désactivé)..."
+  npx expo prebuild
+else
+  echo "📱 Exécution de expo prebuild --clean..."
+  npx expo prebuild --clean
+fi
 echo "✅ Prebuild terminé"
 
 # Vérifier que gradlew existe pour Android
