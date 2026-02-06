@@ -118,7 +118,7 @@ android {
                 def keystoreFile = file(keystorePath)
                 def keystoreAlias = keystoreProperties['MAYA_UPLOAD_KEY_ALIAS']
                 def keystorePassword = keystoreProperties['MAYA_UPLOAD_STORE_PASSWORD']
-                def keyPassword = keystoreProperties['MAYA_UPLOAD_KEY_PASSWORD']
+                def keystoreKeyPassword = keystoreProperties['MAYA_UPLOAD_KEY_PASSWORD']
                 
                 // Vérification du keystore
                 if (!keystoreFile.exists()) {
@@ -137,15 +137,18 @@ android {
                         }
                     }
                     
-                    def keytoolCmd = "\"${keytoolPath}\" -list -v -keystore \"${keystoreFile.absolutePath}\" -alias \"${keystoreAlias}\" -storepass \"${keystorePassword}\" -keypass \"${keyPassword}\""
-                    def process = keytoolCmd.execute(null, projectDir)
+                    // Utiliser une liste de commandes pour éviter les problèmes avec les guillemets sur Windows
+                    def keytoolCmdList = [keytoolPath, "-list", "-v", "-keystore", keystoreFile.absolutePath, "-alias", keystoreAlias, "-storepass", keystorePassword, "-keypass", keystoreKeyPassword]
+                    def process = keytoolCmdList.execute(null, projectDir)
                     def output = new StringBuffer()
                     def error = new StringBuffer()
                     process.consumeProcessOutput(output, error)
                     process.waitFor()
                     
                     if (process.exitValue() == 0) {
-                        def sha1Match = output.toString() =~ /SHA1:\s*([0-9A-F:]+)/
+                        def outputText = output.toString()
+                        // Chercher SHA1 ou SHA 1 (selon la locale) - case insensitive
+                        def sha1Match = outputText =~ /(?i)SHA\s*1[:\s]+([0-9A-F:]+)/
                         if (sha1Match) {
                             def sha1 = sha1Match[0][1]
                             println "=========================================="
@@ -178,7 +181,7 @@ android {
                 storeFile keystoreFile
                 storePassword keystorePassword
                 keyAlias keystoreAlias
-                keyPassword keyPassword
+                keyPassword keystoreKeyPassword
             }
         }
     }
