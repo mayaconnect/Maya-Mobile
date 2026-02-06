@@ -71,11 +71,12 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   statCard: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
+    ...Shadows.sm,
   } as ViewStyle,
   savingsCard: {
     // Specific styles if needed

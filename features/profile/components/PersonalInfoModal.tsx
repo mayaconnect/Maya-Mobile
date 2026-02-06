@@ -51,13 +51,7 @@ export const PersonalInfoModal: React.FC<PersonalInfoModalProps> = ({
                 <Ionicons name="close" size={24} color={Colors.text.light} />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Informations personnelles</Text>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => setShowEditModal(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="create-outline" size={20} color={Colors.text.light} />
-              </TouchableOpacity>
+              <View style={styles.headerSpacer} />
             </View>
 
             <ScrollView
@@ -66,60 +60,60 @@ export const PersonalInfoModal: React.FC<PersonalInfoModalProps> = ({
               showsVerticalScrollIndicator={false}
             >
               {/* Nom complet */}
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconContainer}>
-                  <Ionicons name="person" size={20} color={Colors.text.secondary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Nom complet</Text>
-                  <Text style={styles.infoValue}>
-                    {userInfo.firstName || ''} {userInfo.lastName || ''}
-                  </Text>
+              <View style={styles.infoCard}>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIconContainer}>
+                    <Ionicons name="person" size={22} color="#8B2F3F" />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Nom complet</Text>
+                    <Text style={styles.infoValue}>
+                      {userInfo.firstName || ''} {userInfo.lastName || ''}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
-              <View style={styles.separator} />
-
               {/* Email */}
-              <View style={styles.infoRow}>
-                <View style={styles.infoIconContainer}>
-                  <Ionicons name="mail" size={20} color={Colors.text.secondary} />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Email</Text>
-                  <Text 
-                    style={styles.infoValue}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {userInfo.email || 'N/A'}
-                  </Text>
+              <View style={styles.infoCard}>
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIconContainer}>
+                    <Ionicons name="mail" size={22} color="#8B2F3F" />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Email</Text>
+                    <Text 
+                      style={styles.infoValue}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {userInfo.email || 'N/A'}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
               {/* Téléphone */}
               {userInfo.phoneNumber && (
-                <>
-                  <View style={styles.separator} />
+                <View style={styles.infoCard}>
                   <View style={styles.infoRow}>
                     <View style={styles.infoIconContainer}>
-                      <Ionicons name="call" size={20} color={Colors.text.secondary} />
+                      <Ionicons name="call" size={22} color="#8B2F3F" />
                     </View>
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Téléphone</Text>
                       <Text style={styles.infoValue}>{userInfo.phoneNumber}</Text>
                     </View>
                   </View>
-                </>
+                </View>
               )}
 
               {/* Date de naissance */}
               {userInfo.birthDate && (
-                <>
-                  <View style={styles.separator} />
+                <View style={styles.infoCard}>
                   <View style={styles.infoRow}>
                     <View style={styles.infoIconContainer}>
-                      <Ionicons name="calendar" size={20} color={Colors.text.secondary} />
+                      <Ionicons name="calendar" size={22} color="#8B2F3F" />
                     </View>
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Date de naissance</Text>
@@ -132,16 +126,15 @@ export const PersonalInfoModal: React.FC<PersonalInfoModalProps> = ({
                       </Text>
                     </View>
                   </View>
-                </>
+                </View>
               )}
 
               {/* Adresse */}
               {userInfo.address && (
-                <>
-                  <View style={styles.separator} />
+                <View style={styles.infoCard}>
                   <View style={styles.infoRow}>
                     <View style={styles.infoIconContainer}>
-                      <Ionicons name="location" size={20} color={Colors.text.secondary} />
+                      <Ionicons name="location" size={22} color="#8B2F3F" />
                     </View>
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Adresse</Text>
@@ -154,8 +147,18 @@ export const PersonalInfoModal: React.FC<PersonalInfoModalProps> = ({
                       </Text>
                     </View>
                   </View>
-                </>
+                </View>
               )}
+
+              {/* Bouton Modifier en bas */}
+              <TouchableOpacity
+                style={styles.editButtonLarge}
+                onPress={() => setShowEditModal(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="create-outline" size={20} color={Colors.text.light} />
+                <Text style={styles.editButtonText}>Modifier les informations</Text>
+              </TouchableOpacity>
             </ScrollView>
           </SafeAreaView>
         </View>
@@ -202,52 +205,74 @@ const styles = StyleSheet.create({
     color: Colors.text.light,
     letterSpacing: -0.5,
   } as TextStyle,
-  editButton: {
-    padding: Spacing.xs,
+  headerSpacer: {
+    width: 40,
   } as ViewStyle,
   content: {
     flex: 1,
   } as ViewStyle,
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
+    gap: Spacing.md,
+  } as ViewStyle,
+  infoCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    ...Shadows.sm,
   } as ViewStyle,
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: Spacing.md,
     gap: Spacing.md,
   } as ViewStyle,
   infoIconContainer: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: BorderRadius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   } as ViewStyle,
   infoContent: {
     flex: 1,
+    paddingTop: 2,
   } as ViewStyle,
   infoLabel: {
     fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
+    color: 'rgba(255, 255, 255, 0.6)',
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
   } as TextStyle,
   infoValue: {
     fontSize: Typography.sizes.base,
     color: Colors.text.light,
     fontWeight: '600',
-    lineHeight: 22,
+    lineHeight: 24,
   } as TextStyle,
-  separator: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: Spacing.sm,
+  editButtonLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#8B2F3F',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    gap: Spacing.sm,
+    ...Shadows.md,
   } as ViewStyle,
+  editButtonText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.light,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  } as TextStyle,
 });
 

@@ -28,6 +28,9 @@ export const API_CONFIG = {
       REFRESH: '/auth/refresh',
       LOGOUT: '/auth/logout',
       FORGOT_PASSWORD: '/auth/forgot-password',
+      REQUEST_PASSWORD_RESET: '/auth/request-password-reset',
+      REQUEST_PASSWORD_RESET_CODE: '/auth/request-password-reset-code',
+      VERIFY_PASSWORD_RESET_CODE: '/auth/verify-password-reset-code',
       RESET_PASSWORD: '/auth/reset-password',
     },
     USERS: {

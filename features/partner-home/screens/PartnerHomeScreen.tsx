@@ -254,8 +254,11 @@ export default function PartnerHomeScreen() {
 
             {selectedTab === 'stats' && (
               <PartnerStats
+                transactions={transactions}
+                clients={clients}
                 scanCounts={scanCounts}
                 scanCountsLoading={scanCountsLoading}
+                onExport={handleExportData}
               />
             )}
           </ScrollView>
