@@ -1,8 +1,8 @@
-import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import React, { useMemo } from 'react';
+import { PartnerDailyActivity } from './PartnerDailyActivity';
+import { PartnerKPICards } from './PartnerKPICards';
+import { PartnerQuickActions } from './PartnerQuickActions';
+import { PartnerRecentScans } from './PartnerRecentScans';
 
 interface PartnerOverviewProps {
   totalRevenue: number;
@@ -11,19 +11,15 @@ interface PartnerOverviewProps {
   scans: any[];
   scansLoading: boolean;
   scansError: string | null;
-  scanCounts?: {
-    today: number;
-    week: number;
-    month: number;
-    total: number;
-  };
-  scanCountsLoading?: boolean;
+  transactions: any[];
   clients: any[];
   clientsLoading: boolean;
   clientsError: string | null;
   filteredClients: any[];
   onExportData: () => void;
   onScanQR?: () => void;
+  onViewStats?: () => void;
+  onViewAllTransactions?: () => void;
   validatingQR?: boolean;
 }
 
@@ -34,518 +30,123 @@ export function PartnerOverview({
   scans,
   scansLoading,
   scansError,
-  scanCounts,
-  scanCountsLoading,
+  transactions = [],
   clients,
   clientsLoading,
   clientsError,
   filteredClients,
   onExportData,
   onScanQR,
+  onViewStats,
+  onViewAllTransactions,
   validatingQR = false,
 }: PartnerOverviewProps) {
-  const totalScans = scanCounts?.total || scans.length;
-  const todayScans = scanCounts?.today || 0;
-  
+  // Calculer les statistiques du mois
+  const monthStats = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const monthTransactions = transactions.filter((t: any) => {
+      const date = new Date(t.createdAt || t.date || t.transactionDate);
+      return date >= startOfMonth;
+    });
+
+    const lastMonthTransactions = transactions.filter((t: any) => {
+      const date = new Date(t.createdAt || t.date || t.transactionDate);
+      return date >= startOfLastMonth && date <= endOfLastMonth;
+    });
+
+    const monthRevenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
+    const lastMonthRevenue = lastMonthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
+    
+    const revenueChange = lastMonthRevenue > 0 
+      ? Math.round(((monthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
+      : undefined;
+
+    // Scans aujourd'hui
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayScans = scans.filter((s: any) => {
+      const date = new Date(s.createdAt || s.date || s.scanDate);
+      return date >= todayStart;
+    }).length;
+
+    // Scans hier
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    const yesterdayEnd = new Date(todayStart);
+    const yesterdayScans = scans.filter((s: any) => {
+      const date = new Date(s.createdAt || s.date || s.scanDate);
+      return date >= yesterdayStart && date < yesterdayEnd;
+    }).length;
+
+    const scansChange = todayScans - yesterdayScans;
+
+    // Clients uniques
+    const uniqueClients = new Set(
+      transactions.map((t: any) => {
+        const customer = t.customer || t.client || {};
+        return customer.id || customer.userId || `${customer.firstName || ''}_${customer.lastName || ''}`;
+      }).filter(Boolean)
+    ).size;
+
+    // Nouveaux clients ce mois
+    const monthClients = new Set(
+      monthTransactions.map((t: any) => {
+        const customer = t.customer || t.client || {};
+        return customer.id || customer.userId || `${customer.firstName || ''}_${customer.lastName || ''}`;
+      }).filter(Boolean)
+    );
+    const lastMonthClients = new Set(
+      lastMonthTransactions.map((t: any) => {
+        const customer = t.customer || t.client || {};
+        return customer.id || customer.userId || `${customer.firstName || ''}_${customer.lastName || ''}`;
+      }).filter(Boolean)
+    );
+    const newClients = Array.from(monthClients).filter((id) => !lastMonthClients.has(id)).length;
+
+    return {
+      monthRevenue,
+      revenueChange,
+      todayScans,
+      scansChange,
+      uniqueClients,
+      newClients,
+    };
+  }, [transactions, scans]);
+
   return (
     <>
-      {/* Statistiques */}
-      <BlurView intensity={15} tint="dark" style={styles.statsContainer}>
-        {/* Première ligne : Montant global et Réductions */}
-        <View style={styles.statsRow}>
-          <BlurView intensity={15} tint="dark" style={styles.statCard}>
-            <View style={styles.statCardHeader}>
-              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(139, 47, 63, 0.25)' }]}>
-                <Ionicons name="cash" size={20} color="#8B2F3F" />
-              </View>
-              <View style={styles.statCardContent}>
-                <Text style={styles.statLabel}>Montant global</Text>
-                <Text style={[styles.statValue, { color: '#8B2F3F' }]}>
-                  {todayRevenue.toFixed(2)}€
-                </Text>
-                <Text style={styles.statSubLabel}>Aujourd&apos;hui</Text>
-              </View>
-            </View>
-          </BlurView>
-          <BlurView intensity={15} tint="dark" style={styles.statCard}>
-            <View style={styles.statCardHeader}>
-              <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.25)' }]}>
-                <Ionicons name="pricetag" size={20} color={Colors.status.success} />
-              </View>
-              <View style={styles.statCardContent}>
-                <Text style={styles.statLabel}>Réductions totales</Text>
-                <Text style={[styles.statValue, { color: Colors.status.success }]}>
-                  {todayDiscounts.toFixed(2)}€
-                </Text>
-                <Text style={styles.statSubLabel}>Aujourd&apos;hui</Text>
-              </View>
-            </View>
-          </BlurView>
-        </View>
-        
-        {/* Deuxième ligne : Scans total */}
-        <View style={styles.statsRow}>
-          <BlurView intensity={15} tint="dark" style={[styles.statCard, styles.statCardFull]}>
-            <View style={styles.statCardHeader}>
-              <View style={[styles.statIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="scan" size={20} color={Colors.accent.orange} />
-              </View>
-              <View style={styles.statCardContent}>
-                {scanCountsLoading ? (
-                  <ActivityIndicator size="small" color={Colors.accent.orange} />
-                ) : (
-                  <>
-                    <Text style={styles.statLabel}>Scans total</Text>
-                    <Text style={[styles.statValue, { color: Colors.accent.orange }]}>
-                      {totalScans.toLocaleString('fr-FR')}
-                    </Text>
-                    {todayScans > 0 && (
-                      <Text style={styles.statSubLabel}>+{todayScans} aujourd&apos;hui</Text>
-                    )}
-                  </>
-                )}
-              </View>
-            </View>
-          </BlurView>
-        </View>
-      </BlurView>
+      {/* 3 Cartes KPI */}
+      <PartnerKPICards
+        monthRevenue={monthStats.monthRevenue}
+        monthRevenueChange={monthStats.revenueChange}
+        todayScans={monthStats.todayScans}
+        todayScansChange={monthStats.scansChange}
+        uniqueClients={monthStats.uniqueClients}
+        newClients={monthStats.newClients}
+      />
 
-      {/* Compteurs détaillés de scans */}
-      {scanCounts && (
-        <BlurView intensity={15} tint="dark" style={styles.scanCountsSection}>
-          <View style={styles.scanCountsGrid}>
-            <BlurView intensity={15} tint="dark" style={styles.scanCountCard}>
-              <View style={[styles.scanCountIcon, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                <Ionicons name="today-outline" size={20} color={Colors.status.success} />
-              </View>
-              <Text style={styles.scanCountValue}>
-                {scanCountsLoading ? '-' : scanCounts.today.toLocaleString('fr-FR')}
-              </Text>
-              <Text style={styles.scanCountLabel}>Aujourd&apos;hui</Text>
-            </BlurView>
-            <BlurView intensity={15} tint="dark" style={styles.scanCountCard}>
-              <View style={[styles.scanCountIcon, { backgroundColor: 'rgba(139, 47, 63, 0.15)' }]}>
-                <Ionicons name="calendar-outline" size={20} color={Colors.primary[600]} />
-              </View>
-              <Text style={styles.scanCountValue}>
-                {scanCountsLoading ? '-' : scanCounts.week.toLocaleString('fr-FR')}
-              </Text>
-              <Text style={styles.scanCountLabel}>7 jours</Text>
-            </BlurView>
-            <BlurView intensity={15} tint="dark" style={styles.scanCountCard}>
-              <View style={[styles.scanCountIcon, { backgroundColor: 'rgba(139, 47, 63, 0.15)' }]}>
-                <Ionicons name="calendar" size={20} color="#8B2F3F" />
-              </View>
-              <Text style={styles.scanCountValue}>
-                {scanCountsLoading ? '-' : scanCounts.month.toLocaleString('fr-FR')}
-              </Text>
-              <Text style={styles.scanCountLabel}>30 jours</Text>
-            </BlurView>
-            <BlurView intensity={15} tint="dark" style={styles.scanCountCard}>
-              <View style={[styles.scanCountIcon, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
-                <Ionicons name="stats-chart" size={20} color={Colors.accent.gold} />
-              </View>
-              <Text style={styles.scanCountValue}>
-                {scanCountsLoading ? '-' : scanCounts.total.toLocaleString('fr-FR')}
-              </Text>
-              <Text style={styles.scanCountLabel}>Total</Text>
-            </BlurView>
-          </View>
-        </BlurView>
-      )}
+      {/* Activité du jour */}
+      <PartnerDailyActivity transactions={transactions} />
 
+      {/* Actions rapides */}
+      <PartnerQuickActions
+        onScanClient={onScanQR}
+        onViewStats={onViewStats}
+      />
 
-      
+     
 
       {/* Scans récents */}
-      <View style={styles.recentSection}>
-        <Text style={styles.sectionTitle}>Scans récents</Text>
-        {scansLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={Colors.text.light} />
-            <Text style={styles.loadingText}>Chargement des scans...</Text>
-          </View>
-        ) : scansError ? (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={20} color={Colors.status.error} />
-            <Text style={styles.errorText}>{scansError}</Text>
-          </View>
-        ) : scans.length === 0 ? (
-          <BlurView intensity={15} tint="dark" style={styles.emptyCard}>
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons name="qr-code-outline" size={48} color={Colors.text.secondary} />
-              </View>
-              <Text style={styles.emptyTitle}>Aucun scan pour le moment</Text>
-              <Text style={styles.emptySubtext}>
-                Scannez le QR code de vos clients pour commencer à enregistrer des transactions
-              </Text>
-              {onScanQR && (
-                <View style={styles.emptyActionContainer}>
-                  <Ionicons name="scan" size={20} color={Colors.text.light} />
-                  <Text style={styles.emptyActionText}>Utilisez le scanner pour commencer</Text>
-                </View>
-              )}
-            </View>
-          </BlurView>
-        ) : (
-          <>
-            {scans.slice(0, 5).map((scan, index) => (
-              <BlurView key={scan.id || scan.transactionId || `scan-${index}`} intensity={15} tint="dark" style={styles.scanCard}>
-                <View style={styles.scanCardContent}>
-                  <View style={styles.scanIconContainer}>
-                    <View style={styles.scanIcon}>
-                      <Ionicons name="qr-code-outline" size={24} color={Colors.text.light} />
-                    </View>
-                  </View>
-                  <View style={styles.scanDetails}>
-                    <View style={styles.scanHeader}>
-                      <View style={styles.scanTitleContainer}>
-                        <Text style={styles.scanName} numberOfLines={1}>
-                          {scan.customer?.firstName || scan.client?.firstName || 'Client'}{' '}
-                          {scan.customer?.lastName || scan.client?.lastName || ''}
-                        </Text>
-                        <Text style={styles.scanDate}>
-                          {new Date(scan.createdAt).toLocaleDateString('fr-FR')}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.scanInfoRow}>
-                      <View style={styles.scanStoreRow}>
-                        <Ionicons name="storefront-outline" size={14} color={Colors.text.secondary} />
-                        <Text style={styles.scanStore} numberOfLines={1}>
-                          {scan.store?.name || 'Magasin'}
-                        </Text>
-                      </View>
-                      <View style={styles.scanAmountRow}>
-                        <Text style={styles.scanAmount}>
-                          {scan.amountGross?.toFixed(2) || '0.00'}€
-                        </Text>
-                        {scan.discountAmount > 0 && (
-                          <View style={styles.scanDiscountBadge}>
-                            <Ionicons name="pricetag-outline" size={12} color={Colors.status.success} />
-                            <Text style={styles.scanDiscountText}>
-                              -{scan.discountAmount?.toFixed(2) || '0.00'}€
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              </BlurView>
-            ))}
-          </>
-        )}
-      </View>
-
-
+      <PartnerRecentScans
+        scans={scans}
+        scansLoading={scansLoading}
+        scansError={scansError}
+        onScanQR={onScanQR}
+      />
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  statsContainer: {
-    marginBottom: Spacing.md,
-    gap: Spacing.md,
-  } as ViewStyle,
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  } as ViewStyle,
-  statCard: {
-    flex: 1,
-        borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    overflow: 'hidden',
-  } as ViewStyle,
-  statCardFull: {
-    flex: 1,
-  } as ViewStyle,
-  statCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  } as ViewStyle,
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  } as ViewStyle,
-  statCardContent: {
-    flex: 1,
-  } as ViewStyle,
-  statValue: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.text.light,
-    marginTop: 2,
-    marginBottom: 2,
-  } as TextStyle,
-  statLabel: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weights.medium as any,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  } as TextStyle,
-  statSubLabel: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weights.medium as any,
-    marginTop: 2,
-    opacity: 0.8,
-  } as TextStyle,
-  scanCountsSection: {
-    marginBottom: Spacing.lg,
-  } as ViewStyle,
-  scanCountsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    flexWrap: 'wrap',
-  } as ViewStyle,
-  scanCountCard: {
-    flex: 1,
-    minWidth: '48%',
-        borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    alignItems: 'center',
-    overflow: 'hidden',
-  } as ViewStyle,
-  scanCountIcon: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  } as ViewStyle,
-  scanCountValue: {
-    fontSize: Typography.sizes['2xl'],
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.text.light,
-    marginBottom: 2,
-  } as TextStyle,
-  scanCountLabel: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    fontWeight: Typography.weights.medium as any,
-  } as TextStyle,
-  quickActionsSection: {
-    marginBottom: Spacing.md,
-  } as ViewStyle,
-  quickActionsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  } as ViewStyle,
-  quickActionCardBlur: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    overflow: 'hidden',
-  } as ViewStyle,
-  quickActionCard: {
-
-    flex: 1,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  } as ViewStyle,
-  quickActionCardDisabled: {
-    opacity: 0.6,
-  } as ViewStyle,
-  quickActionLabel: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '700',
-    color: Colors.text.light,
-    marginBottom: 2,
-  } as TextStyle,
-  quickActionSubtext: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-  } as TextStyle,
-  recentSection: {
-    marginBottom: Spacing.md,
-  } as ViewStyle,
-  sectionTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '700',
-    color: Colors.text.light,
-    marginBottom: Spacing.md,
-  } as TextStyle,
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.lg,
-    gap: Spacing.sm,
-  } as ViewStyle,
-  loadingText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-  } as TextStyle,
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-  } as ViewStyle,
-  errorText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.status.error,
-  } as TextStyle,
-  emptyCard: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.xl,
-    overflow: 'hidden',
-  } as ViewStyle,
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.lg,
-    gap: Spacing.md,
-  } as ViewStyle,
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
-  emptyTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.text.light,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-  } as TextStyle,
-  emptySubtext: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: Spacing.md,
-  } as TextStyle,
-  emptyActionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: 'rgba(139, 47, 63, 0.2)',
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 47, 63, 0.3)',
-  } as ViewStyle,
-  emptyActionText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.light,
-    fontWeight: Typography.weights.medium as any,
-  } as TextStyle,
-  scanCard: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.md,
-    padding: Spacing.md,
-    overflow: 'hidden',
-  } as ViewStyle,
-  scanCardContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  } as ViewStyle,
-  scanIconContainer: {
-    position: 'relative',
-  } as ViewStyle,
-  scanIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: 'rgba(139, 47, 63, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  } as ViewStyle,
-  scanDetails: {
-    flex: 1,
-    gap: Spacing.xs,
-  } as ViewStyle,
-  scanHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
-  } as ViewStyle,
-  scanTitleContainer: {
-    flex: 1,
-    gap: 2,
-  } as ViewStyle,
-  scanName: {
-    fontSize: Typography.sizes.base,
-    fontWeight: '600',
-    color: Colors.text.light,
-  } as TextStyle,
-  scanDate: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-  } as TextStyle,
-  scanInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  } as ViewStyle,
-  scanStoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flex: 1,
-  } as ViewStyle,
-  scanStore: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-  } as TextStyle,
-  scanAmountRow: {
-    alignItems: 'flex-end',
-    gap: 4,
-  } as ViewStyle,
-  scanAmount: {
-    fontSize: Typography.sizes.base,
-    fontWeight: '600',
-    color: Colors.text.light,
-  } as TextStyle,
-  scanDiscountBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  } as ViewStyle,
-  scanDiscountText: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.status.success,
-    fontWeight: '600',
-  } as TextStyle,
-  discountText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '600',
-    color: Colors.status.success,
-  } as TextStyle,
-});
-

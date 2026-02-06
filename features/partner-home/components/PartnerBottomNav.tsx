@@ -27,34 +27,7 @@ export function PartnerBottomNav({ selectedTab, onTabChange, onScanQR, validatin
   const buttonBottom = Math.max(insets.bottom, 20) + 50; // 50px au-dessus de la navbar + safe area
 
   return (
-    <>
-      {/* Bouton Scanner en dehors du container pour qu'il ne soit pas coupé */}
-      <View style={styles.scanButtonContainer}>
-        <TouchableOpacity
-          style={styles.scanButton}
-          onPress={onScanQR}
-          disabled={validatingQR || !onScanQR}
-          activeOpacity={0.9}
-        >
-          <LinearGradient
-            colors={['#8B2F3F', '#6B1F2F', '#8B2F3F']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.scanButtonGradient}
-          >
-            <View style={styles.scanButtonInner}>
-              {validatingQR ? (
-                <Ionicons name="hourglass" size={32} color="#FFFFFF" />
-              ) : (
-                <Ionicons name="qr-code" size={32} color="#FFFFFF" />
-              )}
-            </View>
-            {/* Effet de brillance */}
-            <View style={styles.scanButtonShine} />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-
+    <View style={styles.wrapper}>
       <View style={styles.bottomNavBarContainer}>
         <LinearGradient
           colors={['#1A0A0E', '#2D0F15', '#1A0A0E']}
@@ -145,16 +118,43 @@ export function PartnerBottomNav({ selectedTab, onTabChange, onScanQR, validatin
           </View>
         </LinearGradient>
       </View>
-    </>
+
+      {/* Bouton Scanner centré au-dessus de la navbar */}
+      <View style={styles.scanButtonContainer}>
+        <TouchableOpacity
+          style={styles.scanButton}
+          onPress={onScanQR}
+          disabled={validatingQR || !onScanQR}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#8B2F3F', '#A03D52']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.scanButtonGradient}
+          >
+            {validatingQR ? (
+              <Ionicons name="hourglass" size={28} color="#FFFFFF" />
+            ) : (
+              <Ionicons name="qr-code" size={28} color="#FFFFFF" />
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bottomNavBarContainer: {
+  wrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    width: '100%',
+  } as ViewStyle,
+  bottomNavBarContainer: {
+    width: '100%',
     borderTopLeftRadius: BorderRadius['3xl'],
     borderTopRightRadius: BorderRadius['3xl'],
     ...Shadows.xl,
@@ -221,54 +221,37 @@ const styles = StyleSheet.create({
   } as TextStyle,
   scanButtonContainer: {
     position: 'absolute',
+    top: -30,
     left: '50%',
-    marginLeft: -38, // Moitié de la largeur du bouton (76/2) pour centrer
-    bottom: 50, // Positionné au-dessus de la navbar (50px du bas de l'écran)
-    zIndex: 1000, // Très élevé pour être au-dessus de tout
-    width: 76,
-    height: 76,
+    marginLeft: -35, // Moitié de la largeur du bouton (70/2) pour centrer
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    height: 70,
+    zIndex: 1000,
   } as ViewStyle,
   scanButtonSpacer: {
-    width: 76, // Même largeur que le bouton pour centrer les sections
+    width: 70, // Même largeur que le bouton pour centrer les sections
   } as ViewStyle,
   scanButton: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    overflow: 'hidden',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    overflow: 'visible', // Allow shadow and border to be visible
     ...Shadows.xl,
-    elevation: 30,
+    elevation: 20,
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   } as ViewStyle,
   scanButtonGradient: {
     width: '100%',
     height: '100%',
-    borderRadius: 38,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2.5,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    position: 'relative',
-  } as ViewStyle,
-  scanButtonInner: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    zIndex: 2,
-  } as ViewStyle,
-  scanButtonShine: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    zIndex: 1,
+    borderWidth: 2, // Inner border
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 35, // Ensure gradient itself is circular
   } as ViewStyle,
 });
 

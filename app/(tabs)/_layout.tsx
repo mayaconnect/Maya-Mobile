@@ -1,8 +1,12 @@
+import { Shadows } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, Tabs } from 'expo-router';
+import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Redirect, Tabs, useRouter, useSegments } from 'expo-router';
 import React from 'react';
+import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
@@ -32,6 +36,36 @@ export default function TabLayout() {
 
   // Calculer le padding bottom avec safe area
   const bottomPadding = Math.max(insets.bottom, responsiveSpacing(8));
+
+  // Composant pour le bouton QR Code au centre
+  const QRCodeTabButton = (props: BottomTabBarButtonProps) => {
+    const router = useRouter();
+    const segments = useSegments();
+    const isActive = segments[segments.length - 1] === 'qrcode';
+
+    return (
+      <View style={styles.qrCodeButtonContainer}>
+        <TouchableOpacity
+          style={styles.qrCodeButton}
+          onPress={() => router.push('/(tabs)/qrcode')}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#8B2F3F', '#A03D52']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.qrCodeButtonGradient}
+          >
+            <Ionicons 
+              name="qr-code" 
+              size={28} 
+              color="#FFFFFF" 
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <Tabs
@@ -97,6 +131,22 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="qrcode"
+        options={{
+          title: 'QR Code',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "qr-code" : "qr-code-outline"} 
+              size={28} 
+              color={focused ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)"} 
+            />
+          ),
+          tabBarButton: (props) => (
+            <QRCodeTabButton {...props} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="subscription"
         options={{
           title: 'Abonnement',
@@ -112,14 +162,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Historique',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "receipt" : "receipt-outline"}
-              size={24}
-              color={color}
-            />
-          ),
+          href: null, // Cacher de la barre de navigation
         }}
       />
       <Tabs.Screen
@@ -150,3 +193,33 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  qrCodeButtonContainer: {
+    top: -30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    height: 70,
+  } as ViewStyle,
+  qrCodeButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    overflow: 'visible',
+    ...Shadows.xl,
+    elevation: 20,
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
+  qrCodeButtonGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  } as ViewStyle,
+});

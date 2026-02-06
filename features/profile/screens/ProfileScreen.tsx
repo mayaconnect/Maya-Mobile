@@ -1,6 +1,7 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { DebugUsersViewer } from '@/components/debug-users-viewer';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { TransactionsApi } from '@/features/home/services/transactionsApi';
 import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthService } from '@/services/auth.service';
@@ -8,7 +9,7 @@ import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,17 +23,17 @@ import {
   ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EditProfileModal } from '../components/EditProfileModal';
-import { MenuSection } from '../components/MenuSection';
-import { PersonalInfoSection } from '../components/PersonalInfoSection';
+import { PersonalInfoModal } from '../components/PersonalInfoModal';
 import { ProfileHeader } from '../components/ProfileHeader';
-import { SettingsSection } from '../components/SettingsSection';
-import { SubscriptionSection } from '../components/SubscriptionSection';
+import { ProfileNavigationItem } from '../components/ProfileNavigationItem';
+import { ProfileRecentActivity } from '../components/ProfileRecentActivity';
+import { ProfileSettingsSection } from '../components/ProfileSettingsSection';
+import { ProfileStats } from '../components/ProfileStats';
 
 export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-  const [faceId, setFaceId] = useState(true);
+  const [weeklyReport, setWeeklyReport] = useState(false);
   const [showDebugUsers, setShowDebugUsers] = useState(false);
   const { signOut, user, refreshUser } = useAuth();
   const insets = useSafeAreaInsets();
@@ -43,7 +44,11 @@ export default function ProfileScreen() {
   const [subscription, setSubscription] = useState<any | null>(null);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPersonalInfoModal, setShowPersonalInfoModal] = useState(false);
+  
+  // États pour les statistiques
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // Charger les informations complètes de l'utilisateur
   useEffect(() => {
@@ -167,6 +172,100 @@ export default function ProfileScreen() {
     await refreshUser();
   };
 
+  // Charger les transactions pour les statistiques
+  const loadTransactions = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setStatsLoading(true);
+      const response = await TransactionsApi.getUserTransactions(user.id, {
+        page: 1,
+        pageSize: 1000, // Charger toutes les transactions pour les stats
+      });
+      setTransactions(response.items || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des transactions:', error);
+      setTransactions([]);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [user]);
+
+  // Calculer les statistiques
+  const calculateStats = useCallback(() => {
+    const totalSavings = transactions.reduce((sum, t) => sum + (t.discountAmount || 0), 0);
+    const totalTransactions = transactions.length;
+    const uniquePartners = new Set(transactions.map(t => t.partnerId || t.partnerName).filter(Boolean));
+    const totalPartners = uniquePartners.size;
+
+    // Calculer la date de membre depuis
+    let memberSince = '';
+    if (userInfo?.createdAt) {
+      const createdDate = new Date(userInfo.createdAt);
+      const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      memberSince = `${monthNames[createdDate.getMonth()]} ${createdDate.getFullYear()}`;
+    } else if (user?.createdAt) {
+      const createdDate = new Date(user.createdAt);
+      const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      memberSince = `${monthNames[createdDate.getMonth()]} ${createdDate.getFullYear()}`;
+    }
+
+    return { totalSavings, totalTransactions, totalPartners, memberSince };
+  }, [transactions, userInfo, user]);
+
+  // Calculer les transactions du mois
+  const getTransactionsThisMonth = useCallback(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return transactions.filter(t => {
+      const transactionDate = new Date(t.createdAt || t.date || 0);
+      return transactionDate >= startOfMonth;
+    }).length;
+  }, [transactions]);
+
+  // Générer l'activité récente
+  const getRecentActivity = useCallback(() => {
+    const recentTransactions = transactions
+      .slice(0, 3)
+      .map((t, index) => {
+        const transactionDate = new Date(t.createdAt || t.date || 0);
+        const partnerName = t.partnerName || t.partner?.name || t.store?.partner?.name || t.store?.name || 'Partenaire inconnu';
+        const discountAmount = t.discountAmount || 0;
+        const amount = t.amountGross || t.amount || 0;
+        
+        const now = new Date();
+        const diffTime = now.getTime() - transactionDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        let subtitle = '';
+        if (diffDays === 0) {
+          subtitle = `Aujourd'hui, ${transactionDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+        } else if (diffDays === 1) {
+          subtitle = `Hier, ${transactionDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+        } else {
+          subtitle = `${diffDays} jours, ${transactionDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+        }
+
+        return {
+          id: t.id || t.transactionId || `transaction-${index}`,
+          title: discountAmount > 0 ? `Transaction chez ${partnerName}` : `Scan QR ${partnerName}`,
+          subtitle,
+          amount: discountAmount > 0 ? `-${discountAmount.toFixed(2)}€` : undefined,
+          amountColor: discountAmount > 0 ? '#10B981' : undefined,
+          type: discountAmount > 0 ? 'transaction' as const : 'scan' as const,
+        };
+      });
+
+    return recentTransactions;
+  }, [transactions]);
+
+  // Charger les transactions au démarrage
+  useEffect(() => {
+    if (user?.id && !user.email?.toLowerCase().includes('partner') && !user.email?.toLowerCase().includes('operator')) {
+      loadTransactions();
+    }
+  }, [user, loadTransactions]);
+
   return (
     <NavigationTransition>
       <LinearGradient
@@ -176,15 +275,6 @@ export default function ProfileScreen() {
         style={styles.container}
       >
         <SafeAreaView style={styles.safeArea} edges={['top']}>
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <View>
-                <Text style={styles.title}>Mon Profil</Text>
-                <Text style={styles.subtitle}>Gérez votre compte et préférences</Text>
-              </View>
-            </View>
-          </View>
-
           <ScrollView
             style={styles.content}
             contentContainerStyle={[
@@ -205,48 +295,92 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <>
-              {/* Carte Profil avec gradient */}
+              {/* Header Profil */}
               <ProfileHeader
                 userInfo={userInfo}
                 user={user}
                 hasSubscription={hasSubscription}
+                subscription={subscription}
                 onRefresh={handleRefresh}
                 onAvatarUpdate={handleAvatarUpdate}
               />
 
-              {/* Informations personnelles */}
-              <PersonalInfoSection
-                userInfo={userInfo}
-                onEditPress={() => setShowEditModal(true)}
+              {/* Statistiques */}
+              {(() => {
+                const stats = calculateStats();
+                return (
+                  <ProfileStats
+                    totalSavings={stats.totalSavings}
+                    totalTransactions={stats.totalTransactions}
+                    totalPartners={stats.totalPartners}
+                    memberSince={stats.memberSince}
+                  />
+                );
+              })()}
+
+
+               {/* Informations personnelles et Abonnement - En bas */}
+               <ProfileNavigationItem
+                icon="person-outline"
+                title="Informations personnelles"
+                subtitle="Nom, email, téléphone"
+                onPress={() => setShowPersonalInfoModal(true)}
               />
 
-              {/* Abonnement */}
-              <SubscriptionSection
-                subscription={subscription}
-                hasSubscription={hasSubscription}
-                loading={subscriptionLoading}
-                onSubscriptionUpdate={handleRefreshSubscription}
+              <ProfileNavigationItem
+                icon="card-outline"
+                title="Abonnement & Facturation"
+                subtitle={
+                  hasSubscription && subscription
+                    ? `${subscription.planCode || subscription.plan?.name || 'Plan famille'} • ${subscription.isActive ? 'Actif' : 'Inactif'}`
+                    : 'Aucun abonnement actif'
+                }
+                onPress={() => router.push('/subscription')}
               />
 
-              {/* Paramètres */}
-              <SettingsSection
-                pushEnabled={pushEnabled}
+              {/* Navigation Items - Dans l'ordre de l'image */}
+              <ProfileNavigationItem
+                icon="time-outline"
+                title="Historique des transactions"
+                subtitle={`${getTransactionsThisMonth()} transactions ce mois`}
+                onPress={() => {
+                  // Ouvrir la modal d'historique depuis HomeScreen
+                  router.push('/(tabs)/home');
+                }}
+              />
+
+              <ProfileNavigationItem
+                icon="notifications-outline"
+                title="Notifications"
+                subtitle="Gérer vos préférences"
+                onPress={() => {
+                  // TODO: Naviguer vers la page de notifications
+                }}
+              />
+
+              <ProfileNavigationItem
+                icon="lock-closed-outline"
+                title="Sécurité & Confidentialité"
+                subtitle="Mot de passe, 2FA"
+                onPress={() => {
+                  // TODO: Naviguer vers la page de sécurité
+                }}
+              />
+
+              {/* Paramètres rapides */}
+              <ProfileSettingsSection
                 darkMode={darkMode}
-                faceId={faceId}
-                onPushToggle={setPushEnabled}
+                pushEnabled={pushEnabled}
+                weeklyReport={weeklyReport}
                 onDarkModeToggle={setDarkMode}
-                onFaceIdToggle={setFaceId}
+                onPushToggle={setPushEnabled}
+                onWeeklyReportToggle={setWeeklyReport}
               />
 
-              {/* Liens rapides */}
-              <MenuSection
-                items={[
-                  { icon: 'download-outline', label: 'Factures et reçus' },
-                  { icon: 'notifications-outline', label: 'Notifications' },
-                  { icon: 'shield-checkmark-outline', label: 'Sécurité' },
-                  { icon: 'help-circle-outline', label: 'Aide et support' },
-                ]}
-              />
+              {/* Activité récente */}
+              <ProfileRecentActivity activities={getRecentActivity()} />
+
+             
 
               {/* Déconnexion */}
               <View style={styles.logoutContainer}>
@@ -266,10 +400,10 @@ export default function ProfileScreen() {
           onClose={() => setShowDebugUsers(false)} 
         />
 
-        {/* Modal d'édition des informations personnelles */}
-        <EditProfileModal
-          visible={showEditModal}
-          onClose={() => setShowEditModal(false)}
+        {/* Modal des informations personnelles */}
+        <PersonalInfoModal
+          visible={showPersonalInfoModal}
+          onClose={() => setShowPersonalInfoModal(false)}
           userInfo={userInfo}
           onUpdate={async (updatedUser: any) => {
             setUserInfo(updatedUser);
@@ -288,29 +422,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   } as ViewStyle,
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  } as ViewStyle,
-  title: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: '900',
-    color: Colors.text.light,
-    marginBottom: Spacing.xs,
-    letterSpacing: -1,
-  } as TextStyle,
-  subtitle: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-  } as TextStyle,
   content: {
     flex: 1,
   } as ViewStyle,
