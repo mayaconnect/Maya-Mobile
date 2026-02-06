@@ -67,9 +67,19 @@ jobs:
       - name: 🔑 Setup Google Service Account
         run: |
           echo "🔑 Creating Google Service Account file..."
+          if [ -z "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 }}" ]; then
+            echo "❌ Error: GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 secret is not set"
+            exit 1
+          fi
           echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 }}" | base64 -d > google-service-account.json
+          # Vérifier que le fichier n'est pas vide et est un JSON valide
+          if [ ! -s google-service-account.json ]; then
+            echo "❌ Error: google-service-account.json is empty"
+            exit 1
+          fi
+          python3 -m json.tool google-service-account.json > /dev/null || (echo "❌ Error: Invalid JSON in google-service-account.json" && exit 1)
           chmod 600 google-service-account.json
-          echo "✅ Google Service Account file created"
+          echo "✅ Google Service Account file created successfully"
 
 
       - name: 📤 Submit to Google Play
