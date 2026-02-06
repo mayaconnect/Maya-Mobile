@@ -1,4 +1,4 @@
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
@@ -50,7 +50,7 @@ export const HomeRecentTransactions: React.FC<HomeRecentTransactionsProps> = ({
   transactions = [],
   onViewAll,
 }) => {
-  const recentTransactions = transactions.slice(0, 3);
+  const recentTransactions = transactions.slice(0, 2);
 
   if (recentTransactions.length === 0) {
     return null;

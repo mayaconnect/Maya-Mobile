@@ -412,7 +412,38 @@ export const PaymentApi = {
     } catch (error) {
       log.error('Erreur lors de l\'annulation de l\'abonnement', error as Error);
       
-      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de l\'annulation de l\'abonnement';
+      // Gestion améliorée des erreurs selon le type
+      let errorMessage = 'Erreur lors de l\'annulation de l\'abonnement';
+      
+      if (error instanceof Error) {
+        const errorStr = error.message.toLowerCase();
+        
+        // Erreur serveur (500)
+        if (errorStr.includes('500') || errorStr.includes('server_error') || errorStr.includes('server error')) {
+          errorMessage = 'Le serveur rencontre un problème temporaire. Veuillez réessayer dans quelques instants ou contacter le support.';
+        }
+        // Erreur réseau
+        else if (errorStr.includes('network') || errorStr.includes('timeout') || errorStr.includes('fetch')) {
+          errorMessage = 'Problème de connexion. Vérifiez votre connexion internet et réessayez.';
+        }
+        // Erreur d'authentification
+        else if (errorStr.includes('401') || errorStr.includes('unauthorized') || errorStr.includes('authentification')) {
+          errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+        }
+        // Erreur d'autorisation
+        else if (errorStr.includes('403') || errorStr.includes('forbidden') || errorStr.includes('accès')) {
+          errorMessage = 'Vous n\'avez pas l\'autorisation d\'effectuer cette action.';
+        }
+        // Erreur de validation
+        else if (errorStr.includes('400') || errorStr.includes('bad request') || errorStr.includes('validation')) {
+          errorMessage = 'Requête invalide. Veuillez contacter le support.';
+        }
+        // Autres erreurs
+        else {
+          errorMessage = error.message || errorMessage;
+        }
+      }
+      
       return {
         success: false,
         message: errorMessage,

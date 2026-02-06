@@ -1,10 +1,20 @@
-import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle
+} from 'react-native';
 
 interface PartnerStatsProps {
+  transactions: any[];
+  clients: any[];
   scanCounts: {
     today: number;
     week: number;
@@ -12,626 +22,793 @@ interface PartnerStatsProps {
     total: number;
   };
   scanCountsLoading: boolean;
+  onExport?: () => void;
 }
 
-export function PartnerStats({ scanCounts, scanCountsLoading }: PartnerStatsProps) {
-  return (
-    <View style={styles.statsSection}>
-      {/* En-tête avec dégradé */}
-      <LinearGradient
-        colors={['rgba(139, 47, 63, 0.2)', 'rgba(139, 47, 63, 0.05)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.headerGradient}
-      >
-        <Ionicons name="bar-chart" size={28} color="#8B2F3F" />
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.sectionTitle}>Statistiques détaillées</Text>
-          <Text style={styles.sectionSubtitle}>Vue d'ensemble de vos performances</Text>
-        </View>
-      </LinearGradient>
+export function PartnerStats({
+  transactions = [],
+  clients = [],
+  scanCounts,
+  scanCountsLoading,
+  onExport,
+}: PartnerStatsProps) {
+  const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90' | '365'>('30');
+
+  // Calculer les statistiques
+  const stats = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    // Transactions du mois
+    const monthTransactions = transactions.filter((t: any) => {
+      const date = new Date(t.createdAt || t.date || t.transactionDate);
+      return date >= startOfMonth;
+    });
+
+    // Transactions du mois dernier
+    const lastMonthTransactions = transactions.filter((t: any) => {
+      const date = new Date(t.createdAt || t.date || t.transactionDate);
+      return date >= startOfLastMonth && date <= endOfLastMonth;
+    });
+
+    // Revenus totaux
+    const monthRevenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
+    const lastMonthRevenue = lastMonthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
+    const revenueChange = lastMonthRevenue > 0
+      ? Math.round(((monthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
+      : 0;
+
+    // Clients uniques
+    const uniqueClients = new Set(
+      monthTransactions.map((t: any) => {
+        const customer = t.customer || t.client || {};
+        return customer.id || customer.userId || `${customer.firstName || ''}_${customer.lastName || ''}`;
+      }).filter(Boolean)
+    ).size;
+
+    const lastMonthUniqueClients = new Set(
+      lastMonthTransactions.map((t: any) => {
+        const customer = t.customer || t.client || {};
+        return customer.id || customer.userId || `${customer.firstName || ''}_${customer.lastName || ''}`;
+      }).filter(Boolean)
+    ).size;
+
+    const clientsChange = lastMonthUniqueClients > 0
+      ? Math.round(((uniqueClients - lastMonthUniqueClients) / lastMonthUniqueClients) * 100)
+      : 0;
+
+    // Panier moyen
+    const averageBasket = monthTransactions.length > 0 ? monthRevenue / monthTransactions.length : 0;
+    const lastMonthAverageBasket = lastMonthTransactions.length > 0 ? lastMonthRevenue / lastMonthTransactions.length : 0;
+    const basketChange = lastMonthAverageBasket > 0
+      ? Math.round(((averageBasket - lastMonthAverageBasket) / lastMonthAverageBasket) * 100)
+      : 0;
+
+    // Taux de retour
+    const clientVisitCounts = new Map<string, number>();
+    monthTransactions.forEach((t: any) => {
+      const customer = t.customer || t.client || {};
+      const customerId = customer.id || customer.userId || `${customer.firstName || ''}_${customer.lastName || ''}`;
+      if (customerId) {
+        clientVisitCounts.set(customerId, (clientVisitCounts.get(customerId) || 0) + 1);
+      }
+    });
+    const returningClients = Array.from(clientVisitCounts.values()).filter(count => count > 1).length;
+    const returnRate = uniqueClients > 0 ? (returningClients / uniqueClients) * 100 : 0;
+
+    // Calculer le taux de retour du mois dernier pour la comparaison
+    const lastMonthClientVisitCounts = new Map<string, number>();
+    lastMonthTransactions.forEach((t: any) => {
+      const customer = t.customer || t.client || {};
+      const customerId = customer.id || customer.userId || `${customer.firstName || ''}_${customer.lastName || ''}`;
+      if (customerId) {
+        lastMonthClientVisitCounts.set(customerId, (lastMonthClientVisitCounts.get(customerId) || 0) + 1);
+      }
+    });
+    const lastMonthReturningClients = Array.from(lastMonthClientVisitCounts.values()).filter(count => count > 1).length;
+    const lastMonthReturnRate = lastMonthUniqueClients > 0 ? (lastMonthReturningClients / lastMonthUniqueClients) * 100 : 0;
+    const returnRateChange = lastMonthReturnRate > 0
+      ? Math.round(returnRate - lastMonthReturnRate)
+      : 0;
+
+    return {
+      monthRevenue,
+      revenueChange,
+      uniqueClients,
+      clientsChange,
+      averageBasket,
+      basketChange,
+      returnRate,
+      returnRateChange,
+    };
+  }, [transactions]);
+
+  // Calculer l'évolution des revenus par mois (12 derniers mois)
+  const revenueEvolution = useMemo(() => {
+    const evolution: { month: string; revenue: number }[] = [];
+    const now = new Date();
+    
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
       
-      {/* Statistiques de scans par période - Grid amélioré */}
-      <View style={styles.scanStatsGrid}>
-        <LinearGradient
-          colors={['rgba(16, 185, 129, 0.2)', 'rgba(16, 185, 129, 0.05)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.scanStatCard}
-        >
-          <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
-            <Ionicons name="today-outline" size={28} color={Colors.status.success} />
-          </View>
-          {scanCountsLoading ? (
-            <ActivityIndicator size="small" color={Colors.status.success} style={{ marginVertical: 8 }} />
-          ) : (
-            <>
-              <Text style={[styles.scanStatValue, { color: Colors.status.success }]}>
-                {scanCounts.today.toLocaleString('fr-FR')}
-              </Text>
-              <View style={styles.scanStatBadge}>
-                <Ionicons name="arrow-up" size={12} color={Colors.status.success} />
-                <Text style={[styles.scanStatBadgeText, { color: Colors.status.success }]}>Aujourd'hui</Text>
-              </View>
-            </>
-          )}
-          <Text style={styles.scanStatLabel}>Scans du jour</Text>
-        </LinearGradient>
+      const monthTransactions = transactions.filter((t: any) => {
+        const transactionDate = new Date(t.createdAt || t.date || t.transactionDate);
+        return transactionDate >= monthStart && transactionDate <= monthEnd;
+      });
+      
+      const revenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
+      
+      evolution.push({
+        month: date.toLocaleDateString('fr-FR', { month: 'short' }),
+        revenue,
+      });
+    }
+    
+    return evolution;
+  }, [transactions]);
 
-        <LinearGradient
-          colors={['rgba(59, 130, 246, 0.2)', 'rgba(59, 130, 246, 0.05)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.scanStatCard}
-        >
-          <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
-            <Ionicons name="calendar-outline" size={28} color="#3B82F6" />
-          </View>
-          {scanCountsLoading ? (
-            <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 8 }} />
-          ) : (
-            <>
-              <Text style={[styles.scanStatValue, { color: '#3B82F6' }]}>
-                {scanCounts.week.toLocaleString('fr-FR')}
-              </Text>
-              <View style={styles.scanStatBadge}>
-                <Ionicons name="trending-up" size={12} color="#3B82F6" />
-                <Text style={[styles.scanStatBadgeText, { color: '#3B82F6' }]}>7 jours</Text>
-              </View>
-            </>
-          )}
-          <Text style={styles.scanStatLabel}>Cette semaine</Text>
-        </LinearGradient>
+  // Calculer l'activité par heure
+  const hourlyActivity = useMemo(() => {
+    const activity: { [key: number]: number } = {};
+    
+    for (let hour = 0; hour < 24; hour++) {
+      activity[hour] = 0;
+    }
 
-        <LinearGradient
-          colors={['rgba(139, 47, 63, 0.2)', 'rgba(139, 47, 63, 0.05)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.scanStatCard}
-        >
-          <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
-            <Ionicons name="calendar" size={28} color="#8B2F3F" />
-          </View>
-          {scanCountsLoading ? (
-            <ActivityIndicator size="small" color="#8B2F3F" style={{ marginVertical: 8 }} />
-          ) : (
-            <>
-              <Text style={[styles.scanStatValue, { color: '#8B2F3F' }]}>
-                {scanCounts.month.toLocaleString('fr-FR')}
-              </Text>
-              <View style={styles.scanStatBadge}>
-                <Ionicons name="stats-chart" size={12} color="#8B2F3F" />
-                <Text style={[styles.scanStatBadgeText, { color: '#8B2F3F' }]}>30 jours</Text>
-              </View>
-            </>
-          )}
-          <Text style={styles.scanStatLabel}>Ce mois</Text>
-        </LinearGradient>
+    transactions.forEach((transaction) => {
+      const date = new Date(transaction.createdAt || transaction.date || transaction.transactionDate);
+      const hour = date.getHours();
+      activity[hour] = (activity[hour] || 0) + 1;
+    });
 
-        <LinearGradient
-          colors={['rgba(245, 158, 11, 0.2)', 'rgba(245, 158, 11, 0.05)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.scanStatCard}
-        >
-          <View style={[styles.scanStatIcon, { backgroundColor: 'rgba(255, 255, 255, 0.9)' }]}>
-            <Ionicons name="trophy" size={28} color={Colors.accent.orange} />
-          </View>
-          {scanCountsLoading ? (
-            <ActivityIndicator size="small" color={Colors.accent.orange} style={{ marginVertical: 8 }} />
-          ) : (
-            <>
-              <Text style={[styles.scanStatValue, { color: Colors.accent.orange }]}>
-                {scanCounts.total.toLocaleString('fr-FR')}
-              </Text>
-              <View style={styles.scanStatBadge}>
-                <Ionicons name="star" size={12} color={Colors.accent.orange} />
-                <Text style={[styles.scanStatBadgeText, { color: Colors.accent.orange }]}>Total</Text>
-              </View>
-            </>
-          )}
-          <Text style={styles.scanStatLabel}>Total des scans</Text>
-        </LinearGradient>
-      </View>
+    return activity;
+  }, [transactions]);
 
-      {/* Indicateurs de performance - Design amélioré */}
-      <View style={styles.performanceCard}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="pulse" size={22} color="#8B2F3F" />
-          <Text style={styles.statsCardTitle}>Indicateurs clés</Text>
+  // Calculer la répartition des abonnements
+  const subscriptionDistribution = useMemo(() => {
+    const distribution: { [key: string]: number } = {
+      'Individuel': 0,
+      'Duo': 0,
+      'Famille': 0,
+      'Entreprise': 0,
+    };
+
+    transactions.forEach((t: any) => {
+      const subscriptionType = t.subscription?.type || t.subscriptionType || 'Individuel';
+      const type = subscriptionType === 'individual' || subscriptionType === 'Individuel' ? 'Individuel' :
+                   subscriptionType === 'duo' || subscriptionType === 'Duo' ? 'Duo' :
+                   subscriptionType === 'family' || subscriptionType === 'Famille' ? 'Famille' :
+                   subscriptionType === 'enterprise' || subscriptionType === 'Entreprise' ? 'Entreprise' : 'Individuel';
+      distribution[type] = (distribution[type] || 0) + 1;
+    });
+
+    const total = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+    
+    return Object.entries(distribution).map(([type, count]) => ({
+      type,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+    }));
+  }, [transactions]);
+
+  const maxRevenue = Math.max(...revenueEvolution.map(e => e.revenue), 1);
+  const maxHourlyActivity = Math.max(...Object.values(hourlyActivity), 1);
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>Statistiques</Text>
+          <Text style={styles.headerSubtitle}>Analysez vos performances et vos revenus</Text>
         </View>
-        <View style={styles.performanceGrid}>
-          <View style={styles.performanceItem}>
-            <LinearGradient
-              colors={['rgba(139, 47, 63, 0.3)', 'rgba(139, 47, 63, 0.1)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.performanceIcon}
-            >
-              <Ionicons name="people" size={24} color="#8B2F3F" />
-            </LinearGradient>
-            <Text style={styles.performanceValue}>24</Text>
-            <Text style={styles.performanceLabel}>Clients uniques</Text>
-            <View style={styles.trendBadge}>
-              <Ionicons name="arrow-up" size={10} color="#10B981" />
-              <Text style={styles.trendText}>+12%</Text>
-            </View>
-          </View>
-          <View style={styles.performanceItem}>
-            <LinearGradient
-              colors={['rgba(245, 158, 11, 0.3)', 'rgba(245, 158, 11, 0.1)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.performanceIcon}
-            >
-              <Ionicons name="repeat" size={24} color="#F59E0B" />
-            </LinearGradient>
-            <Text style={styles.performanceValue}>2.3</Text>
-            <Text style={styles.performanceLabel}>Visites moy./client</Text>
-            <View style={styles.trendBadge}>
-              <Ionicons name="arrow-up" size={10} color="#10B981" />
-              <Text style={styles.trendText}>+8%</Text>
-            </View>
-          </View>
-          <View style={styles.performanceItem}>
-            <LinearGradient
-              colors={['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.1)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.performanceIcon}
-            >
-              <Ionicons name="card" size={24} color="#10B981" />
-            </LinearGradient>
-            <Text style={styles.performanceValue}>24.45€</Text>
-            <Text style={styles.performanceLabel}>Panier moyen</Text>
-            <View style={styles.trendBadge}>
-              <Ionicons name="arrow-up" size={10} color="#10B981" />
-              <Text style={styles.trendText}>+15%</Text>
-            </View>
-          </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.periodButton} activeOpacity={0.7}>
+            <Text style={styles.periodText}>{selectedPeriod} jours</Text>
+            <Ionicons name="chevron-down" size={16} color={Colors.text.light} />
+          </TouchableOpacity>
+          {onExport && (
+            <TouchableOpacity style={styles.exportButton} onPress={onExport} activeOpacity={0.7}>
+              <Ionicons name="download-outline" size={20} color={Colors.text.light} />
+              <Text style={styles.exportText}>Export</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
-      {/* Top clients - Design moderne */}
-      <View style={styles.statsCard}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="trophy" size={22} color="#F59E0B" />
-          <Text style={styles.statsCardTitle}>Top clients</Text>
+      {/* 4 Cartes KPI en 2x2 */}
+      <View style={styles.kpiGrid}>
+        {/* Revenus totaux */}
+        <View style={styles.kpiCard}>
+          <View style={styles.kpiHeader}>
+            <Text style={styles.kpiLabel}>Revenus totaux</Text>
+            <View style={[styles.changeBadge, stats.revenueChange >= 0 ? styles.changeBadgePositive : styles.changeBadgeNegative]}>
+              <Ionicons 
+                name={stats.revenueChange >= 0 ? "arrow-up" : "arrow-down"} 
+                size={12} 
+                color={stats.revenueChange >= 0 ? "#10B981" : "#EF4444"} 
+              />
+              <Text style={[styles.changeText, { color: stats.revenueChange >= 0 ? "#10B981" : "#EF4444" }]}>
+                {Math.abs(stats.revenueChange)}%
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.kpiValue}>
+            {stats.monthRevenue.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €
+          </Text>
+          <Text style={styles.kpiSubtext}>ce mois</Text>
         </View>
-        {[
-          { name: 'Marie Dupont', visits: 12, total: 186.50, icon: '👑' },
-          { name: 'Jean Martin', visits: 8, total: 124.75, icon: '🥈' },
-          { name: 'Sophie Bernard', visits: 6, total: 98.00, icon: '🥉' },
-        ].map((client, index) => (
-          <LinearGradient
-            key={index}
-            colors={
-              index === 0
-                ? ['rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.05)']
-                : ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.02)']
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.topClientItem}
-          >
-            <View style={[
-              styles.topClientRank,
-              index === 0 && styles.topClientRankGold,
-              index === 1 && styles.topClientRankSilver,
-              index === 2 && styles.topClientRankBronze,
-            ]}>
-              <Text style={styles.topClientRankEmoji}>{client.icon}</Text>
+
+        {/* Clients uniques */}
+        <View style={styles.kpiCard}>
+          <View style={styles.kpiHeader}>
+            <Text style={styles.kpiLabel}>Clients uniques</Text>
+            <View style={[styles.changeBadge, stats.clientsChange >= 0 ? styles.changeBadgePositive : styles.changeBadgeNegative]}>
+              <Ionicons 
+                name={stats.clientsChange >= 0 ? "arrow-up" : "arrow-down"} 
+                size={12} 
+                color={stats.clientsChange >= 0 ? "#10B981" : "#EF4444"} 
+              />
+              <Text style={[styles.changeText, { color: stats.clientsChange >= 0 ? "#10B981" : "#EF4444" }]}>
+                {Math.abs(stats.clientsChange)}%
+              </Text>
             </View>
-            <View style={styles.topClientInfo}>
-              <Text style={styles.topClientName}>{client.name}</Text>
-              <View style={styles.topClientDetailsRow}>
-                <View style={styles.topClientStat}>
-                  <Ionicons name="repeat-outline" size={14} color={Colors.text.secondary} />
-                  <Text style={styles.topClientDetails}>{client.visits} visites</Text>
-                </View>
-                <View style={styles.topClientStat}>
-                  <Ionicons name="cash-outline" size={14} color="#10B981" />
-                  <Text style={[styles.topClientDetails, { color: '#10B981', fontWeight: '700' }]}>
-                    {client.total.toFixed(2)}€
-                  </Text>
-                </View>
-              </View>
+          </View>
+          <Text style={styles.kpiValue}>{stats.uniqueClients}</Text>
+          <Text style={styles.kpiSubtext}>ce mois</Text>
+        </View>
+
+        {/* Panier moyen */}
+        <View style={styles.kpiCard}>
+          <View style={styles.kpiHeader}>
+            <Text style={styles.kpiLabel}>Panier moyen</Text>
+            <View style={[styles.changeBadge, stats.basketChange >= 0 ? styles.changeBadgePositive : styles.changeBadgeNegative]}>
+              <Ionicons 
+                name={stats.basketChange >= 0 ? "arrow-up" : "arrow-down"} 
+                size={12} 
+                color={stats.basketChange >= 0 ? "#10B981" : "#EF4444"} 
+              />
+              <Text style={[styles.changeText, { color: stats.basketChange >= 0 ? "#10B981" : "#EF4444" }]}>
+                {Math.abs(stats.basketChange)}%
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
-          </LinearGradient>
-        ))}
+          </View>
+          <Text style={styles.kpiValue}>
+            {stats.averageBasket.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €
+          </Text>
+          <Text style={styles.kpiSubtext}>vs mois dernier</Text>
+        </View>
+
+        {/* Taux de retour */}
+        <View style={styles.kpiCard}>
+          <View style={styles.kpiHeader}>
+            <Text style={styles.kpiLabel}>Taux de retour</Text>
+            <View style={[styles.changeBadge, stats.returnRateChange >= 0 ? styles.changeBadgePositive : styles.changeBadgeNegative]}>
+              <Ionicons 
+                name={stats.returnRateChange >= 0 ? "arrow-up" : "arrow-down"} 
+                size={12} 
+                color={stats.returnRateChange >= 0 ? "#10B981" : "#EF4444"} 
+              />
+              <Text style={[styles.changeText, { color: stats.returnRateChange >= 0 ? "#10B981" : "#EF4444" }]}>
+                {Math.abs(stats.returnRateChange)}%
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.kpiValue}>{stats.returnRate.toFixed(1).replace('.', ',')}%</Text>
+          <Text style={styles.kpiSubtext}>clients fidèles</Text>
+        </View>
       </View>
 
-      {/* Heures de pointe - Design amélioré */}
-      <View style={styles.statsCard}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="time" size={22} color="#3B82F6" />
-          <Text style={styles.statsCardTitle}>Heures de pointe</Text>
+      {/* Évolution des revenus */}
+      <View style={styles.chartCard}>
+        <View style={styles.chartHeader}>
+          <Text style={styles.chartTitle}>Évolution des revenus</Text>
+          <TouchableOpacity style={styles.chartDropdown} activeOpacity={0.7}>
+            <Text style={styles.chartDropdownText}>Revenus</Text>
+            <Ionicons name="chevron-down" size={16} color={Colors.text.secondary} />
+          </TouchableOpacity>
         </View>
-        <Text style={styles.peakHoursSubtitle}>Affluence par tranche horaire</Text>
-        <View style={styles.peakHoursContainer}>
-          {[
-            { hour: '10h', value: 15, icon: 'sunny-outline', color: '#FCD34D' },
-            { hour: '12h', value: 45, icon: 'restaurant-outline', color: '#F59E0B' },
-            { hour: '14h', value: 30, icon: 'cafe-outline', color: '#8B2F3F' },
-            { hour: '18h', value: 60, icon: 'moon-outline', color: '#3B82F6' },
-            { hour: '20h', value: 25, icon: 'moon', color: '#6366F1' },
-          ].map((item, index) => (
-            <View key={index} style={styles.peakHourItem}>
-              <View style={styles.peakHourLabelContainer}>
-                <Ionicons name={item.icon as any} size={16} color={item.color} />
-                <Text style={styles.peakHourLabel}>{item.hour}</Text>
-              </View>
-              <View style={styles.peakHourBarContainer}>
+        <View style={styles.lineChartContainer}>
+          {/* Axe Y avec valeurs */}
+          <View style={styles.lineChartYAxis}>
+            {(() => {
+              const maxValue = Math.max(...revenueEvolution.map(e => e.revenue), 1000);
+              const step = Math.ceil(maxValue / 4);
+              return [0, step, step * 2, step * 3, step * 4].map((value) => (
+                <Text key={value} style={styles.lineChartYLabel}>
+                  {value.toLocaleString('fr-FR')}
+                </Text>
+              ));
+            })()}
+          </View>
+          <View style={styles.lineChartContent}>
+            <View style={styles.lineChart}>
+              {revenueEvolution.map((point, index) => {
+                const height = maxRevenue > 0 ? (point.revenue / maxRevenue) * 100 : 0;
+                return (
+                  <View key={index} style={styles.lineChartPoint}>
+                    <View style={[styles.lineChartDot, { bottom: `${height}%` }]} />
+                  </View>
+                );
+              })}
+            </View>
+            {/* Ligne de connexion */}
+            <View style={styles.lineChartConnector}>
+              {revenueEvolution.map((point, index) => {
+                if (index === revenueEvolution.length - 1) return null;
+                const height = maxRevenue > 0 ? (point.revenue / maxRevenue) * 100 : 0;
+                const nextPoint = revenueEvolution[index + 1];
+                const nextHeight = nextPoint && maxRevenue > 0 ? (nextPoint.revenue / maxRevenue) * 100 : 0;
+                const segmentWidth = 100 / revenueEvolution.length;
+                const segmentHeight = Math.abs(nextHeight - height);
+                const angle = Math.atan2(nextHeight - height, segmentWidth) * (180 / Math.PI);
+                
+                return (
+                  <View
+                    key={`segment-${index}`}
+                    style={[
+                      styles.lineChartSegment,
+                      {
+                        left: `${(index + 0.5) * segmentWidth}%`,
+                        bottom: `${Math.min(height, nextHeight)}%`,
+                        width: `${Math.sqrt(segmentWidth * segmentWidth + segmentHeight * segmentHeight)}%`,
+                        height: 2,
+                        transform: [{ rotate: `${angle}deg` }],
+                        transformOrigin: 'left center',
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+            {/* Axe X avec labels */}
+            <View style={styles.lineChartXAxis}>
+              {revenueEvolution.map((point, index) => (
+                <Text key={index} style={styles.lineChartLabel}>
+                  {point.month}
+                </Text>
+              ))}
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Activité par heure */}
+      <View style={styles.chartCard}>
+        <Text style={styles.chartTitle}>Activité par heure</Text>
+        <View style={styles.barChartContainer}>
+          {Array.from({ length: 24 }, (_, hour) => {
+            const activity = hourlyActivity[hour] || 0;
+            const height = maxHourlyActivity > 0 ? (activity / maxHourlyActivity) * 100 : 0;
+            return (
+              <View key={hour} style={styles.barChartBarWrapper}>
                 <LinearGradient
-                  colors={[item.color, `${item.color}80`]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.peakHourBar, { width: `${item.value}%` }]}
+                  colors={['#F97316', '#EF4444']}
+                  start={{ x: 0, y: 1 }}
+                  end={{ x: 0, y: 0 }}
+                  style={[styles.barChartBar, { height: `${height}%` }]}
                 />
+                <Text style={styles.barChartLabel}>{hour}h</Text>
               </View>
-              <View style={styles.peakHourValueContainer}>
-                <Text style={[styles.peakHourValue, { color: item.color }]}>{item.value}</Text>
-                {item.value >= 50 && (
-                  <Ionicons name="flame" size={12} color="#EF4444" style={{ marginLeft: 2 }} />
-                )}
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </View>
-    </View>
+
+      {/* Répartition des abonnements */}
+      <View style={styles.chartCard}>
+        <View style={styles.chartHeader}>
+          <Text style={styles.chartTitle}>Répartition des abonnements</Text>
+          <TouchableOpacity style={styles.helpButton} activeOpacity={0.7}>
+            <Ionicons name="help-circle-outline" size={20} color={Colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.donutChartContainer}>
+          {/* Donut Chart visuel simplifié */}
+          <View style={styles.donutChartVisual}>
+            <View style={styles.donutChartRing}>
+              {subscriptionDistribution.map((item, index) => {
+                const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F97316'];
+                const color = colors[index % colors.length];
+                const total = subscriptionDistribution.reduce((sum, i) => sum + i.percentage, 0);
+                const width = total > 0 ? (item.percentage / total) * 100 : 0;
+                
+                return (
+                  <View
+                    key={item.type}
+                    style={[
+                      styles.donutSegment,
+                      {
+                        backgroundColor: color,
+                        width: `${width}%`,
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+            <View style={styles.donutChartCenter}>
+              <Text style={styles.donutChartCenterText}>Total</Text>
+            </View>
+          </View>
+          {/* Légende */}
+          <View style={styles.donutChart}>
+            {subscriptionDistribution.map((item, index) => {
+              const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F97316'];
+              const color = colors[index % colors.length];
+              return (
+                <View key={item.type} style={styles.donutLegendItem}>
+                  <View style={[styles.donutLegendColor, { backgroundColor: color }]} />
+                  <Text style={styles.donutLegendText}>{item.type}</Text>
+                  <Text style={styles.donutLegendPercentage}>{item.percentage}%</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  statsSection: {
-    marginBottom: Spacing.lg,
-  } as ViewStyle,
-  headerGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    marginBottom: Spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 47, 63, 0.3)',
-    ...Shadows.lg,
-  } as ViewStyle,
-  headerTextContainer: {
+  container: {
     flex: 1,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
   } as ViewStyle,
-  sectionTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: '800',
-    color: Colors.text.light,
-    marginBottom: 2,
-    letterSpacing: -0.5,
-  } as TextStyle,
-  sectionSubtitle: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-  } as TextStyle,
-  statsCard: {
-        borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.lg,
-  } as ViewStyle,
-  cardHeader: {
+  header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  } as ViewStyle,
-  statsCardTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: '800',
-    color: Colors.text.light,
-    letterSpacing: -0.3,
-  } as TextStyle,
-  chartContainer: {
-    marginTop: Spacing.md,
-  } as ViewStyle,
-  chartBars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    height: 150,
-    paddingHorizontal: Spacing.sm,
+    alignItems: 'flex-start',
+    marginBottom: Spacing.xl,
   } as ViewStyle,
-  chartBarWrapper: {
+  headerLeft: {
     flex: 1,
-    alignItems: 'center',
-    height: '100%',
-    justifyContent: 'flex-end',
   } as ViewStyle,
-  chartBar: {
-    width: '80%',
-    backgroundColor: '#8B2F3F',
-    borderRadius: BorderRadius.sm,
-    minHeight: 20,
-    marginBottom: Spacing.xs,
-    shadowColor: '#8B2F3F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  } as ViewStyle,
-  chartLabel: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    fontWeight: '600',
-  } as TextStyle,
-  periodStatsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  } as ViewStyle,
-  periodStatCard: {
-    flex: 1,
-        borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
-    ...Shadows.md,
-  } as ViewStyle,
-  periodStatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.xs,
-  } as ViewStyle,
-  periodStatLabel: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  periodStatValue: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: '800',
-    color: Colors.text.light,
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  periodStatTrend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  } as ViewStyle,
-  periodStatTrendText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '700',
-    color: '#10B981',
-  } as TextStyle,
-  performanceCard: {
-        borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadows.lg,
-  } as ViewStyle,
-  performanceGrid: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.md,
-  } as ViewStyle,
-  performanceItem: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  } as ViewStyle,
-  performanceIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    ...Shadows.md,
-  } as ViewStyle,
-  performanceValue: {
+  headerTitle: {
     fontSize: Typography.sizes['2xl'],
     fontWeight: '900',
     color: Colors.text.light,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
     letterSpacing: -0.5,
   } as TextStyle,
-  performanceLabel: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  trendBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-  } as ViewStyle,
-  trendText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#10B981',
-  } as TextStyle,
-  scanStatsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  } as ViewStyle,
-  scanStatCard: {
-    flex: 1,
-    minWidth: '40%',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    ...Shadows.xl,
-  } as ViewStyle,
-  scanStatIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    ...Shadows.md,
-  } as ViewStyle,
-  scanStatValue: {
-    fontSize: Typography.sizes['3xl'],
-    fontWeight: '900',
-    marginBottom: Spacing.xs,
-    letterSpacing: -1,
-  } as TextStyle,
-  scanStatBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    marginBottom: Spacing.xs,
-  } as ViewStyle,
-  scanStatBadgeText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  } as TextStyle,
-  scanStatLabel: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    fontWeight: '600',
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  } as TextStyle,
-  topClientItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    ...Shadows.sm,
-  } as ViewStyle,
-  topClientRank: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(139, 47, 63, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-    borderWidth: 2,
-    borderColor: 'rgba(139, 47, 63, 0.3)',
-  } as ViewStyle,
-  topClientRankGold: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-    borderColor: '#F59E0B',
-    ...Shadows.md,
-  } as ViewStyle,
-  topClientRankSilver: {
-    backgroundColor: 'rgba(148, 163, 184, 0.2)',
-    borderColor: '#94A3B8',
-  } as ViewStyle,
-  topClientRankBronze: {
-    backgroundColor: 'rgba(217, 119, 6, 0.2)',
-    borderColor: '#D97706',
-  } as ViewStyle,
-  topClientRankEmoji: {
-    fontSize: 18,
-  } as TextStyle,
-  topClientInfo: {
-    flex: 1,
-  } as ViewStyle,
-  topClientName: {
-    fontSize: Typography.sizes.base,
-    fontWeight: '800',
-    color: Colors.text.light,
-    marginBottom: 4,
-    letterSpacing: -0.2,
-  } as TextStyle,
-  topClientDetailsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  } as ViewStyle,
-  topClientStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  } as ViewStyle,
-  topClientDetails: {
+  headerSubtitle: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
-    fontWeight: '600',
-  } as TextStyle,
-  peakHoursSubtitle: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.secondary,
-    marginBottom: Spacing.md,
     fontWeight: '500',
   } as TextStyle,
-  peakHoursContainer: {
-    marginTop: Spacing.md,
-    gap: Spacing.md,
-  } as ViewStyle,
-  peakHourItem: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   } as ViewStyle,
-  peakHourLabelContainer: {
+  periodButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    width: 60,
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   } as ViewStyle,
-  peakHourLabel: {
+  periodText: {
     fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.text.light,
+  } as TextStyle,
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 47, 63, 0.3)',
+  } as ViewStyle,
+  exportText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.text.light,
+  } as TextStyle,
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  } as ViewStyle,
+  kpiCard: {
+    width: '47%',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    minHeight: 140,
+  } as ViewStyle,
+  kpiHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+    minHeight: 32,
+  } as ViewStyle,
+  kpiLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: Spacing.xs,
+  } as TextStyle,
+  changeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.sm,
+    minWidth: 50,
+    justifyContent: 'flex-end',
+  } as ViewStyle,
+  changeBadgePositive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+  } as ViewStyle,
+  changeBadgeNegative: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  } as ViewStyle,
+  changeText: {
+    fontSize: 11,
+    fontWeight: '800',
+  } as TextStyle,
+  kpiValue: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '900',
+    color: Colors.text.light,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
+    lineHeight: Typography.sizes['2xl'] * 1.1,
+  } as TextStyle,
+  kpiSubtext: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    fontWeight: '500',
+    marginTop: 2,
+  } as TextStyle,
+  chartCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  } as ViewStyle,
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  } as ViewStyle,
+  chartTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '900',
+    color: Colors.text.light,
+    letterSpacing: -0.3,
+  } as TextStyle,
+  chartDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.sm,
+  } as ViewStyle,
+  chartDropdownText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: '600',
+  } as TextStyle,
+  helpButton: {
+    padding: Spacing.xs,
+  } as ViewStyle,
+  lineChartContainer: {
+    flexDirection: 'row',
+    marginTop: Spacing.lg,
+    height: 280,
+    paddingTop: Spacing.md,
+  } as ViewStyle,
+  lineChartYAxis: {
+    width: 45,
+    justifyContent: 'space-between',
+    paddingRight: Spacing.sm,
+    paddingBottom: 30,
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
+  lineChartYLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    fontWeight: '700',
+    textAlign: 'right',
+  } as TextStyle,
+  lineChartContent: {
+    flex: 1,
+    position: 'relative',
+  } as ViewStyle,
+  lineChart: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: '100%',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: 30,
+    paddingTop: Spacing.xs,
+  } as ViewStyle,
+  lineChartPoint: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: '100%',
+    position: 'relative',
+  } as ViewStyle,
+  lineChartDot: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    backgroundColor: '#8B2F3F',
+    borderRadius: 5,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    zIndex: 10,
+    shadowColor: '#8B2F3F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
+  } as ViewStyle,
+  lineChartConnector: {
+    position: 'absolute',
+    top: Spacing.xs,
+    left: Spacing.md,
+    right: Spacing.md,
+    bottom: 30,
+    pointerEvents: 'none',
+  } as ViewStyle,
+  lineChartSegment: {
+    position: 'absolute',
+    backgroundColor: '#8B2F3F',
+    height: 3,
+    borderRadius: 1.5,
+  } as ViewStyle,
+  lineChartXAxis: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
+  lineChartLabel: {
+    flex: 1,
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    fontWeight: '700',
+    textAlign: 'center',
+  } as TextStyle,
+  barChartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 220,
+    paddingHorizontal: Spacing.xs,
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: 25,
+  } as ViewStyle,
+  barChartBarWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: '100%',
+    maxWidth: 12,
+  } as ViewStyle,
+  barChartBar: {
+    width: '100%',
+    borderRadius: BorderRadius.sm,
+    minHeight: 4,
+    marginBottom: Spacing.xs,
+    shadowColor: '#F97316',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
+  } as ViewStyle,
+  barChartLabel: {
+    fontSize: 9,
+    color: Colors.text.secondary,
+    fontWeight: '700',
+    marginTop: 4,
+  } as TextStyle,
+  donutChartContainer: {
+    marginTop: Spacing.lg,
+    alignItems: 'center',
+  } as ViewStyle,
+  donutChartVisual: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    position: 'relative',
+    marginBottom: Spacing.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  donutChartRing: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderWidth: 50,
+    borderColor: 'transparent',
+  } as ViewStyle,
+  donutSegment: {
+    height: '100%',
+  } as ViewStyle,
+  donutChartCenter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
+  donutChartCenterText: {
+    fontSize: Typography.sizes.base,
     fontWeight: '800',
     color: Colors.text.light,
   } as TextStyle,
-  peakHourBarContainer: {
-    flex: 1,
-    height: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: BorderRadius.full,
-    overflow: 'hidden',
+  donutChart: {
+    gap: Spacing.lg,
+    width: '100%',
+    paddingHorizontal: Spacing.md,
   } as ViewStyle,
-  peakHourBar: {
-    height: '100%',
-    borderRadius: BorderRadius.full,
-  } as ViewStyle,
-  peakHourValueContainer: {
+  donutLegendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 40,
-    justifyContent: 'flex-end',
+    gap: Spacing.md,
+    paddingVertical: Spacing.xs,
   } as ViewStyle,
-  peakHourValue: {
-    fontSize: Typography.sizes.sm,
+  donutLegendColor: {
+    width: 20,
+    height: 20,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  } as ViewStyle,
+  donutLegendText: {
+    flex: 1,
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: Colors.text.light,
+  } as TextStyle,
+  donutLegendPercentage: {
+    fontSize: Typography.sizes.base,
     fontWeight: '800',
+    color: Colors.text.secondary,
+    minWidth: 50,
     textAlign: 'right',
   } as TextStyle,
 });

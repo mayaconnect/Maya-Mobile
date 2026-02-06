@@ -44,6 +44,7 @@ export default function SubscriptionScreen() {
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [showAllPlans, setShowAllPlans] = useState(false);
 
   const handlePartnerMode = () => {
     console.log('Mode partenaire');
@@ -280,45 +281,25 @@ export default function SubscriptionScreen() {
           ]
         );
       } else {
-        // Erreur ou statut inconnu
-        console.error('❌ [Subscription] Statut de paiement inattendu:', statusResult.status);
+        // Erreur ou statut inconnu - Ne pas afficher d'alerte, le webhook va traiter le paiement
+        console.warn('⚠️ [Subscription] Statut de paiement inattendu:', statusResult.status);
         setIsCheckingPaymentStatus(false);
-        Alert.alert(
-          '⚠️ Statut du paiement',
-          statusResult.message || 'Impossible de vérifier le statut du paiement. Veuillez vérifier votre abonnement dans quelques instants.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setShowPaymentModal(false);
-                setSelectedPaymentMethod(null);
-                setCheckoutSessionId(null);
-                router.replace('/(tabs)/home');
-              },
-            },
-          ]
-        );
+        // Fermer le modal et rediriger silencieusement
+        setShowPaymentModal(false);
+        setSelectedPaymentMethod(null);
+        setCheckoutSessionId(null);
+        router.replace('/(tabs)/home');
       }
     } catch (error) {
       console.error('❌ [Subscription] Erreur lors de la vérification du statut:', error);
       setIsCheckingPaymentStatus(false);
       
-      // En cas d'erreur, afficher un message mais permettre à l'utilisateur de continuer
-      Alert.alert(
-        '⚠️ Vérification du paiement',
-        'Nous n\'avons pas pu vérifier immédiatement le statut de votre paiement. Le webhook va traiter le paiement côté serveur. Vous recevrez une confirmation une fois le traitement terminé.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setShowPaymentModal(false);
-              setSelectedPaymentMethod(null);
-              setCheckoutSessionId(null);
-              router.replace('/(tabs)/home');
-            },
-          },
-        ]
-      );
+      // En cas d'erreur, ne pas afficher d'alerte - le webhook va traiter le paiement côté serveur
+      // Fermer le modal et rediriger silencieusement
+      setShowPaymentModal(false);
+      setSelectedPaymentMethod(null);
+      setCheckoutSessionId(null);
+      router.replace('/(tabs)/home');
     }
   };
 
@@ -343,11 +324,11 @@ export default function SubscriptionScreen() {
           await checkPaymentStatusWithRetry(sessionId);
         } else {
           console.warn('⚠️ [Subscription] Aucun session_id trouvé dans l\'URL');
-          Alert.alert(
-            '⚠️ Information manquante',
-            'Impossible de vérifier le statut du paiement. Veuillez vérifier votre abonnement dans quelques instants.',
-            [{ text: 'OK' }]
-          );
+          // Ne pas afficher d'alerte, le webhook va traiter le paiement
+          setShowPaymentModal(false);
+          setSelectedPaymentMethod(null);
+          setCheckoutSessionId(null);
+          router.replace('/(tabs)/home');
         }
       } else if (url.includes('subscription/cancel')) {
         console.log('❌ [Subscription] Paiement annulé');
@@ -617,6 +598,235 @@ export default function SubscriptionScreen() {
                 <View style={styles.managementSection}>
                   <Text style={styles.managementTitle}>Options</Text>
 
+                  <TouchableOpacity 
+                    style={styles.managementOption}
+                    onPress={() => setShowAllPlans(!showAllPlans)}
+                  >
+                    <View style={styles.managementOptionIcon}>
+                      <Ionicons name="swap-horizontal-outline" size={24} color={Colors.primary[600]} />
+                    </View>
+                    <View style={styles.managementOptionInfo}>
+                      <Text style={styles.managementOptionTitle}>
+                        {showAllPlans ? 'Masquer les autres plans' : 'Voir les autres abonnements'}
+                      </Text>
+                      <Text style={styles.managementOptionDescription}>
+                        {showAllPlans ? 'Revenir à votre abonnement' : 'Changer de plan ou voir les options disponibles'}
+                      </Text>
+                    </View>
+                    <Ionicons 
+                      name={showAllPlans ? "chevron-up" : "chevron-forward"} 
+                      size={20} 
+                      color={Colors.text.secondary} 
+                    />
+                  </TouchableOpacity>
+
+                  {/* Afficher les autres plans directement après le bouton */}
+                  {showAllPlans && (
+                    <>
+                      <View style={styles.plansDivider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>Autres abonnements disponibles</Text>
+                        <View style={styles.dividerLine} />
+                      </View>
+
+                    {/* Toggle Mensuel/Annuel */}
+                    <View style={styles.billingToggle}>
+                      <TouchableOpacity
+                        style={[styles.toggleOption, billingCycle === 'monthly' && styles.toggleOptionActive]}
+                        onPress={() => setBillingCycle('monthly')}
+                      >
+                        <Text style={[styles.toggleText, billingCycle === 'monthly' && styles.toggleTextActive]}>
+                          Mensuel
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.toggleOption, billingCycle === 'annual' && styles.toggleOptionActive]}
+                        onPress={() => setBillingCycle('annual')}
+                      >
+                        <Text style={[styles.toggleText, billingCycle === 'annual' && styles.toggleTextActive]}>
+                          Annuel
+                        </Text>
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>-20%</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Plan Solo */}
+                    <TouchableOpacity
+                      style={[styles.planCard, selectedPlan === 'solo' && styles.planCardSelected]}
+                      onPress={() => setSelectedPlan('solo')}
+                    >
+                      <View style={styles.planIcon}>
+                        <LinearGradient
+                          colors={['#3B82F6', '#1D4ED8']}
+                          style={styles.planIconGradient}
+                        >
+                          <Ionicons name="person" size={24} color="white" />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.planInfo}>
+                        <Text style={styles.planName}>Solo</Text>
+                        <Text style={styles.planPrice}>
+                          {billingCycle === 'monthly' ? '9,90€ /mois' : '99,00€ /an'}
+                        </Text>
+                        <View style={styles.planFeatures}>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>QR Code personnel</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>10% de remise partout</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Historique des économies</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Support client</Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View style={styles.planSelector}>
+                        <View style={[styles.radioButton, selectedPlan === 'solo' && styles.radioButtonSelected]}>
+                          {selectedPlan === 'solo' && (
+                            <Ionicons name="checkmark" size={16} color="white" />
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Plan Duo */}
+                    <TouchableOpacity
+                      style={[styles.planCard, styles.planCardPopular, selectedPlan === 'duo' && styles.planCardSelected]}
+                      onPress={() => setSelectedPlan('duo')}
+                    >
+                      <View style={styles.popularBanner}>
+                        <Ionicons name="star" size={16} color="white" />
+                        <Text style={styles.popularText}>Le plus populaire</Text>
+                      </View>
+                      <View style={styles.planIcon}>
+                        <LinearGradient
+                          colors={['#8B2F3F', '#7B1F2F']}
+                          style={styles.planIconGradient}
+                        >
+                          <Ionicons name="people" size={24} color="white" />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.planInfo}>
+                        <Text style={styles.planName}>Duo</Text>
+                        <Text style={styles.planPrice}>
+                          {billingCycle === 'monthly' ? '14,90€ /mois' : '149,00€ /an'}
+                        </Text>
+                        <View style={styles.planFeatures}>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>2 QR Codes</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>10% de remise partout</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Historique partagé</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Notifications push</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Support prioritaire</Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View style={styles.planSelector}>
+                        <View style={[styles.radioButton, selectedPlan === 'duo' && styles.radioButtonSelected]}>
+                          {selectedPlan === 'duo' && (
+                            <Ionicons name="checkmark" size={16} color="white" />
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Plan Family */}
+                    <TouchableOpacity
+                      style={[styles.planCard, selectedPlan === 'family' && styles.planCardSelected]}
+                      onPress={() => setSelectedPlan('family')}
+                    >
+                      <View style={styles.planIcon}>
+                        <LinearGradient
+                          colors={['#10B981', '#059669']}
+                          style={styles.planIconGradient}
+                        >
+                          <Ionicons name="people" size={24} color="white" />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.planInfo}>
+                        <Text style={styles.planName}>Family</Text>
+                        <Text style={styles.planPrice}>
+                          {billingCycle === 'monthly' ? '24,00€ /mois' : '240,00€ /an'}
+                        </Text>
+                        <View style={styles.planFeatures}>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>4 QR Codes</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>10% de remise partout</Text>
+                          </View>   
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Gestion familiale</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Historique détaillé</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Offres exclusives</Text>
+                          </View>
+                          <View style={styles.feature}>
+                            <Ionicons name="checkmark" size={16} color="#10B981" />
+                            <Text style={styles.featureText}>Support prioritaire</Text>
+                          </View>
+                        </View>
+                      </View>
+                      <View style={styles.planSelector}>
+                        <View style={[styles.radioButton, selectedPlan === 'family' && styles.radioButtonSelected]}>
+                          {selectedPlan === 'family' && (
+                            <Ionicons name="checkmark" size={16} color="white" />
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+
+                      {/* Bouton Continuer */}
+                      <TouchableOpacity 
+                        style={styles.continueButton}
+                        onPress={handleContinue}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={['#8B5CF6', '#7C3AED']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.continueButtonGradient}
+                        >
+                          <Text style={styles.continueButtonText}>
+                            Changer d&apos;abonnement
+                          </Text>
+                          <Ionicons name="arrow-forward" size={20} color="white" />
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
                   <TouchableOpacity style={styles.managementOption}>
                     <View style={styles.managementOptionIcon}>
                       <Ionicons name="card-outline" size={24} color={Colors.primary[600]} />
@@ -642,8 +852,6 @@ export default function SubscriptionScreen() {
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
                   </TouchableOpacity>
-
-                  
                 </View>
               </>
             ) : (
@@ -1622,6 +1830,23 @@ const styles = StyleSheet.create({
   managementOptionDescription: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
+  } as TextStyle,
+  plansDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.xl,
+    marginHorizontal: Spacing.md,
+  } as ViewStyle,
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
+  dividerText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    paddingHorizontal: Spacing.md,
+    fontWeight: '600',
   } as TextStyle,
   cancelSubscriptionButton: {
     flexDirection: 'row',
