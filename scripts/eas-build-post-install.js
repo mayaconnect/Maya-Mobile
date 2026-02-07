@@ -324,9 +324,62 @@ function verifyGradlew() {
       console.log('⚠️  WARNING: expo prebuild iOS a échoué, mais on continue...');
     } else {
       console.log('✅ Prebuild iOS completed');
+
+      // Attendre un peu pour que les fichiers soient écrits
+      console.log('⏳ Attente de l\'écriture des fichiers iOS...');
+      await sleep(2000);
+
+      // Appliquer les corrections de nullability pour iOS
+      console.log('\n🔧 Applying iOS nullability fixes...');
+
+      // 1. Corriger react-native-maps
+      console.log('📝 Fixing react-native-maps nullability issues...');
+      const rnmapsSuccess = runCommand(
+        'node scripts/fix-react-native-maps-nullability.js',
+        'Correction des erreurs NS_ASSUME_NONNULL dans react-native-maps'
+      );
+      if (!rnmapsSuccess) {
+        console.log('⚠️  WARNING: react-native-maps fix a échoué, mais on continue...');
+      }
+
+      // 2. Corriger react-native-svg
+      console.log('📝 Fixing react-native-svg nullability issues...');
+      const rnsvgSuccess = runCommand(
+        'node scripts/fix-react-native-svg-nullability.js',
+        'Correction des erreurs de nullability dans react-native-svg'
+      );
+      if (!rnsvgSuccess) {
+        console.log('⚠️  WARNING: react-native-svg fix a échoué, mais on continue...');
+      }
+
+      // 3. Corriger expo-file-system (via bash script)
+      if (process.platform !== 'win32') {
+        console.log('📝 Fixing expo-file-system nullability issues...');
+        const fileSystemSuccess = runCommand(
+          'bash scripts/fix-ios-nullability.sh',
+          'Correction des erreurs de nullability dans expo-file-system'
+        );
+        if (!fileSystemSuccess) {
+          console.log('⚠️  WARNING: expo-file-system fix a échoué, mais on continue...');
+        }
+      } else {
+        console.log('ℹ️  Skipping bash script on Windows');
+      }
+
+      // 4. Appliquer les corrections automatiques des APIs iOS
+      console.log('📝 Applying automatic iOS API fixes...');
+      const apiFixSuccess = runCommand(
+        'node scripts/auto-fix-and-patch-ios.js',
+        'Correction automatique des APIs iOS'
+      );
+      if (!apiFixSuccess) {
+        console.log('⚠️  WARNING: iOS API fix a échoué, mais on continue...');
+      }
+
+      console.log('✅ iOS nullability fixes completed');
     }
   }
-  
+
   console.log('');
   console.log('✅ EAS Build Post-Install Hook completed');
 })().catch(error => {
