@@ -149,54 +149,57 @@ function fixFile(filePath) {
     lines.push(...content.split('\n'));
   }
 
-  // Vérifier et corriger les NS_ASSUME_NONNULL_BEGIN imbriqués
-  const beginIndices = [];
-  const endIndices = [];
-
-  lines.forEach((line, index) => {
-    if (line.includes('NS_ASSUME_NONNULL_BEGIN')) {
-      beginIndices.push(index);
+  // Supprimer les NS_ASSUME_NONNULL_BEGIN en double consécutifs
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trim() === 'NS_ASSUME_NONNULL_BEGIN') {
+      // Vérifier si la ligne suivante est aussi NS_ASSUME_NONNULL_BEGIN
+      let j = i + 1;
+      let duplicateCount = 0;
+      while (j < lines.length && lines[j].trim() === 'NS_ASSUME_NONNULL_BEGIN') {
+        duplicateCount++;
+        j++;
+      }
+      
+      if (duplicateCount > 0) {
+        console.log(`   ⚠️  Found ${duplicateCount} duplicate NS_ASSUME_NONNULL_BEGIN at line ${i + 1}`);
+        // Supprimer les lignes en double
+        lines.splice(i + 1, duplicateCount);
+        content = lines.join('\n');
+        console.log(`   ✅ Removed ${duplicateCount} duplicate NS_ASSUME_NONNULL_BEGIN`);
+        modified = true;
+        // Recompter après modification
+        const newBeginMatches = content.match(/NS_ASSUME_NONNULL_BEGIN/g);
+        const newEndMatches = content.match(/NS_ASSUME_NONNULL_END/g);
+        const newBeginCount = newBeginMatches ? newBeginMatches.length : 0;
+        const newEndCount = newEndMatches ? newEndMatches.length : 0;
+        beginCount = newBeginCount;
+        endCount = newEndCount;
+      }
     }
-    if (line.includes('NS_ASSUME_NONNULL_END')) {
-      endIndices.push(index);
-    }
-  });
+    i++;
+  }
 
-  // Vérifier s'il y a des BEGIN consécutifs sans END entre
-  for (let i = 0; i < beginIndices.length - 1; i++) {
-    const currentBegin = beginIndices[i];
-    const nextBegin = beginIndices[i + 1];
-    
-    // Vérifier s'il y a un END entre les deux
-    const hasEndBetween = endIndices.some(endIdx => endIdx > currentBegin && endIdx < nextBegin);
-    
-    if (!hasEndBetween) {
-      console.log(`   ⚠️  Found nested NS_ASSUME_NONNULL_BEGIN at line ${nextBegin + 1}`);
-      // Supprimer le deuxième BEGIN
-      const lineContent = lines[nextBegin];
-      const cleaned = lineContent.replace(/NS_ASSUME_NONNULL_BEGIN\s*/g, '').trim();
-      if (cleaned === '') {
-        lines.splice(nextBegin, 1);
-      } else {
-        lines[nextBegin] = cleaned;
+  // Supprimer les pragma clang assume_nonnull end qui ne devraient pas être là
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('#pragma clang assume_nonnull end') && 
+        !lines[i - 1]?.includes('#pragma clang assume_nonnull begin')) {
+      console.log(`   ⚠️  Found unexpected #pragma clang assume_nonnull end at line ${i + 1}`);
+      // Supprimer cette ligne et les lignes associées (#ifdef/#endif)
+      if (i > 0 && lines[i - 1].includes('#ifdef __clang__')) {
+        lines.splice(i - 1, 1); // Supprimer #ifdef
+        i--; // Ajuster l'index
+      }
+      if (i < lines.length && lines[i].includes('#pragma clang assume_nonnull end')) {
+        lines.splice(i, 1); // Supprimer pragma
+      }
+      if (i < lines.length && lines[i].includes('#endif')) {
+        lines.splice(i, 1); // Supprimer #endif
       }
       content = lines.join('\n');
-      console.log(`   ✅ Removed duplicate NS_ASSUME_NONNULL_BEGIN`);
+      console.log(`   ✅ Removed unexpected #pragma clang assume_nonnull end`);
       modified = true;
-      // Recalculer les indices après modification
-      beginIndices.length = 0;
-      endIndices.length = 0;
-      lines.length = 0;
-      lines.push(...content.split('\n'));
-      lines.forEach((line, index) => {
-        if (line.includes('NS_ASSUME_NONNULL_BEGIN')) {
-          beginIndices.push(index);
-        }
-        if (line.includes('NS_ASSUME_NONNULL_END')) {
-          endIndices.push(index);
-        }
-      });
-      i--; // Re-vérifier cette position
     }
   }
 
