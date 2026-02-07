@@ -16,20 +16,18 @@ index db4e2ca..b6bd723 100644
      self.module = module
    }
 diff --git a/node_modules/expo-file-system/ios/FileSystemFile.swift b/node_modules/expo-file-system/ios/FileSystemFile.swift
-index 4cb36d0..3f398cb 100644
+index 4cb36d0..da760f2 100644
 --- a/node_modules/expo-file-system/ios/FileSystemFile.swift
 +++ b/node_modules/expo-file-system/ios/FileSystemFile.swift
-@@ -2,6 +2,9 @@ import Foundation
+@@ -2,6 +2,7 @@ import Foundation
  import ExpoModulesCore
  import CryptoKit
  import UniformTypeIdentifiers
-+#if !os(iOS) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_14_0
 +import MobileCoreServices
-+#endif
  
  internal final class FileSystemFile: FileSystemPath {
    init(url: URL) {
-@@ -68,9 +71,19 @@ internal final class FileSystemFile: FileSystemPath {
+@@ -68,9 +69,19 @@ internal final class FileSystemFile: FileSystemPath {
  
    var type: String? {
      let pathExtension = url.pathExtension
@@ -144,5 +142,47 @@ index 61daeda..168aa58 100644
 +- (NSDictionary * _Nonnull)parseServerResponse:(NSURLResponse * _Nonnull)response;
  
  @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h.bak b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h.bak
+new file mode 100644
+index 0000000..168aa58
+--- /dev/null
++++ b/node_modules/expo-file-system/ios/Legacy/EXSessionTasks/EXSessionTaskDelegate.h.bak
+@@ -0,0 +1,36 @@
++// Copyright 2015-present 650 Industries. All rights reserved.
++
++#import <Foundation/Foundation.h>
++#import <ExpoModulesCore/EXDefines.h>
++
++NS_ASSUME_NONNULL_BEGIN
++
++@interface EXSessionTaskDelegate : NSObject
++
++@property (nonatomic, strong, readonly) EXPromiseResolveBlock _Nonnull resolve;
++@property (nonatomic, strong, readonly) EXPromiseRejectBlock _Nonnull reject;
++
++- (nonnull instancetype)initWithResolve:(EXPromiseResolveBlock _Nonnull)resolve
++                                 reject:(EXPromiseRejectBlock _Nonnull)reject;
++
++- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask didFinishDownloadingToURL:(NSURL * _Nonnull)location;
++
++- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task didCompleteWithError:(NSError * _Nullable)error;
++
++- (void)URLSession:(NSURLSession * _Nonnull)session downloadTask:(NSURLSessionDownloadTask * _Nonnull)downloadTask
++                                           didWriteData:(int64_t)bytesWritten
++                                      totalBytesWritten:(int64_t)totalBytesWritten
++                              totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite;
++
++- (void)URLSession:(NSURLSession * _Nonnull)session dataTask:(NSURLSessionDataTask * _Nonnull)dataTask didReceiveData:(NSData * _Nonnull)data;
++
++- (void)URLSession:(NSURLSession * _Nonnull)session task:(NSURLSessionTask * _Nonnull)task
++                                didSendBodyData:(int64_t)bytesSent
++                                 totalBytesSent:(int64_t)totalBytesSent
++                       totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend;
++
++- (NSDictionary * _Nonnull)parseServerResponse:(NSURLResponse * _Nonnull)response;
++
++@end
 +
 +NS_ASSUME_NONNULL_END
