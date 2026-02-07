@@ -84,10 +84,13 @@ function verifyGradlew() {
 
 // Fonction principale async
 (async function main() {
+  // Helper function for delays
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
   // Vérifier si on doit générer le projet Android
   if (platform === 'android' || !platform) {
     console.log('🔨 Running expo prebuild for Android...');
-    
+
     // Vérifier que npx est disponible
     try {
       execSync('npx --version', { stdio: 'pipe' });
@@ -124,10 +127,9 @@ function verifyGradlew() {
       console.error('❌ ERREUR: expo prebuild a échoué!');
       process.exit(1);
     }
-    
+
     // Attendre un peu pour que les fichiers soient écrits
     console.log('⏳ Attente de l\'écriture des fichiers...');
-    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     await sleep(3000); // Augmenter le délai pour s'assurer que les fichiers sont écrits
     
     // Vérifier que le dossier android existe (androidDir est déjà déclaré plus haut)
