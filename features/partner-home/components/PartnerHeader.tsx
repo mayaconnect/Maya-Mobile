@@ -282,10 +282,9 @@ const styles = StyleSheet.create({
   avatarContainer: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 48,
     overflow: 'hidden',
     borderWidth: 2.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -299,7 +298,7 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 48,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',

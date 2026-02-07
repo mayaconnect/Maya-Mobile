@@ -41,7 +41,7 @@ export const PartnerStoreProfile: React.FC<PartnerStoreProfileProps> = ({
       const date = new Date(t.createdAt || t.date || t.transactionDate);
       return date >= startOfMonth;
     });
-    const monthlyRevenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
+    const monthlyRevenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amountNet || t.amountAfterDiscount || t.amountGross || t.amount || 0), 0);
 
     // Taux de retour (clients qui sont revenus)
     const clientVisitCounts = new Map<string, number>();

@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
+  ImageStyle,
   Linking,
   Modal,
   ScrollView,
@@ -698,7 +700,7 @@ export default function PartnersScreen() {
         <Modal
           visible={showPartnerModal}
           animationType="slide"
-          presentationStyle="pageSheet"
+          presentationStyle="fullScreen"
           onRequestClose={closePartnerModal}
         >
           <LinearGradient
@@ -748,19 +750,12 @@ export default function PartnersScreen() {
 
                     {/* Hero Section avec Image */}
                     <View style={styles.modalHeroSection}>
-                      <LinearGradient
-                        colors={['rgba(139, 47, 63, 0.4)', 'rgba(139, 47, 63, 0.2)']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.modalImageContainer}
-                      >
-                        <View style={styles.modalImageWrapper}>
-                          <Ionicons 
-                            name="storefront" 
-                            size={36} 
-                            color="rgba(255, 255, 255, 0.9)" 
-                          />
-                        </View>
+                      <View style={styles.modalImageContainer}>
+                        <Image
+                          source={{ uri: `https://picsum.photos/seed/${selectedPartner.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)}/800/400` }}
+                          style={styles.modalImageContent}
+                          resizeMode="cover"
+                        />
                         {selectedPartner.promotion?.isActive && (
                           <LinearGradient
                             colors={[Colors.status.success, '#059669']}
@@ -774,7 +769,7 @@ export default function PartnersScreen() {
                             </Text>
                           </LinearGradient>
                         )}
-                      </LinearGradient>
+                      </View>
 
                       {/* Info principale avec badges */}
                       <View style={styles.modalHeroInfo}>
@@ -825,128 +820,7 @@ export default function PartnersScreen() {
                         </View>
                       </View>
                     </View>
-                    
-                    {/* Carte de description */}
-                    <View style={styles.modalDescriptionCard}>
-                      <View style={styles.modalSectionHeader}>
-                        <Ionicons name="information-circle" size={16} color="#8B2F3F" />
-                        <Text style={styles.modalSectionTitle}>À propos</Text>
-                      </View>
-                      <Text style={styles.modalDescription}>{selectedPartner.description}</Text>
-                    </View>
-                    
-                    {/* Cartes d'informations en grille */}
-                    <View style={styles.modalInfoGrid}>
-                      {/* Carte de localisation */}
-                      <View style={styles.modalInfoGridCard}>
-                        <View style={styles.modalInfoGridIcon}>
-                          <LinearGradient
-                            colors={['rgba(139, 47, 63, 0.3)', 'rgba(139, 47, 63, 0.2)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.modalInfoGridIconInner}
-                          >
-                            <Ionicons name="location" size={18} color="#8B2F3F" />
-                          </LinearGradient>
-                        </View>
-                        <Text style={styles.modalInfoGridLabel}>Adresse</Text>
-                        <Text style={styles.modalInfoGridValue} numberOfLines={2}>
-                          {selectedPartner.address}
-                        </Text>
-                        {selectedPartner.distance !== null && (
-                          <View style={styles.modalDistanceBadgeInline}>
-                            <Ionicons name="walk" size={12} color="#8B2F3F" />
-                            <Text style={styles.modalDistanceInline}>
-                              {selectedPartner.distance.toFixed(1)} km
-                            </Text>
-                          </View>
-                        )}
-                      </View>
 
-                      {/* Carte de statut */}
-                      <View style={styles.modalInfoGridCard}>
-                        <View style={styles.modalInfoGridIcon}>
-                          <LinearGradient
-                            colors={
-                              selectedPartner.isOpen 
-                                ? ['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.2)']
-                                : ['rgba(239, 68, 68, 0.3)', 'rgba(239, 68, 68, 0.2)']
-                            }
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.modalInfoGridIconInner}
-                          >
-                            <Ionicons 
-                              name="time-outline" 
-                              size={18} 
-                              color={selectedPartner.isOpen ? Colors.status.success : Colors.status.error} 
-                            />
-                          </LinearGradient>
-                        </View>
-                        <Text style={styles.modalInfoGridLabel}>Statut</Text>
-                        <View style={styles.modalStatusInlineWrapper}>
-                          <View style={[
-                            styles.modalStatusDotInline,
-                            { backgroundColor: selectedPartner.isOpen ? Colors.status.success : Colors.status.error }
-                          ]} />
-                          <Text style={[
-                            styles.modalInfoGridValue,
-                            { color: selectedPartner.isOpen ? Colors.status.success : Colors.status.error }
-                          ]}>
-                            {selectedPartner.isOpen ? 'Ouvert' : 'Fermé'}
-                          </Text>
-                        </View>
-                        {selectedPartner.isOpen && selectedPartner.closingTime && (
-                          <Text style={styles.modalClosingTimeInline}>
-                            Ferme à {selectedPartner.closingTime}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                    
-                    {/* Promotion avec design premium */}
-                    {selectedPartner.promotion && selectedPartner.promotion.isActive && (
-                      <View style={styles.modalPromotionWrapper}>
-                        <LinearGradient
-                          colors={['rgba(16, 185, 129, 0.25)', 'rgba(16, 185, 129, 0.15)']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.modalPromotion}
-                        >
-                          <View style={styles.modalPromotionHeader}>
-                            <View style={styles.modalPromotionIconWrapper}>
-                              <LinearGradient
-                                colors={[Colors.status.success, '#059669']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={styles.modalPromotionIcon}
-                              >
-                                <Ionicons name="gift" size={18} color={Colors.text.light} />
-                              </LinearGradient>
-                            </View>
-                            <View style={styles.modalPromotionHeaderText}>
-                              <Text style={styles.modalPromotionTitle}>🎉 Promotion active</Text>
-                              <LinearGradient
-                                colors={[Colors.status.success, '#059669']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={styles.modalPromotionTag}
-                              >
-                                <Ionicons name="pricetag" size={14} color={Colors.text.light} />
-                                <Text style={styles.modalPromotionDiscount}>
-                                  {selectedPartner.promotion.discount}
-                                </Text>
-                              </LinearGradient>
-                            </View>
-                          </View>
-                          <Text style={styles.modalPromotionText}>
-                            {selectedPartner.promotion.description}
-                          </Text>
-                        </LinearGradient>
-                      </View>
-                    )}
-
-                    {/* Bouton d'action dans le scroll */}
                     {selectedPartner && (
                       <View style={styles.modalActionWrapper}>
                         <TouchableOpacity 
@@ -954,12 +828,7 @@ export default function PartnersScreen() {
                           activeOpacity={0.8}
                           onPress={() => handleOpenInMaps(selectedPartner)}
                         >
-                          <LinearGradient
-                            colors={['#8B2F3F', '#6B1F2F']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.modalActionGradient}
-                          >
+                         
                             <View style={styles.modalActionContent}>
                               <View style={styles.modalActionIconCircle}>
                                 <Ionicons name="navigate" size={24} color={Colors.text.light} />
@@ -967,10 +836,46 @@ export default function PartnersScreen() {
                               <Text style={styles.modalActionText}>Y aller maintenant</Text>
                               <Ionicons name="chevron-forward" size={24} color={Colors.text.light} />
                             </View>
-                          </LinearGradient>
                         </TouchableOpacity>
                       </View>
                     )}
+                    
+                    {/* Informations principales */}
+                    <View style={styles.modalInfoSection}>
+                      {/* Adresse */}
+                      <View style={styles.modalInfoCard}>
+                        <View style={styles.modalInfoCardHeader}>
+                          <View style={styles.modalInfoIconContainer}>
+                            <Ionicons name="location" size={20} color="#8B2F3F" />
+                          </View>
+                          <Text style={styles.modalInfoCardTitle}>Adresse</Text>
+                        </View>
+                        <Text style={styles.modalInfoCardValue} numberOfLines={2}>
+                          {selectedPartner.address}
+                        </Text>
+                        {selectedPartner.distance !== null && (
+                          <View style={styles.modalInfoBadge}>
+                            <Ionicons name="walk" size={14} color="#8B2F3F" />
+                            <Text style={styles.modalInfoBadgeText}>
+                              {selectedPartner.distance.toFixed(1)} km
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Statut */}
+                      
+                    </View>
+
+                    {/* Description */}
+                    <View style={styles.modalDescriptionCard}>
+                      <Text style={styles.modalDescriptionTitle}>À propos</Text>
+                      <Text style={styles.modalDescription}>{selectedPartner.description}</Text>
+                    </View>
+                    
+
+                    {/* Bouton d'action dans le scroll */}
+                    
                   </>
                 )}
               </ScrollView>
@@ -1125,25 +1030,22 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: BorderRadius['2xl'],
+    borderRadius: BorderRadius.xl,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md + 2,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    ...Shadows.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    ...Shadows.sm,
   } as ViewStyle,
   searchIconWrapper: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.full,
-    backgroundColor: 'rgba(139, 47, 63, 0.4)',
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md,
-    borderWidth: 1.5,
-    borderColor: 'rgba(139, 47, 63, 0.5)',
-    ...Shadows.sm,
   } as ViewStyle,
   searchInput: {
     flex: 1,
@@ -1323,15 +1225,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md + 2,
     paddingVertical: Spacing.sm + 2,
     borderRadius: BorderRadius.full,
-        borderWidth: 2,
+    borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     minHeight: 42,
     gap: Spacing.xs + 2,
-    ...Shadows.sm,
   } as ViewStyle,
   categoryPillActive: {
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    ...Shadows.lg,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   } as ViewStyle,
   categoryPillText: {
     fontSize: Typography.sizes.sm,
@@ -1364,16 +1265,13 @@ const styles = StyleSheet.create({
   // Cards de grille
   gridCard: {
     width: '48%',
-        borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.xl,
     marginBottom: Spacing.md,
     overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    ...Shadows.md,
   } as ViewStyle,
   gridCardLeft: {
     marginRight: '2%',
@@ -1583,8 +1481,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.md,
     borderBottomWidth: 0,
   } as ViewStyle,
   closeButton: {
@@ -1619,7 +1517,7 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   modalContentContainer: {
     padding: Spacing.md,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
   } as ViewStyle,
   modalLoading: {
@@ -1656,29 +1554,24 @@ const styles = StyleSheet.create({
   } as TextStyle,
   // Hero Section
   modalHeroSection: {
-    marginBottom: Spacing.lg,
-    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+    gap: Spacing.lg,
   } as ViewStyle,
   modalImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: BorderRadius['2xl'],
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    width: '100%',
+    height: 240,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     position: 'relative',
-    overflow: 'visible',
+    marginBottom: Spacing.lg,
     ...Shadows.lg,
   } as ViewStyle,
-  modalImageWrapper: {
+  modalImageContent: {
     width: '100%',
     height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: BorderRadius['3xl'],
-  } as ViewStyle,
+  } as ImageStyle,
   modalImagePromoBadge: {
     position: 'absolute',
     top: -6,
@@ -1703,19 +1596,19 @@ const styles = StyleSheet.create({
   // Hero Info
   modalHeroInfo: {
     gap: Spacing.md,
+    paddingHorizontal: Spacing.sm,
   } as ViewStyle,
   modalNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
   } as ViewStyle,
   modalName: {
     fontSize: Typography.sizes['2xl'],
-    fontWeight: '800', 
+    fontWeight: '900',
     color: Colors.text.light,
-    textAlign: 'center',
+    textAlign: 'left',
     letterSpacing: -0.5,
     flex: 1,
   } as TextStyle,
@@ -1725,10 +1618,9 @@ const styles = StyleSheet.create({
   modalBadgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
+    justifyContent: 'flex-start',
+    gap: Spacing.sm,
     flexWrap: 'wrap',
-    paddingHorizontal: Spacing.sm,
   } as ViewStyle,
   modalRatingBadge: {
     flexDirection: 'row',
@@ -1790,26 +1682,101 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   } as TextStyle,
   
-  // Description Card
-  modalDescriptionCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+  // Informations Section
+  modalInfoSection: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  } as ViewStyle,
+  modalInfoCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
     ...Shadows.sm,
   } as ViewStyle,
-  modalSectionHeader: {
+  modalInfoCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  modalInfoIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  modalInfoIconOpen: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+  } as ViewStyle,
+  modalInfoIconClosed: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  } as ViewStyle,
+  modalInfoCardTitle: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  } as TextStyle,
+  modalInfoCardValue: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+    color: Colors.text.light,
+    lineHeight: 20,
+  } as TextStyle,
+  modalInfoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    gap: 4,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
+  modalInfoBadgeText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '700',
+    color: '#8B2F3F',
+  } as TextStyle,
+  modalInfoStatusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    marginBottom: Spacing.sm,
   } as ViewStyle,
-  modalSectionTitle: {
+  modalInfoStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  } as ViewStyle,
+  modalInfoSubtext: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xs,
+  } as TextStyle,
+  // Description Card
+  modalDescriptionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    ...Shadows.sm,
+  } as ViewStyle,
+  modalDescriptionTitle: {
     fontSize: Typography.sizes.base,
     fontWeight: '700',
     color: Colors.text.light,
+    marginBottom: Spacing.sm,
     letterSpacing: -0.2,
   } as TextStyle,
   modalDescription: {
@@ -1911,82 +1878,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
     fontWeight: '500',
-  } as TextStyle,
-  
-  // Info Grid (nouveau design)
-  modalInfoGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
-  modalInfoGridCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.md,
-    ...Shadows.sm,
-    alignItems: 'center',
-  } as ViewStyle,
-  modalInfoGridIcon: {
-    marginBottom: Spacing.sm,
-  } as ViewStyle,
-  modalInfoGridIconInner: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  } as ViewStyle,
-  modalInfoGridLabel: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '600',
-    color: Colors.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.xs,
-  } as TextStyle,
-  modalInfoGridValue: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '700',
-    color: Colors.text.light,
-    textAlign: 'center',
-    lineHeight: 20,
-  } as TextStyle,
-  modalDistanceBadgeInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(139, 47, 63, 0.2)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-    gap: 4,
-    marginTop: Spacing.xs,
-  } as ViewStyle,
-  modalDistanceInline: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: '700',
-    color: '#8B2F3F',
-  } as TextStyle,
-  modalStatusInlineWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  } as ViewStyle,
-  modalStatusDotInline: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  } as ViewStyle,
-  modalClosingTimeInline: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.secondary,
-    fontWeight: '500',
-    marginTop: Spacing.xs,
-    textAlign: 'center',
   } as TextStyle,
   
   modalPromotionWrapper: {

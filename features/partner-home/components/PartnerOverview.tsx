@@ -58,8 +58,8 @@ export function PartnerOverview({
       return date >= startOfLastMonth && date <= endOfLastMonth;
     });
 
-    const monthRevenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
-    const lastMonthRevenue = lastMonthTransactions.reduce((sum: number, t: any) => sum + (t.amountGross || t.amount || 0), 0);
+    const monthRevenue = monthTransactions.reduce((sum: number, t: any) => sum + (t.amountNet || t.amountAfterDiscount || t.amountGross || t.amount || 0), 0);
+    const lastMonthRevenue = lastMonthTransactions.reduce((sum: number, t: any) => sum + (t.amountNet || t.amountAfterDiscount || t.amountGross || t.amount || 0), 0);
     
     const revenueChange = lastMonthRevenue > 0 
       ? Math.round(((monthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)

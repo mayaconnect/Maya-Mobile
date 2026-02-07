@@ -95,7 +95,7 @@ export function useStoreManagement(
         );
         
         const totalScans = storeTransactions.length;
-        const totalRevenue = storeTransactions.reduce((sum, t) => sum + (t.amountGross || 0), 0);
+        const totalRevenue = storeTransactions.reduce((sum, t) => sum + (t.amountNet || t.amountAfterDiscount || t.amountGross || 0), 0);
         
         const uniqueClientIds = new Set(
           storeTransactions

@@ -79,7 +79,7 @@ export const PartnerRecentScans: React.FC<PartnerRecentScansProps> = ({
                     </View>
                     <View style={styles.scanAmountRow}>
                       <Text style={styles.scanAmount}>
-                        {scan.amountGross?.toFixed(2) || '0.00'}€
+                        {(scan.amountNet || scan.amountAfterDiscount || scan.amountGross || 0)?.toFixed(2) || '0.00'}€
                       </Text>
                       {scan.discountAmount > 0 && (
                         <View style={styles.scanDiscountBadge}>

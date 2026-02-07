@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { AuthService } from '@/services/auth.service';
 import { QrApi } from '@/features/home/services/qrApi';
+import { ProfileApi } from '@/features/profile/services/profileApi';
+import { SubscriptionsApi } from '@/features/subscription/services/subscriptionsApi';
 
 interface QRValidationData {
   qrToken: string;
@@ -10,6 +12,8 @@ interface QRValidationData {
   operatorUserId: string;
   storeName?: string;
   discountPercent?: number;
+  clientId?: string;
+  clientSubscription?: any;
 }
 
 export function useQRValidation(
@@ -111,6 +115,50 @@ export function useQRValidation(
 
       const discountPercent = activeStore?.avgDiscountPercent || activeStore?.discountPercent || activeStore?.discount || 10;
 
+      // Essayer de récupérer l'ID du client et son abonnement depuis le token
+      let clientId: string | undefined;
+      let clientSubscription: any = null;
+
+      try {
+        // Essayer de décoder le token ou utiliser une API pour obtenir l'ID du client
+        // Pour l'instant, on va essayer de récupérer l'abonnement après la validation
+        // Mais on peut aussi essayer de récupérer depuis une API de décodage de token si elle existe
+        try {
+          // Utiliser l'API pour obtenir les infos du client depuis le token (sans valider)
+          const tokenInfoResponse = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || ''}/api/qr/token-info?token=${encodeURIComponent(qrToken)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${await AuthService.getAccessToken()}`,
+            },
+          });
+
+          if (tokenInfoResponse.ok) {
+            const tokenInfo = await tokenInfoResponse.json();
+            clientId = tokenInfo?.clientId || tokenInfo?.userId || tokenInfo?.client?.id;
+            
+            // Si on a l'ID du client, récupérer son abonnement
+            if (clientId) {
+              try {
+                const client = await ProfileApi.getClientById(clientId);
+                // L'abonnement pourrait être dans les infos du client
+                if ((client as any)?.subscription) {
+                  clientSubscription = (client as any).subscription;
+                }
+              } catch (clientError) {
+                console.warn('⚠️ [QR SCAN] Impossible de récupérer les infos du client:', clientError);
+              }
+            }
+          }
+        } catch (tokenInfoError) {
+          console.warn('⚠️ [QR SCAN] Impossible de récupérer les infos du token (API peut-être indisponible):', tokenInfoError);
+          // Continuer sans les infos du client pour l'instant
+        }
+      } catch (error) {
+        console.warn('⚠️ [QR SCAN] Erreur lors de la récupération des infos du client:', error);
+        // Continuer quand même sans les infos du client
+      }
+
       setQrValidationData({
         qrToken,
         partnerId: finalPartnerId,
@@ -118,6 +166,8 @@ export function useQRValidation(
         operatorUserId: finalOperatorUserId,
         storeName: activeStore?.name || activeStore?.partner?.name,
         discountPercent,
+        clientId,
+        clientSubscription,
       });
 
       setShowQRValidationModal(true);
@@ -155,6 +205,26 @@ export function useQRValidation(
         personsCount,
         discountPercent
       );
+
+      // Si on n'avait pas l'abonnement avant, essayer de le récupérer depuis la réponse
+      if (!qrValidationData.clientSubscription && validationResult) {
+        const clientIdFromResult = validationResult?.clientId || validationResult?.client?.id || validationResult?.userId;
+        if (clientIdFromResult) {
+          try {
+            const client = await ProfileApi.getClientById(clientIdFromResult);
+            if ((client as any)?.subscription) {
+              // Mettre à jour les données avec l'abonnement trouvé
+              setQrValidationData({
+                ...qrValidationData,
+                clientId: clientIdFromResult,
+                clientSubscription: (client as any).subscription,
+              });
+            }
+          } catch (error) {
+            console.warn('⚠️ [QR VALIDATION] Impossible de récupérer l\'abonnement depuis la réponse:', error);
+          }
+        }
+      }
 
       setShowQRValidationModal(false);
       setQrValidationData(null);

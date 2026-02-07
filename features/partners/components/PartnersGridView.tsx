@@ -1,9 +1,10 @@
-import { BorderRadius, Colors, Spacing, Typography } from '@/constants/design-system';
+import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
 import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
     ActivityIndicator,
+    Image,
     ScrollView,
     StyleSheet,
     Text,
@@ -14,6 +15,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Partner } from '../types';
+
+// Fonction pour générer une URL d'image aléatoire basée sur l'ID du partenaire
+const getRandomImageUrl = (partnerId: string, width: number = 400, height: number = 300): string => {
+  // Utiliser l'ID comme seed pour avoir une image cohérente par partenaire
+  const seed = partnerId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // Utiliser Picsum Photos avec un seed pour avoir des images cohérentes
+  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
+};
 
 interface PartnersGridViewProps {
   partners: Partner[];
@@ -79,7 +88,11 @@ export const PartnersGridView: React.FC<PartnersGridViewProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.gridCardImage}>
-              <Text style={styles.gridCardEmoji}>{partner.image}</Text>
+              <Image
+                source={{ uri: getRandomImageUrl(partner.id, 400, 300) }}
+                style={styles.gridCardImageContent}
+                resizeMode="cover"
+              />
               {partner.promotion?.isActive && (
                 <View style={styles.gridPromoBadge}>
                   <Text style={styles.gridPromoBadgeText}>{partner.promotion.discount}</Text>
@@ -127,16 +140,13 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   gridCard: {
     width: '48%',
-        borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius.xl,
     marginBottom: Spacing.md,
     overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    ...Shadows.md,
   } as ViewStyle,
   gridCardLeft: {
     marginRight: '2%',
@@ -147,13 +157,16 @@ const styles = StyleSheet.create({
   gridCardImage: {
     width: '100%',
     height: 120,
-        justifyContent: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    backgroundColor: 'rgba(139, 47, 63, 0.1)',
+    overflow: 'hidden',
   } as ViewStyle,
-  gridCardEmoji: {
-    fontSize: 48,
-  } as TextStyle,
+  gridCardImageContent: {
+    width: '100%',
+    height: '100%',
+  } as ViewStyle,
   gridPromoBadge: {
     position: 'absolute',
     top: 6,
@@ -190,7 +203,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   } as TextStyle,
   gridCardInfo: {
-    padding: Spacing.sm,
+    padding: Spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   } as ViewStyle,
   gridCardName: {
     fontSize: 15,

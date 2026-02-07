@@ -46,7 +46,7 @@ export const PartnerRecentActivity: React.FC<PartnerRecentActivityProps> = ({
         subtitle = `Il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
       }
 
-      const amount = scan.amountGross || scan.amount || 0;
+      const amount = scan.amountNet || scan.amountAfterDiscount || scan.amountGross || scan.amount || 0;
       activitiesList.push({
         id: scan.id || scan.transactionId || `scan-${activitiesList.length}`,
         title: `Nouveau scan - ${customerName}`,

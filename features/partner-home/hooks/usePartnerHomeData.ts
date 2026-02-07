@@ -107,7 +107,7 @@ export function usePartnerHomeData(user: any, activeStoreId: string | null, sele
                             scan.clientName || 
                             `${scan.customer?.firstName || scan.client?.firstName || ''} ${scan.customer?.lastName || scan.client?.lastName || ''}`.trim() ||
                             'Client inconnu';
-        const amount = scan.amountGross || scan.amount || 0;
+        const amount = scan.amountNet || scan.amountAfterDiscount || scan.amountGross || scan.amount || 0;
 
         if (customerId) {
           if (customerStats.has(customerId)) {
@@ -154,19 +154,22 @@ export function usePartnerHomeData(user: any, activeStoreId: string | null, sele
       let startDate: string | undefined;
       const now = new Date();
 
-      if (filterPeriod === 'today') {
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        startDate = todayStart.toISOString();
-      } else if (filterPeriod === 'week') {
-        const weekAgo = new Date(now);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        weekAgo.setHours(0, 0, 0, 0);
-        startDate = weekAgo.toISOString();
-      } else if (filterPeriod === 'month') {
-        const monthAgo = new Date(now);
-        monthAgo.setMonth(monthAgo.getMonth() - 1);
-        monthAgo.setHours(0, 0, 0, 0);
-        startDate = monthAgo.toISOString();
+      // Pour les stats, ne pas filtrer par période pour avoir toutes les données
+      if (selectedTab !== 'stats') {
+        if (filterPeriod === 'today') {
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+          startDate = todayStart.toISOString();
+        } else if (filterPeriod === 'week') {
+          const weekAgo = new Date(now);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          weekAgo.setHours(0, 0, 0, 0);
+          startDate = weekAgo.toISOString();
+        } else if (filterPeriod === 'month') {
+          const monthAgo = new Date(now);
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          monthAgo.setHours(0, 0, 0, 0);
+          startDate = monthAgo.toISOString();
+        }
       }
 
       let partnerId: string | undefined;
@@ -185,9 +188,10 @@ export function usePartnerHomeData(user: any, activeStoreId: string | null, sele
         return;
       }
 
+      // Pour les stats, charger plus de transactions (1000 au lieu de 100)
       const response = await TransactionsApi.getPartnerTransactions(partnerId, {
         page: 1,
-        pageSize: 100,
+        pageSize: selectedTab === 'stats' ? 1000 : 100,
         storeId: currentStoreId,
         startDate: startDate,
       });
@@ -217,7 +221,7 @@ export function usePartnerHomeData(user: any, activeStoreId: string | null, sele
     } finally {
       setTransactionsLoading(false);
     }
-  }, [user, filterPeriod, activeStoreId, selectedStoreId, stores]);
+  }, [user, filterPeriod, activeStoreId, selectedStoreId, stores, selectedTab]);
 
   const loadStores = useCallback(async () => {
     console.log('🏪 [Partner Home] Chargement des stores depuis /auth/me...');
@@ -328,7 +332,7 @@ export function usePartnerHomeData(user: any, activeStoreId: string | null, sele
   }, [loadScans, stores.length, activeStoreId, showActiveStoreSelection]);
 
   useEffect(() => {
-    if (selectedTab === 'history' && activeStoreId && !showActiveStoreSelection) {
+    if ((selectedTab === 'history' || selectedTab === 'stats') && activeStoreId && !showActiveStoreSelection) {
       loadPartnerTransactions();
     }
   }, [selectedTab, loadPartnerTransactions, activeStoreId, showActiveStoreSelection]);

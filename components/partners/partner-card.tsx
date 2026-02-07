@@ -4,6 +4,8 @@ import React from 'react';
 import {
   Alert,
   Animated,
+  Image,
+  ImageStyle,
   Linking,
   StyleSheet,
   Text,
@@ -12,6 +14,14 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+
+// Fonction pour générer une URL d'image aléatoire basée sur l'ID du partenaire
+const getRandomImageUrl = (partnerId: string, width: number = 200, height: number = 200): string => {
+  // Utiliser l'ID comme seed pour avoir une image cohérente par partenaire
+  const seed = partnerId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // Utiliser Picsum Photos avec un seed pour avoir des images cohérentes
+  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
+};
 
 export interface Partner {
   id: string;
@@ -101,7 +111,11 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
         <View style={styles.header}>
           <View style={styles.imageContainer}>
             <View style={styles.imagePlaceholder}>
-              <Text style={styles.imageText}>{partner.image}</Text>
+              <Image
+                source={{ uri: getRandomImageUrl(partner.id, 200, 200) }}
+                style={styles.imageContent}
+                resizeMode="cover"
+              />
             </View>
             {partner.promotion?.isActive && (
               <View style={styles.promotionBadge}>
@@ -191,17 +205,13 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-        borderRadius: BorderRadius.xl,
-    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
     marginBottom: Spacing.md,
-    ...Shadows.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    ...Shadows.md,
   } as ViewStyle,
   header: {
     flexDirection: 'row',
@@ -214,17 +224,18 @@ const styles = StyleSheet.create({
   imagePlaceholder: {
     width: 60,
     height: 60,
-    backgroundColor: 'rgba(139, 47, 63, 0.25)',
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
     borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(139, 47, 63, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 47, 63, 0.3)',
+    overflow: 'hidden',
   } as ViewStyle,
-  imageText: {
-    fontSize: 28,
-    color: Colors.text.light,
-  } as TextStyle,
+  imageContent: {
+    width: '100%',
+    height: '100%',
+  } as ImageStyle,
   promotionBadge: {
     position: 'absolute',
     top: -8,
