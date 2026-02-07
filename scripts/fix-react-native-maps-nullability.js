@@ -255,6 +255,10 @@ function fixFile(filePath) {
         }
       }
       
+      // NOTE: Protection pragma désactivée car le patch patch-package gère déjà les fichiers problématiques
+      // L'ajout de #pragma clang assume_nonnull end sans begin correspondant cause des erreurs
+      // Tous les fichiers avec des problèmes de NS_ASSUME_NONNULL sont corrigés par le patch
+      /*
       // Ajouter une protection au début du fichier si nécessaire
       if (needsProtection && !content.includes('#pragma clang assume_nonnull')) {
         // Trouver la position après les imports et avant les déclarations
@@ -265,14 +269,14 @@ function fixFile(filePath) {
           if (trimmed.startsWith('#import') || trimmed.startsWith('@import')) {
             lastImportIndex = i;
             insertIndex = i + 1;
-          } else if (trimmed.startsWith('@interface') || 
+          } else if (trimmed.startsWith('@interface') ||
                      trimmed.startsWith('@protocol') ||
                      trimmed.startsWith('@class') ||
                      trimmed.startsWith('@implementation')) {
             break;
           }
         }
-        
+
         // Ajouter une protection pour éviter les problèmes d'imbrication
         // On ajoute un reset avant les imports pour s'assurer que le contexte est propre
         if (insertIndex > 0 || lastImportIndex >= 0) {
@@ -283,19 +287,20 @@ function fixFile(filePath) {
             '#endif',
             ''
           ];
-          
+
           // Insérer après le dernier import
           if (lastImportIndex >= 0) {
             lines.splice(lastImportIndex + 1, 0, ...protectionLines);
           } else {
             lines.splice(insertIndex, 0, ...protectionLines);
           }
-          
+
           content = lines.join('\n');
           console.log(`   ✅ Added nullability protection to prevent nesting issues`);
           modified = true;
         }
       }
+      */
     }
   }
 
