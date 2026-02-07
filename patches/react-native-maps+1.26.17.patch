@@ -19,98 +19,272 @@ index 39428cd..77bff15 100644
 +
  #endif
 diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h
-index 8f21a3a..45fd70e 100644
+index 8f21a3a..fce3a6b 100644
 --- a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h
 +++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h
-@@ -16,6 +16,39 @@
+@@ -16,6 +16,7 @@
  
  #import "AIRGoogleMapCoordinate.h"
  
 +NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
  
  @interface AIRGoogleMap : GMSMapView
  
-@@ -92,4 +125,6 @@
+@@ -92,4 +93,6 @@
               animated:(BOOL)animated;
  @end
  
 +NS_ASSUME_NONNULL_END
 +
  #endif
+diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h.bak b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h.bak
+new file mode 100644
+index 0000000..45fd70e
+--- /dev/null
++++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMap.h.bak
+@@ -0,0 +1,130 @@
++//
++//  AIRGoogleMap.h
++//  AirMaps
++//
++//  Created by Gil Birman on 9/1/16.
++//
++
++#ifdef HAVE_GOOGLE_MAPS
++
++#import <UIKit/UIKit.h>
++#import <React/RCTComponent.h>
++#import <React/RCTBridge.h>
++#import <GoogleMaps/GoogleMaps.h>
++#import <MapKit/MapKit.h>
++#import "AIRGMSMarker.h"
++
++#import "AIRGoogleMapCoordinate.h"
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++
++@interface AIRGoogleMap : GMSMapView
++
++// TODO: don't use MK region?
++@property (nonatomic, weak) RCTBridge *bridge;
++@property (nonatomic, assign) MKCoordinateRegion initialRegion;
++@property (nonatomic, assign) MKCoordinateRegion region;
++@property (nonatomic, assign) GMSCameraPosition *cameraProp;   // Because the base class already has a "camera" prop.
++@property (nonatomic, strong) GMSCameraPosition *initialCamera;
++@property (nonatomic, assign) NSString *customMapStyleString;
++@property (nonatomic, assign) UIEdgeInsets mapPadding;
++@property (nonatomic, assign) NSString *paddingAdjustmentBehaviorString;
++@property (nonatomic, copy) RCTDirectEventBlock onMapReady;
++@property (nonatomic, copy) RCTDirectEventBlock onMapLoaded;
++@property (nonatomic, copy) RCTDirectEventBlock onKmlReady;
++@property (nonatomic, copy) RCTBubblingEventBlock onPress;
++@property (nonatomic, copy) RCTBubblingEventBlock onLongPress;
++@property (nonatomic, copy) RCTDirectEventBlock onPanDrag;
++@property (nonatomic, copy) RCTDirectEventBlock onUserLocationChange;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerPress;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerSelect;
++@property (nonatomic, copy) RCTDirectEventBlock onMarkerDeselect;
++@property (nonatomic, copy) RCTDirectEventBlock onPoiClick;
++@property (nonatomic, copy) RCTDirectEventBlock onRegionChangeStart;
++@property (nonatomic, copy) RCTDirectEventBlock onRegionChange;
++@property (nonatomic, copy) RCTDirectEventBlock onRegionChangeComplete;
++@property (nonatomic, copy) RCTDirectEventBlock onIndoorLevelActivated;
++@property (nonatomic, copy) RCTDirectEventBlock onIndoorBuildingFocused;
++@property (nonatomic, strong) NSMutableArray *markers;
++@property (nonatomic, strong) NSMutableArray *polygons;
++@property (nonatomic, strong) NSMutableArray *polylines;
++@property (nonatomic, strong) NSMutableArray *circles;
++@property (nonatomic, strong) NSMutableArray *heatmaps;
++@property (nonatomic, strong) NSMutableArray *tiles;
++@property (nonatomic, strong) NSMutableArray *overlays;
++
++@property (nonatomic, assign) BOOL showsBuildings;
++@property (nonatomic, assign) BOOL showsTraffic;
++@property (nonatomic, assign) BOOL showsCompass;
++@property (nonatomic, assign) BOOL scrollEnabled;
++@property (nonatomic, assign) BOOL zoomEnabled;
++@property (nonatomic, assign) BOOL rotateEnabled;
++@property (nonatomic, assign) BOOL scrollDuringRotateOrZoomEnabled;
++@property (nonatomic, assign) BOOL pitchEnabled;
++@property (nonatomic, assign) BOOL zoomTapEnabled;
++@property (nonatomic, assign) BOOL showsUserLocation;
++@property (nonatomic, assign) BOOL showsMyLocationButton;
++@property (nonatomic, assign) BOOL showsIndoors;
++@property (nonatomic, assign) BOOL showsIndoorLevelPicker;
++@property (nonatomic, assign) NSString *kmlSrc;
++
++- (BOOL) isReady;
++- (void)didPrepareMap;
++- (void)mapViewDidFinishTileRendering;
++- (BOOL)didTapMarker:(GMSMarker *)marker;
++- (void)didTapPolyline:(GMSPolyline *)polyline;
++- (void)didTapPolygon:(GMSPolygon *)polygon;
++- (void)didTapAtCoordinate:(CLLocationCoordinate2D)coordinate;
++- (void)didLongPressAtCoordinate:(CLLocationCoordinate2D)coordinate;
++- (void)willMove:(BOOL)gesture;
++- (void)didChangeCameraPosition:(GMSCameraPosition *)position isGesture:(BOOL)isGesture;
++- (void)idleAtCameraPosition:(GMSCameraPosition *)position isGesture:(BOOL)isGesture;
++- (void)didTapPOIWithPlaceID:(NSString *)placeID name:(NSString *) name location:(CLLocationCoordinate2D) location;
++- (NSDictionary *)getMapBoundaries;
++
+++ (MKCoordinateRegion)makeGMSCameraPositionFromMap:(GMSMapView *)map andGMSCameraPosition:(GMSCameraPosition *)position;
+++ (GMSCameraPosition*)makeGMSCameraPositionFromMap:(GMSMapView *)map andMKCoordinateRegion:(MKCoordinateRegion)region;
++
++- (NSDictionary*) getMarkersFramesWithOnlyVisible:(BOOL)onlyVisible;
++- (instancetype)initWithMapId:(NSString *)mapId initialCamera:(GMSCameraPosition*) camera backgroundColor:(UIColor *) backgroundColor andZoomTapEnabled:(BOOL)zoomTapEnabled;
++-(void) fitToSuppliedMarkers:(NSArray*) markers withEdgePadding:(NSDictionary*) edgePadding animated:(BOOL)animated;
++-(void) fitToCoordinates:(NSArray<AIRGoogleMapCoordinate *> *) coordinates withEdgePadding:(NSDictionary*) edgePadding animated:(BOOL)animated;
++-(void) fitToElementsWithEdgePadding:(nonnull NSDictionary *)edgePadding
++             animated:(BOOL)animated;
++@end
++
++NS_ASSUME_NONNULL_END
++
++#endif
 diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h
-index 1cc6f33..094f666 100644
+index 1cc6f33..03de11e 100644
 --- a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h
 +++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h
-@@ -14,6 +14,30 @@
+@@ -14,6 +14,8 @@
  #import "AIRGoogleMapCallout.h"
  #import "AIRGoogleMapCalloutSubview.h"
  
 +NS_ASSUME_NONNULL_BEGIN
 +
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
  @interface AIRGoogleMapMarker : UIView
  
  @property (nonatomic, weak) RCTBridge *bridge;
-@@ -57,4 +81,6 @@
+@@ -57,4 +59,6 @@
  - (void) didInsertInMap:(AIRGoogleMap *) map;
  @end
  
 +NS_ASSUME_NONNULL_END
 +
  #endif
+diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h.bak b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h.bak
+new file mode 100644
+index 0000000..094f666
+--- /dev/null
++++ b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapMarker.h.bak
+@@ -0,0 +1,86 @@
++//
++//  AIRGoogleMapMarker.h
++//  AirMaps
++//
++//  Created by Gil Birman on 9/2/16.
++//
++
++#ifdef HAVE_GOOGLE_MAPS
++
++#import <GoogleMaps/GoogleMaps.h>
++#import <React/RCTBridge.h>
++#import "AIRGMSMarker.h"
++#import "AIRGoogleMap.h"
++#import "AIRGoogleMapCallout.h"
++#import "AIRGoogleMapCalloutSubview.h"
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++NS_ASSUME_NONNULL_BEGIN
++
++
++@interface AIRGoogleMapMarker : UIView
++
++@property (nonatomic, weak) RCTBridge *bridge;
++@property (nonatomic, strong) AIRGoogleMapCallout *calloutView;
++@property (nonatomic, strong) NSString *identifier;
++@property (nonatomic, assign) CLLocationCoordinate2D coordinate;
++@property (nonatomic, assign) CLLocationDegrees rotation;
++@property (nonatomic, strong) AIRGMSMarker* realMarker;
++@property (nonatomic, copy) RCTBubblingEventBlock onPress;
++@property (nonatomic, copy) RCTDirectEventBlock onDragStart;
++@property (nonatomic, copy) RCTDirectEventBlock onDrag;
++@property (nonatomic, copy) RCTDirectEventBlock onDragEnd;
++@property (nonatomic, copy) NSString *imageSrc;
++@property (nonatomic, copy) NSString *iconSrc;
++@property (nonatomic, copy) NSString *title;
++@property (nonatomic, copy) NSString *subtitle;
++@property (nonatomic, strong) UIColor *pinColor;
++@property (nonatomic, assign) CGPoint anchor;
++@property (nonatomic, assign) CGPoint calloutAnchor;
++@property (nonatomic, assign) NSInteger zIndex;
++@property (nonatomic, assign) double opacity;
++@property (nonatomic, assign) BOOL draggable;
++@property (nonatomic, assign) BOOL tappable;
++@property (nonatomic, assign) BOOL tracksViewChanges;
++@property (nonatomic, assign) BOOL tracksInfoWindowChanges;
++
++- (void)showCalloutView;
++- (void)hideCalloutView;
++- (void)redraw;
++- (UIView *)markerInfoContents;
++- (UIView *)markerInfoWindow;
++- (void)didTapInfoWindowOfMarker:(AIRGMSMarker *)marker;
++- (void)didTapInfoWindowOfMarker:(AIRGMSMarker *)marker point:(CGPoint)point frame:(CGRect)frame;
++- (void)didTapInfoWindowOfMarker:(AIRGMSMarker *)marker subview:(AIRGoogleMapCalloutSubview*)subview point:(CGPoint)point frame:(CGRect)frame;
++- (void)didBeginDraggingMarker:(AIRGMSMarker *)marker;
++- (void)didEndDraggingMarker:(AIRGMSMarker *)marker;
++- (void)didDragMarker:(AIRGMSMarker *)marker;
++- (id)makeEventData;
++- (id)makeEventData:(NSString *)action;
++- (UIView *) iconView;
++- (void) didInsertInMap:(AIRGoogleMap *) map;
++@end
++
++NS_ASSUME_NONNULL_END
++
++#endif
 diff --git a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapPolygon.h b/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapPolygon.h
 index 59d2cd1..a514ca6 100644
 --- a/node_modules/react-native-maps/ios/AirGoogleMaps/AIRGoogleMapPolygon.h
@@ -133,31 +307,20 @@ index 59d2cd1..a514ca6 100644
 +
  #endif
 diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMap.h b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h
-index f1cc92b..0d62138 100644
+index f1cc92b..cb24692 100644
 --- a/node_modules/react-native-maps/ios/AirMaps/AIRMap.h
 +++ b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h
-@@ -15,6 +15,20 @@
+@@ -15,6 +15,9 @@
  #import "RCTConvert+AirMap.h"
  #import "AIRMapCalloutSubview.h"
  
 +NS_ASSUME_NONNULL_BEGIN
 +
 +
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+#ifdef __clang__
-+#pragma clang assume_nonnull end
-+#endif
-+
-+
  
  @class AIRMapCoordinate;
  @class AIRMapMarker;
-@@ -87,3 +101,5 @@ extern const NSInteger AIRMapMaxZoomLevel;
+@@ -87,3 +90,5 @@ extern const NSInteger AIRMapMaxZoomLevel;
  - (void)insertReactSubview:(id<RCTComponent>)subview atIndex:(NSInteger)atIndex;
  -(void) fitToCoordinates:(NSArray<AIRMapCoordinate*>*) coordinates edgePadding:(UIEdgeInsets) edgeInsets animated:(Boolean) animated;
  @end
@@ -165,10 +328,10 @@ index f1cc92b..0d62138 100644
 +NS_ASSUME_NONNULL_END
 diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMap.h.bak b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h.bak
 new file mode 100644
-index 0000000..f1cc92b
+index 0000000..cb24692
 --- /dev/null
 +++ b/node_modules/react-native-maps/ios/AirMaps/AIRMap.h.bak
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,94 @@
 +/**
 + * Copyright (c) 2015-present, Facebook, Inc.
 + * All rights reserved.
@@ -185,6 +348,9 @@ index 0000000..f1cc92b
 +#import "SMCalloutView.h"
 +#import "RCTConvert+AirMap.h"
 +#import "AIRMapCalloutSubview.h"
++
++NS_ASSUME_NONNULL_BEGIN
++
 +
 +
 +@class AIRMapCoordinate;
@@ -258,27 +424,68 @@ index 0000000..f1cc92b
 +- (void)insertReactSubview:(id<RCTComponent>)subview atIndex:(NSInteger)atIndex;
 +-(void) fitToCoordinates:(NSArray<AIRMapCoordinate*>*) coordinates edgePadding:(UIEdgeInsets) edgeInsets animated:(Boolean) animated;
 +@end
++
++NS_ASSUME_NONNULL_END
 diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h b/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h
-index 1d73b40..bcbf2d4 100644
+index 1d73b40..cebff86 100644
 --- a/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h
 +++ b/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h
-@@ -10,6 +10,12 @@
+@@ -10,6 +10,8 @@
  #import <React/RCTViewManager.h>
  #import "AIRMap.h"
  
 +NS_ASSUME_NONNULL_BEGIN
 +
+ #define MERCATOR_RADIUS 85445659.44705395
+ #define MERCATOR_OFFSET 268435456
+ 
+@@ -27,3 +29,5 @@
+ - (double) zoomLevel:(AIRMap *)mapView;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h.bak b/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h.bak
+new file mode 100644
+index 0000000..bcbf2d4
+--- /dev/null
++++ b/node_modules/react-native-maps/ios/AirMaps/AIRMapManager.h.bak
+@@ -0,0 +1,37 @@
++/**
++ * Copyright (c) 2015-present, Facebook, Inc.
++ * All rights reserved.
++ *
++ * This source code is licensed under the BSD-style license found in the
++ * LICENSE file in the root directory of this source tree. An additional grant
++ * of patent rights can be found in the PATENTS file in the same directory.
++ */
++
++#import <React/RCTViewManager.h>
++#import "AIRMap.h"
 +
 +NS_ASSUME_NONNULL_BEGIN
 +
 +
- #define MERCATOR_RADIUS 85445659.44705395
- #define MERCATOR_OFFSET 268435456
- 
-@@ -27,3 +33,5 @@
- - (double) zoomLevel:(AIRMap *)mapView;
- 
- @end
++NS_ASSUME_NONNULL_BEGIN
++
++
++#define MERCATOR_RADIUS 85445659.44705395
++#define MERCATOR_OFFSET 268435456
++
++@interface AIRMapManager : RCTViewManager
++
++
++- (void)setCenterCoordinate:(CLLocationCoordinate2D)centerCoordinate
++    zoomLevel:(double)zoomLevel
++    animated:(BOOL)animated
++    mapView:(AIRMap *)mapView;
++
++- (MKCoordinateRegion)coordinateRegionWithMapView:(AIRMap *)mapView
++                                 centerCoordinate:(CLLocationCoordinate2D)centerCoordinate
++								                     andZoomLevel:(double)zoomLevel;
++- (double) zoomLevel:(AIRMap *)mapView;
++
++@end
 +
 +NS_ASSUME_NONNULL_END
 diff --git a/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.h b/node_modules/react-native-maps/ios/AirMaps/AIRMapMarker.h
@@ -340,29 +547,19 @@ index 49d3637..56d859d 100644
 +
  #endif /* AIRMapSnapshot_h */
 diff --git a/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h b/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h
-index fc360dd..5aaec7d 100644
+index fc360dd..1ceea35 100644
 --- a/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h
 +++ b/node_modules/react-native-maps/ios/generated/RNMapsAirModuleDelegate.h
-@@ -10,6 +10,18 @@
+@@ -10,6 +10,8 @@
  #import <CoreLocation/CoreLocation.h>
  #import <React/RCTBridge.h>
  
 +NS_ASSUME_NONNULL_BEGIN
 +
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
-+NS_ASSUME_NONNULL_BEGIN
-+
-+
  @protocol RNMapsAirModuleDelegate <NSObject>
  @required
  
-@@ -22,3 +34,5 @@
+@@ -22,3 +24,5 @@
  - (NSDictionary *) getPointForCoordinates:(CLLocationCoordinate2D) location;
  - (NSDictionary *) getCoordinatesForPoint:(CGPoint) point;
  @end
