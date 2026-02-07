@@ -76,7 +76,7 @@ export const PartnerRecentTransactions: React.FC<PartnerRecentTransactionsProps>
           const customerName = customer.name || `${firstName} ${lastName}`.trim() || 'Client inconnu';
           const initials = getInitials(firstName, lastName, customerName);
           const planType = getPlanType(transaction);
-          const amount = transaction.amountGross || transaction.amount || 0;
+          const amount = transaction.amountNet || transaction.amountAfterDiscount || transaction.amountGross || transaction.amount || 0;
           const discountAmount = transaction.discountAmount || transaction.discount || 0;
           const transactionTime = formatTime(transaction.createdAt || transaction.date || transaction.transactionDate);
 

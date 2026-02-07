@@ -322,6 +322,8 @@ export default function PartnerHomeScreen() {
               storeName={qrValidationData.storeName}
               discountPercent={currentDiscount}
               isValidating={validatingQR}
+              clientId={qrValidationData.clientId}
+              clientSubscription={qrValidationData.clientSubscription}
             />
           );
         })()}

@@ -15,7 +15,7 @@ export function usePartnerStats(transactions: any[], clients: any[], searchQuery
 
   const stats = useMemo(() => {
     const totalRevenue = transactions.reduce((sum, transaction) => {
-      return sum + (transaction.amountGross || transaction.amount || 0);
+      return sum + (transaction.amountNet || transaction.amountAfterDiscount || transaction.amountGross || transaction.amount || 0);
     }, 0);
 
     const todayStart = new Date();
@@ -24,7 +24,7 @@ export function usePartnerStats(transactions: any[], clients: any[], searchQuery
     const todayRevenue = transactions.reduce((sum, transaction) => {
       const transactionDate = new Date(transaction.createdAt || transaction.date || transaction.transactionDate);
       if (transactionDate >= todayStart) {
-        return sum + (transaction.amountGross || transaction.amount || 0);
+        return sum + (transaction.amountNet || transaction.amountAfterDiscount || transaction.amountGross || transaction.amount || 0);
       }
       return sum;
     }, 0);

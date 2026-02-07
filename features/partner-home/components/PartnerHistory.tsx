@@ -56,13 +56,7 @@ export function PartnerHistory({
 
   return (
     <View style={styles.historySection}>
-      <View style={styles.historyHeaderSection}>
-        <Text style={styles.sectionTitle}>Historique</Text>
-        <TouchableOpacity style={styles.exportButton} onPress={onExportData}>
-          <Ionicons name="download-outline" size={18} color="#8B2F3F" />
-          <Text style={styles.exportButtonText}>Exporter</Text>
-        </TouchableOpacity>
-      </View>
+     
 
       {/* Barre de recherche */}
       <View style={styles.searchContainer}>
@@ -158,8 +152,8 @@ export function PartnerHistory({
             const transactionDate = transaction.createdAt || transaction.date || transaction.transactionDate;
             const storeName = transaction.storeName || transaction.partnerName || 'Partenaire inconnu';
             const clientName = transaction.clientName || transaction.customerName || 'Client';
+            const amountNet = transaction.amountNet || transaction.amountAfterDiscount || transaction.amountGross || transaction.amount || 0;
             const amountGross = transaction.amountGross || transaction.amount || 0;
-            const amountNet = transaction.amountNet || amountGross;
             const discount = transaction.avgDiscountPercent || transaction.discountPercent || transaction.discount || 0;
             const savings = transaction.discountAmount || 0;
             const personsCount = transaction.personsCount || 0;
@@ -272,7 +266,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.md,
-    ...Spacing.sm,
   } as ViewStyle,
   searchIcon: {
     marginRight: Spacing.sm,

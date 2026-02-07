@@ -29,6 +29,8 @@ interface QrValidationModalProps {
   storeName?: string;
   discountPercent?: number;
   isValidating?: boolean;
+  clientId?: string;
+  clientSubscription?: any;
 }
 
 export function QrValidationModal({
@@ -42,6 +44,8 @@ export function QrValidationModal({
   storeName,
   discountPercent,
   isValidating = false,
+  clientId,
+  clientSubscription,
 }: QrValidationModalProps) {
   const [amountGross, setAmountGross] = useState('');
 
@@ -122,6 +126,31 @@ export function QrValidationModal({
                       <Ionicons name="storefront" size={32} color="#8B2F3F" />
                     </View>
                     <Text style={styles.storeName}>{storeName}</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Plan d'abonnement du client */}
+              {clientSubscription && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Plan du client</Text>
+                  <View style={styles.subscriptionCard}>
+                    <View style={styles.subscriptionIconContainer}>
+                      <Ionicons name="card" size={24} color="#8B2F3F" />
+                    </View>
+                    <View style={styles.subscriptionInfo}>
+                      <Text style={styles.subscriptionPlanName}>
+                        {clientSubscription.planCode || clientSubscription.plan?.name || 'Plan actif'}
+                      </Text>
+                      <Text style={styles.subscriptionDetails}>
+                        {clientSubscription.billingCycle === 'monthly' ? 'Mensuel' : 'Annuel'}
+                        {clientSubscription.plan?.features && clientSubscription.plan.features.length > 0 && (
+                          <Text style={styles.subscriptionFeatures}>
+                            {' • '}{clientSubscription.plan.features.length} avantage{clientSubscription.plan.features.length > 1 ? 's' : ''}
+                          </Text>
+                        )}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               )}
@@ -314,6 +343,43 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     fontWeight: '600',
     color: Colors.text.light,
+  } as TextStyle,
+  subscriptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: 'rgba(139, 47, 63, 0.1)',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 47, 63, 0.2)',
+    ...Shadows.sm,
+  } as ViewStyle,
+  subscriptionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  subscriptionInfo: {
+    flex: 1,
+    gap: Spacing.xs,
+  } as ViewStyle,
+  subscriptionPlanName: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: Colors.text.light,
+  } as TextStyle,
+  subscriptionDetails: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: '500',
+  } as TextStyle,
+  subscriptionFeatures: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
   } as TextStyle,
   infoCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
