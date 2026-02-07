@@ -253,6 +253,8 @@ jobs:
         run: |
           chmod +x scripts/fix-ios-nullability.sh
           bash scripts/fix-ios-nullability.sh
+          node scripts/fix-react-native-maps-nullability.js || true
+          node scripts/fix-react-native-svg-nullability.js || true
 
       - name: 🔧 Disable Swift 6 strict concurrency checking
         run: |
