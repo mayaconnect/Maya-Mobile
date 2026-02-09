@@ -739,6 +739,7 @@ export default function SubscriptionScreen() {
                       </View>
                       <View style={styles.planInfo}>
                         <Text style={styles.planName}>Solo</Text>
+                        <Text style={styles.planPersons}>1 personne</Text>
                         <Text style={styles.planPrice}>
                           {billingCycle === 'monthly' ? '9,90€ /mois' : '99,00€ /an'}
                         </Text>
@@ -789,6 +790,7 @@ export default function SubscriptionScreen() {
                       </View>
                       <View style={styles.planInfo}>
                         <Text style={styles.planName}>Duo</Text>
+                        <Text style={styles.planPersons}>2 personnes</Text>
                         <Text style={styles.planPrice}>
                           {billingCycle === 'monthly' ? '14,90€ /mois' : '149,00€ /an'}
                         </Text>
@@ -839,6 +841,7 @@ export default function SubscriptionScreen() {
                       </View>
                       <View style={styles.planInfo}>
                         <Text style={styles.planName}>Family</Text>
+                        <Text style={styles.planPersons}>Nombre illimité</Text>
                         <Text style={styles.planPrice}>
                           {billingCycle === 'monthly' ? '24,00€ /mois' : '240,00€ /an'}
                         </Text>
@@ -971,6 +974,7 @@ export default function SubscriptionScreen() {
               </View>
               <View style={styles.planInfo}>
                 <Text style={styles.planName}>Solo</Text>
+                <Text style={styles.planPersons}>1 personne</Text>
                 <Text style={styles.planPrice}>
                   {billingCycle === 'monthly' ? '9,90€ /mois' : '99,00€ /an'}
                 </Text>
@@ -1021,6 +1025,7 @@ export default function SubscriptionScreen() {
               </View>
               <View style={styles.planInfo}>
                 <Text style={styles.planName}>Duo</Text>
+                <Text style={styles.planPersons}>2 personnes</Text>
                 <Text style={styles.planPrice}>
                   {billingCycle === 'monthly' ? '14,90€ /mois' : '149,00€ /an'}
                 </Text>
@@ -1071,6 +1076,7 @@ export default function SubscriptionScreen() {
               </View>
               <View style={styles.planInfo}>
                 <Text style={styles.planName}>Family</Text>
+                <Text style={styles.planPersons}>Nombre illimité</Text>
                 <Text style={styles.planPrice}>
                   {billingCycle === 'monthly' ? '24,00€ /mois' : '240,00€ /an'}
                 </Text>
@@ -1498,6 +1504,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xl,
     fontWeight: 'bold',
     color: Colors.text.primary,
+    marginBottom: Spacing.xs,
+  } as TextStyle,
+  planPersons: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '500',
+    color: Colors.text.secondary,
     marginBottom: Spacing.xs,
   } as TextStyle,
   planPrice: {

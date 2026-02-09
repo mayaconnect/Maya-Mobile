@@ -1,4 +1,5 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { getRestaurantImage } from '@/features/partners/utils/restaurantImages';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -14,14 +15,6 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-
-// Fonction pour générer une URL d'image aléatoire basée sur l'ID du partenaire
-const getRandomImageUrl = (partnerId: string, width: number = 200, height: number = 200): string => {
-  // Utiliser l'ID comme seed pour avoir une image cohérente par partenaire
-  const seed = partnerId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  // Utiliser Picsum Photos avec un seed pour avoir des images cohérentes
-  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
-};
 
 export interface Partner {
   id: string;
@@ -112,7 +105,10 @@ export function PartnerCard({ partner, onPress, style }: PartnerCardProps) {
           <View style={styles.imageContainer}>
             <View style={styles.imagePlaceholder}>
               <Image
-                source={{ uri: getRandomImageUrl(partner.id, 200, 200) }}
+                source={(() => {
+                  const image = getRestaurantImage(partner.id, partner.name, partner.category, 200, 200);
+                  return typeof image === 'number' ? image : { uri: image };
+                })()}
                 style={styles.imageContent}
                 resizeMode="cover"
               />
