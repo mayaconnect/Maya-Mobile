@@ -44,21 +44,28 @@ export const HomeNearbyStores: React.FC = () => {
         longitude: location.coords.longitude,
       };
 
-      // Récupérer les stores à proximité (5km max)
+      // Récupérer les stores à proximité (200km max)
       const response = await StoresApi.searchStores({
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        radiusKm: 5,
+        radiusKm: 200,
         page: 1,
         pageSize: 3, // Limiter à 3 stores
       });
 
       // Mapper les stores en partenaires
       const mapped = response.items
-        .map((store, index) => mapStoreToPartner(store, index))
-        .slice(0, 3); // Prendre les 3 premiers
-
-      setStores(mapped);
+        .map((store, index) => mapStoreToPartner(store, index));
+      
+      // Trier les stores du plus proche au plus loin
+      const sortedMapped = mapped.sort((a, b) => {
+        const distanceA = a.distance ?? Infinity;
+        const distanceB = b.distance ?? Infinity;
+        return distanceA - distanceB;
+      });
+      
+      // Prendre les 3 premiers
+      setStores(sortedMapped.slice(0, 3));
     } catch (error) {
       console.error('Erreur lors du chargement des stores:', error);
       setError('Impossible de charger les magasins à proximité');

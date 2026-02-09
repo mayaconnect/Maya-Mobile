@@ -11,9 +11,34 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { Alert, Dimensions, Image, ImageStyle, Modal, ScrollView, Share, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeQRCodeCard } from '../components/HomeQRCodeCard';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Fonction utilitaire pour convertir ArrayBuffer en Base64
+function arrayBufferToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  let i = 0;
+  while (i < binary.length) {
+    const a = binary.charCodeAt(i++);
+    const b = i < binary.length ? binary.charCodeAt(i++) : 0;
+    const c = i < binary.length ? binary.charCodeAt(i++) : 0;
+    
+    const bitmap = (a << 16) | (b << 8) | c;
+    result += chars.charAt((bitmap >> 18) & 63);
+    result += chars.charAt((bitmap >> 12) & 63);
+    result += i - 2 < binary.length ? chars.charAt((bitmap >> 6) & 63) : '=';
+    result += i - 1 < binary.length ? chars.charAt(bitmap & 63) : '=';
+  }
+  return result;
+}
 
 export default function QRCodeScreen() {
   const { user } = useAuth();
@@ -25,6 +50,8 @@ export default function QRCodeScreen() {
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const previousSubscriptionStatus = useRef<boolean | null>(null);
+  const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   // Vérifier si l'utilisateur est un partenaire ou un opérateur
   useEffect(() => {
@@ -44,12 +71,89 @@ export default function QRCodeScreen() {
     }
   }, [user]);
 
+  // Fonction pour charger l'avatar avec authentification
+  const loadAvatarWithAuth = useCallback(async (avatarUrl: string) => {
+    try {
+      const token = await AuthService.getAccessToken();
+      if (!token) {
+        return null;
+      }
+
+      // Si c'est une URL complète (http:// ou https://)
+      const isFullUrl = avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://');
+      
+      if (isFullUrl) {
+        try {
+          const response = await fetch(avatarUrl, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'ngrok-skip-browser-warning': 'true',
+            },
+          });
+
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            const base64 = arrayBufferToBase64(bytes);
+            return base64;
+          } else {
+            // Essayer sans token si l'URL contient déjà un SAS token
+            const responseWithoutToken = await fetch(avatarUrl, {
+              headers: {
+                'ngrok-skip-browser-warning': 'true',
+              },
+            });
+
+            if (responseWithoutToken.ok) {
+              const arrayBuffer = await responseWithoutToken.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              const base64 = arrayBufferToBase64(bytes);
+              return base64;
+            }
+          }
+        } catch (fetchError) {
+          console.error('❌ [QRCode] Erreur lors du chargement depuis URL complète:', fetchError);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [QRCode] Erreur lors du chargement avatar avec auth:', error);
+    }
+    return null;
+  }, []);
+
+  // Charger l'avatar au montage du composant
+  useEffect(() => {
+    const loadAvatar = async () => {
+      if (!user) return;
+
+      // Si on a déjà le base64, l'utiliser
+      if (user.avatarBase64) {
+        setAvatarBase64(user.avatarBase64);
+        return;
+      }
+
+      // Sinon, charger depuis l'URL
+      const avatarUrl = (user as any)?.avatarUrl || (user as any)?.avatar;
+      if (avatarUrl) {
+        const base64 = await loadAvatarWithAuth(avatarUrl);
+        if (base64) {
+          setAvatarBase64(base64);
+        }
+      }
+    };
+
+    loadAvatar();
+  }, [user, loadAvatarWithAuth]);
+
   // Vérifier si l'utilisateur a une photo de profil
   const hasProfilePhoto = useCallback(() => {
     if (!user) return false;
     const hasAvatar = !!(user.avatarBase64 || (user as any)?.avatarUrl || (user as any)?.avatar);
     return hasAvatar;
   }, [user]);
+
+  // Récupérer l'avatar final
+  const finalAvatarBase64 = avatarBase64 || user?.avatarBase64;
 
   // Charger le QR Code
   const loadQrToken = useCallback(async (forceRefresh: boolean = false) => {
@@ -384,7 +488,23 @@ export default function QRCodeScreen() {
           >
             {/* Header avec titre */}
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>Mon QR Code Maya</Text>
+              <View style={styles.headerTitleContainer}>
+                <Text style={styles.headerTitle}>Mon QR Code Maya</Text>
+                {/* Image de profil à côté du titre */}
+                {finalAvatarBase64 && (
+                  <TouchableOpacity
+                    style={styles.headerProfileImageContainer}
+                    onPress={() => setShowAvatarModal(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Image
+                      source={{ uri: `data:image/jpeg;base64,${finalAvatarBase64}` }}
+                      style={styles.headerProfileImage as ImageStyle}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
               <Text style={styles.headerSubtitle}>
                 Présentez ce code en caisse pour bénéficier de vos avantages
               </Text>
@@ -449,6 +569,48 @@ export default function QRCodeScreen() {
               </View>
             )}
           </ScrollView>
+
+          {/* Modal pour afficher l'image en grand */}
+          <Modal
+            visible={showAvatarModal}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowAvatarModal(false)}
+          >
+            <SafeAreaView style={styles.modalContainer}>
+              <TouchableOpacity 
+                style={styles.modalBackdrop}
+                activeOpacity={1}
+                onPress={() => setShowAvatarModal(false)}
+              >
+                <View style={styles.modalContent}>
+                  <TouchableOpacity 
+                    style={styles.modalCloseButton}
+                    onPress={() => setShowAvatarModal(false)}
+                  >
+                    <Ionicons name="close" size={28} color={Colors.text.light} />
+                  </TouchableOpacity>
+                  {finalAvatarBase64 && (
+                    <Image
+                      source={{ uri: `data:image/jpeg;base64,${finalAvatarBase64}` }}
+                      style={styles.modalImage}
+                      resizeMode="contain"
+                    />
+                  )}
+                  <TouchableOpacity
+                    style={styles.modalProfileButton}
+                    onPress={() => {
+                      setShowAvatarModal(false);
+                      router.push('/(tabs)/profile');
+                    }}
+                  >
+                    <Ionicons name="person-circle" size={20} color={Colors.text.light} />
+                    <Text style={styles.modalProfileButtonText}>Voir le profil</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </SafeAreaView>
+          </Modal>
         </SafeAreaView>
       </LinearGradient>
     </NavigationTransition>
@@ -476,14 +638,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xl,
   } as ViewStyle,
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
   headerTitle: {
     fontSize: Typography.sizes['3xl'],
     fontWeight: Typography.weights.bold as any,
     color: Colors.text.light,
-    marginBottom: Spacing.xs,
     textAlign: 'center',
     letterSpacing: -0.5,
   } as TextStyle,
+  headerProfileImageContainer: {
+    // Pas de style supplémentaire
+  } as ViewStyle,
+  headerProfileImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    ...Shadows.md,
+  } as ImageStyle,
   headerSubtitle: {
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
@@ -527,6 +706,56 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
     lineHeight: 20,
+  } as TextStyle,
+  modalContainer: {
+    flex: 1,
+  } as ViewStyle,
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  modalContent: {
+    width: SCREEN_WIDTH * 0.9,
+    maxWidth: 400,
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as ViewStyle,
+  modalCloseButton: {
+    position: 'absolute',
+    top: -50,
+    right: 0,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  } as ViewStyle,
+  modalImage: {
+    width: SCREEN_WIDTH * 0.9,
+    maxWidth: 400,
+    height: SCREEN_WIDTH * 0.9,
+    maxHeight: 400,
+    borderRadius: BorderRadius.xl,
+  } as ImageStyle,
+  modalProfileButton: {
+    marginTop: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: 'rgba(139, 47, 63, 0.8)',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  } as ViewStyle,
+  modalProfileButtonText: {
+    color: Colors.text.light,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semibold as any,
   } as TextStyle,
 });
 

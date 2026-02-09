@@ -37,6 +37,8 @@ export default function SubscriptionScreen() {
   const [googlePayAvailable, setGooglePayAvailable] = useState(false);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
   const [isCheckingPaymentStatus, setIsCheckingPaymentStatus] = useState(false);
+  const [processedSessions, setProcessedSessions] = useState<Set<string>>(new Set());
+  const [isProcessingDeepLink, setIsProcessingDeepLink] = useState(false);
 
   // États pour l'abonnement actif
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
@@ -191,7 +193,20 @@ export default function SubscriptionScreen() {
 
   // Fonction pour vérifier le statut du paiement avec retry
   const checkPaymentStatusWithRetry = async (sessionId: string, retries = 3, delay = 2000): Promise<void> => {
+    // Protection contre les appels multiples pour la même session
+    if (processedSessions.has(sessionId)) {
+      console.log('⚠️ [Subscription] Session déjà traitée, ignore:', sessionId.substring(0, 20) + '...');
+      return;
+    }
+
+    if (isCheckingPaymentStatus) {
+      console.log('⚠️ [Subscription] Vérification déjà en cours, ignore la nouvelle demande');
+      return;
+    }
+
     setIsCheckingPaymentStatus(true);
+    setProcessedSessions(prev => new Set(prev).add(sessionId));
+    
     let statusResult: { status: string; paymentStatus?: string; subscriptionId?: string; message?: string } | null = null;
     
     try {
@@ -303,32 +318,81 @@ export default function SubscriptionScreen() {
     }
   };
 
+  // Fonction pour valider les URLs de deep link
+  const isValidDeepLink = (url: string): boolean => {
+    try {
+      // Vérifier que l'URL commence par le schéma attendu
+      if (!url.startsWith('maya://')) {
+        console.warn('⚠️ [Subscription] URL de deep link invalide - schéma incorrect:', url);
+        return false;
+      }
+
+      // Vérifier que l'URL ne contient pas de caractères malveillants
+      if (url.includes('<script') || url.includes('javascript:') || url.includes('data:')) {
+        console.warn('⚠️ [Subscription] URL de deep link contient des caractères suspects:', url);
+        return false;
+      }
+
+      // Vérifier la longueur de l'URL (protection contre les attaques)
+      if (url.length > 500) {
+        console.warn('⚠️ [Subscription] URL de deep link trop longue:', url.length);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('❌ [Subscription] Erreur lors de la validation de l\'URL:', error);
+      return false;
+    }
+  };
+
   // Écouter les deep links de retour depuis Stripe
   useEffect(() => {
     const handleDeepLink = async (url: string) => {
+      // Protection contre les appels multiples simultanés
+      if (isProcessingDeepLink) {
+        console.log('⚠️ [Subscription] Deep link déjà en cours de traitement, ignore');
+        return;
+      }
+
+      // Validation de l'URL avant traitement
+      if (!isValidDeepLink(url)) {
+        console.warn('⚠️ [Subscription] Deep link rejeté - URL invalide:', url);
+        return;
+      }
+
       console.log('🔗 [Subscription] Deep link reçu:', url);
       
       // Vérifier si c'est un retour depuis Stripe
       if (url.includes('subscription/success')) {
-        // Parser l'URL pour extraire le session_id (compatible React Native)
-        let sessionId = checkoutSessionId;
-        const sessionIdMatch = url.match(/[?&]session_id=([^&]+)/);
-        if (sessionIdMatch) {
-          sessionId = decodeURIComponent(sessionIdMatch[1]);
-        }
+        setIsProcessingDeepLink(true);
         
-        if (sessionId) {
-          console.log('✅ [Subscription] Retour depuis Stripe, session ID:', sessionId);
+        try {
+          // Parser l'URL pour extraire le session_id (compatible React Native)
+          let sessionId = checkoutSessionId;
+          const sessionIdMatch = url.match(/[?&]session_id=([^&]+)/);
+          if (sessionIdMatch) {
+            sessionId = decodeURIComponent(sessionIdMatch[1]);
+          }
           
-          // Vérifier le statut du paiement
-          await checkPaymentStatusWithRetry(sessionId);
-        } else {
-          console.warn('⚠️ [Subscription] Aucun session_id trouvé dans l\'URL');
-          // Ne pas afficher d'alerte, le webhook va traiter le paiement
-          setShowPaymentModal(false);
-          setSelectedPaymentMethod(null);
-          setCheckoutSessionId(null);
-          router.replace('/(tabs)/home');
+          if (sessionId) {
+            console.log('✅ [Subscription] Retour depuis Stripe, session ID:', sessionId);
+            
+            // Vérifier le statut du paiement (avec protection contre les doublons)
+            await checkPaymentStatusWithRetry(sessionId);
+          } else {
+            console.warn('⚠️ [Subscription] Aucun session_id trouvé dans l\'URL');
+            // Ne pas afficher d'alerte, le webhook va traiter le paiement
+            setShowPaymentModal(false);
+            setSelectedPaymentMethod(null);
+            setCheckoutSessionId(null);
+            router.replace('/(tabs)/home');
+          }
+        } finally {
+          // Réinitialiser le flag après un court délai pour permettre les retries
+          setTimeout(() => {
+            setIsProcessingDeepLink(false);
+          }, 1000);
         }
       } else if (url.includes('subscription/cancel')) {
         console.log('❌ [Subscription] Paiement annulé');
@@ -347,9 +411,11 @@ export default function SubscriptionScreen() {
       handleDeepLink(event.url);
     });
 
-    // Vérifier si l'app a été ouverte via un deep link
+    // Vérifier si l'app a été ouverte via un deep link (une seule fois au montage)
+    let initialUrlProcessed = false;
     Linking.getInitialURL().then((url) => {
-      if (url) {
+      if (url && !initialUrlProcessed) {
+        initialUrlProcessed = true;
         handleDeepLink(url);
       }
     });
@@ -357,10 +423,16 @@ export default function SubscriptionScreen() {
     return () => {
       subscription.remove();
     };
-  }, [checkoutSessionId, router]);
+  }, [checkoutSessionId, router, isProcessingDeepLink, processedSessions, isCheckingPaymentStatus]);
 
   const handlePayment = async () => {
     if (!selectedPaymentMethod) return;
+
+    // Protection contre les appels multiples
+    if (isProcessingPayment) {
+      console.log('⚠️ [Subscription] Paiement déjà en cours de traitement');
+      return;
+    }
 
     setIsProcessingPayment(true);
 
