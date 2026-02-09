@@ -82,7 +82,7 @@ export const usePartnerMap = () => {
       const response = await StoresApi.searchStores({
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        radiusKm: 300,
+        radiusKm: 1000,
         page: 1,
         pageSize: 100,
       });

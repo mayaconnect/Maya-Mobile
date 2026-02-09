@@ -5,6 +5,7 @@ import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -36,6 +37,7 @@ type PartnerUI = Partner;
 
 export default function PartnersScreen() {
   const insets = useSafeAreaInsets();
+  const { partnerId } = useLocalSearchParams<{ partnerId?: string }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [viewMode, setViewMode] = useState<PartnerViewMode>('grille');
@@ -75,13 +77,50 @@ export default function PartnersScreen() {
       setLoading(true);
       setError('');
       try {
-        const response = await StoresApi.searchStores();
+        // Récupérer la localisation pour avoir les distances
+        let currentLocation = userLocation;
+        if (!currentLocation) {
+          try {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status === 'granted') {
+              const location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+              });
+              currentLocation = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              };
+              setUserLocation(currentLocation);
+            }
+          } catch (locationError) {
+            console.warn('Erreur lors de la récupération de la localisation:', locationError);
+          }
+        }
+
+        // Charger les stores avec la localisation si disponible
+        const response = currentLocation
+          ? await StoresApi.searchStores({
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude,
+              radiusKm: 1000,
+              pageSize: 100,
+            })
+          : await StoresApi.searchStores();
+
         if (!isMounted) {
           return;
         }
         const list = response?.items ?? [];
         const mapped = list.map((store, index) => mapStore(store, index));
-        setPartners(mapped);
+        
+        // Trier les stores du plus proche au plus loin
+        const sortedMapped = mapped.sort((a, b) => {
+          const distanceA = a.distance ?? Infinity;
+          const distanceB = b.distance ?? Infinity;
+          return distanceA - distanceB;
+        });
+        
+        setPartners(sortedMapped);
       } catch (err) {
         console.error('Erreur lors du chargement des magasins:', err);
         if (isMounted) {
@@ -98,7 +137,17 @@ export default function PartnersScreen() {
     return () => {
       isMounted = false;
     };
-  }, [mapStore]);
+  }, [mapStore, userLocation]);
+
+  // Gérer l'ouverture automatique du partenaire depuis l'URL
+  useEffect(() => {
+    if (partnerId && partners.length > 0 && !showPartnerModal) {
+      const partner = partners.find((p) => p.id === partnerId);
+      if (partner) {
+        handlePartnerSelect(partner);
+      }
+    }
+  }, [partnerId, partners, showPartnerModal, handlePartnerSelect]);
 
   const stats = useMemo(() => {
     if (!partners.length) {
@@ -153,17 +202,26 @@ export default function PartnersScreen() {
     }
   }, []);
 
-  // Filtrage des partenaires
-  const filteredPartners = partners.filter(partner => {
-    const matchesSearch = partner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         partner.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         partner.category.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filtrage et tri des partenaires
+  const filteredPartners = useMemo(() => {
+    const filtered = partners.filter(partner => {
+      const matchesSearch = partner.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           partner.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           partner.category.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesFilter = selectedCategory === 'Tous' || 
+                           partner.category === selectedCategory;
+      
+      return matchesSearch && matchesFilter;
+    });
     
-    const matchesFilter = selectedCategory === 'Tous' || 
-                         partner.category === selectedCategory;
-    
-    return matchesSearch && matchesFilter;
-  });
+    // Trier par distance (du plus proche au plus loin) après le filtrage
+    return filtered.sort((a, b) => {
+      const distanceA = a.distance ?? Infinity;
+      const distanceB = b.distance ?? Infinity;
+      return distanceA - distanceB;
+    });
+  }, [partners, searchQuery, selectedCategory]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -314,13 +372,13 @@ export default function PartnersScreen() {
       console.log('🔍 [Partners] Recherche de stores avec:', {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        radiusKm: 300,
+        radiusKm: 1000,
       });
 
       const response = await StoresApi.searchStores({
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        radiusKm: 300,
+        radiusKm: 1000,
         page: 1,
         pageSize: 100, // Récupérer jusqu'à 100 stores
       });
@@ -328,14 +386,8 @@ export default function PartnersScreen() {
       console.log('✅ [Partners] Stores récupérés:', response.items.length);
       
       const mapped = response.items.map((store, index) => mapStore(store, index));
-      // Trier les stores du plus proche au plus loin
-      const sortedMapped = mapped.sort((a, b) => {
-        const distanceA = a.distance ?? Infinity;
-        const distanceB = b.distance ?? Infinity;
-        return distanceA - distanceB;
-      });
-      console.log('🔍 [Partners] Stores triés - Distances:', sortedMapped.slice(0, 5).map(s => ({ name: s.name, distance: s.distance })));
-      setMapStores(sortedMapped);
+      // Ne pas trier par distance - garder l'ordre de l'API
+      setMapStores(mapped);
       
       console.log('✅ [Partners] Stores mappés pour la carte:', mapped.length);
     } catch (error) {
@@ -537,7 +589,7 @@ export default function PartnersScreen() {
   }, []);
 
   // Ouverture du détail complet (modal)
-  const handlePartnerSelect = async (partner: PartnerUI) => {
+  const handlePartnerSelect = useCallback(async (partner: PartnerUI) => {
     setSelectedPartner(partner);
     setShowPartnerModal(true);
     setDetailError('');
@@ -553,7 +605,7 @@ export default function PartnersScreen() {
     } finally {
       setDetailLoading(false);
     }
-  };
+  }, []);
 
   const closePartnerModal = () => {
     setShowPartnerModal(false);
@@ -636,7 +688,7 @@ export default function PartnersScreen() {
                       <Text style={styles.mapSelectedCategory} numberOfLines={1}>
                         {selectedPartner.category}
                         {selectedPartner.distance != null
-                          ? ` • ${selectedPartner.distance.toFixed(1)} km`
+                          ? ` • ${Math.round(selectedPartner.distance)} km`
                           : ''}
                       </Text>
                     </View>
@@ -868,7 +920,7 @@ export default function PartnersScreen() {
                           <View style={styles.modalInfoBadge}>
                             <Ionicons name="walk" size={14} color="#8B2F3F" />
                             <Text style={styles.modalInfoBadgeText}>
-                              {selectedPartner.distance.toFixed(1)} km
+                              {Math.round(selectedPartner.distance)} km
                             </Text>
                           </View>
                         )}

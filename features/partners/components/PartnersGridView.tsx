@@ -108,7 +108,7 @@ export const PartnersGridView: React.FC<PartnersGridViewProps> = ({
                 <Ionicons name="star" size={12} color={Colors.accent.gold} />
                 <Text style={styles.gridCardRating}>{partner.rating?.toFixed?.(1) ?? partner.rating}</Text>
                 {partner.distance !== null && partner.distance !== undefined && (
-                  <Text style={styles.gridCardDistance}>• {partner.distance} km</Text>
+                  <Text style={styles.gridCardDistance}>• {Math.round(partner.distance)} km</Text>
                 )}
               </View>
               <Text style={styles.gridCardAddress} numberOfLines={1}>

@@ -1,6 +1,8 @@
 import { NavigationTransition } from '@/components/common/navigation-transition';
 import { NeoCard } from '@/components/neo/NeoCard';
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
+import { mapStoreToPartner } from '@/features/partners/utils/partnerMapper';
+import { getRestaurantImage } from '@/features/partners/utils/restaurantImages';
 import { StoresApi } from '@/features/stores-map/services/storesApi';
 import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,13 +13,18 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  ImageStyle,
+  Linking,
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
+  ViewStyle
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -45,9 +52,11 @@ export default function StoresMapScreen() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+  const [showStoreModal, setShowStoreModal] = useState(false);
   const [mapKey, setMapKey] = useState(Date.now());
-  const [radiusKm, setRadiusKm] = useState(300); // Rayon par défaut : 300km
+  const [radiusKm, setRadiusKm] = useState(1000); // Rayon par défaut : 1000km
   const [showRadiusSelector, setShowRadiusSelector] = useState(false);
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
   useEffect(() => {
     requestLocationPermission();
@@ -158,17 +167,35 @@ export default function StoresMapScreen() {
               html: '<div style="background-color: #8B2F3F; width: 32px; height: 32px; border-radius: 50%; border: 3px solid #1A0A0E; box-shadow: 0 4px 12px rgba(139, 47, 63, 0.5); display: flex; align-items: center; justify-content: center;"><div style="width: 12px; height: 12px; background: white; border-radius: 50%;"></div></div>',
               iconSize: [32, 32],
               iconAnchor: [16, 16]
-            })
+            }),
+            storeId: '${store.id}'
           })
             .addTo(map)
             .bindPopup(
-              '<div style="background: #1A0A0E; color: white; padding: 12px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-width: 200px;">' +
+              '<div style="background: #1A0A0E; color: white; padding: 12px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-width: 200px; cursor: pointer;">' +
               '<b style="color: #8B2F3F; font-size: 16px; display: block; margin-bottom: 6px;">${name}</b>' +
               '<span style="color: #cccccc; font-size: 14px;">${address}</span>' +
               '</div>',
-              { className: 'custom-popup' }
+              { className: 'custom-popup', closeOnClick: false }
             )
-            .on('click', function() {
+            .on('click', function(e) {
+              e.originalEvent.stopPropagation();
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'storeSelected',
+                storeId: '${store.id}',
+                storeName: '${name}'
+              }));
+            })
+            .on('popupopen', function() {
+              // Quand le popup s'ouvre, on sélectionne aussi le store
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'storeSelected',
+                storeId: '${store.id}',
+                storeName: '${name}'
+              }));
+            })
+            .on('popupclick', function() {
+              // Clic direct sur le popup
               window.ReactNativeWebView.postMessage(JSON.stringify({
                 type: 'storeSelected',
                 storeId: '${store.id}',
@@ -205,9 +232,14 @@ export default function StoresMapScreen() {
               background: transparent !important;
               box-shadow: none !important;
               padding: 0 !important;
+              cursor: pointer !important;
             }
             .leaflet-popup-content {
               margin: 0 !important;
+              cursor: pointer !important;
+            }
+            .leaflet-popup-content-wrapper:hover {
+              opacity: 0.9 !important;
             }
             .leaflet-popup-tip {
               background: #1A0A0E !important;
@@ -296,6 +328,43 @@ export default function StoresMapScreen() {
 
             // Marqueurs des stores
             ${storesMarkers}
+            
+            // Gérer les clics sur les popups des stores
+            map.on('popupopen', function(e) {
+              const popup = e.popup;
+              const popupElement = popup.getElement();
+              if (popupElement) {
+                popupElement.style.cursor = 'pointer';
+                // Ajouter un gestionnaire de clic sur le popup
+                const contentWrapper = popupElement.querySelector('.leaflet-popup-content-wrapper');
+                if (contentWrapper) {
+                  contentWrapper.style.cursor = 'pointer';
+                  contentWrapper.addEventListener('click', function() {
+                    const marker = e.popup._source;
+                    if (marker && marker.options && marker.options.storeId) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'storeSelected',
+                        storeId: marker.options.storeId
+                      }));
+                    }
+                  });
+                }
+                // Ajouter aussi un clic sur le contenu du popup
+                const content = popupElement.querySelector('.leaflet-popup-content');
+                if (content) {
+                  content.style.cursor = 'pointer';
+                  content.addEventListener('click', function() {
+                    const marker = e.popup._source;
+                    if (marker && marker.options && marker.options.storeId) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'storeSelected',
+                        storeId: marker.options.storeId
+                      }));
+                    }
+                  });
+                }
+              }
+            });
 
             // Animation pulse pour le marqueur utilisateur
             const style = document.createElement('style');
@@ -338,50 +407,54 @@ export default function StoresMapScreen() {
 
   return (
     <NavigationTransition>
-      <View style={styles.container}>
-        <LinearGradient
-          colors={Colors.gradients.primary}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <View style={[styles.container, isMapFullscreen && styles.containerFullscreen]}>
+        {!isMapFullscreen && (
+          <LinearGradient
+            colors={Colors.gradients.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+        )}
+        <SafeAreaView style={[styles.safeArea, isMapFullscreen && styles.safeAreaFullscreen]} edges={isMapFullscreen ? [] : ['top', 'left', 'right']}>
           <StatusBar barStyle="light-content" />
           
           {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color={Colors.text.light} />
-            </TouchableOpacity>
-            <View style={styles.headerContent}>
-              <Text style={styles.headerTitle}>Stores près de vous</Text>
-              <Text style={styles.headerSubtitle}>
-                {stores.length} store{stores.length > 1 ? 's' : ''} trouvé{stores.length > 1 ? 's' : ''}
-              </Text>
-            </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity 
-                onPress={() => setShowRadiusSelector(!showRadiusSelector)} 
-                style={styles.radiusButton}
-              >
-                <Ionicons name="radio-button-on" size={18} color={Colors.text.light} />
-                <Text style={styles.radiusButtonText}>{radiusKm}km</Text>
-                <Ionicons 
-                  name={showRadiusSelector ? "chevron-up" : "chevron-down"} 
-                  size={14} 
-                  color={Colors.text.light} 
-                />
+          {!isMapFullscreen && (
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color={Colors.text.light} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
-                <Ionicons name="refresh" size={24} color={Colors.text.light} />
-              </TouchableOpacity>
+              <View style={styles.headerContent}>
+                <Text style={styles.headerTitle}>Stores près de vous</Text>
+                <Text style={styles.headerSubtitle}>
+                  {stores.length} store{stores.length > 1 ? 's' : ''} trouvé{stores.length > 1 ? 's' : ''}
+                </Text>
+              </View>
+              <View style={styles.headerActions}>
+                <TouchableOpacity 
+                  onPress={() => setShowRadiusSelector(!showRadiusSelector)} 
+                  style={styles.radiusButton}
+                >
+                  <Ionicons name="radio-button-on" size={18} color={Colors.text.light} />
+                  <Text style={styles.radiusButtonText}>{radiusKm}km</Text>
+                  <Ionicons 
+                    name={showRadiusSelector ? "chevron-up" : "chevron-down"} 
+                    size={14} 
+                    color={Colors.text.light} 
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+                  <Ionicons name="refresh" size={24} color={Colors.text.light} />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Sélecteur de rayon */}
-          {showRadiusSelector && (
+          {!isMapFullscreen && showRadiusSelector && (
             <View style={styles.radiusSelector}>
-              {[50, 100, 200, 300, 500].map((radius) => (
+              {[50, 100, 200, 300, 500, 1000].map((radius) => (
                 <TouchableOpacity
                   key={radius}
                   style={[
@@ -417,12 +490,22 @@ export default function StoresMapScreen() {
           ) : (
             <>
               {/* Map */}
-              <View style={styles.mapContainer}>
+              <View 
+                style={[
+                  styles.mapContainer, 
+                  isMapFullscreen && styles.mapContainerFullscreen
+                ]}
+                pointerEvents={isMapFullscreen ? 'auto' : 'auto'}
+              >
                 {userLocation && (
                   <WebView
-                    key={`map-${mapKey}-${stores.length}`}
+                    key={`map-${mapKey}-${stores.length}-${isMapFullscreen}`}
                     source={{ html: generateMapHTML() }}
-                    style={styles.map}
+                    style={[
+                      styles.map, 
+                      isMapFullscreen && styles.mapFullscreen,
+                      isMapFullscreen && { width: '100%', height: '100%' }
+                    ]}
                     cacheEnabled={false}
                     incognito={true}
                     onMessage={(event) => {
@@ -431,7 +514,16 @@ export default function StoresMapScreen() {
                         if (data.type === 'storeSelected') {
                           const store = stores.find((s) => s.id === data.storeId);
                           if (store) {
-                            setSelectedStore(store);
+                            // Si le store est déjà sélectionné, rediriger vers les détails
+                            if (selectedStore?.id === store.id) {
+                              setShowStoreModal(false);
+                              const partner = mapStoreToPartner(store as any, 0);
+                              router.push(`/(tabs)/partners?partnerId=${partner.id}`);
+                            } else {
+                              // Sinon, sélectionner le store et ouvrir la modal
+                              setSelectedStore(store);
+                              setShowStoreModal(true);
+                            }
                           }
                         }
                       } catch (error) {
@@ -452,18 +544,31 @@ export default function StoresMapScreen() {
                 <TouchableOpacity style={styles.recenterButton} onPress={handleRecenter}>
                   <Ionicons name="locate" size={24} color={Colors.text.light} />
                 </TouchableOpacity>
+                
+                {/* Bouton agrandir/réduire la carte */}
+                <TouchableOpacity 
+                  style={styles.fullscreenButton} 
+                  onPress={() => setIsMapFullscreen(!isMapFullscreen)}
+                >
+                  <Ionicons 
+                    name={isMapFullscreen ? "contract" : "expand"} 
+                    size={24} 
+                    color={Colors.text.light} 
+                  />
+                </TouchableOpacity>
               </View>
 
               {/* Liste des stores */}
-              <ScrollView 
-                style={styles.storesList} 
-                contentContainerStyle={{
-                  ...styles.storesListContent,
-                  paddingBottom: insets.bottom + responsiveSpacing(Spacing.xl)
-                }}
-                showsVerticalScrollIndicator={true}
-                bounces={true}
-              >
+              {!isMapFullscreen && (
+                <ScrollView 
+                  style={styles.storesList} 
+                  contentContainerStyle={{
+                    ...styles.storesListContent,
+                    paddingBottom: insets.bottom + responsiveSpacing(Spacing.xl)
+                  }}
+                  showsVerticalScrollIndicator={true}
+                  bounces={true}
+                >
                 {stores.map((store) => (
                   <NeoCard
                     key={store.id}
@@ -474,7 +579,17 @@ export default function StoresMapScreen() {
                     ])}
                   >
                     <TouchableOpacity
-                      onPress={() => setSelectedStore(store)}
+                      onPress={() => {
+                        // Si le store est déjà sélectionné, rediriger vers les détails
+                        if (selectedStore?.id === store.id) {
+                          setShowStoreModal(false);
+                          const partner = mapStoreToPartner(store as any, 0);
+                          router.push(`/(tabs)/partners?partnerId=${partner.id}`);
+                        } else {
+                          setSelectedStore(store);
+                          setShowStoreModal(true);
+                        }
+                      }}
                       activeOpacity={0.7}
                     >
                       <View style={styles.storeCardContent}>
@@ -502,7 +617,7 @@ export default function StoresMapScreen() {
                         {store.distance && (
                           <View style={styles.storeDistance}>
                             <Text style={styles.storeDistanceText}>
-                              {store.distance.toFixed(1)} km
+                              {Math.round(store.distance)} km
                             </Text>
                           </View>
                         )}
@@ -511,8 +626,179 @@ export default function StoresMapScreen() {
                   </NeoCard>
                 ))}
               </ScrollView>
-            </>
+              )}
+              </>
           )}
+
+          {/* Modal de détails du store */}
+          <Modal
+            visible={showStoreModal}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setShowStoreModal(false)}
+          >
+            {selectedStore && (() => {
+              const partner = mapStoreToPartner(selectedStore as any, 0);
+              return (
+                <LinearGradient
+                  colors={Colors.gradients.primary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.modalContainer}
+                >
+                  <SafeAreaView style={styles.modalSafeArea} edges={['top']}>
+                    <StatusBar barStyle="light-content" />
+                    
+                    {/* Header avec bouton fermer */}
+                    <View style={styles.modalHeader}>
+                      <TouchableOpacity
+                        onPress={() => setShowStoreModal(false)}
+                        style={styles.modalCloseButton}
+                      >
+                        <Ionicons name="close" size={28} color={Colors.text.light} />
+                      </TouchableOpacity>
+                    </View>
+
+                    <ScrollView
+                      style={styles.modalScrollView}
+                      contentContainerStyle={{
+                        padding: Spacing.lg,
+                        paddingBottom: insets.bottom + Spacing.xl,
+                      }}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {/* Hero Section avec Image */}
+                      <View style={styles.modalHeroSection}>
+                        <View style={styles.modalImageContainer}>
+                          <Image
+                            source={(() => {
+                              const image = getRestaurantImage(partner.id, partner.name, partner.category, 800, 400);
+                              return typeof image === 'number' ? image : { uri: image };
+                            })()}
+                            style={styles.modalImageContent}
+                            resizeMode="cover"
+                          />
+                          {partner.promotion?.isActive && (
+                            <LinearGradient
+                              colors={[Colors.status.success, '#059669']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={styles.modalImagePromoBadge}
+                            >
+                              <Ionicons name="pricetag" size={11} color={Colors.text.light} />
+                              <Text style={styles.modalImagePromoText}>
+                                {partner.promotion.discount}
+                              </Text>
+                            </LinearGradient>
+                          )}
+                        </View>
+
+                        {/* Info principale */}
+                        <View style={styles.modalHeroInfo}>
+                          <Text style={styles.modalName} numberOfLines={2}>
+                            {partner.name}
+                          </Text>
+                          
+                          <View style={styles.modalBadgesRow}>
+                            {partner.rating > 0 && (
+                              <LinearGradient
+                                colors={['rgba(251, 191, 36, 0.2)', 'rgba(251, 191, 36, 0.1)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.modalRatingBadge}
+                              >
+                                <Ionicons name="star" size={12} color={Colors.accent.gold} />
+                                <Text style={styles.modalRatingText}>
+                                  {partner.rating.toFixed(1)}
+                                </Text>
+                              </LinearGradient>
+                            )}
+
+                            {partner.category && (
+                              <View style={styles.modalCategoryBadge}>
+                                <Ionicons name="pricetag-outline" size={11} color={Colors.text.light} />
+                                <Text style={styles.modalCategoryText}>
+                                  {partner.category}
+                                </Text>
+                              </View>
+                            )}
+
+                            <View style={[
+                              styles.modalQuickStatusBadge,
+                              partner.isOpen ? styles.modalQuickStatusOpen : styles.modalQuickStatusClosed
+                            ]}>
+                              <View style={[
+                                styles.modalQuickStatusDot,
+                                { backgroundColor: partner.isOpen ? Colors.status.success : Colors.status.error }
+                              ]} />
+                              <Text style={[
+                                styles.modalQuickStatusText,
+                                { color: partner.isOpen ? Colors.status.success : Colors.status.error }
+                              ]}>
+                                {partner.isOpen ? 'Ouvert' : 'Fermé'}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+
+                      {/* Bouton d'action */}
+                      {selectedStore.address?.latitude && selectedStore.address?.longitude && (
+                        <View style={styles.modalActionWrapper}>
+                          <TouchableOpacity 
+                            style={styles.modalActionButton}
+                            activeOpacity={0.8}
+                            onPress={() => {
+                              const url = `https://www.google.com/maps/dir/?api=1&destination=${selectedStore.address!.latitude},${selectedStore.address!.longitude}`;
+                              Linking.openURL(url);
+                            }}
+                          >
+                            <View style={styles.modalActionContent}>
+                              <View style={styles.modalActionIconCircle}>
+                                <Ionicons name="navigate" size={24} color={Colors.text.light} />
+                              </View>
+                              <Text style={styles.modalActionText}>Y aller maintenant</Text>
+                              <Ionicons name="chevron-forward" size={24} color={Colors.text.light} />
+                            </View>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {/* Informations principales */}
+                      <View style={styles.modalInfoSection}>
+                        {/* Adresse */}
+                        <View style={styles.modalInfoCard}>
+                          <View style={styles.modalInfoCardHeader}>
+                            <View style={styles.modalInfoIconContainer}>
+                              <Ionicons name="location" size={20} color="#8B2F3F" />
+                            </View>
+                            <Text style={styles.modalInfoCardTitle}>Adresse</Text>
+                          </View>
+                          <Text style={styles.modalInfoCardValue} numberOfLines={2}>
+                            {partner.address}
+                          </Text>
+                          {partner.distance !== null && (
+                            <View style={styles.modalInfoBadge}>
+                              <Ionicons name="walk" size={14} color="#8B2F3F" />
+                            <Text style={styles.modalInfoBadgeText}>
+                              {Math.round(partner.distance)} km
+                            </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* Description */}
+                      <View style={styles.modalDescriptionCard}>
+                        <Text style={styles.modalDescriptionTitle}>À propos</Text>
+                        <Text style={styles.modalDescription}>{partner.description}</Text>
+                      </View>
+                    </ScrollView>
+                  </SafeAreaView>
+                </LinearGradient>
+              );
+            })()}
+          </Modal>
         </SafeAreaView>
       </View>
     </NavigationTransition>
@@ -522,9 +808,18 @@ export default function StoresMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
+  } as ViewStyle,
+  containerFullscreen: {
+    backgroundColor: '#2A1A1E',
   } as ViewStyle,
   safeArea: {
     flex: 1,
+    position: 'relative',
+  } as ViewStyle,
+  safeAreaFullscreen: {
+    flex: 1,
+    backgroundColor: '#2A1A1E',
   } as ViewStyle,
   header: {
     flexDirection: 'row',
@@ -621,6 +916,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
   },
+  mapWrapper: {
+    flex: 1,
+    position: 'relative',
+  } as ViewStyle,
   mapContainer: {
     flex: 1,
     marginHorizontal: Spacing.lg,
@@ -637,12 +936,32 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(139, 47, 63, 0.4)',
   } as ViewStyle,
+  mapContainerFullscreen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    borderRadius: 0,
+    marginHorizontal: 0,
+    marginBottom: 0,
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+    backgroundColor: '#2A1A1E',
+    width: '100%',
+    height: '100%',
+  } as ViewStyle,
   map: {
     flex: 1,
     backgroundColor: '#2A1A1E',
     // Effet de profondeur supplémentaire
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  } as ViewStyle,
+  mapFullscreen: {
+    borderTopWidth: 0,
   } as ViewStyle,
   recenterButton: {
     position: 'absolute',
@@ -655,6 +974,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadows.md,
+    zIndex: 10,
+  } as ViewStyle,
+  fullscreenButton: {
+    position: 'absolute',
+    bottom: Spacing.md,
+    right: Spacing.md + 56, // À côté du bouton recenter
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.accent.rose,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.md,
+    zIndex: 10,
   } as ViewStyle,
   storesList: {
     maxHeight: 300,
@@ -722,6 +1055,259 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold as any,
     color: Colors.accent.rose,
   },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+  } as ViewStyle,
+  modalSafeArea: {
+    flex: 1,
+  } as ViewStyle,
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.md,
+  } as ViewStyle,
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  } as ViewStyle,
+  modalScrollView: {
+    flex: 1,
+  } as ViewStyle,
+  modalHeroSection: {
+    marginBottom: Spacing.xl,
+    gap: Spacing.lg,
+  } as ViewStyle,
+  modalImageContainer: {
+    width: '100%',
+    height: 240,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    position: 'relative',
+    marginBottom: Spacing.lg,
+    ...Shadows.lg,
+  } as ViewStyle,
+  modalImageContent: {
+    width: '100%',
+    height: '100%',
+  } as ImageStyle,
+  modalImagePromoBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    gap: 3,
+    borderWidth: 2,
+    borderColor: '#1A0A0E',
+    ...Shadows.md,
+  } as ViewStyle,
+  modalImagePromoText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '800',
+    color: Colors.text.light,
+    letterSpacing: 0.3,
+  } as TextStyle,
+  modalHeroInfo: {
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+  } as ViewStyle,
+  modalName: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '900',
+    color: Colors.text.light,
+    textAlign: 'left',
+    letterSpacing: -0.5,
+  } as TextStyle,
+  modalBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: Spacing.sm,
+    flexWrap: 'wrap',
+  } as ViewStyle,
+  modalRatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+  } as ViewStyle,
+  modalRatingText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '700',
+    color: Colors.accent.gold,
+  } as TextStyle,
+  modalCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 47, 63, 0.25)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    gap: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 47, 63, 0.4)',
+  } as ViewStyle,
+  modalCategoryText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.light,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  } as TextStyle,
+  modalQuickStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    gap: 3,
+    borderWidth: 1,
+  } as ViewStyle,
+  modalQuickStatusOpen: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  } as ViewStyle,
+  modalQuickStatusClosed: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  } as ViewStyle,
+  modalQuickStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  } as ViewStyle,
+  modalQuickStatusText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  } as TextStyle,
+  modalActionWrapper: {
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+  } as ViewStyle,
+  modalActionButton: {
+    backgroundColor: '#8B2F3F',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing.lg,
+    ...Shadows.lg,
+  } as ViewStyle,
+  modalActionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  } as ViewStyle,
+  modalActionIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  } as ViewStyle,
+  modalActionText: {
+    flex: 1,
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700',
+    color: Colors.text.light,
+    letterSpacing: -0.3,
+  } as TextStyle,
+  modalInfoSection: {
+    marginBottom: Spacing.lg,
+  } as ViewStyle,
+  modalInfoCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+    ...Shadows.sm,
+  } as ViewStyle,
+  modalInfoCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  modalInfoIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as ViewStyle,
+  modalInfoCardTitle: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  } as TextStyle,
+  modalInfoCardValue: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+    color: Colors.text.light,
+    lineHeight: 20,
+  } as TextStyle,
+  modalInfoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(139, 47, 63, 0.2)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+    gap: 4,
+    marginTop: Spacing.xs,
+  } as ViewStyle,
+  modalInfoBadgeText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '700',
+    color: '#8B2F3F',
+  } as TextStyle,
+  modalDescriptionCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    ...Shadows.sm,
+  } as ViewStyle,
+  modalDescriptionTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: Colors.text.light,
+    marginBottom: Spacing.sm,
+    letterSpacing: -0.2,
+  } as TextStyle,
+  modalDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    lineHeight: 20,
+    fontWeight: '400',
+  } as TextStyle,
 });
 
 
