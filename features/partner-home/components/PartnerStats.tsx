@@ -1,7 +1,8 @@
 import { BorderRadius, Colors, Shadows, Spacing, Typography } from '@/constants/design-system';
-import React, { useMemo, useState } from 'react';
+import React from 'react';
+// import React, { useMemo, useState } from 'react';
 import {
-  Dimensions,
+  // Dimensions,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,7 +10,7 @@ import {
   View,
   ViewStyle
 } from 'react-native';
-import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
+// import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 
 interface PartnerStatsProps {
   transactions: any[];
@@ -31,10 +32,11 @@ export function PartnerStats({
   scanCountsLoading,
   onExport,
 }: PartnerStatsProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90' | '365'>('30');
+  // TODO: Fonctionnalité à venir - Code commenté pour la présentation
+  // const [selectedPeriod, setSelectedPeriod] = useState<'7' | '30' | '90' | '365'>('30');
 
   // Calculer les statistiques
-  const stats = useMemo(() => {
+  /* const stats = useMemo(() => {
     if (!transactions || transactions.length === 0) {
       return {
         monthRevenue: 0,
@@ -175,10 +177,10 @@ export function PartnerStats({
       returnRate,
       returnRateChange,
     };
-  }, [transactions]);
+  }, [transactions]); */
 
   // Calculer l'évolution des revenus par mois (3 derniers mois)
-  const revenueEvolution = useMemo(() => {
+  /* const revenueEvolution = useMemo(() => {
     const evolution: { month: string; revenue: number }[] = [];
     const now = new Date();
     
@@ -218,10 +220,10 @@ export function PartnerStats({
     }
     
     return evolution;
-  }, [transactions]);
+  }, [transactions]); */
 
   // Calculer l'activité par heure
-  const hourlyActivity = useMemo(() => {
+  /* const hourlyActivity = useMemo(() => {
     const activity: { [key: number]: number } = {};
     
     for (let hour = 0; hour < 24; hour++) {
@@ -244,10 +246,10 @@ export function PartnerStats({
     });
 
     return activity;
-  }, [transactions]);
+  }, [transactions]); */
 
   // Calculer la répartition des abonnements
-  const subscriptionDistribution = useMemo(() => {
+  /* const subscriptionDistribution = useMemo(() => {
     const distribution: { [key: string]: number } = {
       'Individuel': 0,
       'Duo': 0,
@@ -271,9 +273,9 @@ export function PartnerStats({
       count,
       percentage: total > 0 ? Math.round((count / total) * 100) : 0,
     }));
-  }, [transactions]);
+  }, [transactions]); */
 
-  const maxRevenue = Math.max(...revenueEvolution.map(e => e.revenue), 1);
+  /* const maxRevenue = Math.max(...revenueEvolution.map(e => e.revenue), 1);
   const maxHourlyActivity = Math.max(...Object.values(hourlyActivity), 1);
 
   // Préparer les données pour les graphiques
@@ -369,168 +371,34 @@ export function PartnerStats({
     barPercentage: 0.65,
     fillShadowGradient: '#8B2F3F',
     fillShadowGradientOpacity: 0.3,
-  };
+  }; */
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-    
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.comingSoonContainer}>
+        <Text style={styles.title}>Fonctionnalité à venir</Text>
+        <Text style={styles.subtitle}>
+          Les statistiques détaillées seront bientôt disponibles.
+        </Text>
+        <Text style={styles.description}>
+          Nous travaillons actuellement sur cette fonctionnalité pour vous offrir des analyses complètes de vos performances.
+        </Text>
+      </View>
 
-      {/* 4 Cartes KPI en 2x2 */}
+      {/* Code commenté - À décommenter quand la fonctionnalité sera prête
       <View style={styles.kpiGrid}>
-        {/* Revenus totaux */}
         <View style={styles.kpiCard}>
           <View style={styles.kpiHeader}>
             <Text style={styles.kpiLabel} numberOfLines={2}>Revenus totaux</Text>
-            </View>
-           
+          </View>
           <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>
             {stats.monthRevenue.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €
           </Text>
           <Text style={styles.kpiSubtext} numberOfLines={1}>ce mois</Text>
         </View>
-
-        {/* Clients uniques */}
-        <View style={styles.kpiCard}>
-          <View style={styles.kpiHeader}>
-            <Text style={styles.kpiLabel} numberOfLines={2}>Clients uniques</Text>
-          
-          </View>
-          <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>{stats.uniqueClients}</Text>
-          <Text style={styles.kpiSubtext} numberOfLines={1}>ce mois</Text>
-        </View>
-
-        {/* Panier moyen */}
-        <View style={styles.kpiCard}>
-          <View style={styles.kpiHeader}>
-            <Text style={styles.kpiLabel} numberOfLines={2}>Panier moyen</Text>
-            
-          </View>
-          <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>
-            {stats.averageBasket.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €
-          </Text>
-          <Text style={styles.kpiSubtext} numberOfLines={1}>vs mois dernier</Text>
-        </View>
-
-        {/* Taux de retour */}
-        <View style={styles.kpiCard}>
-          <View style={styles.kpiHeader}>
-            <Text style={styles.kpiLabel} numberOfLines={2}>Taux de retour</Text>
-            
-          </View>
-          <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>{stats.returnRate.toFixed(1).replace('.', ',')}%</Text>
-          <Text style={styles.kpiSubtext} numberOfLines={1}>clients fidèles</Text>
-        </View>
+        ...
       </View>
-
-      {/* Évolution des revenus */}
-      <View style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Évolution des revenus</Text>
-        </View>
-        <View style={styles.chartContainer}>
-          <LineChart
-            data={lineChartData}
-            width={chartWidth}
-            height={300}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withVerticalLabels={true}
-            withHorizontalLabels={true}
-            withDots={true}
-            withShadow={true}
-            withInnerLines={true}
-            withOuterLines={false}
-            withVerticalLines={false}
-            formatYLabel={(value) => {
-              const num = parseInt(value);
-              if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
-              return num.toString();
-            }}
-          />
-        </View>
-      </View>
-
-      {/* Activité par heure */}
-      <View style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Activité par heure</Text>
-        </View>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.barChartScrollView}
-          contentContainerStyle={styles.barChartScrollContent}
-        >
-          <BarChart
-            data={barChartData}
-            width={Math.max(chartWidth, 24 * 40)} // Au moins 40px par heure
-            height={300}
-            yAxisLabel=""
-            yAxisSuffix=""
-            chartConfig={{
-              ...chartConfig,
-              barPercentage: 0.6,
-              fillShadowGradient: '#8B2F3F',
-              fillShadowGradientOpacity: 0.4,
-            }}
-            style={styles.chart}
-            withVerticalLabels={true}
-            withHorizontalLabels={true}
-            showValuesOnTopOfBars={false}
-            fromZero={true}
-            segments={barSegments}
-          />
-        </ScrollView>
-      </View>
-
-      {/* Répartition des abonnements */}
-      <View style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Répartition des abonnements</Text>
-        </View>
-        {pieChartData.length > 0 ? (
-          <View style={styles.pieChartContainer}>
-            <View style={styles.pieChartWrapper}>
-              <PieChart
-                data={pieChartData}
-                width={260}
-                height={260}
-                chartConfig={chartConfig}
-                accessor="population"
-                backgroundColor="transparent"
-                paddingLeft="40"
-                style={{ position: 'relative', left: 20 } as ViewStyle}
-                hasLegend={false}
-              />
-            </View>
-            {/* Légende améliorée */}
-            <View style={styles.donutChart}>
-              {subscriptionDistribution
-                .filter(item => item.count > 0)
-                .sort((a, b) => b.count - a.count)
-                .map((item, index) => {
-                  const colors = ['#8B2F3F', '#A03D52', '#6B1F2F', '#C04D62'];
-                  const color = colors[index % colors.length];
-                  return (
-                    <View key={item.type} style={styles.donutLegendItem}>
-                      <View style={[styles.donutLegendColor, { backgroundColor: color }]} />
-                      <View style={styles.donutLegendContent}>
-                        <Text style={styles.donutLegendText}>{item.type}</Text>
-                        <Text style={styles.donutLegendCount}>{item.count} transaction{item.count > 1 ? 's' : ''}</Text>
-                      </View>
-                      <Text style={styles.donutLegendPercentage}>{item.percentage}%</Text>
-                    </View>
-                  );
-                })}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.emptyChartContainer}>
-            <Text style={styles.emptyChartText}>Aucune donnée disponible</Text>
-          </View>
-        )}
-      </View>
+      */}
     </ScrollView>
   );
 }
@@ -539,6 +407,48 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   } as ViewStyle,
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xl,
+  } as ViewStyle,
+  comingSoonContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing['3xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    ...Shadows.lg,
+    width: '100%',
+    alignSelf: 'stretch',
+  } as ViewStyle,
+  title: {
+    fontSize: Typography.sizes['2xl'],
+    fontWeight: '900',
+    color: Colors.text.light,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  } as TextStyle,
+  subtitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  } as TextStyle,
+  description: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    opacity: 0.8,
+  } as TextStyle,
+  // Styles pour le code commenté (à garder pour plus tard)
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

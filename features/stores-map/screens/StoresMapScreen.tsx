@@ -9,15 +9,15 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -46,6 +46,8 @@ export default function StoresMapScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [mapKey, setMapKey] = useState(Date.now());
+  const [radiusKm, setRadiusKm] = useState(300); // Rayon par défaut : 300km
+  const [showRadiusSelector, setShowRadiusSelector] = useState(false);
 
   useEffect(() => {
     requestLocationPermission();
@@ -55,7 +57,7 @@ export default function StoresMapScreen() {
     if (userLocation) {
       loadStoresNearby();
     }
-  }, [userLocation]);
+  }, [userLocation, radiusKm]);
 
   const requestLocationPermission = async () => {
     try {
@@ -112,18 +114,25 @@ export default function StoresMapScreen() {
       console.log('🔍 [Stores Map] Recherche des stores proches...', {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
-        radiusKm: 50,
+        radiusKm: radiusKm,
       });
 
       const response = await StoresApi.searchStores({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
-        radiusKm: 50,
+        radiusKm: radiusKm,
         pageSize: 100,
       });
 
       console.log('✅ [Stores Map] Stores récupérés:', response.items.length);
-      setStores(response.items || []);
+      // Trier les stores du plus proche au plus loin
+      const sortedStores = (response.items || []).sort((a, b) => {
+        const distanceA = a.distance ?? a.distanceKm ?? a.distanceKM ?? Infinity;
+        const distanceB = b.distance ?? b.distanceKm ?? b.distanceKM ?? Infinity;
+        return distanceA - distanceB;
+      });
+      console.log('🔍 [Stores Map] Stores triés - Distances:', sortedStores.slice(0, 5).map(s => ({ name: s.name, distance: s.distance ?? s.distanceKm ?? s.distanceKM })));
+      setStores(sortedStores);
     } catch (error) {
       console.error('❌ [Stores Map] Erreur lors du chargement des stores:', error);
       Alert.alert('Erreur', 'Impossible de charger les stores proches.');
@@ -350,10 +359,55 @@ export default function StoresMapScreen() {
                 {stores.length} store{stores.length > 1 ? 's' : ''} trouvé{stores.length > 1 ? 's' : ''}
               </Text>
             </View>
-            <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
-              <Ionicons name="refresh" size={24} color={Colors.text.light} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity 
+                onPress={() => setShowRadiusSelector(!showRadiusSelector)} 
+                style={styles.radiusButton}
+              >
+                <Ionicons name="radio-button-on" size={18} color={Colors.text.light} />
+                <Text style={styles.radiusButtonText}>{radiusKm}km</Text>
+                <Ionicons 
+                  name={showRadiusSelector ? "chevron-up" : "chevron-down"} 
+                  size={14} 
+                  color={Colors.text.light} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+                <Ionicons name="refresh" size={24} color={Colors.text.light} />
+              </TouchableOpacity>
+            </View>
           </View>
+
+          {/* Sélecteur de rayon */}
+          {showRadiusSelector && (
+            <View style={styles.radiusSelector}>
+              {[50, 100, 200, 300, 500].map((radius) => (
+                <TouchableOpacity
+                  key={radius}
+                  style={[
+                    styles.radiusOption,
+                    radiusKm === radius && styles.radiusOptionActive,
+                  ]}
+                  onPress={() => {
+                    setRadiusKm(radius);
+                    setShowRadiusSelector(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.radiusOptionText,
+                      radiusKm === radius && styles.radiusOptionTextActive,
+                    ]}
+                  >
+                    {radius} km
+                  </Text>
+                  {radiusKm === radius && (
+                    <Ionicons name="checkmark" size={18} color={Colors.text.light} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -500,6 +554,25 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     marginTop: 2,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  } as ViewStyle,
+  radiusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  } as ViewStyle,
+  radiusButtonText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.light,
+    fontWeight: Typography.weights.semibold as any,
+  },
   refreshButton: {
     width: 40,
     height: 40,
@@ -508,6 +581,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   } as ViewStyle,
+  radiusSelector: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  } as ViewStyle,
+  radiusOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.xs,
+  } as ViewStyle,
+  radiusOptionActive: {
+    backgroundColor: 'rgba(139, 47, 63, 0.3)',
+  } as ViewStyle,
+  radiusOptionText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weights.medium as any,
+  },
+  radiusOptionTextActive: {
+    color: Colors.text.light,
+    fontWeight: Typography.weights.bold as any,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',

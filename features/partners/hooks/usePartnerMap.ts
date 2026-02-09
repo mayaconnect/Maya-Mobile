@@ -82,13 +82,19 @@ export const usePartnerMap = () => {
       const response = await StoresApi.searchStores({
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        radiusKm: 50,
+        radiusKm: 300,
         page: 1,
         pageSize: 100,
       });
       
       const mapped = response.items.map((store, index) => mapStore(store, index));
-      setMapPartners(mapped);
+      // Trier les stores du plus proche au plus loin
+      const sortedMapped = mapped.sort((a, b) => {
+        const distanceA = a.distance ?? Infinity;
+        const distanceB = b.distance ?? Infinity;
+        return distanceA - distanceB;
+      });
+      setMapPartners(sortedMapped);
     } catch (error) {
       console.error('Erreur lors du chargement des partenaires:', error);
       throw error;

@@ -141,6 +141,7 @@ export const HomeWelcomeHeader: React.FC<HomeWelcomeHeaderProps> = ({ firstName,
           </Text>
           <Text style={styles.welcomeSubtitle}>Profitez de vos avantages MayaConnect</Text>
         </View>
+        {/* Image de profil en haut à droite */}
         <View style={styles.profileButtonContainer}>
           <TouchableOpacity
             style={styles.profileButton}
@@ -219,6 +220,7 @@ export const HomeWelcomeHeader: React.FC<HomeWelcomeHeaderProps> = ({ firstName,
 const styles = StyleSheet.create({
   welcomeHeader: {
     marginBottom: Spacing.xl,
+    position: 'relative',
   } as ViewStyle,
   welcomeContent: {
     flexDirection: 'row',
@@ -247,6 +249,9 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium as any,
   } as TextStyle,
   profileButtonContainer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
     padding: 4,
   } as ViewStyle,
   profileButton: {

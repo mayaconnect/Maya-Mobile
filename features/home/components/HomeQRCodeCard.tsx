@@ -4,15 +4,15 @@ import { responsiveIconSize, responsiveSpacing, scaleFont, scaleHeight, scaleSiz
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    ImageStyle,
-    StyleSheet,
-    Text,
-    TextStyle,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  ActivityIndicator,
+  Image,
+  ImageStyle,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 
 interface HomeQRCodeCardProps {
@@ -49,10 +49,7 @@ export const HomeQRCodeCard: React.FC<HomeQRCodeCardProps> = ({
           <View style={styles.qrIconBadge}>
             <Ionicons name="qr-code" size={responsiveIconSize(20)} color="#8B2F3F" />
           </View>
-          <View>
-            <Text style={styles.qrTitle}>Mon QR Code</Text>
-            <Text style={styles.qrSubtitle}>À présenter en caisse</Text>
-          </View>
+          <Text style={styles.qrSubtitle}>À présenter en caisse</Text>
         </View>
         <View style={styles.qrHeaderActions}>
           <TouchableOpacity

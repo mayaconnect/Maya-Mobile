@@ -46,11 +46,11 @@ export const HomeNearbyOffers: React.FC<HomeNearbyOffersProps> = ({ onViewMap })
         longitude: location.coords.longitude,
       };
 
-      // Récupérer les stores à proximité (5km max pour les offres)
+      // Récupérer les stores à proximité (200km max pour les offres)
       const response = await StoresApi.searchStores({
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-        radiusKm: 5,
+        radiusKm: 200,
         page: 1,
         pageSize: 2, // Limiter à 2 offres pour la home
       });
@@ -58,10 +58,17 @@ export const HomeNearbyOffers: React.FC<HomeNearbyOffersProps> = ({ onViewMap })
       // Mapper les stores en partenaires
       const mapped = response.items
         .map((store, index) => mapStoreToPartner(store, index))
-        .filter(partner => partner.promotion?.isActive) // Filtrer seulement ceux avec des promotions actives
-        .slice(0, 2); // Prendre les 2 premiers
-
-      setOffers(mapped);
+        .filter(partner => partner.promotion?.isActive); // Filtrer seulement ceux avec des promotions actives
+      
+      // Trier les stores du plus proche au plus loin
+      const sortedMapped = mapped.sort((a, b) => {
+        const distanceA = a.distance ?? Infinity;
+        const distanceB = b.distance ?? Infinity;
+        return distanceA - distanceB;
+      });
+      
+      // Prendre les 2 premiers
+      setOffers(sortedMapped.slice(0, 2));
     } catch (error) {
       console.error('Erreur lors du chargement des offres:', error);
       setOffers([]);
