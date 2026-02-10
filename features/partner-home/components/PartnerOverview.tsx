@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { PartnerDailyActivity } from './PartnerDailyActivity';
 import { PartnerKPICards } from './PartnerKPICards';
 import { PartnerQuickActions } from './PartnerQuickActions';
 import { PartnerRecentScans } from './PartnerRecentScans';
@@ -119,6 +118,12 @@ export function PartnerOverview({
 
   return (
     <>
+      {/* Actions rapides */}
+      <PartnerQuickActions
+        onScanClient={onScanQR}
+        onViewStats={onViewStats}
+      />
+
       {/* 3 Cartes KPI */}
       <PartnerKPICards
         monthRevenue={monthStats.monthRevenue}
@@ -129,14 +134,6 @@ export function PartnerOverview({
         newClients={monthStats.newClients}
       />
 
-      {/* Activité du jour */}
-      <PartnerDailyActivity transactions={transactions} />
-
-      {/* Actions rapides */}
-      <PartnerQuickActions
-        onScanClient={onScanQR}
-        onViewStats={onViewStats}
-      />
 
      
 

@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   } as ViewStyle,
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     color: 'white',
     marginBottom: 4,
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   } as TextStyle,
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'white',
     fontWeight: '600',
     textAlign: 'center',
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   } as ViewStyle,
   notificationText: {
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '800',
     color: 'white',
   } as TextStyle,

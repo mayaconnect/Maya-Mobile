@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     minWidth: 60,
   } as ViewStyle,
   totalLabel: {
-    fontSize: 10,
+    fontSize: 8,
     color: Colors.text.secondary,
     textAlign: 'center',
     marginBottom: 2,

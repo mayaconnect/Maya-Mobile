@@ -5,7 +5,13 @@ import { log } from '@/utils/logger';
 const STORE_OPERATORS_API_BASE_URL = API_BASE_URL?.replace(/\/api\/v1$/i, '/api/v1') || API_BASE_URL || '';
 
 export interface ActiveStoreResponse {
-  id: string;
+  id: string; // ID de l'enregistrement store-operator
+  userId: string;
+  storeId: string; // ID du store actif (celui qu'on doit utiliser)
+  isManager?: boolean;
+  isActiveStore?: boolean;
+  createdAt?: string;
+  lastActiveStoreChangedAt?: string;
   name?: string;
   partnerId?: string;
   address?: any;

@@ -521,7 +521,7 @@ export default function QRCodeScreen() {
               hasProfilePhoto={hasProfilePhoto()}
               onReload={handleReloadQR}
               onRetry={() => loadQrToken(true)}
-              onSubscribe={() => router.push('/subscription')}
+              onSubscribe={() => router.push('/(tabs)/subscription')}
               onAddPhoto={() => router.push('/(tabs)/profile')}
             />
 

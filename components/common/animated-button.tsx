@@ -167,19 +167,19 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
   secondaryText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     letterSpacing: 0.2,
   },
   outlineText: {
     color: '#8B2F3F',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.2,
   },
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   solidText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.3,
   },

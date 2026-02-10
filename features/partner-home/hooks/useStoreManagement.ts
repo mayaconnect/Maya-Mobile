@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { StoreOperatorsApi } from '../services/storeOperatorsApi';
 import { StoresApi } from '@/features/stores-map/services/storesApi';
@@ -11,6 +11,7 @@ export function useStoreManagement(
   const [activeStore, setActiveStore] = useState<any | null>(null);
   const [showActiveStoreSelection, setShowActiveStoreSelection] = useState(false);
   const [loadingActiveStore, setLoadingActiveStore] = useState(false);
+  const [hasTriedLoadActiveStore, setHasTriedLoadActiveStore] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>(undefined);
   const [selectedStore, setSelectedStore] = useState<any | null>(null);
   const [showStoreModal, setShowStoreModal] = useState(false);
@@ -20,34 +21,65 @@ export function useStoreManagement(
   const loadActiveStore = useCallback(async () => {
     console.log('🏪 [Partner Home] Vérification du store actif...');
     setLoadingActiveStore(true);
+    setHasTriedLoadActiveStore(true);
     try {
       const activeStoreData = await StoreOperatorsApi.getActiveStore();
-      if (activeStoreData && activeStoreData.id) {
-        setActiveStoreId(activeStoreData.id);
-        setActiveStore(activeStoreData);
-        setSelectedStoreId(activeStoreData.id);
-        setShowActiveStoreSelection(false);
-        console.log('✅ [Partner Home] Store actif trouvé:', activeStoreData.id);
+      console.log('📦 [Partner Home] Réponse API getActiveStore:', activeStoreData);
+      
+      // L'API retourne { id, userId, storeId, ... } - on doit utiliser storeId
+      const storeId = activeStoreData?.storeId || activeStoreData?.id;
+      
+      if (activeStoreData && storeId) {
+        console.log('✅ [Partner Home] Store actif trouvé, storeId:', storeId);
+        
+        // Chercher le store dans la liste des stores chargés
+        const storeFromList = stores.find((s: any) => s.id === storeId || s.storeId === storeId);
+        
+        if (storeFromList) {
+          setActiveStoreId(storeId);
+          setActiveStore(storeFromList);
+          setSelectedStoreId(storeId);
+          setShowActiveStoreSelection(false);
+          console.log('✅ [Partner Home] Store actif configuré:', storeId, storeFromList.name || storeFromList.partner?.name);
+        } else {
+          // Le store n'est pas dans la liste, on utilise les données de l'API
+          console.warn('⚠️ [Partner Home] Store actif non trouvé dans la liste, utilisation des données API');
+          setActiveStoreId(storeId);
+          setActiveStore(activeStoreData);
+          setSelectedStoreId(storeId);
+          setShowActiveStoreSelection(false);
+        }
       } else {
+        console.log('⚠️ [Partner Home] Aucun store actif trouvé dans la réponse');
+        // Pas de store actif trouvé, on affiche le modal seulement si on a des stores disponibles
         if (stores.length > 0) {
           setShowActiveStoreSelection(true);
         }
       }
     } catch (error) {
       console.error('❌ [Partner Home] Erreur lors du chargement du store actif:', error);
+      // En cas d'erreur, on affiche le modal seulement si on a des stores disponibles
       if (stores.length > 0) {
         setShowActiveStoreSelection(true);
       }
     } finally {
       setLoadingActiveStore(false);
     }
-  }, [stores.length]);
+  }, [stores]);
+
+  // Charger automatiquement le store actif quand les stores sont disponibles
+  useEffect(() => {
+    if (stores.length > 0 && !hasTriedLoadActiveStore && !activeStoreId && !loadingActiveStore) {
+      console.log('🏪 [Partner Home] Chargement automatique du store actif...');
+      loadActiveStore();
+    }
+  }, [stores.length, hasTriedLoadActiveStore, activeStoreId, loadingActiveStore, loadActiveStore]);
 
   const handleSetActiveStore = useCallback(async (storeId: string) => {
     console.log('🏪 [Partner Home] Définition du store actif:', storeId);
     
     if (activeStoreId === storeId) {
-      setShowActiveStoreSelectionLocal(false);
+      setShowActiveStoreSelection(false);
       return;
     }
     
