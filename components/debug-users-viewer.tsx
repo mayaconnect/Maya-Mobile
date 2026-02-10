@@ -191,7 +191,7 @@ const styles = StyleSheet.create<DebugStyles>({
     borderBottomColor: '#E5E7EB',
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: Colors.text.dark,
   },
@@ -213,7 +213,7 @@ const styles = StyleSheet.create<DebugStyles>({
     gap: 8,
   },
   legendText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
   },
   badge: {
@@ -230,13 +230,13 @@ const styles = StyleSheet.create<DebugStyles>({
   loadingText: {
     textAlign: 'center',
     marginTop: 40,
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B7280',
   },
   emptyText: {
     textAlign: 'center',
     marginTop: 40,
-    fontSize: 16,
+    fontSize: 14,
     color: '#9CA3AF',
   },
   userCard: {
@@ -264,17 +264,17 @@ const styles = StyleSheet.create<DebugStyles>({
     marginBottom: 4,
   },
   userName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: Colors.text.dark,
   },
   userEmail: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
     marginBottom: 8,
   },
   userMeta: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#9CA3AF',
   },
   actions: {
@@ -297,7 +297,7 @@ const styles = StyleSheet.create<DebugStyles>({
   },
   refreshButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   resetButton: {
@@ -312,7 +312,7 @@ const styles = StyleSheet.create<DebugStyles>({
   },
   resetButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

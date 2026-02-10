@@ -5,7 +5,7 @@ import React from 'react';
 import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export type PartnerTab = 'overview' | 'history' | 'stats' | 'me';
+export type PartnerTab = 'overview' | 'history' | 'stores' | 'me';
 
 interface PartnerBottomNavProps {
   selectedTab: PartnerTab;
@@ -19,7 +19,7 @@ export function PartnerBottomNav({ selectedTab, onTabChange, onScanQR, validatin
   const tabs: { key: PartnerTab; label: string; icon: { active: string; inactive: string } }[] = [
     { key: 'overview', label: 'Home', icon: { active: 'grid', inactive: 'grid-outline' } },
     { key: 'history', label: 'Historique', icon: { active: 'time', inactive: 'time-outline' } },
-    { key: 'stats', label: 'Statistiques', icon: { active: 'stats-chart', inactive: 'stats-chart-outline' } },
+    { key: 'stores', label: 'Stores', icon: { active: 'storefront', inactive: 'storefront-outline' } },
     { key: 'me', label: 'Me', icon: { active: 'person', inactive: 'person-outline' } },
   ];
   

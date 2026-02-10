@@ -4,17 +4,17 @@ import { scaleFont, scaleSize, scaleWidth } from '@/utils/responsive';
 // Calculer les valeurs responsive une fois au chargement du module
 // Cela garantit la compatibilité avec StyleSheet.create()
 const calculateResponsiveValues = () => {
-  // Valeurs de base pour la typographie
+  // Valeurs de base pour la typographie (réduites de 2px)
   const BASE_TYPOGRAPHY_SIZES = {
-    xs: 12,
-    sm: 14,
-    base: 16,
-    lg: 18,
-    xl: 22,
-    '2xl': 30,
-    '3xl': 38,
-    '4xl': 48,
-    '5xl': 60,
+    xs: 10,
+    sm: 12,
+    base: 14,
+    lg: 16,
+    xl: 20,
+    '2xl': 28,
+    '3xl': 36,
+    '4xl': 46,
+    '5xl': 58,
   };
 
   // Valeurs de base pour les espacements

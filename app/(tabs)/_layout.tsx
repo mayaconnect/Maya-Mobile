@@ -149,20 +149,20 @@ export default function TabLayout() {
       <Tabs.Screen
         name="subscription"
         options={{
-          title: 'Abonnement',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons 
-              name={focused ? "card" : "card-outline"} 
-              size={24} 
-              color={color} 
-            />
-          ),
+          href: null, // Cacher de la barre de navigation - accessible uniquement via le profil
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          href: null, // Cacher de la barre de navigation
+          title: 'Historique',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "receipt" : "receipt-outline"}
+              size={24}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen

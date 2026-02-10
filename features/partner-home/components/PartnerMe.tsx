@@ -67,7 +67,7 @@ export function PartnerMe({
       />
 
       {/* Section Paramètres */}
-      <PartnerSettingsSection />
+      {/* <PartnerSettingsSection /> */}
 
       {/* Activité récente */}
       <PartnerRecentActivity
@@ -76,7 +76,7 @@ export function PartnerMe({
       />
 
       {/* Gestion du compte */}
-      <PartnerAccountManagement
+      {/* <PartnerAccountManagement
         onManageBusiness={() => {
           // TODO: Naviguer vers la page de gestion business
           console.log('Gérer les informations business');
@@ -86,7 +86,21 @@ export function PartnerMe({
           console.log('Support partenaire');
         }}
         onLogout={onLogout}
-      />
+      /> */}
+
+      {/* Bouton déconnecter */}
+      {onLogout && (
+        <View style={styles.logoutContainer}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={onLogout}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.logoutButtonText}>Se déconnecter</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -103,6 +117,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text.light,
     marginBottom: Spacing.md,
+  } as TextStyle,
+  logoutContainer: {
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+  } as ViewStyle,
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.sm,
+  } as ViewStyle,
+  logoutButtonText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '700',
+    color: '#EF4444',
   } as TextStyle,
 });
 

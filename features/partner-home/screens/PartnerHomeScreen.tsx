@@ -12,7 +12,7 @@ import { PartnerHeader } from '../components/PartnerHeader';
 import { PartnerHistory } from '../components/PartnerHistory';
 import { PartnerMe } from '../components/PartnerMe';
 import { PartnerOverview } from '../components/PartnerOverview';
-import { PartnerStats } from '../components/PartnerStats';
+import { PartnerStores } from '../components/PartnerStores';
 import { PartnerStoreModal } from '../components/PartnerStoreModal';
 import { QrValidationModal } from '../components/QrValidationModal';
 import { StoreSelectionModal } from '../components/StoreSelectionModal';
@@ -125,13 +125,8 @@ export default function PartnerHomeScreen() {
     handleValidateQR,
   } = qrValidation;
 
-  // Afficher le modal de sélection de store au démarrage
-  useEffect(() => {
-    if (stores.length > 0 && !activeStoreId && !showActiveStoreSelection && !loadingActiveStore) {
-      console.log('🏪 [Partner Home] Stores chargés, affichage du modal de sélection au démarrage...');
-      setShowActiveStoreSelection(true);
-    }
-  }, [stores.length, activeStoreId, showActiveStoreSelection, loadingActiveStore]);
+  // Le store actif est maintenant chargé automatiquement dans useStoreManagement
+  // Le modal ne s'affichera que si aucun store actif n'est trouvé après le chargement
 
   const handleExportData = () => {
     console.log('Export des données');
@@ -252,13 +247,13 @@ export default function PartnerHomeScreen() {
               />
             )}
 
-            {selectedTab === 'stats' && (
-              <PartnerStats
-                transactions={transactions}
-                clients={clients}
-                scanCounts={scanCounts}
-                scanCountsLoading={scanCountsLoading}
-                onExport={handleExportData}
+            {selectedTab === 'stores' && (
+              <PartnerStores
+                stores={stores}
+                storesLoading={storesLoading}
+                storesError={storesError}
+                activeStoreId={activeStoreId}
+                onStoreSelect={handleStoreSelect}
               />
             )}
           </ScrollView>

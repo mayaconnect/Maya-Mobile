@@ -4,8 +4,8 @@ export function HelloWave() {
   return (
     <Animated.Text
       style={{
-        fontSize: 28,
-        lineHeight: 32,
+        fontSize: 26,
+        lineHeight: 30,
         marginTop: -6,
         animationName: {
           '50%': { transform: [{ rotate: '25deg' }] },

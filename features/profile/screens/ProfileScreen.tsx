@@ -26,9 +26,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PersonalInfoModal } from '../components/PersonalInfoModal';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileNavigationItem } from '../components/ProfileNavigationItem';
-import { ProfileRecentActivity } from '../components/ProfileRecentActivity';
-import { ProfileSettingsSection } from '../components/ProfileSettingsSection';
-import { ProfileStats } from '../components/ProfileStats';
 
 export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -305,19 +302,7 @@ export default function ProfileScreen() {
                 onAvatarUpdate={handleAvatarUpdate}
               />
 
-              {/* Statistiques */}
-              {(() => {
-                const stats = calculateStats();
-                return (
-                  <ProfileStats
-                    totalSavings={stats.totalSavings}
-                    totalTransactions={stats.totalTransactions}
-                    totalPartners={stats.totalPartners}
-                    memberSince={stats.memberSince}
-                  />
-                );
-              })()}
-
+              
 
                {/* Informations personnelles et Abonnement - En bas */}
                <ProfileNavigationItem
@@ -335,9 +320,9 @@ export default function ProfileScreen() {
                     ? `${subscription.planCode || subscription.plan?.name || 'Plan famille'} • ${subscription.isActive ? 'Actif' : 'Inactif'}`
                     : 'Aucun abonnement actif'
                 }
-                onPress={() => router.push('/subscription')}
+                onPress={() => router.push('/(tabs)/subscription')}
               />
-
+              
               {/* Navigation Items - Dans l'ordre de l'image */}
               <ProfileNavigationItem
                 icon="time-outline"
@@ -349,7 +334,7 @@ export default function ProfileScreen() {
                 }}
               />
 
-              <ProfileNavigationItem
+              {/* <ProfileNavigationItem
                 icon="notifications-outline"
                 title="Notifications"
                 subtitle="Gérer vos préférences"
@@ -368,17 +353,17 @@ export default function ProfileScreen() {
               />
 
               {/* Paramètres rapides */}
-              <ProfileSettingsSection
+              {/* <ProfileSettingsSection
                 darkMode={darkMode}
                 pushEnabled={pushEnabled}
                 weeklyReport={weeklyReport}
                 onDarkModeToggle={setDarkMode}
                 onPushToggle={setPushEnabled}
                 onWeeklyReportToggle={setWeeklyReport}
-              />
+              /> */}
+              
 
-              {/* Activité récente */}
-              <ProfileRecentActivity activities={getRecentActivity()} />
+             
 
              
 

@@ -26,19 +26,26 @@ export const HomeQuickActions: React.FC<HomeQuickActionsProps> = ({ onScanQR }) 
           <View style={styles.quickActionIconBg}>
             <Ionicons name="qr-code" size={26} color="#FFFFFF" />
           </View>
-          <Text style={styles.quickActionTextGradient}>Scanner QR</Text>
+          <Text style={styles.quickActionTextGradient} numberOfLines={2}>Scanner QR</Text>
         </LinearGradient>
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.quickAction}
+        style={styles.quickActionGradient}
         onPress={() => router.push('/(tabs)/partners')}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <View style={styles.quickActionIconBg}>
-          <Ionicons name="location" size={26} color="#3B82F6" />
-        </View>
-        <Text style={styles.quickActionText}>Trouver partenaires</Text>
+        <LinearGradient
+          colors={['#8B2F3F', '#A03D52']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientButton}
+        >
+          <View style={styles.quickActionIconBg}>
+            <Ionicons name="location" size={26} color="#FFFFFF" />
+          </View>
+          <Text style={styles.quickActionTextGradient} numberOfLines={2}>Trouver partenaires</Text>
+        </LinearGradient>
       </TouchableOpacity>
     </View>
   );
@@ -54,13 +61,15 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
+    height: 90,
   } as ViewStyle,
   gradientButton: {
+    width: '100%',
+    height: '100%',
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 70,
   } as ViewStyle,
   quickAction: {
     flex: 1,

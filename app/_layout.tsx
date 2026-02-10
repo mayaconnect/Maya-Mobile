@@ -18,7 +18,7 @@ function RootLayoutNav() {
 
   // Afficher l'écran de chargement pendant la vérification de l'authentification
   if (loading) {
-    return <LoadingScreen message="Vérification de votre connexion..." />;
+    return <LoadingScreen />;
   }
 
   return (

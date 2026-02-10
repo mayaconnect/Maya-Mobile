@@ -130,7 +130,7 @@ export const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
         {subscription.isActive && (
           <View style={styles.actionsContainer}>
             <TouchableOpacity 
-              onPress={() => router.push('/subscription')}
+              onPress={() => router.push('/(tabs)/subscription')}
               style={styles.manageButton}
               activeOpacity={0.7}
             >
@@ -168,7 +168,7 @@ export const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
         <Text style={styles.noSubscriptionText}>Aucun abonnement actif</Text>
         <TouchableOpacity 
           style={styles.subscribeButton}
-          onPress={() => router.push('/subscription')}
+          onPress={() => router.push('/(tabs)/subscription')}
         >
           <Text style={styles.subscribeButtonText}>S&apos;abonner</Text>
         </TouchableOpacity> 
