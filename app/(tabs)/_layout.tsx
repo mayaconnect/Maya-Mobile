@@ -1,17 +1,11 @@
-import { Shadows } from '@/constants/design-system';
+import { AnimatedTabBar } from '@/components/navigation/AnimatedTabBar';
 import { useAuth } from '@/hooks/use-auth';
-import { responsiveSpacing } from '@/utils/responsive';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Redirect, Tabs, useRouter, useSegments } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { user, loading } = useAuth();
-  const insets = useSafeAreaInsets();
   
   // Attendre que le chargement soit terminé avant de rediriger
   if (loading) {
@@ -34,39 +28,6 @@ export default function TabLayout() {
                     (user as any)?.isPartner === true ||
                     (user as any)?.isOperator === true;
 
-  // Calculer le padding bottom avec safe area
-  const bottomPadding = Math.max(insets.bottom, responsiveSpacing(8));
-
-  // Composant pour le bouton QR Code au centre
-  const QRCodeTabButton = (props: BottomTabBarButtonProps) => {
-    const router = useRouter();
-    const segments = useSegments();
-    const isActive = segments[segments.length - 1] === 'qrcode';
-
-    return (
-      <View style={styles.qrCodeButtonContainer}>
-        <TouchableOpacity
-          style={styles.qrCodeButton}
-          onPress={() => router.push('/(tabs)/qrcode')}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={['#8B2F3F', '#A03D52']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.qrCodeButtonGradient}
-          >
-            <Ionicons 
-              name="qr-code" 
-              size={28} 
-              color="#FFFFFF" 
-            />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   return (
     <Tabs
       initialRouteName="home"
@@ -77,22 +38,7 @@ export default function TabLayout() {
         tabBarStyle: isPartner ? {
           display: 'none', // Masquer la barre de navigation pour les partenaires
         } : {
-          backgroundColor: '#1A0A0E', // Même couleur que la navbar partenaire
-          borderTopWidth: 0, // Pas de bordure
-          paddingBottom: bottomPadding,
-          paddingTop: responsiveSpacing(12),
-          height: 70 + (bottomPadding - responsiveSpacing(8)),
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
-          elevation: 10,
-          borderTopLeftRadius: responsiveSpacing(20),
-          borderTopRightRadius: responsiveSpacing(20),
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
+          display: 'none', // Masquer la barre par défaut, on utilise notre barre personnalisée
         },
         sceneStyle: { paddingBottom: 0 },
         tabBarLabelStyle: {
@@ -103,7 +49,8 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginTop: 0,
         },
-      }}>
+      }}
+      tabBar={(props) => (isPartner ? null : <AnimatedTabBar {...props} />)}>
       <Tabs.Screen
         name="home"
         options={{
@@ -137,12 +84,9 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? "qr-code" : "qr-code-outline"} 
-              size={28} 
-              color={focused ? "#FFFFFF" : "rgba(255, 255, 255, 0.5)"} 
+              size={24} 
+              color={color} 
             />
-          ),
-          tabBarButton: (props) => (
-            <QRCodeTabButton {...props} />
           ),
         }}
       />
@@ -194,32 +138,3 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  qrCodeButtonContainer: {
-    top: -30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 70,
-    height: 70,
-  } as ViewStyle,
-  qrCodeButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    overflow: 'visible',
-    ...Shadows.xl,
-    elevation: 20,
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  } as ViewStyle,
-  qrCodeButtonGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 35,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-  } as ViewStyle,
-});

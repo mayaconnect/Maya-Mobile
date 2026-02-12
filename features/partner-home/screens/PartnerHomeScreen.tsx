@@ -5,15 +5,16 @@ import { useAuth } from '@/hooks/use-auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PartnerBottomNav, PartnerTab } from '../components/PartnerBottomNav';
+import { AnimatedPartnerTabBar } from '../components/AnimatedPartnerTabBar';
+import { PartnerTab } from '../components/PartnerBottomNav';
 import { PartnerHeader } from '../components/PartnerHeader';
 import { PartnerHistory } from '../components/PartnerHistory';
 import { PartnerMe } from '../components/PartnerMe';
 import { PartnerOverview } from '../components/PartnerOverview';
-import { PartnerStores } from '../components/PartnerStores';
 import { PartnerStoreModal } from '../components/PartnerStoreModal';
+import { PartnerStores } from '../components/PartnerStores';
 import { QrValidationModal } from '../components/QrValidationModal';
 import { StoreSelectionModal } from '../components/StoreSelectionModal';
 import { usePartnerHomeData } from '../hooks/usePartnerHomeData';
@@ -148,33 +149,29 @@ export default function PartnerHomeScreen() {
               showWelcome={selectedTab === 'overview'}
               title={
                 selectedTab === 'history' ? 'Historique' :
-                selectedTab === 'stats' ? 'Statistiques' :
                 undefined
               }
-              onLogout={async () => {
-                try {
-                  await signOut();
-                  router.replace('/connexion/login');
-                } catch (error) {
-                  console.error('Erreur lors de la déconnexion:', error);
-                  Alert.alert('Erreur', 'Impossible de se déconnecter');
-                }
-              }}
             />
           )}
 
-          <ScrollView 
-            style={styles.content} 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent, 
-              { 
-                paddingTop: selectedTab === 'overview' ? Spacing.lg : 0, // Plus d'espace pour la page home
-                paddingBottom: Math.max(insets.bottom, 20) + 150, // Espace pour la navbar (75px) + bouton qui dépasse (76px) + marge
-              }
-            ]}
-          >
-            {selectedTab === 'overview' && (
+          {selectedTab === 'overview' ? (
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={[
+                styles.scrollContent,
+                {
+                  paddingTop: Spacing.lg,
+                  paddingBottom: Math.max(insets.bottom, 20) + 80,
+                }
+              ]}
+              showsVerticalScrollIndicator={false}
+              bounces={true}
+              scrollEventThrottle={16}
+              nestedScrollEnabled={true}
+              alwaysBounceVertical={false}
+              overScrollMode="auto"
+              keyboardShouldPersistTaps="handled"
+            >
               <PartnerOverview
                 totalRevenue={totalRevenue}
                 todayRevenue={todayRevenue}
@@ -197,7 +194,17 @@ export default function PartnerHomeScreen() {
                 }}
                 validatingQR={validatingQR}
               />
-            )}
+            </ScrollView>
+          ) : (
+            <View 
+              style={[
+                styles.content,
+                { 
+                  paddingTop: 0,
+                  paddingBottom: Math.max(insets.bottom, 20) + 80,
+                }
+              ]}
+            >
 
             {selectedTab === 'history' && (
               <PartnerHistory
@@ -256,9 +263,10 @@ export default function PartnerHomeScreen() {
                 onStoreSelect={handleStoreSelect}
               />
             )}
-          </ScrollView>
+            </View>
+          )}
 
-          <PartnerBottomNav 
+          <AnimatedPartnerTabBar 
             selectedTab={selectedTab} 
             onTabChange={setSelectedTab}
             onScanQR={handleScanQR}

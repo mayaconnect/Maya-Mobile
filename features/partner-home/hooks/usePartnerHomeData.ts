@@ -1,4 +1,5 @@
 import { TransactionsApi } from '@/features/home/services/transactionsApi';
+import { PartnerApi } from '@/features/partners/services/partnerApi';
 import { StoresApi } from '@/features/stores-map/services/storesApi';
 import { AuthService } from '@/services/auth.service';
 import { useCallback, useEffect, useState } from 'react';
@@ -257,8 +258,43 @@ export function usePartnerHomeData(user: any, activeStoreId: string | null, sele
         })
       );
 
+      // Enrichissement avec les images des partners
+      const partnerIds = [...new Set(storesWithDetails
+        .map((s: any) => s.partnerId || s.partner?.id)
+        .filter(Boolean))];
+
+      console.log('🖼️ [Partner Home] Chargement des images pour', partnerIds.length, 'partners...');
+
+      const partnerDetailsMap = new Map();
+
+      await Promise.all(
+        partnerIds.map(async (partnerId: string) => {
+          try {
+            const details = await PartnerApi.getPartnerDetails(partnerId);
+            partnerDetailsMap.set(partnerId, details);
+            console.log(`✅ [Partner Home] Image chargée pour partner ${partnerId}`);
+          } catch (error) {
+            console.warn(`⚠️ [Partner Home] Impossible de charger les détails du partner ${partnerId}:`, error);
+          }
+        })
+      );
+
+      const storesWithImages = storesWithDetails.map((store: any) => {
+        const partnerId = store.partnerId || store.partner?.id;
+        const partnerDetails = partnerDetailsMap.get(partnerId);
+
+        return {
+          ...store,
+          imageUrl: partnerDetails?.image ||
+                    partnerDetails?.imageUrl ||
+                    store.image ||
+                    store.imageUrl ||
+                    store.restaurantImage
+        };
+      });
+
       setStoresError(null);
-      setStores(storesWithDetails);
+      setStores(storesWithImages);
     } catch (error) {
       console.error('❌ [Partner Home] Erreur lors du chargement des stores:', error);
       if (error instanceof Error) {

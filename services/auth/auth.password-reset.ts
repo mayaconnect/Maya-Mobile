@@ -68,11 +68,9 @@ export async function requestPasswordResetCode(
     const payload: Record<string, string> = {
       email,
       channel,
+      // Toujours inclure phoneNumber, même si vide (chaîne vide pour channel "email")
+      phoneNumber: phoneNumber || '',
     };
-
-    if (phoneNumber) {
-      payload.phoneNumber = phoneNumber;
-    }
 
     await ApiClient.post('/auth/request-password-reset-code', payload, {
       skipAuth: true, // Pas besoin d'authentification pour cette route

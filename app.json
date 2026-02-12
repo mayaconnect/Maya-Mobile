@@ -69,10 +69,10 @@
       "typedRoutes": true,
       "reactCompiler": false
     },
-    "extra": {
-      "googleClientId": "535870809549-kanp7rd1hmu5ubq88aejlg2pk78htjhi.apps.googleusercontent.com",
-      "router": {},
-      "eas": {
+      "extra": {
+        "googleClientId": "125229396520-enrhsjtp80ehijnf0ru39n1j18ic2vqv.apps.googleusercontent.com",
+        "router": {},
+        "eas": {
         "projectId": "70138919-2611-4fa0-b38a-90919894c002"
       }
     }
