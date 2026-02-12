@@ -9,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 interface PartnerHeaderProps {
   firstName?: string;
   lastName?: string;
-  onLogout?: () => void;
   showWelcome?: boolean;
   title?: string;
 }
@@ -37,7 +36,7 @@ function arrayBufferToBase64(bytes: Uint8Array): string {
   return result;
 }
 
-export function PartnerHeader({ firstName, lastName, onLogout, showWelcome = true, title }: PartnerHeaderProps) {
+export function PartnerHeader({ firstName, lastName, showWelcome = true, title }: PartnerHeaderProps) {
   const { user } = useAuth();
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -136,15 +135,6 @@ export function PartnerHeader({ firstName, lastName, onLogout, showWelcome = tru
           )}
         </View>
         <View style={styles.actionsContainer}>
-          {onLogout && (
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={onLogout}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="log-out-outline" size={18} color={Colors.text.light} />
-            </TouchableOpacity>
-          )}
           <View style={styles.profileButtonContainer}>
             <TouchableOpacity
               style={styles.profileButton}
@@ -262,16 +252,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     paddingTop: 4,
-  } as ViewStyle,
-  logoutButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: BorderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   } as ViewStyle,
   profileButtonContainer: {
     padding: 4,

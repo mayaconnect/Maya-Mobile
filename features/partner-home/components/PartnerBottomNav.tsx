@@ -51,14 +51,14 @@ export function PartnerBottomNav({ selectedTab, onTabChange, onScanQR, validatin
                       <View style={styles.activeIndicator}>
                         <Ionicons
                           name={tab.icon.active as any}
-                          size={24}
+                          size={22}
                           color="#FFFFFF"
                         />
                       </View>
                     ) : (
                       <Ionicons
                         name={tab.icon.inactive as any}
-                        size={22}
+                        size={20}
                         color="rgba(255, 255, 255, 0.5)"
                       />
                     )}
@@ -93,14 +93,14 @@ export function PartnerBottomNav({ selectedTab, onTabChange, onScanQR, validatin
                       <View style={styles.activeIndicator}>
                         <Ionicons
                           name={tab.icon.active as any}
-                          size={24}
+                          size={22}
                           color="#FFFFFF"
                         />
                       </View>
                     ) : (
                       <Ionicons
                         name={tab.icon.inactive as any}
-                        size={22}
+                        size={20}
                         color="rgba(255, 255, 255, 0.5)"
                       />
                     )}
@@ -155,13 +155,13 @@ const styles = StyleSheet.create({
   } as ViewStyle,
   bottomNavBarContainer: {
     width: '100%',
-    borderTopLeftRadius: BorderRadius['3xl'],
-    borderTopRightRadius: BorderRadius['3xl'],
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
     ...Shadows.xl,
     overflow: 'visible', // Permet au bouton de dépasser
   } as ViewStyle,
   gradient: {
-    borderRadius: BorderRadius['3xl'],
+    borderRadius: BorderRadius.xl,
     overflow: 'visible', // Permet au bouton de dépasser
   } as ViewStyle,
   bottomNavBar: {
@@ -170,10 +170,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     zIndex: -1,
     backgroundColor: 'transparent',
-    paddingBottom: Spacing.lg + 8,
-    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    paddingTop: Spacing.xs,
     paddingHorizontal: Spacing.xs,
-    minHeight: 75,
+    minHeight: 60,
     position: 'relative',
   } as ViewStyle,
   navSection: {
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.xs / 2,
     minWidth: 60,
   } as ViewStyle,
   bottomNavItemActive: {
@@ -209,15 +209,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   } as ViewStyle,
   bottomNavText: {
-    fontSize: 11,
+    fontSize: 10,
     color: 'rgba(255, 255, 255, 0.5)',
     fontWeight: '500',
     marginTop: 2,
   } as TextStyle,
   bottomNavTextActive: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
+    fontWeight: '600',
+    fontSize: 11,
   } as TextStyle,
   scanButtonContainer: {
     position: 'absolute',

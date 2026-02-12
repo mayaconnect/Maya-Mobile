@@ -1,4 +1,6 @@
+import { Spacing } from '@/constants/design-system';
 import React, { useMemo } from 'react';
+import { View } from 'react-native';
 import { PartnerKPICards } from './PartnerKPICards';
 import { PartnerQuickActions } from './PartnerQuickActions';
 import { PartnerRecentScans } from './PartnerRecentScans';
@@ -117,7 +119,7 @@ export function PartnerOverview({
   }, [transactions, scans]);
 
   return (
-    <>
+    <View style={{ gap: Spacing.lg }}>
       {/* Actions rapides */}
       <PartnerQuickActions
         onScanClient={onScanQR}
@@ -134,9 +136,6 @@ export function PartnerOverview({
         newClients={monthStats.newClients}
       />
 
-
-     
-
       {/* Scans récents */}
       <PartnerRecentScans
         scans={scans}
@@ -144,6 +143,6 @@ export function PartnerOverview({
         scansError={scansError}
         onScanQR={onScanQR}
       />
-    </>
+    </View>
   );
 }

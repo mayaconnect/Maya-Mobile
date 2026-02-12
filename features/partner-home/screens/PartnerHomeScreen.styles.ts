@@ -13,8 +13,13 @@ export const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: 100,
   } as ViewStyle,
+  scrollView: {
+    flex: 1,
+  } as ViewStyle,
   scrollContent: {
+    paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl,
+    flexGrow: 1,
   } as ViewStyle,
 });
 

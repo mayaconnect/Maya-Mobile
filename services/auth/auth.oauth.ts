@@ -2,13 +2,14 @@
  * Gestion de l'authentification OAuth (Google)
  */
 
+import { apiCall } from '@/services/shared/api';
+import { log } from '@/utils/logger';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AuthSession from 'expo-auth-session';
-import { log } from '@/utils/logger';
-import { apiCall } from '@/services/shared/api';
+import Constants from 'expo-constants';
 import { API_BASE_URL, USER_STORAGE_KEY } from './auth.config';
 import { saveTokens } from './auth.tokens';
-import { PublicUser, User, TokenData } from './auth.types';
+import { PublicUser, TokenData, User } from './auth.types';
 
 /**
  * Connexion via Google OAuth
@@ -27,19 +28,28 @@ export async function signInWithGoogle(): Promise<PublicUser> {
     };
 
     // Récupérer le Client ID depuis les variables d'environnement ou app.json
+    // Pour iOS, utilisez le Client ID iOS créé dans Google Console
+    // IMPORTANT: Le Client ID iOS doit avoir le Bundle ID: com.mayaconnect.app
     const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || 
-                     '535870809549-kanp7rd1hmu5ubq88aejlg2pk78htjhi.apps.googleusercontent.com';
-    
+                     Constants.expoConfig?.extra?.googleClientId ||
+                     '125229396520-lecj818mbh823h4l3cno4els6ag58ue9.apps.googleusercontent.com';
     if (!clientId) {
       throw new Error('Google Client ID non configuré. Veuillez définir EXPO_PUBLIC_GOOGLE_CLIENT_ID');
     }
 
-    // Générer le redirect URI avec le scheme de l'app
-    // Pour Expo, le redirect URI doit être de la forme: maya:// ou exp://
-    // En production, utiliser le scheme de l'app, en dev utiliser exp://
+    // Pour un Client ID iOS, Google génère automatiquement un "Schéma d'URL iOS"
+    // Exemple: com.googleusercontent.apps.xxxxx
+    // Ce schéma est visible dans Google Console > Credentials > votre Client ID iOS
+    // Pour iOS, on peut utiliser soit :
+    // 1. Le schéma généré par Google (com.googleusercontent.apps.xxxxx)
+    // 2. Le proxy Expo qui génère une URL HTTPS valide (recommandé pour le développement)
+    // 3. Le scheme personnalisé (maya://) mais il faut l'ajouter dans "Authorized redirect URIs"
+    
+    // En développement, Expo utilise automatiquement le proxy si disponible
+    // Le proxy génère une URL HTTPS valide : https://auth.expo.io/@username/slug
     const redirectUri = AuthSession.makeRedirectUri({
       scheme: 'maya',
-      useProxy: __DEV__, // Utiliser le proxy Expo seulement en développement
+      // Expo détecte automatiquement si on est en dev et utilise le proxy si nécessaire
     });
 
     console.log('🔐 [Google OAuth] Configuration:', {
@@ -63,10 +73,13 @@ export async function signInWithGoogle(): Promise<PublicUser> {
       console.warn('⚠️ [Google OAuth] Redirect URI peut être incorrect:', redirectUri);
     } else {
       console.log('✅ [Google OAuth] Redirect URI généré:', redirectUri);
-      console.log('📝 [Google OAuth] IMPORTANT: Assurez-vous que ce redirect URI est configuré dans Google Console:');
-      console.log('   - Allez dans Google Cloud Console > APIs & Services > Credentials');
-      console.log('   - Sélectionnez votre OAuth 2.0 Client ID');
-      console.log('   - Ajoutez ce redirect URI dans "Authorized redirect URIs":', redirectUri);
+      console.log('📝 [Google OAuth] Pour un Client ID iOS:');
+      console.log('   1. Le "Schéma d\'URL iOS" dans Google Console est généré automatiquement');
+      console.log('   2. Vous devez ajouter ce redirect URI dans "Authorized redirect URIs":');
+      console.log('      - Allez dans Google Cloud Console > APIs & Services > Credentials');
+      console.log('      - Sélectionnez votre Client ID iOS');
+      console.log('      - Dans "Authorized redirect URIs", ajoutez:', redirectUri);
+      console.log('   3. Le Bundle ID doit être exactement: com.mayaconnect.app');
     }
 
     const request = new AuthSession.AuthRequest({
@@ -298,7 +311,7 @@ export async function signInWithGoogle(): Promise<PublicUser> {
       
       // Si c'est une erreur 400 invalid_request, donner des instructions claires
       if (errorMessage.includes('invalid_request') || errorMessage.includes('400')) {
-        const redirectUri = AuthSession.makeRedirectUri({ scheme: 'maya', useProxy: __DEV__ });
+        const redirectUri = AuthSession.makeRedirectUri({ scheme: 'maya' });
         const enhancedError = new Error(
           `Erreur de configuration Google OAuth (400 invalid_request). ` +
           `Vérifiez que le redirect URI "${redirectUri}" est bien configuré dans Google Console. ` +

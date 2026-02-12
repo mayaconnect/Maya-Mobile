@@ -81,5 +81,18 @@ export const PartnerApi = {
       baseUrlOverride: PARTNER_API_BASE_URL,
     });
   },
+
+  /**
+   * Récupère les détails d'un partenaire avec son image
+   */
+  getPartnerDetails: async (id: string): Promise<any> => {
+    if (!id) {
+      throw new Error('Partner ID requis');
+    }
+
+    return ApiClient.get<any>(`/partners/${id}/details`, {
+      baseUrlOverride: PARTNER_API_BASE_URL,
+    });
+  },
 };
 

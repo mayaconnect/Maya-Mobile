@@ -6,7 +6,7 @@ import { AuthService } from '@/services/auth.service';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Image,
   ImageStyle,
@@ -28,6 +28,15 @@ const ForgotPasswordScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<Step>('email');
+
+  // Réinitialiser loading quand on passe à l'étape reset pour permettre la saisie
+  useEffect(() => {
+    if (step === 'reset') {
+      setLoading(false);
+      setPasswordError('');
+      setConfirmError('');
+    }
+  }, [step]);
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [code, setCode] = useState('');
@@ -50,9 +59,12 @@ const ForgotPasswordScreen: React.FC = () => {
     setSuccessMessage('');
   };
 
-  const handleVerifyEmail = async () => {
+  // Note: Ne pas réinitialiser loading automatiquement car cela peut interférer avec les requêtes en cours
+
+  const handleSendCode = async (channel: 'email' | 'sms' = 'email') => {
     resetMessages();
     setEmailError('');
+    setPhoneError('');
 
     if (!email) {
       setEmailError('Email requis');
@@ -60,25 +72,7 @@ const ForgotPasswordScreen: React.FC = () => {
       return;
     }
 
-    setLoading(true);
-    try {
-      await AuthService.requestPasswordReset(email);
-      setSuccessMessage('✅ Email trouvé ! Entrez votre numéro de téléphone');
-      setStep('phone');
-    } catch (error) {
-      console.error('Erreur lors de la vérification de l\'email:', error);
-      setEmailError('Email non trouvé');
-      setErrorMessage('Aucun compte n\'est associé à cet email. Vérifiez votre adresse ou créez un compte.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendCode = async () => {
-    resetMessages();
-    setPhoneError('');
-
-    if (!phoneNumber) {
+    if (channel === 'sms' && !phoneNumber) {
       setPhoneError('Numéro requis');
       setErrorMessage('Veuillez entrer votre numéro de téléphone pour recevoir le code de réinitialisation');
       return;
@@ -86,13 +80,23 @@ const ForgotPasswordScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      await AuthService.requestPasswordResetCode(email, phoneNumber, 'sms');
-      setSuccessMessage('✅ Code envoyé par SMS !');
+      // Utiliser directement la route request-password-reset-code
+      await AuthService.requestPasswordResetCode(
+        email, 
+        channel === 'sms' ? phoneNumber : undefined, 
+        channel
+      );
+      setSuccessMessage(`✅ Code envoyé par ${channel === 'email' ? 'email' : 'SMS'} !`);
       setStep('code');
     } catch (error) {
       console.error('Erreur lors de l\'envoi du code:', error);
-      setPhoneError('Numéro invalide');
-      setErrorMessage('Impossible d\'envoyer le code. Vérifiez que le numéro est correct et réessayez.');
+      if (channel === 'email') {
+        setEmailError('Email invalide');
+        setErrorMessage('Impossible d\'envoyer le code. Vérifiez que l\'email est correct et réessayez.');
+      } else {
+        setPhoneError('Numéro invalide');
+        setErrorMessage('Impossible d\'envoyer le code. Vérifiez que le numéro est correct et réessayez.');
+      }
     } finally {
       setLoading(false);
     }
@@ -134,11 +138,24 @@ const ForgotPasswordScreen: React.FC = () => {
   };
 
   const handleResetPassword = async () => {
+    console.log('🚀 [Forgot Password] handleResetPassword appelé');
+    console.log('📊 [Forgot Password] État actuel:', {
+      step,
+      loading,
+      hasNewPassword: !!newPassword,
+      hasConfirmPassword: !!confirmPassword,
+      hasResetToken: !!resetToken,
+      hasCode: !!code,
+      newPasswordLength: newPassword.length,
+      confirmPasswordLength: confirmPassword.length,
+    });
+
     resetMessages();
     setPasswordError('');
     setConfirmError('');
 
     if (!newPassword || !confirmPassword) {
+      console.log('❌ [Forgot Password] Champs manquants');
       if (!newPassword) {
         setPasswordError('Mot de passe requis');
       }
@@ -150,36 +167,45 @@ const ForgotPasswordScreen: React.FC = () => {
     }
 
     if (newPassword.length < 8) {
+      console.log('❌ [Forgot Password] Mot de passe trop court');
       setPasswordError('Minimum 8 caractères requis');
       setErrorMessage('Le mot de passe doit contenir au moins 8 caractères pour plus de sécurité');
       return;
     }
 
     if (newPassword !== confirmPassword) {
+      console.log('❌ [Forgot Password] Mots de passe différents');
       setConfirmError('Les mots de passe ne correspondent pas');
       setErrorMessage('Les deux mots de passe doivent être identiques. Vérifiez votre saisie.');
       return;
     }
 
+    console.log('✅ [Forgot Password] Validation passée, début de la réinitialisation');
     setLoading(true);
     try {
       // Utiliser le token de réinitialisation (obtenu lors de la vérification du code)
       // Si pas de token, utiliser le code comme fallback
       const token = resetToken || code;
-      
+
       console.log('🔐 [Forgot Password] Réinitialisation du mot de passe...');
       console.log('📋 [Forgot Password] Paramètres:', {
-        hasToken: !!resetToken,
+        hasResetToken: !!resetToken,
+        hasCode: !!code,
         tokenLength: token.length,
         passwordLength: newPassword.length,
+        email,
       });
-      
+
+      console.log('📡 [Forgot Password] Appel API resetPassword...');
       await AuthService.resetPassword(token, newPassword);
+      console.log('✅ [Forgot Password] Réinitialisation réussie !');
       setSuccessMessage('✅ Mot de passe réinitialisé avec succès !');
       setTimeout(() => router.replace('/connexion/login'), 2000);
     } catch (error) {
       console.error('❌ [Forgot Password] Erreur lors de la réinitialisation:', error);
       if (error instanceof Error) {
+        console.error('❌ [Forgot Password] Message d\'erreur:', error.message);
+        console.error('❌ [Forgot Password] Stack:', error.stack);
         if (error.message.includes('expired') || error.message.includes('invalid') || error.message.includes('token')) {
           setErrorMessage('Le code de réinitialisation a expiré. Veuillez recommencer le processus.');
         } else if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
@@ -188,9 +214,11 @@ const ForgotPasswordScreen: React.FC = () => {
           setErrorMessage(`Erreur lors de la réinitialisation : ${error.message}. Veuillez réessayer.`);
         }
       } else {
+        console.error('❌ [Forgot Password] Erreur inconnue:', error);
         setErrorMessage('Échec de la réinitialisation. Veuillez réessayer ou contacter le support.');
       }
     } finally {
+      console.log('🏁 [Forgot Password] Fin de handleResetPassword, loading = false');
       setLoading(false);
     }
   };
@@ -212,7 +240,7 @@ const ForgotPasswordScreen: React.FC = () => {
   const renderSubtitle = () => {
     switch (step) {
       case 'email':
-        return 'Saisissez votre email pour vérifier votre compte';
+        return 'Choisissez comment recevoir votre code de réinitialisation';
       case 'phone':
         return 'Nous allons vous envoyer un code de vérification par SMS';
       case 'code':
@@ -255,12 +283,26 @@ const ForgotPasswordScreen: React.FC = () => {
             </View>
 
             <AnimatedButton
-              title={loading ? 'Vérification...' : 'Continuer'}
-              onPress={handleVerifyEmail}
-              icon="arrow-forward"
+              title={loading ? 'Envoi...' : 'Envoyer le code par email'}
+              onPress={() => handleSendCode('email')}
+              icon="mail"
               style={styles.submitButton}
               variant="solid"
+              disabled={loading}
             />
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.switchChannelButton}
+              onPress={() => setStep('phone')}
+            >
+              <Text style={styles.switchChannelText}>Recevoir le code par SMS</Text>
+            </TouchableOpacity>
           </>
         );
       case 'phone':
@@ -292,11 +334,12 @@ const ForgotPasswordScreen: React.FC = () => {
             </View>
 
             <AnimatedButton
-              title={loading ? 'Envoi...' : 'Envoyer le code'}
-              onPress={handleSendCode}
+              title={loading ? 'Envoi...' : 'Envoyer le code par SMS'}
+              onPress={() => handleSendCode('sms')}
               icon="send"
               style={styles.submitButton}
               variant="solid"
+              disabled={loading}
             />
 
             <TouchableOpacity
@@ -307,7 +350,7 @@ const ForgotPasswordScreen: React.FC = () => {
                 resetMessages();
               }}
             >
-              <Text style={styles.backToEmailText}>← Changer d&apos;email</Text>
+              <Text style={styles.backToEmailText}>← Recevoir par email</Text>
             </TouchableOpacity>
           </>
         );
@@ -346,6 +389,7 @@ const ForgotPasswordScreen: React.FC = () => {
               icon="checkmark"
               style={styles.submitButton}
               variant="solid"
+              disabled={loading}
             />
 
             <TouchableOpacity
@@ -366,7 +410,7 @@ const ForgotPasswordScreen: React.FC = () => {
           <>
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Nouveau mot de passe</Text>
-              <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]}>
+              <View style={[styles.inputWrapper, passwordError ? styles.inputError : null]} pointerEvents="box-none">
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
@@ -374,18 +418,29 @@ const ForgotPasswordScreen: React.FC = () => {
                   style={styles.inputIcon as any}
                 />
                 <TextInput
+                  key="new-password-input"
                   style={styles.input}
-                  placeholder="••••••••"
+                  placeholder="Entrez votre nouveau mot de passe"
+                  placeholderTextColor="#9CA3AF"
                   value={newPassword}
                   onChangeText={(text) => {
+                    console.log('🔑 Nouveau mot de passe onChangeText:', text);
                     setNewPassword(text);
                     setPasswordError('');
                     resetMessages();
                   }}
                   secureTextEntry={!showPassword}
-                  editable={!loading}
+                  editable={true}
+                  onFocus={() => {
+                    console.log('🔑 Nouveau mot de passe onFocus');
+                    setLoading(false);
+                  }}
+                  onBlur={() => console.log('🔑 Nouveau mot de passe onBlur')}
                 />
-                <TouchableOpacity onPress={() => setShowPassword((value) => !value)}>
+                <TouchableOpacity 
+                  onPress={() => setShowPassword((value) => !value)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
                   <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
@@ -403,15 +458,18 @@ const ForgotPasswordScreen: React.FC = () => {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="••••••••"
+                  placeholder="Confirmez votre mot de passe"
+                  placeholderTextColor="#9CA3AF"
                   value={confirmPassword}
                   onChangeText={(text) => {
                     setConfirmPassword(text);
                     setConfirmError('');
-                    resetMessages();
                   }}
                   secureTextEntry={!showConfirm}
-                  editable={!loading}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="default"
+                  returnKeyType="done"
                 />
                 <TouchableOpacity onPress={() => setShowConfirm((value) => !value)}>
                   <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
@@ -426,6 +484,7 @@ const ForgotPasswordScreen: React.FC = () => {
               icon="checkmark"
               style={styles.submitButton}
               variant="solid"
+              disabled={loading}
             />
 
             <TouchableOpacity
@@ -455,7 +514,7 @@ const ForgotPasswordScreen: React.FC = () => {
         <KeyboardAvoidingView 
           style={styles.keyboardView}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          keyboardVerticalOffset={0}
         >
           {/* Section supérieure avec fond sombre */}
           <View style={styles.topSection}>
@@ -486,10 +545,13 @@ const ForgotPasswordScreen: React.FC = () => {
             <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.contentContainer}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
               showsVerticalScrollIndicator={false}
               bounces={false}
-              keyboardDismissMode="interactive"
+              keyboardDismissMode="none"
+              nestedScrollEnabled={true}
+              scrollEnabled={true}
+              removeClippedSubviews={false}
             >
               <Text style={styles.title}>{renderTitle()}</Text>
               <Text style={styles.subtitle}>{renderSubtitle()}</Text>
@@ -520,15 +582,19 @@ const ForgotPasswordScreen: React.FC = () => {
 
               {renderStepContent()}
 
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
-                <View style={styles.dividerLine} />
-              </View>
+              {step === 'email' ? null : (
+                <>
+                  <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>ou</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
 
-              <TouchableOpacity onPress={() => router.push('/connexion/login')}>
-                <Text style={styles.backToLogin}>Retour à la connexion</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity onPress={() => router.push('/connexion/login')}>
+                    <Text style={styles.backToLogin}>Retour à la connexion</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -646,15 +712,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     backgroundColor: 'white',
+    minHeight: 50,
   } as ViewStyle,
   inputIcon: {
     marginRight: Spacing.sm,
   } as ViewStyle,
   input: {
     flex: 1,
-    paddingVertical: 0,
-    fontSize: Typography.sizes.sm,
+    paddingVertical: 12,
+    minHeight: 44,
+    fontSize: Typography.sizes.base,
     color: '#111827',
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
   } as TextStyle,
   submitButton: {
     marginTop: Spacing.xs,
@@ -669,6 +739,18 @@ const styles = StyleSheet.create({
     color: '#8B2F3F',
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium as any,
+  } as TextStyle,
+  switchChannelButton: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#F3F4F6',
+  } as ViewStyle,
+  switchChannelText: {
+    color: '#8B2F3F',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold as any,
   } as TextStyle,
   divider: {
     flexDirection: 'row',
