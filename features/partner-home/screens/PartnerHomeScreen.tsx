@@ -4,8 +4,8 @@ import { Colors, Spacing } from '@/constants/design-system';
 import { useAuth } from '@/hooks/use-auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedPartnerTabBar } from '../components/AnimatedPartnerTabBar';
 import { PartnerTab } from '../components/PartnerBottomNav';
@@ -133,6 +133,25 @@ export default function PartnerHomeScreen() {
     console.log('Export des données');
   };
 
+  // Fonction de refresh pour le pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Recharger toutes les données
+      await Promise.all([
+        loadClients(),
+        loadStores(),
+        loadScanCounts(),
+      ]);
+      // Les scans et transactions seront rechargés automatiquement via useEffect
+    } catch (error) {
+      console.error('Erreur lors du refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadClients, loadStores, loadScanCounts]);
+
   return (
     <NavigationTransition delay={50}>
       <LinearGradient
@@ -168,9 +187,19 @@ export default function PartnerHomeScreen() {
               bounces={true}
               scrollEventThrottle={16}
               nestedScrollEnabled={true}
-              alwaysBounceVertical={false}
+              alwaysBounceVertical={true}
               overScrollMode="auto"
               keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={true}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={Colors.text.primary}
+                  colors={[Colors.primary[500]]}
+                  progressBackgroundColor={Colors.background.dark}
+                />
+              }
             >
               <PartnerOverview
                 totalRevenue={totalRevenue}
