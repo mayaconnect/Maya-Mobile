@@ -20,6 +20,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl,
     flexGrow: 1,
+    minHeight: '100%',
   } as ViewStyle,
 });
 
