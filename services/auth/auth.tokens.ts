@@ -16,7 +16,7 @@ export async function saveTokens(tokens: TokenData): Promise<void> {
     await AsyncStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
     log.info('Tokens sauvegardés localement');
   } catch (error) {
-    log.error('Erreur lors de la sauvegarde des tokens', error as Error);
+    log.error('Erreur lors de la sauvegarde des tokens dans AsyncStorage', error as Error);
   }
 }
 
