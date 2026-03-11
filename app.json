@@ -1,79 +1,75 @@
 {
   "expo": {
-    "name": "Maya-Connect",
-    "slug": "maya-mobile-app",
-    "version": "1.0.0",
+    "name": "MAYA 1.0.0",
+    "slug": "maya-connect",
+    "version": "2.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo2.png",
+    "icon": "./assets/images/logo.png",
+    "userInterfaceStyle": "light",
     "scheme": "maya",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/logo2.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff",
-      "dark": {
-        "backgroundColor": "#000000"
-      }
+      "backgroundColor": "#FF6B35"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mayaconnect.app",
-      "buildNumber": "1.0.0",
-      "icon": "./assets/images/logo2.png",
       "infoPlist": {
-        "NSCameraUsageDescription": "Maya a besoin d'accéder à votre caméra pour scanner les codes QR.",
-        "NSLocationWhenInUseUsageDescription": "Maya a besoin de votre localisation pour vous montrer les magasins à proximité.",
-        "NSPhotoLibraryUsageDescription": "Maya a besoin d'accéder à vos photos pour partager des contenus.",
-        "ITSAppUsesNonExemptEncryption": false
+        "NSCameraUsageDescription": "Maya Connect utilise la caméra pour scanner les QR codes partenaires.",
+        "NSLocationWhenInUseUsageDescription": "Maya Connect utilise votre position pour trouver les magasins partenaires à proximité.",
+        "NSPhotoLibraryUsageDescription": "Maya Connect accède à vos photos pour personnaliser votre profil.",
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleDevelopmentRegion": "fr"
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.maya.connect",
-      "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo2.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundImage": "./assets/images/logo.png",
+        "monochromeImage": "./assets/images/logo.png",
+        "backgroundColor": "#FF6B35"
       },
       "permissions": [
         "CAMERA",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ],
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
+      "expo-font",
       [
-        "expo-splash-screen",
+        "expo-camera",
         {
-          "image": "./assets/images/logo.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "cameraPermission": "Maya Connect utilise la caméra pour scanner les QR codes partenaires."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Maya Connect utilise votre position pour trouver les magasins à proximité."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Maya Connect accède à vos photos pour personnaliser votre profil."
         }
       ],
       "expo-web-browser"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": false
+      "typedRoutes": true
     },
-      "extra": {
-        "googleClientId": "125229396520-enrhsjtp80ehijnf0ru39n1j18ic2vqv.apps.googleusercontent.com",
-        "router": {},
-        "eas": {
-        "projectId": "70138919-2611-4fa0-b38a-90919894c002"
+    "extra": {
+      "eas": {
+        "projectId": ""
       }
     }
   }

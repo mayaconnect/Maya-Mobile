@@ -1,65 +1,126 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+/**
+ * Maya Connect V2 — Root Layout
+ *
+ * Wraps the entire app in:
+ *  • SafeAreaProvider
+ *  • QueryClientProvider (react-query)
+ *  • Auth hydration gate
+ *  • Splash screen management
+ */
+import React, { useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { Stack } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as SplashScreen from 'expo-splash-screen';
+import * as Font from 'expo-font';
+import {
+  Inter_300Light,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import { useAuthStore } from '../src/stores/auth.store';
+import { authApi } from '../src/api/auth.api';
+import { colors } from '../src/theme/colors';
 
-import { LoadingScreen } from '@/components/common/loading-screen';
-import { AppProvider } from '@/contexts/app-context';
-import { AuthProvider, useAuth } from '@/hooks/use-auth';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { offlineSync } from '@/utils/offline-sync';
-import { Ionicons } from '@expo/vector-icons';
-import { useFonts } from 'expo-font';
-import { useEffect } from 'react';
+// Prevent splash from auto-hiding
+SplashScreen.preventAutoHideAsync();
 
-
-function RootLayoutNav() {
-  const { user, loading } = useAuth();
-
-  // Afficher l'écran de chargement pendant la vérification de l'authentification
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  return (
-    <Stack>
-      <Stack.Screen name="index" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="onboarding/onboarding-2" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="onboarding/onboarding-3" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="onboarding/onboarding-4" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="connexion/login" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="connexion/signup" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="connexion/forgot-password" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false , animation: 'fade', animationDuration: 300 }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' , animation: 'fade', animationDuration: 300 }} />
-    </Stack>
-  );
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 5 * 60 * 1000, // 5 min
+      gcTime: 30 * 60 * 1000, // 30 min — was cacheTime in v4
+    },
+  },
+});
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  useFonts(Ionicons.font);
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const isHydrating = useAuthStore((s) => s.isHydrating);
+  const [fontsLoaded, setFontsLoaded] = React.useState(false);
 
-  // Initialiser la synchronisation offline au démarrage
   useEffect(() => {
-    offlineSync.initialize().catch((error) => {
-      console.error('Erreur lors de l\'initialisation de la synchronisation offline:', error);
-    });
-
-    // Cleanup au démontage
-    return () => {
-      offlineSync.cleanup();
-    };
+    (async () => {
+      await Font.loadAsync({
+        'Inter-Light': Inter_300Light,
+        'Inter-Regular': Inter_400Regular,
+        'Inter-Medium': Inter_500Medium,
+        'Inter-SemiBold': Inter_600SemiBold,
+        'Inter-Bold': Inter_700Bold,
+      });
+      setFontsLoaded(true);
+    })();
   }, []);
 
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!isHydrating && fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [isHydrating, fontsLoaded]);
+
+  // ── StatusApp online / offline ──
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  useEffect(() => {
+    const updateStatus = (statusApp: string) => {
+      const token = useAuthStore.getState().accessToken;
+      if (!token) return;
+      authApi.updateProfile({ statusApp }).catch(() => {});
+    };
+
+    // Mark online once hydrated and authenticated
+    if (!isHydrating) {
+      updateStatus('online');
+    }
+
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appStateRef.current.match(/inactive|background/) && next === 'active') {
+        updateStatus('online');
+      } else if (next.match(/inactive|background/)) {
+        updateStatus('offline');
+      }
+      appStateRef.current = next;
+    });
+
+    return () => sub.remove();
+  }, [isHydrating]);
+
+  if (isHydrating || !fontsLoaded) return null;
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AppProvider>
-        <AuthProvider>
-          <RootLayoutNav />
-          <StatusBar style="auto" />
-        </AuthProvider>
-      </AppProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <StatusBar style="dark" backgroundColor={colors.neutral[0]} />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#FFFFFF' },
+              animation: 'slide_from_right',
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen
+              name="onboarding"
+              options={{ animation: 'fade' }}
+            />
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="(client)" />
+            <Stack.Screen name="(partner)" />
+            <Stack.Screen name="(storeoperator)" />
+          </Stack>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
