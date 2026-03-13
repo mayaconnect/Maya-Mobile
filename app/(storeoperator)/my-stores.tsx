@@ -1,194 +1,150 @@
 /**
  * Maya Connect V2 — Store Operator "My Stores" Screen
- *
- * Uses the aggregated endpoint GET /api/v1/store-operators/my-partner-stores
- * to display partner info + all stores the partner owns.
- * Allows setting active store.
  */
-import React, { useCallback, useMemo } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   RefreshControl,
-  TouchableOpacity,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { storeOperatorsApi } from '../../src/api/store-operators.api';
 import { usePartnerStore } from '../../src/stores/partner.store';
 import { operatorColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
-import {
-  MCard,
-  MBadge,
-  MAvatar,
-  EmptyState,
-  LoadingSpinner,
-  ErrorState,
-} from '../../src/components/ui';
-import { MHeader } from '../../src/components/ui';
-
-import type { StoreDto } from '../../src/types';
+import { EmptyState } from '../../src/components/ui';
 
 export default function MyStoresScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const queryClient = useQueryClient();
-  const setPartner = usePartnerStore((s) => s.setPartner);
-  const setStores = usePartnerStore((s) => s.setStores);
 
-  /* ---- Fetch partner + stores from dedicated endpoint ---- */
-  const myDataQ = useQuery({
-    queryKey: ['myPartnerStores'],
-    queryFn: () => storeOperatorsApi.getMyPartnerStores(),
+  const stores = usePartnerStore((s) => s.stores);
+  const partner = usePartnerStore((s) => s.partner);
+  const activeStoreZus = usePartnerStore((s) => s.activeStore);
+  const setActiveZus = usePartnerStore((s) => s.setActiveStore);
+
+  const activeStoreQ = useQuery({
+    queryKey: ['activeStore'],
+    queryFn: () => storeOperatorsApi.getActiveStore(),
     select: (res) => res.data,
+    retry: (count, error: any) => {
+      if (error?.response?.status === 404) return false;
+      return count < 2;
+    },
   });
 
-  const partner = myDataQ.data?.partner;
-  const stores = myDataQ.data?.stores ?? [];
-  const activeStoreId = myDataQ.data?.activeStore?.storeId ?? usePartnerStore.getState().activeStore?.storeId;
+  const activeId = activeStoreQ.data?.storeId ?? activeStoreZus?.storeId;
 
-  // Sync Zustand store when data arrives
-  React.useEffect(() => {
-    if (myDataQ.data) {
-      if (myDataQ.data.partner) setPartner(myDataQ.data.partner);
-      if (myDataQ.data.stores) setStores(myDataQ.data.stores);
-    }
-  }, [myDataQ.data, setPartner, setStores]);
-
-  /* ---- Set active store ---- */
   const setActiveMutation = useMutation({
     mutationFn: (storeId: string) =>
       storeOperatorsApi.setActiveStore({ storeId }),
     onSuccess: (_data, storeId) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['activeStore'] });
-      queryClient.invalidateQueries({ queryKey: ['myPartnerStores'] });
+      queryClient.invalidateQueries({ queryKey: ['operatorTxHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['partnerRecentTx'] });
       const found = stores.find((s) => s.id === storeId);
-      usePartnerStore.getState().setActiveStore({
-        id: '',
-        userId: '',
-        storeId,
-        isManager: found ? true : false,
-        isActiveStore: true,
-        createdAt: new Date().toISOString(),
-      });
-      Alert.alert('Succès', `Magasin actif changé : ${found?.name ?? storeId.slice(0, 8)}`);
+      if (found) setActiveZus({ storeId, storeName: found.name } as any);
     },
-    onError: () => {
-      Alert.alert('Erreur', 'Impossible de changer le magasin actif.');
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail ?? err?.response?.data?.title ?? err?.message ?? 'Erreur inconnue';
+      Alert.alert('Erreur', `Impossible de changer le magasin actif.\n${detail}`);
     },
   });
 
-  const renderStore = ({ item }: { item: StoreDto }) => {
-    const isActive = item.id === activeStoreId;
-    return (
-      <MCard style={StyleSheet.flatten([styles.storeCard, isActive ? styles.storeCardActive : {}])} elevation="sm">
-        <View style={styles.storeRow}>
-          <View style={[styles.storeIcon, isActive && styles.storeIconActive]}>
-            <Ionicons
-              name="storefront"
-              size={wp(22)}
-              color={isActive ? '#FFFFFF' : colors.violet[500]}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={styles.nameRow}>
-              <Text style={styles.storeName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              {isActive && (
-                <MBadge label="Actif" variant="success" size="sm" />
-              )}
-            </View>
-            {item.address ? (
-              <Text style={styles.storeAddress} numberOfLines={1}>
-                {item.address}{item.city ? `, ${item.city}` : ''}
-              </Text>
-            ) : null}
-          </View>
-          {!isActive && (
-            <TouchableOpacity
-              style={styles.activateBtn}
-              onPress={() => setActiveMutation.mutate(item.id)}
-              disabled={setActiveMutation.isPending}
-            >
-              <Text style={styles.activateTxt}>Activer</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </MCard>
+  const handleSelect = (storeId: string, storeName: string) => {
+    if (storeId === activeId) return;
+    Alert.alert(
+      'Changer de magasin',
+      `Activer "${storeName}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Confirmer', onPress: () => setActiveMutation.mutate(storeId) },
+      ],
     );
   };
 
-  if (myDataQ.isLoading) {
-    return <LoadingSpinner fullScreen message="Chargement…" />;
-  }
-
-  if (myDataQ.isError) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <MHeader title="Mes magasins" />
-        <ErrorState
-          fullScreen
-          title="Erreur"
-          description="Impossible de charger les données."
-          onRetry={() => myDataQ.refetch()}
-        />
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <MHeader title="Mes magasins" />
-
-      {/* Partner card */}
-      {partner ? (
-        <MCard style={styles.partnerCard} elevation="sm">
-          <View style={styles.partnerRow}>
-            <MAvatar
-              name={partner.displayName ?? partner.legalName ?? 'P'}
-              uri={partner.imageUrl}
-              size="md"
-            />
-            <View style={{ flex: 1, marginLeft: spacing[3] }}>
-              <Text style={styles.partnerName}>
-                {partner.displayName ?? partner.legalName}
-              </Text>
-              {partner.email ? (
-                <Text style={styles.partnerEmail}>{partner.email}</Text>
-              ) : null}
-            </View>
-          </View>
-        </MCard>
-      ) : null}
-
-      {/* Stores count */}
-      <View style={styles.topBar}>
-        <Text style={styles.countLabel}>
-          {stores.length} magasin{stores.length !== 1 ? 's' : ''}
+    <View style={styles.container}>
+      {/* ── Header ── */}
+      <LinearGradient
+        colors={['#FF7A18', '#FF9F45']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + spacing[5] }]}
+      >
+        <Text style={styles.headerSub}>
+          {partner?.displayName ?? partner?.legalName ?? 'Partenaire'}
         </Text>
-      </View>
+        <Text style={styles.headerTitle}>Mes magasins</Text>
+      </LinearGradient>
 
       <FlatList
         data={stores}
-        keyExtractor={(item) => item.id}
-        renderItem={renderStore}
-        contentContainerStyle={styles.listContent}
+        keyExtractor={(item: any) => item.id}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + wp(80) }]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={myDataQ.isRefetching}
-            onRefresh={() => myDataQ.refetch()}
+            refreshing={activeStoreQ.isFetching}
+            onRefresh={() => activeStoreQ.refetch()}
             tintColor={colors.violet[500]}
           />
         }
+        renderItem={({ item }: any) => {
+          const isActive = item.id === activeId;
+          const isPending = setActiveMutation.isPending && setActiveMutation.variables === item.id;
+
+          return (
+            <TouchableOpacity
+              style={[styles.card, isActive && styles.cardActive]}
+              activeOpacity={isActive ? 1 : 0.7}
+              onPress={() => handleSelect(item.id, item.name ?? 'Magasin')}
+              disabled={isActive || setActiveMutation.isPending}
+            >
+              {/* Icône */}
+              <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
+                <Ionicons
+                  name="storefront"
+                  size={wp(22)}
+                  color={isActive ? '#FFF' : colors.violet[400]}
+                />
+              </View>
+
+              {/* Infos */}
+              <View style={styles.cardBody}>
+                <Text style={[styles.cardName, isActive && styles.cardNameActive]} numberOfLines={1}>
+                  {item.name ?? 'Magasin'}
+                </Text>
+                <Text style={styles.cardSub} numberOfLines={1}>
+                  {[item.address, item.city].filter(Boolean).join(' · ') || 'Adresse non renseignée'}
+                </Text>
+              </View>
+
+              {/* État droit */}
+              {isActive ? (
+                <View style={styles.activeChip}>
+                  <View style={styles.activeDot} />
+                  <Text style={styles.activeChipText}>Actif</Text>
+                </View>
+              ) : isPending ? (
+                <Ionicons name="sync-outline" size={wp(20)} color={colors.violet[400]} />
+              ) : (
+                <Ionicons name="chevron-forward" size={wp(20)} color={colors.neutral[300]} />
+              )}
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={
           <EmptyState
             icon="storefront-outline"
@@ -206,89 +162,94 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral[50],
   },
-  partnerCard: {
-    marginHorizontal: spacing[4],
-    marginTop: spacing[3],
+
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[6],
+    borderBottomLeftRadius: wp(32),
+    borderBottomRightRadius: wp(32),
+    overflow: 'hidden',
+  },
+  headerSub: {
+    ...textStyles.caption,
+    color: 'rgba(255,255,255,0.75)',
+    fontFamily: fontFamily.medium,
     marginBottom: spacing[1],
   },
-  partnerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerTitle: {
+    ...textStyles.h2,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
   },
-  partnerName: {
-    ...textStyles.body,
-    fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
-  },
-  partnerEmail: {
-    ...textStyles.micro,
-    color: colors.neutral[500],
-    marginTop: spacing[1],
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-  },
-  countLabel: {
-    ...textStyles.caption,
-    color: colors.neutral[500],
-  },
-  listContent: {
+
+  list: {
     padding: spacing[4],
-    paddingTop: spacing[1],
-    paddingBottom: wp(100),
+    gap: spacing[3],
   },
-  storeCard: {
-    marginBottom: spacing[3],
-  },
-  storeCardActive: {
-    borderWidth: 2,
-    borderColor: colors.violet[500],
-  },
-  storeRow: {
+
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing[4],
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius['2xl'],
+    padding: spacing[4],
+    borderWidth: 1.5,
+    borderColor: colors.neutral[100],
+    ...shadows.sm,
   },
-  storeIcon: {
-    width: wp(44),
-    height: wp(44),
-    borderRadius: borderRadius.lg,
+  cardActive: {
+    borderColor: colors.violet[400],
+    backgroundColor: '#F5F3FF',
+  },
+
+  iconBox: {
+    width: wp(48),
+    height: wp(48),
+    borderRadius: borderRadius.xl,
     backgroundColor: colors.violet[50],
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing[3],
   },
-  storeIconActive: {
+  iconBoxActive: {
     backgroundColor: colors.violet[500],
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
+
+  cardBody: {
+    flex: 1,
   },
-  storeName: {
+  cardName: {
     ...textStyles.body,
     fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
-    flexShrink: 1,
+    color: colors.neutral[800],
+    marginBottom: 2,
   },
-  storeAddress: {
-    ...textStyles.micro,
-    color: colors.neutral[500],
-    marginTop: spacing[1],
+  cardNameActive: {
+    color: colors.violet[700],
   },
-  activateBtn: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.violet[50],
-  },
-  activateTxt: {
+  cardSub: {
     ...textStyles.caption,
+    color: colors.neutral[400],
+  },
+
+  activeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    backgroundColor: colors.violet[100],
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+  },
+  activeDot: {
+    width: wp(7),
+    height: wp(7),
+    borderRadius: wp(4),
+    backgroundColor: '#22C55E',
+  },
+  activeChipText: {
+    ...textStyles.micro,
     fontFamily: fontFamily.semiBold,
-    color: colors.violet[600],
+    color: colors.violet[700],
   },
 });

@@ -39,19 +39,35 @@ import {
   LoadingSpinner,
 } from '../../src/components/ui';
 import { useDebounced } from '../../src/hooks/use-debounced';
+import { config } from '../../src/constants/config';
+import { useAuthStore } from '../../src/stores/auth.store';
 import type { StoreDto, StoreCategoryDto } from '../../src/types';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = (SCREEN_WIDTH - spacing[6] * 2 - spacing[3]) / 2;
-const HCARD_WIDTH = wp(160);
 const DEFAULT_STORE_IMAGE = require('../../assets/images/centered_logo_gradient.png');
 
-/** Resolve the best image for a store — fallback: store → partner → Maya default */
-const getStoreImageSource = (store: StoreDto) => {
-  if (store.imageUrl) return { uri: store.imageUrl };
-  if (store.partnerImageUrl) return { uri: store.partnerImageUrl };
-  return DEFAULT_STORE_IMAGE;
-};
+/** Image avec auth header + fallback sur erreur */
+function StoreImage({ store, style }: { store: StoreDto; style: any }) {
+  const [errored, setErrored] = React.useState(false);
+  const token = useAuthStore.getState().accessToken;
+
+  const source = !errored && store.partnerId
+    ? {
+        uri: `${config.api.baseUrl}/api/partners/${store.partnerId}/image`,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }
+    : DEFAULT_STORE_IMAGE;
+
+  return (
+    <Image
+      source={source}
+      style={style}
+      resizeMode={!errored && store.partnerId ? 'cover' : 'contain'}
+      onError={() => setErrored(true)}
+    />
+  );
+}
 
 export default function PartnersScreen() {
   const router = useRouter();
@@ -130,13 +146,10 @@ export default function PartnersScreen() {
     [storesByCategory],
   );
 
-  // ── Selected category → 2-column grid ──
-  const selectedStores = useMemo(() => {
-    if (!selectedCategory) return null;
-    return (
-      storesByCategory.find((g) => g.category.id === selectedCategory)?.stores ?? []
-    );
-  }, [selectedCategory, storesByCategory]);
+  const selectedStores = useMemo(
+    () => storesByCategory.find((g) => g.category.id === selectedCategory)?.stores ?? [],
+    [selectedCategory, storesByCategory],
+  );
 
   const navigateToStore = useCallback(
     (id: string) =>
@@ -151,37 +164,6 @@ export default function PartnersScreen() {
     categoriesQ.refetch();
   };
 
-  // ── Horizontal store card ──
-  const renderHCard = useCallback(
-    (store: StoreDto) => (
-      <TouchableOpacity
-        key={store.id}
-        style={styles.hCard}
-        activeOpacity={0.85}
-        onPress={() => navigateToStore(store.id)}
-      >
-        <Image source={getStoreImageSource(store)} style={styles.hCardImage} />
-        <View style={styles.hCardBody}>
-          <Text style={styles.hCardName} numberOfLines={1}>
-            {store.name || store.partnerName || 'Partenaire'}
-          </Text>
-          <Text style={styles.hCardCity} numberOfLines={1}>
-            {store.city || store.address || ''}
-          </Text>
-          {store.avgDiscountPercent > 0 && (
-            <MBadge
-              label={`-${Math.round(store.avgDiscountPercent)}%`}
-              variant="orange"
-              size="sm"
-              style={{ marginTop: spacing[1], alignSelf: 'flex-start' }}
-            />
-          )}
-        </View>
-      </TouchableOpacity>
-    ),
-    [navigateToStore],
-  );
-
   // ── Grid store card (2-column) ──
   const renderGridCard = useCallback(
     ({ item }: { item: StoreDto }) => (
@@ -190,7 +172,7 @@ export default function PartnersScreen() {
         activeOpacity={0.85}
         onPress={() => navigateToStore(item.id)}
       >
-        <Image source={getStoreImageSource(item)} style={styles.gridCardImage} />
+        <StoreImage store={item} style={styles.gridCardImage} />
         <View style={styles.gridCardBody}>
           <Text style={styles.gridCardName} numberOfLines={1}>
             {item.name || item.partnerName || 'Partenaire'}
@@ -212,37 +194,6 @@ export default function PartnersScreen() {
     [navigateToStore],
   );
 
-  // ── Category section with horizontal scroll ──
-  const renderCategorySection = useCallback(
-    (group: { category: StoreCategoryDto; stores: StoreDto[] }) => (
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {group.category.name || 'Autre'}
-          </Text>
-          <TouchableOpacity
-            onPress={() =>
-              setSelectedCategory(
-                selectedCategory === group.category.id
-                  ? null
-                  : group.category.id,
-              )
-            }
-          >
-            <Text style={styles.seeAll}>Voir tout</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hScroll}
-        >
-          {group.stores.slice(0, 10).map(renderHCard)}
-        </ScrollView>
-      </View>
-    ),
-    [renderHCard, selectedCategory],
-  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -371,10 +322,10 @@ export default function PartnersScreen() {
           onRetry={onRefresh}
           icon="storefront-outline"
         />
-      ) : selectedCategory ? (
-        /* 2-column grid for selected category */
+      ) : (
+        /* 2-column grid — all stores or filtered by category */
         <FlatList
-          data={selectedStores}
+          data={selectedCategory ? selectedStores! : filteredStores}
           numColumns={2}
           renderItem={renderGridCard}
           keyExtractor={(item) => item.id}
@@ -391,56 +342,30 @@ export default function PartnersScreen() {
           ListEmptyComponent={
             <EmptyState
               icon="storefront-outline"
-              title="Aucun partenaire"
-              description="Aucun partenaire dans cette catégorie."
-            />
-          }
-        />
-      ) : (
-        /* Category sections with horizontal scrolls */
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: wp(100) }}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.orange[500]}
-            />
-          }
-        >
-          {storesByCategory.length === 0 ? (
-            <EmptyState
-              icon="storefront-outline"
               title="Aucun partenaire trouvé"
               description="Essayez une autre recherche ou explorez la carte."
               actionLabel="Voir la carte"
               onAction={() => router.push('/(client)/stores-map')}
             />
-          ) : (
-            storesByCategory.map((group) => (
-              <React.Fragment key={group.category.id}>
-                {renderCategorySection(group)}
-              </React.Fragment>
-            ))
-          )}
-
-          {storesQ.hasNextPage && (
-            <TouchableOpacity
-              style={styles.loadMoreBtn}
-              onPress={() => storesQ.fetchNextPage()}
-              disabled={storesQ.isFetchingNextPage}
-            >
-              {storesQ.isFetchingNextPage ? (
-                <ActivityIndicator size="small" color={colors.orange[500]} />
-              ) : (
-                <Text style={styles.loadMoreText}>
-                  Charger plus de partenaires
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+          }
+          ListFooterComponent={
+            storesQ.hasNextPage ? (
+              <TouchableOpacity
+                style={styles.loadMoreBtn}
+                onPress={() => storesQ.fetchNextPage()}
+                disabled={storesQ.isFetchingNextPage}
+              >
+                {storesQ.isFetchingNextPage ? (
+                  <ActivityIndicator size="small" color={colors.orange[500]} />
+                ) : (
+                  <Text style={styles.loadMoreText}>
+                    Charger plus de partenaires
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null
+          }
+        />
       )}
     </View>
   );
@@ -556,60 +481,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     color: colors.neutral[500],
     fontSize: wp(10),
-  },
-
-  /* ── Category sections ── */
-  section: {
-    marginBottom: spacing[5],
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing[6],
-    marginBottom: spacing[3],
-  },
-  sectionTitle: {
-    ...textStyles.h4,
-    color: colors.neutral[900],
-  },
-  seeAll: {
-    ...textStyles.caption,
-    color: colors.orange[500],
-    fontFamily: fontFamily.semiBold,
-  },
-  hScroll: {
-    paddingLeft: spacing[6],
-    paddingRight: spacing[3],
-    gap: spacing[3],
-  },
-
-  /* ── Horizontal card ── */
-  hCard: {
-    width: HCARD_WIDTH,
-    backgroundColor: '#1E293B',
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    ...shadows.sm,
-  },
-  hCardImage: {
-    width: HCARD_WIDTH,
-    height: HCARD_WIDTH * 0.6,
-    resizeMode: 'cover',
-    backgroundColor: colors.neutral[100],
-  },
-  hCardBody: {
-    padding: spacing[3],
-  },
-  hCardName: {
-    ...textStyles.body,
-    fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
-  },
-  hCardCity: {
-    ...textStyles.micro,
-    color: colors.neutral[500],
-    marginTop: spacing[1],
   },
 
   /* ── Grid view (2-column) ── */

@@ -1,14 +1,7 @@
 /**
  * Maya Connect V2 — Store Operator Profile Screen
- *
- * Simplified profile for store operators:
- *  • Active store info
- *  • Change active store
- *  • Basic personal info
- *  • Change password
- *  • Logout
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,14 +22,13 @@ import { useAuthStore } from '../../src/stores/auth.store';
 import { usePartnerStore } from '../../src/stores/partner.store';
 import { operatorColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
-import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
+import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import {
   MButton,
   MCard,
   MAvatar,
   MBadge,
-  MHeader,
   MDivider,
   MModal,
 } from '../../src/components/ui';
@@ -54,11 +46,15 @@ export default function StoreOperatorProfileScreen() {
   const stores = usePartnerStore((s) => s.stores);
   const [showStoreModal, setShowStoreModal] = useState(false);
 
+  // Résoudre le nom du magasin depuis le tableau stores (StoreOperatorDto n'a pas storeName)
+  const storeName = useMemo(() => {
+    if (!activeStore?.storeId) return null;
+    return stores.find((s) => s.id === activeStore.storeId)?.name ?? null;
+  }, [activeStore?.storeId, stores]);
+
   // Check if user is Manager on the active store
   const operatorStores = user?.partnerData?.operatorStores ?? [];
-  const activeStoreInfo = operatorStores.find(
-    (s) => s.id === activeStore?.storeId,
-  );
+  const activeStoreInfo = operatorStores.find((s) => s.id === activeStore?.storeId);
   const isManager = activeStoreInfo?.isManager ?? false;
 
   /* ---- Avatar upload ---- */
@@ -100,39 +96,42 @@ export default function StoreOperatorProfileScreen() {
     router.replace('/auth/login');
   };
 
-  const handleLogout = () => setShowLogoutModal(true);
-
-  const storeName = (activeStore as any)?.storeName ?? 'Aucun magasin';
-
   return (
     <View style={styles.container}>
-      {/* Header with gradient */}
+      {/* Header gradient — paddingTop manuel, pas de MHeader interne */}
       <LinearGradient
         colors={['#FF7A18', '#FF9F45']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top }]}
+        style={[styles.header, { paddingTop: insets.top + spacing[3] }]}
       >
-        <MHeader title="Profil" transparent />
+        <Text style={styles.headerTitle}>Profil</Text>
+
         <View style={styles.avatarSection}>
-          <TouchableOpacity onPress={pickAvatar}>
+          <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap}>
             <MAvatar
               name={user?.firstName ?? 'O'}
               uri={user?.avatarUrl}
-              size="xl"
+              size="md"
             />
             <View style={styles.cameraBadge}>
-              <Ionicons name="camera" size={wp(14)} color="#FFFFFF" />
+              <Ionicons name="camera" size={wp(12)} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
-          <Text style={styles.profileName}>
-            {user?.firstName} {user?.lastName}
-          </Text>
-          <Text style={styles.profileEmail}>{user?.email}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>Opérateur</Text>
+
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName} numberOfLines={1}>
+              {user?.firstName} {user?.lastName}
+            </Text>
+            <Text style={styles.profileEmail} numberOfLines={1}>
+              {user?.email}
+            </Text>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>Opérateur</Text>
+            </View>
           </View>
         </View>
+
       </LinearGradient>
 
       <ScrollView
@@ -148,9 +147,13 @@ export default function StoreOperatorProfileScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.storeCardLabel}>Magasin actif</Text>
-              <Text style={styles.storeCardName}>{storeName}</Text>
+              <Text style={styles.storeCardName}>
+                {storeName ?? 'Aucun magasin sélectionné'}
+              </Text>
             </View>
-            <MBadge label="Actif" variant="success" size="sm" />
+            {storeName ? (
+              <MBadge label="Actif" variant="success" size="sm" />
+            ) : null}
           </View>
 
           {stores.length > 1 ? (
@@ -222,7 +225,7 @@ export default function StoreOperatorProfileScreen() {
         <MButton
           title="Se déconnecter"
           variant="ghost"
-          onPress={handleLogout}
+          onPress={() => setShowLogoutModal(true)}
           style={styles.logoutBtn}
           icon={<Ionicons name="log-out-outline" size={wp(18)} color={colors.error[500]} />}
         />
@@ -230,7 +233,6 @@ export default function StoreOperatorProfileScreen() {
         <View style={{ height: wp(100) }} />
       </ScrollView>
 
-      {/* Logout confirmation modal */}
       <MModal
         visible={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -258,7 +260,6 @@ export default function StoreOperatorProfileScreen() {
         </View>
       </MModal>
 
-      {/* Store selection modal */}
       <StoreSelectionModal
         visible={showStoreModal}
         onDismiss={() => setShowStoreModal(false)}
@@ -269,41 +270,60 @@ export default function StoreOperatorProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.neutral[50] },
+
   header: {
     paddingHorizontal: spacing[4],
     paddingBottom: spacing[6],
+    borderBottomLeftRadius: wp(32),
+    borderBottomRightRadius: wp(32),
+    overflow: 'hidden',
+  },
+  headerTitle: {
+    ...textStyles.h4,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: spacing[3],
   },
   avatarSection: {
     alignItems: 'center',
-    marginTop: spacing[2],
+    gap: spacing[2],
+  },
+  avatarWrap: {
+    position: 'relative',
   },
   cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: wp(30),
-    height: wp(30),
-    borderRadius: wp(15),
+    width: wp(22),
+    height: wp(22),
+    borderRadius: wp(11),
     backgroundColor: colors.violet[500],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
+  profileInfo: {
+    alignItems: 'center',
+    gap: 2,
+  },
   profileName: {
-    ...textStyles.h3,
+    ...textStyles.h4,
     color: '#FFFFFF',
-    marginTop: spacing[3],
+    textAlign: 'center',
   },
   profileEmail: {
     ...textStyles.caption,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: spacing[1],
+    color: 'rgba(255,255,255,0.75)',
+    textAlign: 'center',
   },
   roleBadge: {
-    marginTop: spacing[2],
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
+    alignSelf: 'center',
+    marginTop: spacing[1],
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
     borderRadius: borderRadius.full,
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
@@ -312,11 +332,40 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     color: '#FFFFFF',
   },
-  scroll: { flex: 1 },
-  scrollContent: { padding: spacing[4] },
-  storeCard: {
-    marginBottom: spacing[4],
+  storeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    marginTop: spacing[3],
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignSelf: 'center',
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderRadius: borderRadius.full,
   },
+  storeChipText: {
+    ...textStyles.micro,
+    fontFamily: fontFamily.semiBold,
+    color: '#FFFFFF',
+    maxWidth: wp(180),
+  },
+  managerChip: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+    marginLeft: spacing[1],
+  },
+  managerChipText: {
+    ...textStyles.micro,
+    fontFamily: fontFamily.semiBold,
+    color: '#FFFFFF',
+  },
+
+  scroll: { flex: 1 },
+  scrollContent: { padding: spacing[4], paddingTop: spacing[5] },
+
+  storeCard: { marginBottom: spacing[4] },
   storeCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -342,6 +391,7 @@ const styles = StyleSheet.create({
     color: colors.neutral[900],
     marginTop: spacing[1],
   },
+
   infoCard: { marginBottom: spacing[4] },
   sectionTitle: {
     ...textStyles.body,
@@ -364,6 +414,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
     color: colors.neutral[900],
   },
+
   menuCard: { marginBottom: spacing[4] },
   menuItem: {
     flexDirection: 'row',

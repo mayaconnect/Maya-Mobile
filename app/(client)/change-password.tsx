@@ -1,7 +1,5 @@
 /**
  * Maya Connect V2 — Change Password Screen
- * 
- * Allows users to change their password with current password verification
  */
 import React, { useState } from 'react';
 import {
@@ -10,6 +8,8 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,16 +19,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { authApi } from '../../src/api';
-import { clientColors as colors } from '../../src/theme/colors';
+import { colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
-import { spacing } from '../../src/theme/spacing';
-import { wp } from '../../src/utils/responsive';
-import { MHeader, MInput, MButton } from '../../src/components/ui';
+import { spacing, borderRadius } from '../../src/theme/spacing';
+import { wp, isIOS } from '../../src/utils/responsive';
+import { MInput, MButton } from '../../src/components/ui';
 
-/* ─────────────────────────────────────────────────────────────── */
-/*  Schema                                                           */
-/* ─────────────────────────────────────────────────────────────── */
 const schema = z.object({
   currentPassword: z.string().min(6, 'Mot de passe actuel requis'),
   newPassword: z.string().min(8, 'Minimum 8 caractères'),
@@ -40,9 +38,6 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-/* ─────────────────────────────────────────────────────────────── */
-/*  Component                                                        */
-/* ─────────────────────────────────────────────────────────────── */
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -52,37 +47,18 @@ export default function ChangePasswordScreen() {
 
   const { control, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    },
+    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
   });
 
   const changeMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      // First, login with current password to verify
-      // Then call password change endpoint (if API has one)
-      // For now, we'll use a placeholder API call
-      
-      // TODO: Implement actual password change API endpoint
-      // Example: await authApi.changePassword({ currentPassword: data.currentPassword, newPassword: data.newPassword })
-      
-      // Placeholder simulation
       return new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        'Succès',
-        'Votre mot de passe a été modifié avec succès.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
+      Alert.alert('Succès', 'Votre mot de passe a été modifié avec succès.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
       reset();
     },
     onError: () => {
@@ -90,35 +66,36 @@ export default function ChangePasswordScreen() {
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    changeMutation.mutate(data);
-  };
-
   return (
-    <View style={styles.container}>
-      <MHeader
-        title="Changer le mot de passe"
-        showBack
-        onBack={() => router.back()}
-      />
+    <KeyboardAvoidingView
+      style={[styles.flex, { backgroundColor: '#FFFFFF' }]}
+      behavior={isIOS ? 'padding' : undefined}
+    >
+      {/* Top area — blanc */}
+      <View style={[styles.topArea, { paddingTop: insets.top + spacing[3] }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={wp(24)} color={colors.neutral[700]} />
+        </TouchableOpacity>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + wp(100) },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Ionicons name="information-circle-outline" size={wp(24)} color={colors.info[500]} />
-          <Text style={styles.infoText}>
-            Assurez-vous de choisir un mot de passe fort combinant lettres, chiffres et caractères spéciaux.
-          </Text>
+        <View style={styles.iconCircle}>
+          <Ionicons name="lock-closed-outline" size={wp(32)} color={colors.orange[500]} />
         </View>
+        <Text style={styles.heading}>Changer le mot de passe</Text>
+        <Text style={styles.sub}>
+          Choisissez un mot de passe fort combinant lettres, chiffres et caractères spéciaux.
+        </Text>
+      </View>
 
-        {/* Form */}
-        <View style={styles.section}>
+      {/* Card sombre */}
+      <LinearGradient
+        colors={['#1E293B', '#0F172A']}
+        style={[styles.card, { paddingBottom: insets.bottom + spacing[6] }]}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.cardContent}
+        >
           <Controller
             control={control}
             name="currentPassword"
@@ -160,8 +137,8 @@ export default function ChangePasswordScreen() {
             name="confirmPassword"
             render={({ field: { onChange, onBlur, value } }) => (
               <MInput
-                label="Confirmer le nouveau mot de passe"
-                icon="lock-closed-outline"
+                label="Confirmer le mot de passe"
+                icon="shield-checkmark-outline"
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
@@ -175,82 +152,72 @@ export default function ChangePasswordScreen() {
 
           <MButton
             title="Modifier le mot de passe"
-            onPress={handleSubmit(onSubmit)}
+            onPress={handleSubmit((data) => changeMutation.mutate(data))}
             loading={changeMutation.isPending}
             disabled={changeMutation.isPending}
             style={{ marginTop: spacing[2] }}
           />
-        </View>
-
-        {/* Security Tips */}
-        <View style={styles.tipsSection}>
-          <Text style={styles.tipsTitle}>Conseils de sécurité</Text>
-          {[
-            'Utilisez un mot de passe unique pour chaque service',
-            'Évitez les informations personnelles évidentes',
-            'Changez votre mot de passe régulièrement',
-            'Activez l\'authentification biométrique quand c\'est possible',
-          ].map((tip, i) => (
-            <View key={i} style={styles.tipRow}>
-              <Ionicons name="checkmark-circle" size={wp(16)} color={colors.success[500]} />
-              <Text style={styles.tipText}>{tip}</Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────── */
-/*  Styles                                                           */
-/* ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-  },
-  scroll: {
+  flex: { flex: 1 },
+
+  topArea: {
+    flex: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing[6],
   },
-  infoCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.info[50],
-    padding: spacing[4],
-    borderRadius: spacing[3],
-    marginTop: spacing[4],
-    gap: spacing[3],
+  backBtn: {
+    position: 'absolute',
+    top: 0,
+    left: spacing[4],
+    width: wp(40),
+    height: wp(40),
+    borderRadius: wp(20),
+    backgroundColor: colors.neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  infoText: {
-    ...textStyles.caption,
-    color: colors.info[700],
-    flex: 1,
-    lineHeight: wp(18),
+  iconCircle: {
+    width: wp(72),
+    height: wp(72),
+    borderRadius: wp(36),
+    backgroundColor: colors.orange[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[4],
   },
-  section: {
-    marginTop: spacing[6],
-  },
-  tipsSection: {
-    marginTop: spacing[8],
-    padding: spacing[4],
-    backgroundColor: '#1E293B',
-    borderRadius: spacing[3],
-  },
-  tipsTitle: {
-    ...textStyles.h5,
+  heading: {
+    ...textStyles.h3,
     fontFamily: fontFamily.bold,
     color: colors.neutral[900],
-    marginBottom: spacing[3],
+    textAlign: 'center',
+    marginBottom: spacing[2],
   },
-  tipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    marginTop: spacing[2],
+  sub: {
+    ...textStyles.body,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    paddingHorizontal: spacing[2],
   },
-  tipText: {
-    ...textStyles.caption,
-    color: colors.neutral[600],
-    flex: 1,
+
+  card: {
+    flex: 3,
+    borderTopLeftRadius: wp(32),
+    borderTopRightRadius: wp(32),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 16,
+  },
+  cardContent: {
+    paddingHorizontal: spacing[6],
+    paddingTop: spacing[6],
   },
 });

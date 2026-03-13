@@ -33,18 +33,20 @@ const PAGE_SIZE = 15;
 
 export default function PartnerHistoryScreen() {
   const activeStore = usePartnerStore((s) => s.activeStore);
-  const storeId = activeStore?.storeId;
+  const partner = usePartnerStore((s) => s.partner);
+  const storeId = activeStore?.storeId ?? undefined;
+  const partnerId = partner?.id ?? undefined;
 
   const txQ = useInfiniteQuery({
-    queryKey: ['partnerTxHistory', storeId],
+    queryKey: ['partnerTxHistory', partnerId, storeId],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
-      transactionsApi.getFiltered({
-        StoreId: storeId,
-        Page: pageParam,
-        PageSize: PAGE_SIZE,
+      transactionsApi.getByPartner(partnerId!, {
+        storeId,
+        page: pageParam,
+        pageSize: PAGE_SIZE,
       }),
-    enabled: !!storeId,
+    enabled: !!partnerId,
     getNextPageParam: (lastPage) => {
       const d = lastPage.data;
       return d.page < d.totalPages ? d.page + 1 : undefined;

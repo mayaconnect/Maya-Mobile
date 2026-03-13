@@ -32,9 +32,9 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { name: 'dashboard', title: 'Accueil', icon: 'home-outline', iconFocused: 'home' },
+  { name: 'history', title: 'Historique', icon: 'receipt-outline', iconFocused: 'receipt' },
   { name: 'scanner', title: 'Scanner', icon: 'scan-outline', iconFocused: 'scan' },
   { name: 'my-stores', title: 'Magasins', icon: 'storefront-outline', iconFocused: 'storefront' },
-  { name: 'history', title: 'Historique', icon: 'receipt-outline', iconFocused: 'receipt' },
   { name: 'profile', title: 'Profil', icon: 'person-outline', iconFocused: 'person' },
 ];
 
@@ -57,8 +57,8 @@ export default function StoreOperatorLayout() {
         },
         tabBarStyle: {
           position: 'absolute',
-          height: wp(80) + insets.bottom,
-          paddingTop: spacing[2],
+          height: wp(62) + insets.bottom,
+          paddingTop: spacing[1],
           borderTopWidth: 0,
           backgroundColor: isIOS ? 'transparent' : '#FFFFFF',
           ...shadows.xl,

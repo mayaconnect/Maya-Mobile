@@ -166,31 +166,33 @@ export default function PartnerProfileScreen() {
       >
         <MHeader title="Profil" transparent />
         <View style={styles.avatarSection}>
-          <TouchableOpacity onPress={pickAvatar}>
+          <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap}>
             <MAvatar
               name={profile?.firstName ?? 'P'}
               uri={profile?.avatarUrl}
-              size="xl"
+              size="md"
             />
             <View style={styles.cameraBadge}>
-              <Ionicons name="camera" size={wp(14)} color="#FFFFFF" />
+              <Ionicons name="camera" size={wp(12)} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
-          <Text style={styles.profileName}>
-            {profile?.firstName} {profile?.lastName}
-          </Text>
-          <Text style={styles.profileEmail}>{profile?.email}</Text>
-          {(() => {
-            const roleName = profile?.role?.toLowerCase?.() ??
-              profile?.roles?.[0]?.name?.toLowerCase?.() ?? '';
-            return roleName ? (
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>
-                  {roleName === 'partner' ? 'Partenaire' : 'Opérateur'}
-                </Text>
-              </View>
-            ) : null;
-          })()}
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName} numberOfLines={1}>
+              {profile?.firstName} {profile?.lastName}
+            </Text>
+            <Text style={styles.profileEmail} numberOfLines={1}>{profile?.email}</Text>
+            {(() => {
+              const roleName = profile?.role?.toLowerCase?.() ??
+                profile?.roles?.[0]?.name?.toLowerCase?.() ?? '';
+              return roleName ? (
+                <View style={styles.roleBadge}>
+                  <Text style={styles.roleText}>
+                    {roleName === 'partner' ? 'Partenaire' : 'Opérateur'}
+                  </Text>
+                </View>
+              ) : null;
+            })()}
+          </View>
         </View>
       </LinearGradient>
 
@@ -353,39 +355,47 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.neutral[50] },
   header: {
     paddingHorizontal: spacing[4],
-    paddingBottom: spacing[6],
+    paddingBottom: spacing[4],
   },
   avatarSection: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing[3],
     marginTop: spacing[2],
+  },
+  avatarWrap: {
+    position: 'relative',
   },
   cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: wp(30),
-    height: wp(30),
-    borderRadius: wp(15),
+    width: wp(22),
+    height: wp(22),
+    borderRadius: wp(11),
     backgroundColor: colors.violet[500],
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
+  profileInfo: {
+    flex: 1,
+    gap: 2,
+  },
   profileName: {
-    ...textStyles.h3,
+    ...textStyles.h4,
     color: '#FFFFFF',
-    marginTop: spacing[3],
   },
   profileEmail: {
     ...textStyles.caption,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: spacing[1],
+    color: 'rgba(255,255,255,0.75)',
   },
   roleBadge: {
-    marginTop: spacing[2],
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
+    alignSelf: 'flex-start',
+    marginTop: spacing[1],
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
     borderRadius: borderRadius.full,
     backgroundColor: 'rgba(255,255,255,0.2)',
   },

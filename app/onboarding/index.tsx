@@ -1,12 +1,5 @@
 /**
  * Maya Connect V2 — Onboarding Screen
- *
- * 4 beautiful swipable slides with:
- *  • Gradient backgrounds
- *  • Animated illustrations (Ionicons placeholders)
- *  • Pro French marketing copy
- *  • Pagination dots
- *  • Skip + Next + Commencer CTA
  */
 import React, { useRef, useState, useCallback } from 'react';
 import {
@@ -22,31 +15,20 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  interpolate,
-  Extrapolation,
-} from 'react-native-reanimated';
 import { useAuthStore } from '../../src/stores/auth.store';
-import { colors, gradients } from '../../src/theme/colors';
+import { colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp, hp } from '../../src/utils/responsive';
 import { MButton } from '../../src/components/ui';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: W } = Dimensions.get('window');
 
-/* ------------------------------------------------------------------ */
-/*  Slides Data                                                        */
-/* ------------------------------------------------------------------ */
 interface Slide {
   id: string;
   icon: keyof typeof Ionicons.glyphMap;
+  iconBg: string;
   iconColor: string;
-  bgGradient: readonly string[];
   title: string;
   subtitle: string;
   description: string;
@@ -56,57 +38,49 @@ const SLIDES: Slide[] = [
   {
     id: '1',
     icon: 'paw',
+    iconBg: `${colors.orange[500]}18`,
     iconColor: colors.orange[500],
-    bgGradient: [colors.orange[50], '#FFFFFF'],
     title: 'Bienvenue sur\nMaya Connect',
     subtitle: 'Votre compagnon fidélité',
-    description:
-      'Découvrez une nouvelle façon de profiter de réductions exclusives auprès de nos partenaires locaux. Maya, votre chiot préféré, vous guide !',
+    description: 'Découvrez une nouvelle façon de profiter de réductions exclusives auprès de nos partenaires locaux. Maya, votre chiot préféré, vous guide !',
   },
   {
     id: '2',
     icon: 'qr-code',
+    iconBg: `${colors.violet[500]}18`,
     iconColor: colors.violet[500],
-    bgGradient: [colors.violet[50], '#FFFFFF'],
     title: 'Scannez &\nÉconomisez',
     subtitle: 'Simple comme bonjour',
-    description:
-      'Présentez votre QR code unique chez nos partenaires et bénéficiez instantanément de remises allant jusqu\'à 50 % sur vos achats.',
+    description: 'Présentez votre QR code unique chez nos partenaires et bénéficiez instantanément de remises allant jusqu\'à 50 % sur vos achats.',
   },
   {
     id: '3',
     icon: 'storefront',
+    iconBg: `${colors.orange[500]}18`,
     iconColor: colors.orange[500],
-    bgGradient: [colors.orange[50], '#FFFFFF'],
     title: 'Nos Partenaires\nPrès de Vous',
     subtitle: 'Un réseau qui grandit',
-    description:
-      'Restaurants, boutiques, salons de beauté, loisirs… Explorez notre carte interactive et trouvez les meilleures offres autour de vous.',
+    description: 'Restaurants, boutiques, salons de beauté, loisirs… Explorez notre carte interactive et trouvez les meilleures offres autour de vous.',
   },
   {
     id: '4',
     icon: 'diamond',
+    iconBg: `${colors.violet[500]}18`,
     iconColor: colors.violet[500],
-    bgGradient: [colors.violet[50], '#FFFFFF'],
     title: 'Abonnement\nPremium',
     subtitle: 'Des avantages sans limites',
-    description:
-      'Choisissez la formule qui vous correspond et commencez à économiser dès aujourd\'hui. Essai gratuit de 7 jours inclus !',
+    description: 'Choisissez la formule qui vous correspond et commencez à économiser dès aujourd\'hui. Essai gratuit de 7 jours inclus !',
   },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const flatListRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const scrollX = useSharedValue(0);
 
-  const isLastSlide = activeIndex === SLIDES.length - 1;
+  const isLast = activeIndex === SLIDES.length - 1;
 
   const handleDone = useCallback(async () => {
     await completeOnboarding();
@@ -114,18 +88,14 @@ export default function OnboardingScreen() {
   }, [completeOnboarding, router]);
 
   const handleNext = useCallback(() => {
-    if (isLastSlide) {
+    if (isLast) {
       handleDone();
     } else {
-      const nextIndex = activeIndex + 1;
-      flatListRef.current?.scrollToIndex({
-        index: nextIndex,
-        animated: true,
-      });
-      // Also update activeIndex immediately so dots reflect the change
-      setActiveIndex(nextIndex);
+      const next = activeIndex + 1;
+      flatListRef.current?.scrollToIndex({ index: next, animated: true });
+      setActiveIndex(next);
     }
-  }, [activeIndex, isLastSlide, handleDone]);
+  }, [activeIndex, isLast, handleDone]);
 
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -135,46 +105,35 @@ export default function OnboardingScreen() {
     },
   ).current;
 
-  const viewabilityConfig = useRef({
-    viewAreaCoveragePercentThreshold: 50,
-  }).current;
+  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
-  /* ---- Render each slide ---- */
-  const renderItem = useCallback(
-    ({ item, index }: { item: Slide; index: number }) => (
-      <LinearGradient
-        colors={item.bgGradient as [string, string, ...string[]]}
-        style={styles.slide}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-      >
-        {/* Icon */}
-        <View
-          style={[
-            styles.iconCircle,
-            { backgroundColor: `${item.iconColor}15` },
-          ]}
-        >
-          <Ionicons
-            name={item.icon}
-            size={wp(64)}
-            color={item.iconColor}
-          />
+  const renderItem = useCallback(({ item }: { item: Slide }) => (
+    <View style={styles.slide}>
+      {/* Zone blanche — icône + titre + subtitle */}
+      <View style={styles.slideTop}>
+        <View style={[styles.iconCircle, { backgroundColor: item.iconBg }]}>
+          <Ionicons name={item.icon} size={wp(60)} color={item.iconColor} />
         </View>
-
-        {/* Text */}
         <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.subtitle}>{item.subtitle}</Text>
+        <Text style={[styles.subtitle, { color: item.iconColor }]}>{item.subtitle}</Text>
+      </View>
+
+      {/* Bulle sombre — description */}
+      <LinearGradient
+        colors={['#1E293B', '#0F172A']}
+        style={styles.slideBottom}
+      >
         <Text style={styles.description}>{item.description}</Text>
       </LinearGradient>
-    ),
-    [],
-  );
+    </View>
+  ), []);
+
+  const current = SLIDES[activeIndex];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
       {/* Skip */}
-      {!isLastSlide && (
+      {!isLast && (
         <TouchableOpacity
           onPress={handleDone}
           style={[styles.skipBtn, { top: insets.top + spacing[3] }]}
@@ -184,7 +143,6 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Slides */}
       <FlatList
         ref={flatListRef}
         data={SLIDES}
@@ -194,61 +152,61 @@ export default function OnboardingScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         bounces={false}
-        getItemLayout={(_, index) => ({
-          length: SCREEN_WIDTH,
-          offset: SCREEN_WIDTH * index,
-          index,
-        })}
+        getItemLayout={(_, index) => ({ length: W, offset: W * index, index })}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        onScroll={(e) => {
-          scrollX.value = e.nativeEvent.contentOffset.x;
-        }}
         scrollEventThrottle={16}
+        style={styles.flatList}
       />
 
-      {/* Bottom controls */}
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + spacing[6] }]}>
+      {/* Contrôles fixes en bas (dots + bouton) */}
+      <LinearGradient
+        colors={['#1E293B', '#0F172A']}
+        style={[styles.controls, { paddingBottom: insets.bottom + spacing[6] }]}
+      >
         {/* Dots */}
-        <View style={styles.dotsContainer}>
-          {SLIDES.map((_, i) => {
-            const isActive = i === activeIndex;
-            return (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  isActive ? styles.dotActive : styles.dotInactive,
-                ]}
-              />
-            );
-          })}
+        <View style={styles.dotsRow}>
+          {SLIDES.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === activeIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
         </View>
 
-        {/* CTA */}
-        <MButton
-          title={isLastSlide ? 'Commencer' : 'Suivant'}
-          onPress={handleNext}
-          variant={isLastSlide ? 'primary' : 'primary'}
-          icon={
-            !isLastSlide ? (
-              <Ionicons name="arrow-forward" size={wp(18)} color="#FFF" />
-            ) : undefined
-          }
-          iconPosition="right"
-        />
-      </View>
+        {/* Boutons */}
+        <View style={styles.btnRow}>
+          {!isLast && (
+            <TouchableOpacity onPress={handleDone} style={styles.ghostBtn}>
+              <Text style={styles.ghostBtnText}>Passer</Text>
+            </TouchableOpacity>
+          )}
+          <MButton
+            title={isLast ? 'Commencer' : 'Suivant'}
+            onPress={handleNext}
+            style={[styles.nextBtn, isLast && { flex: 1 }]}
+            icon={
+              !isLast ? (
+                <Ionicons name="arrow-forward" size={wp(18)} color="#FFF" />
+              ) : undefined
+            }
+            iconPosition="right"
+          />
+        </View>
+      </LinearGradient>
     </View>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Styles                                                             */
-/* ------------------------------------------------------------------ */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+  },
+  flatList: {
+    flex: 1,
   },
   skipBtn: {
     position: 'absolute',
@@ -257,64 +215,99 @@ const styles = StyleSheet.create({
   },
   skipText: {
     ...textStyles.body,
-    color: colors.neutral[500],
+    color: colors.neutral[400],
     fontFamily: fontFamily.medium,
   },
+
+  /* Slide */
   slide: {
-    width: SCREEN_WIDTH,
+    width: W,
+    flex: 1,
+  },
+  slideTop: {
+    flex: 2,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[8],
-    paddingBottom: hp(120),
+    backgroundColor: '#FFFFFF',
   },
+  slideBottom: {
+    flex: 1,
+    borderTopLeftRadius: wp(32),
+    borderTopRightRadius: wp(32),
+    paddingHorizontal: spacing[6],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[2],
+    justifyContent: 'center',
+  },
+
   iconCircle: {
-    width: wp(140),
-    height: wp(140),
-    borderRadius: wp(70),
+    width: wp(120),
+    height: wp(120),
+    borderRadius: wp(60),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing[8],
+    marginBottom: spacing[6],
   },
   title: {
-    ...textStyles.h1,
+    ...textStyles.h2,
     color: colors.neutral[900],
     textAlign: 'center',
     marginBottom: spacing[2],
   },
   subtitle: {
     ...textStyles.h4,
-    color: colors.orange[500],
+    fontFamily: fontFamily.semiBold,
     textAlign: 'center',
-    marginBottom: spacing[4],
   },
   description: {
     ...textStyles.body,
-    color: colors.neutral[600],
+    color: 'rgba(255,255,255,0.75)',
     textAlign: 'center',
     lineHeight: wp(22),
-    maxWidth: wp(320),
   },
-  bottom: {
+
+  /* Contrôles fixes */
+  controls: {
     paddingHorizontal: spacing[6],
+    paddingTop: spacing[5],
   },
-  dotsContainer: {
+  dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: spacing[6],
+    gap: spacing[2],
+    marginBottom: spacing[5],
   },
   dot: {
+    height: wp(8),
     borderRadius: wp(4),
-    marginHorizontal: spacing[1],
   },
   dotActive: {
-    width: wp(28),
-    height: wp(8),
+    width: wp(24),
     backgroundColor: colors.orange[500],
-    borderRadius: wp(4),
   },
   dotInactive: {
     width: wp(8),
-    height: wp(8),
-    backgroundColor: colors.neutral[200],
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    alignItems: 'center',
+  },
+  ghostBtn: {
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  ghostBtnText: {
+    ...textStyles.body,
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  nextBtn: {
+    flex: 1,
   },
 });

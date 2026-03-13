@@ -40,6 +40,8 @@ import {
   LoadingSpinner,
   EmptyState,
 } from '../../src/components/ui';
+import { config } from '../../src/constants/config';
+import { useAuthStore } from '../../src/stores/auth.store';
 import type { StoreDto } from '../../src/types';
 import {
   parseOpeningHours,
@@ -53,14 +55,31 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const HERO_HEIGHT = wp(280);
 const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
 
-/* ── Day labels / order now imported from types ── */
+function HeroImage({ store, style }: { store: StoreDto; style: any }) {
+  const [errored, setErrored] = React.useState(false);
+  const token = useAuthStore.getState().accessToken;
 
-/** Get the best image source for the store */
-function getImageSource(store: StoreDto) {
-  if (store.imageUrl) return { uri: store.imageUrl };
-  if (store.partnerImageUrl) return { uri: store.partnerImageUrl };
-  return DEFAULT_IMAGE;
+  const source = !errored && store.partnerId
+    ? {
+        uri: `${config.api.baseUrl}/api/partners/${store.partnerId}/image`,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      }
+    : DEFAULT_IMAGE;
+
+  return (
+    <Image
+      source={source}
+      style={style}
+      resizeMode={!errored && store.partnerId ? 'cover' : 'contain'}
+      onError={() => setErrored(true)}
+    />
+  );
 }
+
+const getPartnerImageUri = (store: StoreDto) =>
+  store.partnerId
+    ? `${config.api.baseUrl}/api/partners/${store.partnerId}/image`
+    : null;
 
 /** Build a Google Maps / Apple Maps directions URL */
 function getDirectionsUrl(store: StoreDto): string | null {
@@ -92,6 +111,12 @@ export default function PartnerDetailsScreen() {
 
   const store = detailsQ.data;
 
+  React.useEffect(() => {
+    if (store) {
+      console.log('[PartnerDetails] store.id:', store.id, 'partnerId:', store.partnerId, 'imageUrl:', store.imageUrl, 'partnerImageUrl:', store.partnerImageUrl);
+    }
+  }, [store?.id]);
+
   const openingHours = useMemo(
     () => parseOpeningHours(store?.openingJson),
     [store?.openingJson],
@@ -109,7 +134,7 @@ export default function PartnerDetailsScreen() {
         title="Partenaire introuvable"
         description="Ce partenaire n'existe pas ou a été supprimé."
         actionLabel="Retour"
-        onAction={() => router.back()}
+        onAction={() => router.replace('/(client)/partners')}
       />
     );
   }
@@ -129,7 +154,7 @@ export default function PartnerDetailsScreen() {
       >
         {/* ── Hero image with gradient overlay ── */}
         <View style={styles.heroWrap}>
-          <Image source={getImageSource(store)} style={styles.heroImage} />
+          <HeroImage store={store} style={styles.heroImage} />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.7)']}
             style={styles.heroGradient}
@@ -137,7 +162,7 @@ export default function PartnerDetailsScreen() {
           {/* Back button */}
           <TouchableOpacity
             style={[styles.backBtn, { top: insets.top + spacing[2] }]}
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(client)/partners')}
           >
             <Ionicons name="arrow-back" size={wp(22)} color="#FFF" />
           </TouchableOpacity>
@@ -406,7 +431,7 @@ export default function PartnerDetailsScreen() {
                 <MAvatar
                   name={store.partnerName}
                   size="md"
-                  uri={store.partnerImageUrl}
+                  uri={store.partnerId ? `${config.api.baseUrl}/api/partners/${store.partnerId}/image` : undefined}
                 />
                 <View style={styles.partnerInfo}>
                   <Text style={styles.partnerName}>{store.partnerName}</Text>

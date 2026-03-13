@@ -51,8 +51,6 @@ export default function StoreOperatorDashboardScreen() {
   const activeStoreZus = usePartnerStore((s) => s.activeStore);
   const [showStoreModal, setShowStoreModal] = useState(false);
 
-  const partnerId = partner?.id;
-
   /* ---- Active store (with 404 graceful handling) ---- */
   const activeStoreQ = useQuery({
     queryKey: ['activeStore'],
@@ -73,6 +71,16 @@ export default function StoreOperatorDashboardScreen() {
     const found = stores.find((s) => s.id === storeId);
     return found?.name ?? null;
   }, [storeId, stores]);
+
+  // Dériver partnerId depuis le magasin actif (pas depuis partner?.id qui
+  // reflète toujours le 1er partenaire trouvé au init)
+  const partnerId = useMemo(() => {
+    if (storeId) {
+      const found = stores.find((s) => s.id === storeId);
+      if (found?.partnerId) return found.partnerId;
+    }
+    return partner?.id;
+  }, [storeId, stores, partner?.id]);
 
   /* ---- Store scan count ---- */
   const storeScansQ = useQuery({
@@ -101,10 +109,10 @@ export default function StoreOperatorDashboardScreen() {
 
   /* ---- Active store recent transactions ---- */
   const recentQ = useQuery({
-    queryKey: ['partnerRecentTx', storeId],
+    queryKey: ['partnerRecentTx', partnerId, storeId],
     queryFn: () =>
-      transactionsApi.getFiltered({ StoreId: storeId, Page: 1, PageSize: 5 }),
-    enabled: !!storeId,
+      transactionsApi.getByPartner(partnerId!, { storeId, page: 1, pageSize: 5 }),
+    enabled: !!partnerId,
     select: (res) => res.data,
   });
 
@@ -280,35 +288,32 @@ export default function StoreOperatorDashboardScreen() {
         </MCard>
 
         {/* ── Recent transactions (active store) ── */}
-        <Text style={styles.sectionTitle}>Transactions récentes</Text>
-        {Array.isArray(recent) && recent.length > 0 ? (
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Transactions récentes</Text>
+          <TouchableOpacity onPress={() => router.push('/(storeoperator)/history')}>
+            <Text style={styles.seeAll}>Voir tout</Text>
+          </TouchableOpacity>
+        </View>
+
+        {recentQ.isLoading ? (
+          <LoadingSpinner message="Chargement…" />
+        ) : Array.isArray(recent) && recent.length > 0 ? (
           recent.map((tx: any) => (
-            <MCard key={tx.transactionId} style={styles.txCard} elevation="sm">
+            <MCard key={tx.transactionId ?? tx.id} style={styles.txCard} elevation="sm">
               <View style={styles.txRow}>
                 <View style={styles.txIcon}>
-                  <Ionicons
-                    name="receipt-outline"
-                    size={wp(18)}
-                    color={colors.violet[500]}
-                  />
+                  <Ionicons name="receipt-outline" size={wp(18)} color={colors.violet[500]} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.txName} numberOfLines={1}>
                     {formatClientNameShort(tx.clientName ?? tx.customerName, `Client #${tx.customerUserId?.slice(0, 6) ?? '—'}`)}
                   </Text>
-                  <Text style={styles.txDate}>
-                    {formatDateTime(tx.createdAt)}
-                  </Text>
+                  <Text style={styles.txDate}>{formatDateTime(tx.createdAt)}</Text>
                 </View>
                 <View style={styles.txAmounts}>
-                  <Text style={styles.txGross}>
-                    {formatPrice(tx.amountGross ?? 0)}
-                  </Text>
-                  <MBadge
-                    label={`-${tx.discountPercent ?? 0}%`}
-                    variant="warning"
-                    size="sm"
-                  />
+                  <Text style={styles.txGross}>{formatPrice(tx.amountGross ?? 0)}</Text>
+                  <MBadge label={`-${tx.discountPercent ?? 0}%`} variant="warning" size="sm" />
+                  <Text style={styles.txNet}>Net: {formatPrice(tx.amountNet ?? 0)}</Text>
                 </View>
               </View>
             </MCard>
@@ -365,6 +370,9 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing[4],
     paddingBottom: spacing[5],
+    borderBottomLeftRadius: wp(32),
+    borderBottomRightRadius: wp(32),
+    overflow: 'hidden',
   },
   headerRow: {
     flexDirection: 'row',
@@ -474,10 +482,20 @@ const styles = StyleSheet.create({
     color: colors.neutral[500],
     marginTop: spacing[1],
   },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing[3],
+  },
   sectionTitle: {
     ...textStyles.h4,
     color: colors.neutral[900],
-    marginBottom: spacing[3],
+  },
+  seeAll: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.semiBold,
+    color: colors.violet[600],
   },
   actionsRow: {
     flexDirection: 'row',
@@ -536,5 +554,10 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     color: colors.neutral[900],
     marginBottom: spacing[1],
+  },
+  txNet: {
+    ...textStyles.micro,
+    color: colors.neutral[500],
+    marginTop: spacing[1],
   },
 });

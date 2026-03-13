@@ -35,8 +35,8 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { name: 'dashboard', title: 'Dashboard', icon: 'grid-outline', iconFocused: 'grid' },
-  { name: 'scanner', title: 'Scanner', icon: 'scan-outline', iconFocused: 'scan' },
   { name: 'history', title: 'Historique', icon: 'receipt-outline', iconFocused: 'receipt' },
+  { name: 'scanner', title: 'Scanner', icon: 'scan-outline', iconFocused: 'scan' },
   { name: 'stores', title: 'Magasins', icon: 'storefront-outline', iconFocused: 'storefront' },
   { name: 'profile', title: 'Profil', icon: 'person-outline', iconFocused: 'person' },
 ];
@@ -79,7 +79,7 @@ export default function PartnerLayout() {
       }}
     >
       {TABS.map((tab, i) => {
-        const isCenter = i === 1; // Scanner is center
+        const isCenter = i === 2; // Scanner is center (index 2 of 5)
         return (
           <Tabs.Screen
             key={tab.name}

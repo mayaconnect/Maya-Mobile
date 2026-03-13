@@ -1,4 +1,4 @@
-# Maya Connect V2 — Plan Complet de Refonte Mobile
+ # Maya Connect V2 — Plan Complet de Refonte Mobile
 
 > **Date** : 3 Mars 2026
 > **Objectif** : Recréer l'application Maya Connect from scratch avec un code propre, des packages à jour (0 vulnérabilités), un design professionnel (orange/violet) et une architecture solide pour la production iOS & Android.

@@ -20,6 +20,9 @@ import {
   Alert,
   Switch,
   Platform,
+  Modal,
+  Image,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -33,7 +36,7 @@ import { useAuthStore } from '../../src/stores/auth.store';
 import { authApi } from '../../src/api/auth.api';
 import { clientColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
-import { spacing } from '../../src/theme/spacing';
+import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { formatName, formatDate } from '../../src/utils/format';
 import {
@@ -52,6 +55,7 @@ export default function ProfileScreen() {
   const { user, setUser, logout: doLogout } = useAuthStore();
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const [uploading, setUploading] = useState(false);
+  const [showAvatarZoom, setShowAvatarZoom] = useState(false);
 
   // Biometric state
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -159,25 +163,31 @@ export default function ProfileScreen() {
       style={styles.container}
       contentContainerStyle={[
         styles.scroll,
-        {
-          paddingTop: insets.top + spacing[4],
-          paddingBottom: insets.bottom + wp(100),
-        },
+        { paddingTop: insets.top + spacing[4], paddingBottom: insets.bottom + wp(100) },
       ]}
       showsVerticalScrollIndicator={false}
     >
       {/* ── Avatar + Name ── */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity onPress={handleAvatarPick} disabled={uploading}>
-          <MAvatar
-            uri={user?.avatarUrl}
-            name={formatName(user?.firstName, user?.lastName)}
-            size="xl"
-          />
-          <View style={styles.cameraBadge}>
+        <View>
+          <TouchableOpacity
+            onPress={() => user?.avatarUrl ? setShowAvatarZoom(true) : handleAvatarPick()}
+            disabled={uploading}
+          >
+            <MAvatar
+              uri={user?.avatarUrl}
+              name={formatName(user?.firstName, user?.lastName)}
+              size="xl"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cameraBadge}
+            onPress={handleAvatarPick}
+            disabled={uploading}
+          >
             <Ionicons name="camera" size={wp(16)} color="#FFF" />
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.displayName}>
           {formatName(user?.firstName, user?.lastName)}
         </Text>
@@ -195,45 +205,64 @@ export default function ProfileScreen() {
         ) : null}
       </View>
 
-      <MDivider />
+
 
       {/* ── Personal Information ── */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Mon profil</Text>
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => router.push('/(client)/edit-profile' as any)}
-        >
-          <Ionicons name="person-outline" size={wp(22)} color={colors.orange[500]} />
-          <Text style={styles.menuLabel}>Informations personnelles</Text>
-          <Ionicons
-            name="chevron-forward"
-            size={wp(18)}
-            color={colors.neutral[300]}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.infoPreview}>
-          <Text style={styles.previewLabel}>Email</Text>
-          <Text style={styles.previewValue}>{user?.email}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Mon profil</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/(client)/edit-profile' as any)}
+            style={styles.editBtn}
+          >
+            <Ionicons name="create-outline" size={wp(16)} color={colors.orange[500]} />
+            <Text style={styles.editLink}>Modifier</Text>
+          </TouchableOpacity>
         </View>
 
-        {user?.phoneNumber ? (
-          <View style={styles.infoPreview}>
-            <Text style={styles.previewLabel}>Téléphone</Text>
-            <Text style={styles.previewValue}>{user.phoneNumber}</Text>
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconBox}>
+              <Ionicons name="mail-outline" size={wp(16)} color={colors.orange[500]} />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.previewLabel}>Email</Text>
+              <Text style={styles.previewValue}>{user?.email}</Text>
+            </View>
           </View>
-        ) : null}
 
-        {user?.address?.city ? (
-          <View style={styles.infoPreview}>
-            <Text style={styles.previewLabel}>Ville</Text>
-            <Text style={styles.previewValue}>
-              {user.address.city}{user.address.country ? `, ${user.address.country}` : ''}
-            </Text>
-          </View>
-        ) : null}
+          {user?.phoneNumber ? (
+            <>
+              <View style={styles.infoSeparator} />
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconBox}>
+                  <Ionicons name="call-outline" size={wp(16)} color={colors.orange[500]} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.previewLabel}>Téléphone</Text>
+                  <Text style={styles.previewValue}>{user.phoneNumber}</Text>
+                </View>
+              </View>
+            </>
+          ) : null}
+
+          {user?.address?.city ? (
+            <>
+              <View style={styles.infoSeparator} />
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconBox}>
+                  <Ionicons name="location-outline" size={wp(16)} color={colors.orange[500]} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.previewLabel}>Ville</Text>
+                  <Text style={styles.previewValue}>
+                    {user.address.city}{user.address.country ? `, ${user.address.country}` : ''}
+                  </Text>
+                </View>
+              </View>
+            </>
+          ) : null}
+        </View>
       </View>
 
       <MDivider />
@@ -358,6 +387,25 @@ export default function ProfileScreen() {
           }
         />
       </View>
+
+      {/* ── Avatar Zoom Modal ── */}
+      <Modal
+        visible={showAvatarZoom}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAvatarZoom(false)}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.avatarOverlay} onPress={() => setShowAvatarZoom(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Image
+              source={{ uri: user?.avatarUrl }}
+              style={styles.avatarZoomImage}
+              resizeMode="cover"
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -385,6 +433,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFF',
+  },
+  avatarOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarZoomImage: {
+    width: wp(300),
+    height: wp(300),
+    borderRadius: wp(150),
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
   },
   displayName: {
     ...textStyles.h3,
@@ -421,6 +482,7 @@ const styles = StyleSheet.create({
     ...textStyles.caption,
     color: colors.orange[500],
     fontFamily: fontFamily.semiBold,
+    marginLeft: 2,
   },
 
   /* Layout helpers */
@@ -476,16 +538,46 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
   },
 
-  /* Info Preview */
-  infoPreview: {
+  /* Info Card */
+  infoCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.neutral[100],
+    gap: spacing[3],
+  },
+  infoIconBox: {
+    width: wp(34),
+    height: wp(34),
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.orange[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoSeparator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginLeft: spacing[4] + wp(34) + spacing[3],
+  },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
   },
   previewLabel: {
     ...textStyles.micro,
     color: colors.neutral[400],
-    marginBottom: spacing[1],
+    marginBottom: 2,
   },
   previewValue: {
     ...textStyles.body,

@@ -45,6 +45,7 @@ export interface RefreshDto {
 export interface UpdateProfileDto {
   firstName?: string | null;
   lastName?: string | null;
+  phoneNumber?: string | null;
   statusApp?: string | null;
   address?: AddressDto;
   status?: UserStatus;
