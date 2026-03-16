@@ -12,6 +12,7 @@ export interface TransactionDto {
   clientName?: string | null;
   subscriptionId?: string | null;
   planId?: string | null;
+  planCode?: string | null;
   personsCount: number;
   amountGross: number;
   discountPercent: number;

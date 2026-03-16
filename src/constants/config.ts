@@ -39,6 +39,7 @@ export const STORAGE_KEYS = {
 
 /** QR Code config */
 export const QR_CONFIG = {
-  refreshInterval: 4 * 60 * 1000, // 4 minutes
-  tokenValidityMinutes: 5,
+  refreshInterval: 2 * 60 * 1000, // 2 minutes — well before the 3-min server TTL
+  tokenValidityMinutes: 3,         // must match API TTL (3 min)
+  minRemainingSeconds: 30,         // request a new token if less than this remains
 } as const;

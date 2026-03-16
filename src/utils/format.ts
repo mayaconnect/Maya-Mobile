@@ -76,6 +76,38 @@ export const formatNumber = (n: number): string =>
   n.toLocaleString('fr-FR');
 
 /**
+ * Map a plan code to a human-readable subscription label.
+ * "SOLO" → "Solo (1 pers.)", "DUO" → "Duo (2 pers.)", "FAMILY" → "Family (4 pers.)"
+ */
+const PLAN_LABELS: Record<string, { label: string; seats: number }> = {
+  SOLO: { label: 'Solo', seats: 1 },
+  DUO: { label: 'Duo', seats: 2 },
+  FAMILY: { label: 'Family', seats: 4 },
+  VIP: { label: 'VIP', seats: 10 },
+  ENTERPRISE: { label: 'Entreprise', seats: 10 },
+};
+
+export const formatPlanCode = (
+  planCode?: string | null,
+  personsCount?: number | null,
+): string => {
+  if (!planCode) {
+    return personsCount ? `${personsCount} pers.` : '1 pers.';
+  }
+  const plan = PLAN_LABELS[planCode.toUpperCase()];
+  if (plan) return `${plan.label} (${personsCount ?? plan.seats} pers.)`;
+  // Theme-based or unknown plans
+  return `${planCode} (${personsCount ?? 1} pers.)`;
+};
+
+/** Get just the plan label without persons count */
+export const formatPlanLabel = (planCode?: string | null): string => {
+  if (!planCode) return 'Abonnement';
+  const plan = PLAN_LABELS[planCode.toUpperCase()];
+  return plan?.label ?? planCode;
+};
+
+/**
  * Format client name as short form: "Y.Lh"
  * Takes "Yassine Lharoti" → "Y.Lh"
  * Takes "Jean" → "J."

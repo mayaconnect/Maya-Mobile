@@ -22,7 +22,7 @@ import { clientColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
-import { formatPrice, formatDateTime, formatRelativeTime } from '../../src/utils/format';
+import { formatPrice, formatDateTime, formatRelativeTime, formatPlanCode } from '../../src/utils/format';
 import {
   MCard,
   MBadge,
@@ -74,7 +74,7 @@ export default function HistoryScreen() {
               {item.storeName || 'Partenaire'}
             </Text>
             <Text style={styles.txMeta}>
-              {item.personsCount ?? 1} pers. • {item.createdAt ? formatRelativeTime(item.createdAt) : ''}
+              {formatPlanCode(item.planCode, item.personsCount)} • {item.createdAt ? formatRelativeTime(item.createdAt) : ''}
             </Text>
           </View>
 

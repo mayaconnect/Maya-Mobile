@@ -7,7 +7,7 @@
  *   POST /validate             → StoreOperator, Partner, Admin
  */
 import apiClient from './client';
-import type { QrFrontendTokenResult, QrValidateRequestDto } from '../types';
+import type { QrFrontendTokenResult, QrValidateRequestDto, QrValidateResultDto } from '../types';
 
 const BASE = '/api/qr';
 
@@ -22,5 +22,5 @@ export const qrApi = {
 
   /** POST /api/qr/validate — StoreOperator, Partner, Admin */
   validate: (dto: QrValidateRequestDto) =>
-    apiClient.post(`${BASE}/validate`, dto),
+    apiClient.post<QrValidateResultDto>(`${BASE}/validate`, dto),
 };

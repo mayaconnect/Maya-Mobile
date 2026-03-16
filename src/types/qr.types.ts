@@ -16,6 +16,15 @@ export interface QrValidateRequestDto {
   personsCount?: number | null;
 }
 
+export interface QrValidateResultDto {
+  transactionId: string;
+  customerUserId: string;
+  planCode: string;
+  discountPercent: number;
+  discountAmount: number;
+  amountNet: number;
+}
+
 export interface QrTokenDto {
   id: string;
   userId: string;

@@ -30,8 +30,10 @@ import { operatorColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
+import { formatPrice, formatPlanCode, formatPlanLabel } from '../../src/utils/format';
 import { MButton, MInput, MCard, MHeader } from '../../src/components/ui';
 import StoreSelectionModal from '../../src/components/partner/StoreSelectionModal';
+import type { QrValidateResultDto } from '../../src/types';
 
 type ScanState = 'scanning' | 'form' | 'success' | 'error';
 
@@ -42,6 +44,7 @@ export default function StoreOperatorScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [scannedToken, setScannedToken] = useState('');
+  const [validateResult, setValidateResult] = useState<QrValidateResultDto | null>(null);
   const scannedRef = useRef(false);
 
   /* ---- Active store ---- */
@@ -66,8 +69,9 @@ export default function StoreOperatorScannerScreen() {
   /* ---- Validate mutation ---- */
   const validateMutation = useMutation({
     mutationFn: (dto: any) => qrApi.validate(dto),
-    onSuccess: () => {
+    onSuccess: (response) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setValidateResult(response.data);
       setScanState('success');
     },
     onError: (err: any) => {
@@ -123,6 +127,7 @@ export default function StoreOperatorScannerScreen() {
   const resetScanner = () => {
     scannedRef.current = false;
     setScannedToken('');
+    setValidateResult(null);
     reset();
     setScanState('scanning');
   };
@@ -280,6 +285,35 @@ export default function StoreOperatorScannerScreen() {
             </View>
             <Text style={styles.resultTitle}>Transaction validée !</Text>
             <Text style={styles.resultDesc}>La réduction a été appliquée avec succès.</Text>
+
+            {validateResult && (
+              <MCard style={styles.resultDetailsCard} elevation="md">
+                <View style={styles.resultDetailRow}>
+                  <Ionicons name="diamond-outline" size={wp(18)} color={colors.violet[500]} />
+                  <Text style={styles.resultDetailLabel}>Abonnement</Text>
+                  <Text style={styles.resultDetailValue}>
+                    {formatPlanLabel(validateResult.planCode)}
+                  </Text>
+                </View>
+                <View style={styles.resultDivider} />
+                <View style={styles.resultDetailRow}>
+                  <Ionicons name="trending-down-outline" size={wp(18)} color={colors.success[500]} />
+                  <Text style={styles.resultDetailLabel}>Réduction</Text>
+                  <Text style={[styles.resultDetailValue, { color: colors.success[600] }]}>
+                    -{formatPrice(validateResult.discountAmount)} ({validateResult.discountPercent}%)
+                  </Text>
+                </View>
+                <View style={styles.resultDivider} />
+                <View style={styles.resultDetailRow}>
+                  <Ionicons name="cash-outline" size={wp(18)} color={colors.orange[500]} />
+                  <Text style={styles.resultDetailLabel}>Net à payer</Text>
+                  <Text style={[styles.resultDetailValue, { fontFamily: fontFamily.bold }]}>
+                    {formatPrice(validateResult.amountNet)}
+                  </Text>
+                </View>
+              </MCard>
+            )}
+
             <MButton title="Scanner un autre QR" onPress={resetScanner} style={{ marginTop: spacing[6] }} />
           </Animated.View>
         </View>
@@ -368,4 +402,9 @@ const styles = StyleSheet.create({
   },
   resultTitle: { ...textStyles.h2, color: colors.neutral[900], textAlign: 'center' },
   resultDesc: { ...textStyles.body, color: colors.neutral[500], textAlign: 'center', marginTop: spacing[2] },
+  resultDetailsCard: { width: '100%', marginTop: spacing[5], padding: spacing[4] },
+  resultDetailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2] },
+  resultDetailLabel: { ...textStyles.body, color: colors.neutral[500], flex: 1, marginLeft: spacing[2] },
+  resultDetailValue: { ...textStyles.body, fontFamily: fontFamily.medium, color: colors.neutral[900] },
+  resultDivider: { height: 1, backgroundColor: colors.neutral[100], marginVertical: spacing[1] },
 });
