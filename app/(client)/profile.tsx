@@ -10,41 +10,42 @@
  *  • Account menu (subscription, history, map)
  *  • Logout
  */
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  Switch,
-  Platform,
-  Modal,
-  Image,
-  Pressable,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as Haptics from 'expo-haptics';
-import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../src/stores/auth.store';
-import { authApi } from '../../src/api/auth.api';
-import { clientColors as colors } from '../../src/theme/colors';
-import { textStyles, fontFamily } from '../../src/theme/typography';
-import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
-import { wp } from '../../src/utils/responsive';
-import { formatName, formatDate } from '../../src/utils/format';
+import { useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  MButton,
-  MAvatar,
-  MBadge,
-  MDivider,
+    Alert,
+    Image,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { authApi } from '../../src/api/auth.api';
+import {
+    MAvatar,
+    MBadge,
+    MButton,
+    MDivider,
+    MModal,
 } from '../../src/components/ui';
+import { useAuthStore } from '../../src/stores/auth.store';
+import { clientColors as colors } from '../../src/theme/colors';
+import { borderRadius, spacing } from '../../src/theme/spacing';
+import { fontFamily, textStyles, textStyles as themeTextStyles } from '../../src/theme/typography';
+import { formatDate, formatName } from '../../src/utils/format';
+import { wp } from '../../src/utils/responsive';
 
 const BIOMETRIC_KEY = 'maya_biometric_enabled';
 
@@ -56,6 +57,7 @@ export default function ProfileScreen() {
   const refreshToken = useAuthStore((s) => s.refreshToken);
   const [uploading, setUploading] = useState(false);
   const [showAvatarZoom, setShowAvatarZoom] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Biometric state
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -132,30 +134,16 @@ export default function ProfileScreen() {
   };
 
   /* ── Logout ── */
-  const handleLogout = async () => {
-    const doIt = async () => {
-      try {
-        if (refreshToken) await authApi.logout({ refreshToken });
-      } catch {}
-      await doLogout();
-      queryClient.clear();
-      router.replace('/auth/login');
-    };
+  const handleLogout = () => setShowLogoutModal(true);
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
-        await doIt();
-      }
-    } else {
-      Alert.alert(
-        'Déconnexion',
-        'Êtes-vous sûr de vouloir vous déconnecter ?',
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Déconnecter', style: 'destructive', onPress: doIt },
-        ],
-      );
-    }
+  const confirmLogout = async () => {
+    try {
+      if (refreshToken) await authApi.logout({ refreshToken });
+    } catch {}
+    await doLogout();
+    queryClient.clear();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.replace('/auth/login');
   };
 
   return (
@@ -406,6 +394,34 @@ export default function ProfileScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ── Logout Confirmation Modal ── */}
+      <MModal
+        visible={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        title="Déconnexion"
+      >
+        <View style={{ alignItems: 'center', paddingVertical: spacing[4] }}>
+          <Ionicons name="log-out-outline" size={wp(48)} color={colors.error[500]} />
+          <Text style={[themeTextStyles.body, { textAlign: 'center', marginTop: spacing[3], color: colors.neutral[600] }]}>
+            Êtes-vous sûr de vouloir vous déconnecter ?
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
+          <MButton
+            title="Annuler"
+            variant="outline"
+            onPress={() => setShowLogoutModal(false)}
+            style={{ flex: 1 }}
+          />
+          <MButton
+            title="Déconnecter"
+            variant="danger"
+            onPress={confirmLogout}
+            style={{ flex: 1 }}
+          />
+        </View>
+      </MModal>
     </ScrollView>
   );
 }
