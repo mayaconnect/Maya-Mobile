@@ -2,7 +2,7 @@
  * Native Map View Component
  * This file is resolved by Metro on iOS/Android (via .native.tsx extension).
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,8 @@ import { clientColors as colors } from '../../theme/colors';
 import { textStyles, fontFamily } from '../../theme/typography';
 import { spacing, borderRadius, shadows } from '../../theme/spacing';
 import { wp } from '../../utils/responsive';
-import { MSearchBar, MHeader } from '../ui';
+import { MSearchBar } from '../ui';
+import { useDebounced } from '../../hooks/use-debounced';
 
 const DEFAULT_REGION = {
   latitude: 48.8566,
@@ -57,23 +58,43 @@ export default function StoresMapView() {
     })();
   }, []);
 
+  const debouncedRegion = useDebounced(region, 600);
+  const debouncedSearch = useDebounced(search, 350);
+
   const storesQ = useQuery({
-    queryKey: ['storesMap', region.latitude, region.longitude, search],
+    queryKey: ['storesMap', debouncedRegion.latitude, debouncedRegion.longitude],
     queryFn: () =>
       storesApi.search({
-        latitude: region.latitude,
-        longitude: region.longitude,
+        latitude: debouncedRegion.latitude,
+        longitude: debouncedRegion.longitude,
         radiusKm: 15,
-        category: search || undefined,
+        pageSize: 100,
       }),
     select: (res) => res.data,
   });
 
-  const stores = storesQ.data?.items ?? storesQ.data ?? [];
+  const allStores: any[] = storesQ.data?.items ?? (storesQ.data as any) ?? [];
+
+  const stores = useMemo(() => {
+    if (!debouncedSearch.trim()) return allStores;
+    const q = debouncedSearch.toLowerCase();
+    return allStores.filter((s: any) =>
+      (s.name ?? '').toLowerCase().includes(q) ||
+      (s.partnerName ?? '').toLowerCase().includes(q) ||
+      (s.city ?? '').toLowerCase().includes(q) ||
+      (s.category ?? '').toLowerCase().includes(q),
+    );
+  }, [allStores, debouncedSearch]);
 
   return (
     <View style={styles.container}>
-      <MHeader title="Carte des magasins" showBack transparent />
+      {/* Bouton retour flottant */}
+      <TouchableOpacity
+        style={[styles.backBtn, { top: insets.top + spacing[3] }]}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="chevron-back" size={wp(22)} color="#0F172A" />
+      </TouchableOpacity>
 
       <View style={[styles.searchOverlay, { top: insets.top + wp(48) }]}>
         <MSearchBar
@@ -205,6 +226,18 @@ export default function StoresMapView() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  backBtn: {
+    position: 'absolute',
+    left: spacing[4],
+    zIndex: 10,
+    width: wp(40),
+    height: wp(40),
+    borderRadius: wp(20),
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.lg,
+  },
   searchOverlay: {
     position: 'absolute',
     left: spacing[4],

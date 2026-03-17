@@ -45,3 +45,9 @@ export interface CreateCheckoutRequest {
   successUrl: string;
   cancelUrl: string;
 }
+
+export interface ChangePlanRequest {
+  newPlanCode: string;
+  successUrl?: string;
+  cancelUrl?: string;
+}

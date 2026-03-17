@@ -14,6 +14,7 @@ import type {
   SubscriptionPlanDto,
   SubscriptionDto,
   CreateCheckoutRequest,
+  ChangePlanRequest,
 } from '../types';
 import type { PagedResult } from '../types';
 
@@ -52,4 +53,11 @@ export const paymentsApi = {
   /** POST /api/payments/cancel-subscription — any authenticated user */
   cancelSubscription: () =>
     apiClient.post('/api/payments/cancel-subscription'),
+
+  /** POST /api/payments/change-plan — swap active subscription to another plan */
+  changePlan: (dto: ChangePlanRequest) =>
+    apiClient.post<{ url?: string; sessionId?: string }>(
+      '/api/payments/change-plan',
+      dto,
+    ),
 };

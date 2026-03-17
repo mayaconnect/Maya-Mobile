@@ -40,30 +40,29 @@ import {
 } from '../../src/components/ui';
 import { useDebounced } from '../../src/hooks/use-debounced';
 import { config } from '../../src/constants/config';
-import { useAuthStore } from '../../src/stores/auth.store';
 import type { StoreDto, StoreCategoryDto } from '../../src/types';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = (SCREEN_WIDTH - spacing[6] * 2 - spacing[3]) / 2;
 const DEFAULT_STORE_IMAGE = require('../../assets/images/centered_logo_gradient.png');
 
-/** Image avec auth header + fallback sur erreur */
+/** Image avec fallback sur erreur */
 function StoreImage({ store, style }: { store: StoreDto; style: any }) {
   const [errored, setErrored] = React.useState(false);
-  const token = useAuthStore.getState().accessToken;
 
-  const source = !errored && store.partnerId
-    ? {
-        uri: `${config.api.baseUrl}/api/partners/${store.partnerId}/image`,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      }
-    : DEFAULT_STORE_IMAGE;
+  const directUri = (store as any).imageUrl || (store as any).partnerImageUrl || null;
+  const fallbackUri = store.partnerId
+    ? `${config.api.baseUrl}/api/partners/${store.partnerId}/image`
+    : null;
+  const imageUri = directUri || fallbackUri;
+
+  const source = !errored && imageUri ? { uri: imageUri } : DEFAULT_STORE_IMAGE;
 
   return (
     <Image
       source={source}
       style={style}
-      resizeMode={!errored && store.partnerId ? 'cover' : 'contain'}
+      resizeMode={!errored && imageUri ? 'cover' : 'contain'}
       onError={() => setErrored(true)}
     />
   );

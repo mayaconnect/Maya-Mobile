@@ -33,8 +33,8 @@ const nameSchema = (label: string) =>
 const phoneSchema = z
   .string()
   .regex(
-    /^(\+33|0)[1-9](\d{2}){4}$/,
-    'Numéro de téléphone invalide (format français)',
+    /^[+\d][\d\s\-().]{5,19}$/,
+    'Numéro de téléphone invalide',
   )
   .optional()
   .or(z.literal(''));

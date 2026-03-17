@@ -28,7 +28,8 @@
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
       "Bash(npx expo-cli:*)",
-      "Bash(ls \"C:\\\\Users\\\\guill\\\\Documents\\\\Freelance\\\\Maya-Orga\\\\Maya\\\\app\\\\\\(storeoperator\\)\")"
+      "Bash(ls \"C:\\\\Users\\\\guill\\\\Documents\\\\Freelance\\\\Maya-Orga\\\\Maya\\\\app\\\\\\(storeoperator\\)\")",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

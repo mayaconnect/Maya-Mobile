@@ -21,7 +21,8 @@ import { partnerColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
-import { MHeader, EmptyState } from '../../src/components/ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { EmptyState } from '../../src/components/ui';
 
 export default function PartnerStoresScreen() {
   const insets = useSafeAreaInsets();
@@ -125,17 +126,20 @@ export default function PartnerStoresScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <MHeader title="Mes magasins" />
-
-      {/* Summary bar */}
-      <View style={styles.summaryBar}>
-        <Ionicons name="storefront-outline" size={wp(14)} color={colors.violet[500]} />
-        <Text style={styles.summaryText}>
+    <View style={styles.container}>
+      {/* Gradient header */}
+      <LinearGradient
+        colors={['#FF6A00', '#FFB347']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + spacing[2] }]}
+      >
+        <Text style={styles.headerTitle}>Mes magasins</Text>
+        <Text style={styles.headerSubtitle}>
           {stores.length} magasin{stores.length !== 1 ? 's' : ''}
           {activeId ? ' · 1 actif' : ''}
         </Text>
-      </View>
+      </LinearGradient>
 
       <FlatList
         data={stores}
@@ -167,19 +171,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral[50],
   },
-
-  summaryBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+  header: {
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[5],
   },
-  summaryText: {
+  headerTitle: {
+    ...textStyles.h3,
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
     ...textStyles.caption,
-    color: colors.neutral[500],
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: spacing[1],
   },
 
   list: {

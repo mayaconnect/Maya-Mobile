@@ -1,15 +1,17 @@
 /**
  * Maya Connect V2 — Edit Profile Screen
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
-  Alert,
   TouchableOpacity,
+  Modal,
+  Pressable,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation } from '@tanstack/react-query';
@@ -45,6 +47,9 @@ export default function EditProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
 
+  const [successModal, setSuccessModal] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ title: string; lines: string[] } | null>(null);
+
   const { control, handleSubmit, formState: { errors, isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -77,12 +82,20 @@ export default function EditProfileScreen() {
       const res = await authApi.getProfile();
       setUser(res.data);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Succès', 'Votre profil a été mis à jour.');
-      router.back();
+      setSuccessModal(true);
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.detail ?? err?.response?.data?.title ?? 'Impossible de mettre à jour le profil.';
-      Alert.alert('Erreur', msg);
+      const responseData = err?.response?.data;
+      const validationErrors = responseData?.errors;
+      if (validationErrors) {
+        const lines = Object.entries(validationErrors)
+          .map(([, msgs]) => (msgs as string[]).join(', '))
+          .filter(Boolean);
+        setErrorModal({ title: 'Erreur de validation', lines });
+      } else {
+        const msg = responseData?.detail ?? responseData?.title ?? err?.message ?? 'Impossible de mettre à jour le profil.';
+        setErrorModal({ title: 'Erreur', lines: [msg] });
+      }
     },
   });
 
@@ -272,6 +285,43 @@ export default function EditProfileScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+      {/* ── Success Modal ── */}
+      <Modal visible={successModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => { setSuccessModal(false); router.back(); }}>
+        <Pressable style={mStyles.backdrop} onPress={() => { setSuccessModal(false); router.back(); }}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        </Pressable>
+        <View style={mStyles.sheet}>
+          <View style={mStyles.handle} />
+          <View style={mStyles.successIconWrap}>
+            <Ionicons name="checkmark" size={wp(36)} color="#FFFFFF" />
+          </View>
+          <Text style={mStyles.title}>Profil mis à jour !</Text>
+          <Text style={mStyles.body}>Vos informations ont bien été enregistrées.</Text>
+          <MButton title="Super !" onPress={() => { setSuccessModal(false); router.back(); }} style={mStyles.btn} />
+        </View>
+      </Modal>
+
+      {/* ── Error Modal ── */}
+      <Modal visible={!!errorModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setErrorModal(null)}>
+        <Pressable style={mStyles.backdrop} onPress={() => setErrorModal(null)}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        </Pressable>
+        <View style={mStyles.sheet}>
+          <View style={mStyles.handle} />
+          <View style={mStyles.errorIconWrap}>
+            <Ionicons name="alert-circle-outline" size={wp(36)} color="#EF4444" />
+          </View>
+          <Text style={mStyles.title}>{errorModal?.title}</Text>
+          {errorModal?.lines.map((line, i) => (
+            <View key={i} style={mStyles.lineRow}>
+              <Ionicons name="close-circle" size={wp(14)} color="#EF4444" style={{ marginTop: 2 }} />
+              <Text style={mStyles.lineText}>{line}</Text>
+            </View>
+          ))}
+          <MButton title="Fermer" variant="outline" onPress={() => setErrorModal(null)} style={mStyles.btn} />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -389,5 +439,86 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: 'rgba(255,255,255,0.4)',
     fontFamily: fontFamily.medium,
+  },
+});
+
+const mStyles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: wp(32),
+    borderTopRightRadius: wp(32),
+    paddingHorizontal: spacing[6],
+    paddingBottom: spacing[8],
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  handle: {
+    width: wp(40),
+    height: wp(4),
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginVertical: spacing[3],
+  },
+  successIconWrap: {
+    width: wp(80),
+    height: wp(80),
+    borderRadius: wp(40),
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[2],
+    marginBottom: spacing[4],
+  },
+  errorIconWrap: {
+    width: wp(80),
+    height: wp(80),
+    borderRadius: wp(40),
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[2],
+    marginBottom: spacing[4],
+  },
+  title: {
+    ...textStyles.h4,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: spacing[3],
+  },
+  body: {
+    ...textStyles.body,
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    marginBottom: spacing[6],
+  },
+  lineRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+    alignSelf: 'stretch',
+    marginBottom: spacing[2],
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderRadius: borderRadius.lg,
+    padding: spacing[3],
+  },
+  lineText: {
+    ...textStyles.body,
+    color: 'rgba(255,255,255,0.75)',
+    flex: 1,
+    lineHeight: 20,
+  },
+  btn: {
+    width: '100%',
+    marginTop: spacing[4],
   },
 });
