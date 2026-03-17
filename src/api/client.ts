@@ -35,13 +35,13 @@ export function extractApiError(error: unknown): string {
       // RFC 7807 ProblemDetails
       if (typeof data === 'object') {
         if (data.detail) return String(data.detail);
-        if (data.title) return String(data.title);
-        if (data.message) return String(data.message);
-        // ASP.NET validation errors
+        // ASP.NET validation errors — prioritize before generic title
         if (data.errors && typeof data.errors === 'object') {
           const messages = Object.values(data.errors).flat();
           if (messages.length > 0) return messages.join('. ');
         }
+        if (data.title) return String(data.title);
+        if (data.message) return String(data.message);
       }
       if (typeof data === 'string' && data.length < 200) return data;
     }

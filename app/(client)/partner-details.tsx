@@ -57,20 +57,22 @@ const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
 
 function HeroImage({ store, style }: { store: StoreDto; style: any }) {
   const [errored, setErrored] = React.useState(false);
-  const token = useAuthStore.getState().accessToken;
 
-  const source = !errored && store.partnerId
-    ? {
-        uri: `${config.api.baseUrl}/api/partners/${store.partnerId}/image`,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      }
+  const directUri = (store as any).imageUrl || (store as any).partnerImageUrl || null;
+  const fallbackUri = store.partnerId
+    ? `${config.api.baseUrl}/api/partners/${store.partnerId}/image`
+    : null;
+  const imageUri = directUri || fallbackUri;
+
+  const source = !errored && imageUri
+    ? { uri: imageUri }
     : DEFAULT_IMAGE;
 
   return (
     <Image
       source={source}
       style={style}
-      resizeMode={!errored && store.partnerId ? 'cover' : 'contain'}
+      resizeMode={!errored && imageUri ? 'cover' : 'contain'}
       onError={() => setErrored(true)}
     />
   );
@@ -149,8 +151,7 @@ export default function PartnerDetailsScreen() {
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: wp(40) }}
-        bounces={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + wp(80) }}
       >
         {/* ── Hero image with gradient overlay ── */}
         <View style={styles.heroWrap}>
@@ -235,12 +236,6 @@ export default function PartnerDetailsScreen() {
                 <Text style={styles.actionLabel}>Email</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.actionBtn}>
-              <View style={[styles.actionIcon, { backgroundColor: colors.violet[50] }]}>
-                <Ionicons name="share-social" size={wp(20)} color={colors.violet[500]} />
-              </View>
-              <Text style={styles.actionLabel}>Partager</Text>
-            </TouchableOpacity>
           </View>
 
           {/* ── Stats row ── */}
@@ -431,7 +426,7 @@ export default function PartnerDetailsScreen() {
                 <MAvatar
                   name={store.partnerName}
                   size="md"
-                  uri={store.partnerId ? `${config.api.baseUrl}/api/partners/${store.partnerId}/image` : undefined}
+                  uri={(store as any).imageUrl || (store as any).partnerImageUrl || (store.partnerId ? `${config.api.baseUrl}/api/partners/${store.partnerId}/image` : undefined)}
                 />
                 <View style={styles.partnerInfo}>
                   <Text style={styles.partnerName}>{store.partnerName}</Text>

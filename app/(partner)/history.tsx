@@ -10,9 +10,13 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { transactionsApi } from '../../src/api/transactions.api';
 import { partnerColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
@@ -22,7 +26,6 @@ import { formatPrice, formatDateTime, formatPercent } from '../../src/utils/form
 import {
   MCard,
   MBadge,
-  MHeader,
   LoadingSpinner,
   EmptyState,
   ErrorState,
@@ -32,6 +35,8 @@ import { usePartnerStore } from '../../src/stores/partner.store';
 const PAGE_SIZE = 15;
 
 export default function PartnerHistoryScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const activeStore = usePartnerStore((s) => s.activeStore);
   const partner = usePartnerStore((s) => s.partner);
   const storeId = activeStore?.storeId ?? undefined;
@@ -121,7 +126,12 @@ export default function PartnerHistoryScreen() {
   if (txQ.isError) {
     return (
       <View style={styles.container}>
-        <MHeader title="Historique" />
+        <LinearGradient colors={['#FF6A00', '#FFB347']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + spacing[2] }]}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Historique</Text>
+        </LinearGradient>
         <ErrorState
           fullScreen
           title="Erreur de chargement"
@@ -135,27 +145,39 @@ export default function PartnerHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <MHeader title="Historique" />
+      {/* Gradient header */}
+      <LinearGradient
+        colors={['#FF6A00', '#FFB347']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + spacing[2] }]}
+      >
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Historique</Text>
+        <Text style={styles.headerSubtitle}>
+          {totalCount} transaction{totalCount !== 1 ? 's' : ''}
+        </Text>
 
-      {/* Summary */}
-      <View style={styles.summaryRow}>
-        <MCard style={styles.summaryCard} elevation="sm">
-          <Text style={styles.summaryValue}>{formatPrice(totalGross)}</Text>
-          <Text style={styles.summaryLabel}>CA Brut</Text>
-        </MCard>
-        <MCard style={styles.summaryCard} elevation="sm">
-          <Text style={[styles.summaryValue, { color: colors.warning[500] }]}>
-            {formatPrice(totalDiscount)}
-          </Text>
-          <Text style={styles.summaryLabel}>Réductions</Text>
-        </MCard>
-        <MCard style={styles.summaryCard} elevation="sm">
-          <Text style={[styles.summaryValue, { color: colors.success[500] }]}>
-            {totalCount}
-          </Text>
-          <Text style={styles.summaryLabel}>Transactions</Text>
-        </MCard>
-      </View>
+        {/* Summary pills in header */}
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryPill}>
+            <Text style={styles.summaryValue}>{formatPrice(totalGross)}</Text>
+            <Text style={styles.summaryLabel}>CA Brut</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryPill}>
+            <Text style={styles.summaryValue}>{formatPrice(totalDiscount)}</Text>
+            <Text style={styles.summaryLabel}>Réductions</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryPill}>
+            <Text style={styles.summaryValue}>{totalCount}</Text>
+            <Text style={styles.summaryLabel}>Transactions</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       <FlatList
         data={items}
@@ -195,29 +217,59 @@ export default function PartnerHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.neutral[50] },
+
+  header: {
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[5],
+  },
+  backBtn: {
+    width: wp(36),
+    height: wp(36),
+    borderRadius: wp(18),
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[2],
+  },
+  headerTitle: {
+    ...textStyles.h3,
+    color: '#FFFFFF',
+  },
+  headerSubtitle: {
+    ...textStyles.caption,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: spacing[1],
+    marginBottom: spacing[4],
+  },
   summaryRow: {
     flexDirection: 'row',
-    gap: spacing[3],
-    paddingHorizontal: spacing[4],
-    paddingBottom: spacing[3],
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderRadius: borderRadius.xl,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[2],
   },
-  summaryCard: {
+  summaryPill: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing[3],
-    backgroundColor: '#111827',
+  },
+  summaryDivider: {
+    width: 1,
+    height: wp(28),
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   summaryValue: {
-    ...textStyles.h4,
-    color: colors.violet[600],
+    ...textStyles.bodyBold,
+    color: '#FFFFFF',
   },
   summaryLabel: {
     ...textStyles.micro,
-    color: colors.neutral[500],
+    color: 'rgba(255,255,255,0.7)',
     marginTop: spacing[1],
   },
   list: {
     paddingHorizontal: spacing[4],
+    paddingTop: spacing[4],
     paddingBottom: wp(100),
   },
   txCard: {

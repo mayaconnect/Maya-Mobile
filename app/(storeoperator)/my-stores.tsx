@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,32 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { EmptyState } from '../../src/components/ui';
+import { config } from '../../src/constants/config';
+
+const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
+
+function StoreImage({ item, isActive }: { item: any; isActive: boolean }) {
+  const [errored, setErrored] = React.useState(false);
+  const imageUri = item.imageUrl || item.partnerImageUrl ||
+    (item.partnerId ? `${config.api.baseUrl}/api/partners/${item.partnerId}/image` : null);
+
+  if (!errored && imageUri) {
+    return (
+      <Image
+        source={{ uri: imageUri }}
+        style={[styles.storeImage, isActive && styles.storeImageActive]}
+        resizeMode="cover"
+        onError={() => setErrored(true)}
+      />
+    );
+  }
+
+  return (
+    <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
+      <Ionicons name="storefront" size={wp(22)} color={isActive ? '#FFF' : colors.violet[400]} />
+    </View>
+  );
+}
 
 export default function MyStoresScreen() {
   const insets = useSafeAreaInsets();
@@ -112,14 +139,8 @@ export default function MyStoresScreen() {
               onPress={() => handleSelect(item.id, item.name ?? 'Magasin')}
               disabled={isActive || setActiveMutation.isPending}
             >
-              {/* Icône */}
-              <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
-                <Ionicons
-                  name="storefront"
-                  size={wp(22)}
-                  color={isActive ? '#FFF' : colors.violet[400]}
-                />
-              </View>
+              {/* Image / icône */}
+              <StoreImage item={item} isActive={isActive} />
 
               {/* Infos */}
               <View style={styles.cardBody}>
@@ -203,9 +224,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F3FF',
   },
 
+  storeImage: {
+    width: wp(64),
+    height: wp(64),
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.neutral[100],
+    borderWidth: 1.5,
+    borderColor: colors.neutral[100],
+  },
+  storeImageActive: {
+    borderColor: colors.violet[300],
+  },
   iconBox: {
-    width: wp(48),
-    height: wp(48),
+    width: wp(64),
+    height: wp(64),
     borderRadius: borderRadius.xl,
     backgroundColor: colors.violet[50],
     alignItems: 'center',

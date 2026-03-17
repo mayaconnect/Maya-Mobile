@@ -26,7 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { readAsStringAsync } from 'expo-file-system/legacy';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { authApi } from '../../src/api/auth.api';
 import { registerSchema, type RegisterFormData } from '../../src/utils/validation';
@@ -78,10 +78,13 @@ export default function SignUpScreen() {
 
   /* ── Submit ── */
   const onSubmit = async (data: RegisterFormData) => {
+    console.log('[SignUp] onSubmit called', { email: data.email, firstName: data.firstName, lastName: data.lastName, hasAvatar: !!avatarUri });
+
     // Validate avatar is selected
     if (!avatarUri) {
       setAvatarError('Veuillez ajouter une photo de profil');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      console.log('[SignUp] Blocked: no avatar selected');
       return;
     }
 
@@ -92,36 +95,46 @@ export default function SignUpScreen() {
       let avatarBase64: string | undefined;
       let avatarFileName: string | undefined;
       if (avatarUri) {
-        const base64 = await FileSystem.readAsStringAsync(avatarUri, {
-          encoding: FileSystem.EncodingType.Base64,
+        console.log('[SignUp] Reading avatar as base64, uri:', avatarUri);
+        const base64 = await readAsStringAsync(avatarUri, {
+          encoding: 'base64',
         });
         avatarBase64 = base64;
         avatarFileName = 'avatar.jpg';
+        console.log('[SignUp] Avatar base64 length:', base64.length);
       }
 
-      // 1. Register (returns { message: "Registered" })
-      await authApi.register({
+      // 1. Register
+      console.log('[SignUp] Calling authApi.register...');
+      const registerRes = await authApi.register({
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
         phoneNumber: data.phoneNumber || undefined,
         password: data.password,
+        role: 'Client',
+        address: { street: '', city: '', country: '' },
         avatarBase64,
         avatarFileName,
       });
+      console.log('[SignUp] Register response status:', registerRes.status, 'data:', JSON.stringify(registerRes.data));
 
       // 2. Auto-login with the same credentials
+      console.log('[SignUp] Calling authApi.login...');
       const { data: loginData } = await authApi.login({
         email: data.email,
         password: data.password,
       });
+      console.log('[SignUp] Login success, accessToken length:', loginData.accessToken?.length, 'expiresIn:', loginData.expiresIn);
       const { accessToken, refreshToken, expiresIn } = loginData;
 
       // 3. Set token for /me call
       useAuthStore.setState({ accessToken });
 
       // 4. Fetch full profile
+      console.log('[SignUp] Fetching profile...');
       const { data: user } = await authApi.getProfile();
+      console.log('[SignUp] Profile fetched:', { id: user.id, email: user.email, role: user.role });
 
       // 5. Persist session
       await setSession(
@@ -132,6 +145,7 @@ export default function SignUpScreen() {
         },
         user,
       );
+      console.log('[SignUp] Session persisted');
 
       // Mark onboarding done after successful signup
       await completeOnboarding();
@@ -140,6 +154,7 @@ export default function SignUpScreen() {
 
       // 6. Redirect new clients to subscription page
       const role = useAuthStore.getState().role;
+      console.log('[SignUp] Role detected:', role, '→ redirecting...');
       if (role === 'partner' || role === 'storeOperator') {
         router.replace('/(partner)/dashboard');
       } else {
@@ -147,6 +162,11 @@ export default function SignUpScreen() {
       }
     } catch (err: any) {
       useAuthStore.setState({ accessToken: null });
+      console.log('[SignUp] ERROR caught:', {
+        status: err?.response?.status,
+        data: JSON.stringify(err?.response?.data),
+        message: err?.message,
+      });
       const msg =
         err?.response?.data?.errors?.[0] ||
         err?.response?.data?.detail ||

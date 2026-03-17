@@ -64,6 +64,7 @@ export default function ForgotPasswordScreen() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [loading, setLoading] = useState(false);
 
   const emailForm = useForm<ForgotPasswordFormData>({
@@ -82,13 +83,20 @@ export default function ForgotPasswordScreen() {
   });
 
   const handleEmailSubmit = async (data: ForgotPasswordFormData) => {
+    console.log('[ForgotPassword] Step 1 — requesting code for:', data.email);
     try {
       setLoading(true);
-      await authApi.requestPasswordResetCode({ email: data.email });
+      const res = await authApi.requestPasswordResetCode({ email: data.email });
+      console.log('[ForgotPassword] requestPasswordResetCode response:', res.status, JSON.stringify(res.data));
       setEmail(data.email);
       setStep('code');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
+      console.log('[ForgotPassword] Step 1 ERROR:', {
+        status: err?.response?.status,
+        data: JSON.stringify(err?.response?.data),
+        message: err?.message,
+      });
       Alert.alert('Erreur', err?.response?.data?.detail || "Impossible d'envoyer le code.");
     } finally {
       setLoading(false);
@@ -96,13 +104,23 @@ export default function ForgotPasswordScreen() {
   };
 
   const handleCodeSubmit = async (data: VerifyCodeFormData) => {
+    console.log('[ForgotPassword] Step 2 — verifying code:', data.code, 'for email:', email);
     try {
       setLoading(true);
-      await authApi.verifyPasswordResetCode({ email, code: data.code });
+      const res = await authApi.verifyPasswordResetCode({ email, code: data.code });
+      console.log('[ForgotPassword] verifyPasswordResetCode response:', res.status, JSON.stringify(res.data));
+      const token = (res.data as any)?.token || (res.data as any)?.resetToken || data.code;
+      console.log('[ForgotPassword] Token extracted for reset:', token);
       setCode(data.code);
+      setResetToken(token);
       setStep('reset');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
+      console.log('[ForgotPassword] Step 2 ERROR:', {
+        status: err?.response?.status,
+        data: JSON.stringify(err?.response?.data),
+        message: err?.message,
+      });
       Alert.alert('Code invalide', err?.response?.data?.detail || 'Le code est incorrect ou a expiré.');
     } finally {
       setLoading(false);
@@ -110,9 +128,11 @@ export default function ForgotPasswordScreen() {
   };
 
   const handleResetSubmit = async (data: ResetPasswordFormData) => {
+    console.log('[ForgotPassword] Step 3 — resetting password, resetToken:', resetToken, '| code:', code);
     try {
       setLoading(true);
-      await authApi.resetPassword({ token: code, newPassword: data.password });
+      const res = await authApi.resetPassword({ token: resetToken, newPassword: data.password });
+      console.log('[ForgotPassword] resetPassword response:', res.status, JSON.stringify(res.data));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         'Mot de passe réinitialisé',
@@ -120,6 +140,11 @@ export default function ForgotPasswordScreen() {
         [{ text: 'OK', onPress: () => router.replace('/auth/login') }],
       );
     } catch (err: any) {
+      console.log('[ForgotPassword] Step 3 ERROR:', {
+        status: err?.response?.status,
+        data: JSON.stringify(err?.response?.data),
+        message: err?.message,
+      });
       Alert.alert('Erreur', err?.response?.data?.detail || 'Impossible de réinitialiser le mot de passe.');
     } finally {
       setLoading(false);
@@ -284,7 +309,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     position: 'absolute',
-    top: 0,
+    top: spacing[5],
     left: spacing[4],
     width: wp(40),
     height: wp(40),

@@ -12,8 +12,10 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +34,6 @@ import {
   MButton,
   MCard,
   MBadge,
-  MHeader,
   MDivider,
   LoadingSpinner,
   ErrorState,
@@ -47,16 +48,30 @@ export default function SubscriptionScreen() {
   const queryClient = useQueryClient();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
+  type ModalType = 'success-checkout' | 'success-change' | 'confirm-cancel' | 'success-cancel' | 'error';
+  const [modal, setModal] = useState<{ type: ModalType; message?: string } | null>(null);
+  const closeModal = () => setModal(null);
+
   /* ── Queries ── */
   const hasSubQ = useQuery({
     queryKey: ['hasSubscription'],
-    queryFn: () => subscriptionsApi.hasSubscription(),
+    queryFn: async () => {
+      console.log('[Subscription] hasSubscription — fetching…');
+      const res = await subscriptionsApi.hasSubscription();
+      console.log('[Subscription] hasSubscription response:', res.status, JSON.stringify(res.data));
+      return res;
+    },
     select: (res) => res.data?.hasSubscription ?? false,
   });
 
   const currentSubQ = useQuery({
     queryKey: ['mySubscription'],
-    queryFn: () => subscriptionsApi.getMySubscription(),
+    queryFn: async () => {
+      console.log('[Subscription] getMySubscription — fetching…');
+      const res = await subscriptionsApi.getMySubscription();
+      console.log('[Subscription] getMySubscription response:', res.status, JSON.stringify(res.data));
+      return res;
+    },
     select: (res) => res.data,
     enabled: hasSubQ.data === true,
     retry: false,
@@ -64,87 +79,137 @@ export default function SubscriptionScreen() {
 
   const plansQ = useQuery({
     queryKey: ['subscriptionPlans'],
-    queryFn: () => subscriptionsApi.getPlans(),
+    queryFn: async () => {
+      console.log('[Subscription] getPlans — fetching…');
+      const res = await subscriptionsApi.getPlans();
+      console.log('[Subscription] getPlans response:', res.status, 'count:', res.data?.totalCount, JSON.stringify(res.data?.items?.map((p: any) => ({ id: p.id, code: p.code, name: p.name }))));
+      return res;
+    },
     select: (res) => res.data,
   });
 
   /* ── Mutations ── */
   const checkoutMutation = useMutation({
     mutationFn: async (planCode: string) => {
-      // Build redirect URLs that work on both native (maya://) and web (http://localhost…)
       const successUrl = Linking.createURL('subscription/success');
       const cancelUrl = Linking.createURL('subscription/cancel');
+      console.log('[Subscription] createCheckoutSession — planCode:', planCode, '| successUrl:', successUrl);
 
-      const res = await paymentsApi.createCheckoutSession({
-        planCode,
-        successUrl,
-        cancelUrl,
-      });
+      const res = await paymentsApi.createCheckoutSession({ planCode, successUrl, cancelUrl });
+      console.log('[Subscription] createCheckoutSession response:', res.status, JSON.stringify(res.data));
 
       const stripeUrl = res.data?.url;
       if (!stripeUrl) throw new Error('No checkout URL returned');
 
-      // openAuthSessionAsync opens in-app browser and auto-closes when
-      // Stripe redirects back to our app scheme (native) or URL (web)
+      console.log('[Subscription] opening Stripe URL in browser…');
       const result = await WebBrowser.openAuthSessionAsync(stripeUrl, successUrl);
-
+      console.log('[Subscription] WebBrowser result:', result.type);
       return result;
     },
     onSuccess: (result) => {
-      // Refresh subscription status regardless of how user came back
+      console.log('[Subscription] checkout onSuccess — result type:', result.type);
       queryClient.invalidateQueries({ queryKey: ['hasSubscription'] });
       queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
-
       if (result.type === 'success') {
-        Alert.alert(
-          'Paiement réussi ! 🎉',
-          'Votre abonnement est maintenant actif. Profitez de vos réductions !',
-        );
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setModal({ type: 'success-checkout' });
       }
-      // 'cancel' / 'dismiss' → user closed the browser, no alert needed
     },
-    onError: () => {
-      Alert.alert('Erreur', 'Impossible de créer la session de paiement.');
+    onError: (err: any) => {
+      console.log('[Subscription] checkout ERROR:', {
+        status: err?.response?.status,
+        data: JSON.stringify(err?.response?.data),
+        message: err?.message,
+      });
+      const detail = err?.response?.data?.detail ?? err?.response?.data?.title ?? err?.message;
+      setModal({ type: 'error', message: detail ?? 'Impossible de créer la session de paiement.' });
     },
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => paymentsApi.cancelSubscription(),
+    mutationFn: async () => {
+      console.log('[Subscription] cancelSubscription — calling API…');
+      const res = await paymentsApi.cancelSubscription();
+      console.log('[Subscription] cancelSubscription response:', res.status, JSON.stringify(res.data));
+      return res;
+    },
     onSuccess: () => {
-      Alert.alert(
-        'Abonnement annulé',
-        "Votre abonnement reste actif jusqu'à la fin de la période en cours.",
-      );
+      console.log('[Subscription] cancel onSuccess');
       queryClient.invalidateQueries({ queryKey: ['hasSubscription'] });
       queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModal({ type: 'success-cancel' });
     },
-    onError: () => {
-      Alert.alert('Erreur', "Impossible d'annuler votre abonnement.");
+    onError: (err: any) => {
+      console.log('[Subscription] cancel ERROR:', {
+        status: err?.response?.status,
+        data: JSON.stringify(err?.response?.data),
+        message: err?.message,
+      });
+      const detail = err?.response?.data?.detail ?? err?.response?.data?.title ?? err?.message;
+      setModal({ type: 'error', message: detail ?? "Impossible d'annuler votre abonnement." });
+    },
+  });
+
+  const changePlanMutation = useMutation({
+    mutationFn: async (planCode: string) => {
+      const successUrl = Linking.createURL('subscription/success');
+      const cancelUrl = Linking.createURL('subscription/cancel');
+      console.log('[Subscription] changePlan — planCode:', planCode, '| successUrl:', successUrl);
+
+      const res = await paymentsApi.changePlan({ newPlanCode: planCode, successUrl, cancelUrl });
+      console.log('[Subscription] changePlan response:', res.status, JSON.stringify(res.data));
+
+      const url = res.data?.url;
+      if (url) {
+        console.log('[Subscription] changePlan — opening Stripe URL in browser…');
+        const result = await WebBrowser.openAuthSessionAsync(url, successUrl);
+        console.log('[Subscription] changePlan WebBrowser result:', result.type);
+        return result;
+      }
+      console.log('[Subscription] changePlan — applied directly (no redirect)');
+      return { type: 'success' as const };
+    },
+    onSuccess: (result) => {
+      console.log('[Subscription] changePlan onSuccess — result type:', result.type);
+      queryClient.invalidateQueries({ queryKey: ['hasSubscription'] });
+      queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
+      if (result.type === 'success') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setModal({ type: 'success-change' });
+      }
+    },
+    onError: (err: any) => {
+      console.log('[Subscription] changePlan ERROR:', {
+        status: err?.response?.status,
+        data: JSON.stringify(err?.response?.data),
+        message: err?.message,
+      });
+      const detail = err?.response?.data?.detail ?? err?.response?.data?.title ?? err?.message;
+      setModal({ type: 'error', message: detail ?? 'Impossible de changer de formule.' });
     },
   });
 
   const handleSubscribe = (plan: any) => {
     if (!plan.code) {
-      Alert.alert('Erreur', "Ce plan n'est pas encore disponible.");
+      console.log('[Subscription] handleSubscribe — plan has no code:', plan.id);
+      setModal({ type: 'error', message: "Ce plan n'est pas encore disponible." });
       return;
     }
+    const hasActive = hasSubQ.data === true;
+    console.log('[Subscription] handleSubscribe — planCode:', plan.code, '| hasActiveSub:', hasActive);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    checkoutMutation.mutate(plan.code);
+    if (hasActive) {
+      setSelectedPlan(plan.id);
+      changePlanMutation.mutate(plan.code);
+    } else {
+      checkoutMutation.mutate(plan.code);
+    }
   };
 
   const handleCancel = () => {
-    Alert.alert(
-      "Annuler l'abonnement",
-      'Êtes-vous sûr ? Vous perdrez accès aux réductions à la fin de la période.',
-      [
-        { text: 'Non', style: 'cancel' },
-        {
-          text: 'Oui, annuler',
-          style: 'destructive',
-          onPress: () => cancelMutation.mutate(),
-        },
-      ],
-    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setModal({ type: 'confirm-cancel' });
   };
 
   /* ── Loading / Error ── */
@@ -155,7 +220,12 @@ export default function SubscriptionScreen() {
   if (plansQ.isError && hasSubQ.isError) {
     return (
       <View style={styles.container}>
-        <MHeader title="Abonnement" showBack onBack={() => router.back()} />
+        <LinearGradient colors={['#FF7A18', '#FFB347']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Abonnement</Text>
+        </LinearGradient>
         <ErrorState
           fullScreen
           title="Erreur de chargement"
@@ -176,7 +246,12 @@ export default function SubscriptionScreen() {
 
   return (
     <View style={styles.container}>
-      <MHeader title="Abonnement" showBack onBack={() => router.back()} />
+      <LinearGradient colors={['#FF7A18', '#FFB347']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Abonnement</Text>
+      </LinearGradient>
 
       <ScrollView
         contentContainerStyle={[
@@ -311,6 +386,7 @@ export default function SubscriptionScreen() {
               key={plan.id}
               onPress={() => setSelectedPlan(plan.id)}
               activeOpacity={0.9}
+              disabled={changePlanMutation.isPending || checkoutMutation.isPending}
             >
               <MCard
                 style={[
@@ -385,7 +461,8 @@ export default function SubscriptionScreen() {
                     onPress={() => handleSubscribe(plan)}
                     variant={isPopular ? 'secondary' : 'primary'}
                     loading={
-                      checkoutMutation.isPending && selectedPlan === plan.id
+                      selectedPlan === plan.id &&
+                      (checkoutMutation.isPending || changePlanMutation.isPending)
                     }
                     style={{ marginTop: spacing[4] }}
                   />
@@ -401,6 +478,87 @@ export default function SubscriptionScreen() {
           Vous pouvez annuler à tout moment depuis votre profil.
         </Text>
       </ScrollView>
+
+      {/* ─── Custom Modals ─── */}
+      <Modal visible={!!modal} transparent animationType="fade" statusBarTranslucent onRequestClose={closeModal}>
+        <Pressable style={mStyles.backdrop} onPress={modal?.type !== 'confirm-cancel' ? closeModal : undefined}>
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        </Pressable>
+
+        <View style={mStyles.sheet}>
+          {/* Handle */}
+          <View style={mStyles.handle} />
+
+          {/* ── Success checkout ── */}
+          {modal?.type === 'success-checkout' && (
+            <>
+              <LinearGradient colors={['#FF7A18', '#FFB347']} style={mStyles.iconCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="checkmark" size={wp(36)} color="#FFF" />
+              </LinearGradient>
+              <Text style={mStyles.title}>Paiement réussi !</Text>
+              <Text style={mStyles.body}>Votre abonnement est maintenant actif. Profitez de vos réductions chez tous nos partenaires.</Text>
+              <MButton title="Parfait !" onPress={closeModal} style={mStyles.btn} />
+            </>
+          )}
+
+          {/* ── Success change plan ── */}
+          {modal?.type === 'success-change' && (
+            <>
+              <LinearGradient colors={['#7C3AED', '#A78BFA']} style={mStyles.iconCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="swap-horizontal" size={wp(32)} color="#FFF" />
+              </LinearGradient>
+              <Text style={mStyles.title}>Formule mise à jour</Text>
+              <Text style={mStyles.body}>Votre abonnement a bien été modifié. Les nouveaux avantages sont disponibles immédiatement.</Text>
+              <MButton title="Super !" onPress={closeModal} style={mStyles.btn} />
+            </>
+          )}
+
+          {/* ── Confirm cancel ── */}
+          {modal?.type === 'confirm-cancel' && (
+            <>
+              <View style={mStyles.iconCircleError}>
+                <Ionicons name="warning-outline" size={wp(32)} color={colors.error[500]} />
+              </View>
+              <Text style={mStyles.title}>Annuler l'abonnement ?</Text>
+              <Text style={mStyles.body}>Vous gardez accès à vos avantages jusqu'à la fin de la période en cours, puis votre abonnement prendra fin.</Text>
+              <View style={mStyles.rowBtns}>
+                <MButton title="Garder" variant="outline" onPress={closeModal} style={{ flex: 1 }} />
+                <MButton
+                  title="Annuler quand même"
+                  variant="danger"
+                  loading={cancelMutation.isPending}
+                  onPress={() => { closeModal(); cancelMutation.mutate(); }}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </>
+          )}
+
+          {/* ── Success cancel ── */}
+          {modal?.type === 'success-cancel' && (
+            <>
+              <View style={mStyles.iconCircleNeutral}>
+                <Ionicons name="checkmark-circle-outline" size={wp(32)} color={colors.neutral[500]} />
+              </View>
+              <Text style={mStyles.title}>Abonnement annulé</Text>
+              <Text style={mStyles.body}>Votre abonnement reste actif jusqu'à la fin de la période en cours. Vous pouvez vous réabonner à tout moment.</Text>
+              <MButton title="Compris" onPress={closeModal} style={mStyles.btn} />
+            </>
+          )}
+
+          {/* ── Error ── */}
+          {modal?.type === 'error' && (
+            <>
+              <View style={mStyles.iconCircleError}>
+                <Ionicons name="close-circle-outline" size={wp(32)} color={colors.error[500]} />
+              </View>
+              <Text style={mStyles.title}>Une erreur est survenue</Text>
+              <Text style={mStyles.body}>{modal.message ?? 'Veuillez réessayer.'}</Text>
+              <MButton title="Fermer" variant="outline" onPress={closeModal} style={mStyles.btn} />
+            </>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -410,6 +568,25 @@ export default function SubscriptionScreen() {
 /* ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.neutral[50] },
+
+  header: {
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[5],
+  },
+  backBtn: {
+    width: wp(36),
+    height: wp(36),
+    borderRadius: wp(18),
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[2],
+  },
+  headerTitle: {
+    ...textStyles.h3,
+    color: '#FFFFFF',
+  },
+
   scroll: {
     paddingHorizontal: spacing[6],
   },
@@ -573,5 +750,82 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: spacing[4],
     marginTop: spacing[2],
+  },
+});
+
+const mStyles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: wp(32),
+    borderTopRightRadius: wp(32),
+    paddingHorizontal: spacing[6],
+    paddingBottom: spacing[8],
+    alignItems: 'center',
+  },
+  handle: {
+    width: wp(40),
+    height: wp(4),
+    borderRadius: 2,
+    backgroundColor: colors.neutral[200],
+    marginVertical: spacing[3],
+  },
+  iconCircle: {
+    width: wp(80),
+    height: wp(80),
+    borderRadius: wp(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[2],
+    marginBottom: spacing[5],
+  },
+  iconCircleError: {
+    width: wp(80),
+    height: wp(80),
+    borderRadius: wp(40),
+    backgroundColor: `${colors.error[500]}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[2],
+    marginBottom: spacing[5],
+  },
+  iconCircleNeutral: {
+    width: wp(80),
+    height: wp(80),
+    borderRadius: wp(40),
+    backgroundColor: colors.neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[2],
+    marginBottom: spacing[5],
+  },
+  title: {
+    ...textStyles.h3,
+    fontFamily: fontFamily.bold,
+    color: colors.neutral[900],
+    textAlign: 'center',
+    marginBottom: spacing[3],
+  },
+  body: {
+    ...textStyles.body,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing[6],
+  },
+  btn: {
+    width: '100%',
+  },
+  rowBtns: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    width: '100%',
   },
 });
