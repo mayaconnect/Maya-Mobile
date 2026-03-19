@@ -72,6 +72,12 @@ export interface ResetPasswordDto {
   newPassword: string;
 }
 
+/** POST /api/v1/auth/change-password */
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+}
+
 /** User status enum (from api.json) */
 export enum UserStatus {
   Inactive = 0,

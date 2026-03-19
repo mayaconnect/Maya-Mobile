@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,11 +23,12 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { LinearGradient } from 'expo-linear-gradient';
-import { EmptyState } from '../../src/components/ui';
+import { EmptyState, MButton } from '../../src/components/ui';
 
 export default function PartnerStoresScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const stores = usePartnerStore((s) => s.stores);
   const activeStoreZus = usePartnerStore((s) => s.activeStore);
@@ -120,6 +122,18 @@ export default function PartnerStoresScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Manage button — only for active store */}
+          {isActive && (
+            <MButton
+              title="Gérer le magasin"
+              variant="outline"
+              size="sm"
+              onPress={() => router.push('/(partner)/store-management' as any)}
+              style={{ marginTop: spacing[3] }}
+              icon={<Ionicons name="settings-outline" size={wp(14)} color={colors.violet[500]} />}
+            />
+          )}
         </View>
       </View>
     );

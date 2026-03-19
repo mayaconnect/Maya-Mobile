@@ -52,7 +52,10 @@ export default function ChangePasswordScreen() {
 
   const changeMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      return new Promise((resolve) => setTimeout(resolve, 1000));
+      await authApi.changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

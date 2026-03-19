@@ -49,14 +49,14 @@ export const storesApi = {
 
   /**
    * PUT /api/stores/:id — Update store data (opening hours, contact, etc.)
-   * Currently Admin-only on backend; needs auth expansion for Manager StoreOperators.
+   * Admin can update any store; Partner/StoreOperator can update their own stores only.
    */
   updateStore: (id: string, dto: StoreUpdateDto) =>
     apiClient.put<StoreDto>(`${BASE}/${id}`, dto),
 
   /**
    * POST /api/stores/:id/image — Upload store image (multipart, max 5MB)
-   * ⚠️ Backend endpoint does NOT exist yet — needs to be created.
+   * Admin, Partner, StoreOperator (must be assigned to the store).
    */
   uploadImage: (id: string, formData: FormData) =>
     apiClient.post<{ imageUrl: string }>(`${BASE}/${id}/image`, formData, {
@@ -65,7 +65,7 @@ export const storesApi = {
 
   /**
    * DELETE /api/stores/:id/image — Remove store image
-   * ⚠️ Backend endpoint does NOT exist yet — needs to be created.
+   * Admin, Partner, StoreOperator (must be assigned to the store).
    */
   deleteImage: (id: string) =>
     apiClient.delete(`${BASE}/${id}/image`),

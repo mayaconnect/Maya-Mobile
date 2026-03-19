@@ -1,7 +1,7 @@
 /**
  * Maya Connect V2 — Store Operator Profile Screen
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -20,12 +22,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authApi } from '../../src/api/auth.api';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { usePartnerStore } from '../../src/stores/partner.store';
+import { profileSchema } from '../../src/utils/validation';
 import { operatorColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import {
   MButton,
+  MInput,
   MCard,
   MAvatar,
   MBadge,
@@ -45,6 +49,59 @@ export default function StoreOperatorProfileScreen() {
   const activeStore = usePartnerStore((s) => s.activeStore);
   const stores = usePartnerStore((s) => s.stores);
   const [showStoreModal, setShowStoreModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  /* ---- Profile query ---- */
+  const profileQ = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => authApi.getProfile(),
+    select: (res) => res.data,
+    initialData: { data: user } as any,
+  });
+
+  const profile = profileQ.data ?? user;
+
+  /* ---- Form ---- */
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: profile?.firstName ?? '',
+      lastName: profile?.lastName ?? '',
+      phoneNumber: profile?.phoneNumber ?? '',
+    },
+  });
+
+  useEffect(() => {
+    if (profile) {
+      reset({
+        firstName: profile.firstName ?? '',
+        lastName: profile.lastName ?? '',
+        phoneNumber: profile.phoneNumber ?? '',
+      });
+    }
+  }, [profile?.firstName, profile?.lastName, profile?.phoneNumber]);
+
+  /* ---- Update profile ---- */
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => {
+      const payload = { ...data, address: { street: '', city: '', country: '' } };
+      return authApi.updateProfile(payload);
+    },
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      authApi.getProfile().then((res) => setUser(res.data));
+    },
+    onError: (err: any) => {
+      Alert.alert('Erreur', err?.response?.data?.detail ?? 'Impossible de mettre à jour le profil.');
+    },
+  });
 
   // Résoudre le nom du magasin depuis le tableau stores (StoreOperatorDto n'a pas storeName)
   const storeName = useMemo(() => {
@@ -179,33 +236,82 @@ export default function StoreOperatorProfileScreen() {
           )}
         </MCard>
 
-        {/* Personal info */}
+        {/* Personal info — editable form */}
         <MCard style={styles.infoCard} elevation="sm">
-          <Text style={styles.sectionTitle}>Informations personnelles</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Informations personnelles</Text>
+            <TouchableOpacity
+              style={[styles.editBtnWrap, isEditing && styles.editBtnWrapActive]}
+              onPress={() => { setIsEditing(!isEditing); if (isEditing) reset(); }}
+            >
+              <Text style={[styles.editBtn, isEditing && styles.editBtnActive]}>
+                {isEditing ? 'Annuler' : 'Modifier'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Prénom</Text>
-            <Text style={styles.infoValue}>{user?.firstName ?? '—'}</Text>
-          </View>
-          <MDivider />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Nom</Text>
-            <Text style={styles.infoValue}>{user?.lastName ?? '—'}</Text>
-          </View>
-          <MDivider />
+          <Controller
+            control={control}
+            name="firstName"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <MInput
+                label="Prénom"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.firstName?.message}
+                editable={isEditing}
+                icon="person-outline"
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="lastName"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <MInput
+                label="Nom"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.lastName?.message}
+                editable={isEditing}
+                icon="person-outline"
+              />
+            )}
+          />
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Email</Text>
             <Text style={styles.infoValue}>{user?.email ?? '—'}</Text>
           </View>
-          {user?.phoneNumber ? (
-            <>
-              <MDivider />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Téléphone</Text>
-                <Text style={styles.infoValue}>{user.phoneNumber}</Text>
-              </View>
-            </>
-          ) : null}
+
+          <Controller
+            control={control}
+            name="phoneNumber"
+            render={({ field: { onChange, onBlur, value } }) => (
+              <MInput
+                label="Téléphone"
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.phoneNumber?.message}
+                editable={isEditing}
+                keyboardType="phone-pad"
+                icon="call-outline"
+              />
+            )}
+          />
+
+          {isEditing && (
+            <MButton
+              title="Enregistrer les modifications"
+              onPress={handleSubmit((data) => updateMutation.mutate(data))}
+              loading={updateMutation.isPending}
+              disabled={!isDirty}
+              style={{ marginTop: spacing[3] }}
+            />
+          )}
         </MCard>
 
         {/* Security */}
@@ -398,6 +504,29 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     color: colors.neutral[900],
     marginBottom: spacing[3],
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[3],
+  },
+  editBtnWrap: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.violet[50],
+  },
+  editBtnWrapActive: {
+    backgroundColor: colors.error[50] ?? '#FEE2E2',
+  },
+  editBtn: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.semiBold,
+    color: colors.violet[500],
+  },
+  editBtnActive: {
+    color: colors.error[500],
   },
   infoRow: {
     flexDirection: 'row',

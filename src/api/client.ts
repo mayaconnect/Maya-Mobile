@@ -127,7 +127,7 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { refreshToken, setAccessToken } = useAuthStore.getState();
+        const { refreshToken, setTokens } = useAuthStore.getState();
         if (!refreshToken) throw new Error('No refresh token');
 
         const { data } = await axios.post(
@@ -135,7 +135,9 @@ apiClient.interceptors.response.use(
           { refreshToken },
         );
 
-        await setAccessToken(data.accessToken);
+        // Save BOTH tokens — the API uses refresh token rotation,
+        // so the old refresh token is revoked and a new one is issued.
+        await setTokens(data.accessToken, data.refreshToken);
         processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {

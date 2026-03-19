@@ -192,6 +192,11 @@ export default function PartnerProfileScreen() {
       label: 'Scanner un QR code',
       onPress: () => router.push('/(partner)/scanner'),
     },
+    {
+      icon: 'lock-closed-outline',
+      label: 'Changer le mot de passe',
+      onPress: () => router.push('/(client)/change-password' as any),
+    },
   ];
 
   const roleName = profile?.role?.toLowerCase?.() ??

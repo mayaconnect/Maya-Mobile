@@ -117,6 +117,13 @@ export default function PartnerLayout() {
           title: 'Mon équipe',
         }}
       />
+      <Tabs.Screen
+        name="store-management"
+        options={{
+          href: null,
+          title: 'Gestion du magasin',
+        }}
+      />
     </Tabs>
   );
 }

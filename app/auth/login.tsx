@@ -18,6 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { authApi } from '../../src/api/auth.api';
 import { loginSchema, type LoginFormData } from '../../src/utils/validation';
@@ -26,6 +29,15 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
 import { MButton, MInput, MDivider } from '../../src/components/ui';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID = '125229396520-enrhsjtp80ehijnf0ru39n1j18ic2vqv.apps.googleusercontent.com';
+
+const googleDiscovery = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+};
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -78,11 +90,84 @@ export default function LoginScreen() {
   };
 
   const handleGoogleLogin = async () => {
-    Alert.alert('Google', 'Connexion Google bientôt disponible.');
+    try {
+      setLoading(true);
+      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.mayaconnect.app' });
+      const request = new AuthSession.AuthRequest({
+        clientId: GOOGLE_WEB_CLIENT_ID,
+        redirectUri,
+        scopes: ['openid', 'profile', 'email'],
+        responseType: AuthSession.ResponseType.IdToken,
+        usePKCE: false,
+      });
+      const result = await request.promptAsync(googleDiscovery);
+      if (result.type === 'success' && result.params?.id_token) {
+        const { data: loginData } = await authApi.googleSignIn({ idToken: result.params.id_token });
+        const { accessToken, refreshToken } = loginData;
+        useAuthStore.setState({ accessToken });
+        const { data: user } = await authApi.getProfile();
+        await setSession(
+          { accessToken, refreshToken, expiresAt: Date.now() + (loginData.expiresIn ?? 3600) * 1000 },
+          user,
+        );
+        await completeOnboarding();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const role = useAuthStore.getState().role;
+        if (role === 'storeOperator') router.replace('/(storeoperator)/dashboard');
+        else if (role === 'partner') router.replace('/(partner)/dashboard');
+        else router.replace('/(client)/home');
+      } else if (result.type !== 'dismiss') {
+        Alert.alert('Google', 'Connexion annulée ou échouée.');
+      }
+    } catch (err: any) {
+      console.error('[Google Sign-In]', err);
+      Alert.alert('Erreur', err?.response?.data?.message || 'Connexion Google échouée.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAppleLogin = async () => {
-    Alert.alert('Apple', 'Connexion Apple bientôt disponible.');
+    try {
+      setLoading(true);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        Alert.alert('Erreur', 'Aucun token reçu d\'Apple.');
+        return;
+      }
+      const { data: loginData } = await authApi.appleSignIn({
+        idToken: credential.identityToken,
+        authorizationCode: credential.authorizationCode ?? undefined,
+        firstName: credential.fullName?.givenName ?? undefined,
+        lastName: credential.fullName?.familyName ?? undefined,
+      });
+      const { accessToken, refreshToken } = loginData;
+      useAuthStore.setState({ accessToken });
+      const { data: user } = await authApi.getProfile();
+      await setSession(
+        { accessToken, refreshToken, expiresAt: Date.now() + (loginData.expiresIn ?? 3600) * 1000 },
+        user,
+      );
+      await completeOnboarding();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const role = useAuthStore.getState().role;
+      if (role === 'storeOperator') router.replace('/(storeoperator)/dashboard');
+      else if (role === 'partner') router.replace('/(partner)/dashboard');
+      else router.replace('/(client)/home');
+    } catch (err: any) {
+      if (err.code === 'ERR_REQUEST_CANCELED') return; // User dismissed
+      console.error('[Apple Sign-In]', err);
+      Alert.alert('Erreur', err?.response?.data?.message || 'Connexion Apple échouée.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

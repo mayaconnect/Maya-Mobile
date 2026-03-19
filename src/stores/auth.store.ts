@@ -35,6 +35,8 @@ interface AuthActions {
   setUser: (user: UserProfile) => void;
   /** Update just the access token (after refresh) */
   setAccessToken: (token: string) => Promise<void>;
+  /** Update both tokens after a refresh (token rotation) */
+  setTokens: (accessToken: string, refreshToken: string) => Promise<void>;
   /** Full logout */
   logout: () => Promise<void>;
   /** Mark onboarding done */
@@ -115,6 +117,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setAccessToken: async (token) => {
     await SecureStoreAdapter.setItemAsync(STORAGE_KEYS.ACCESS_TOKEN, token);
     set({ accessToken: token });
+  },
+
+  setTokens: async (accessToken, refreshToken) => {
+    await Promise.all([
+      SecureStoreAdapter.setItemAsync(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
+      SecureStoreAdapter.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
+    ]);
+    set({ accessToken, refreshToken });
   },
 
   logout: async () => {

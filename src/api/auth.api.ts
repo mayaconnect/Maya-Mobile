@@ -14,6 +14,7 @@ import type {
   RequestResetCodeDto,
   VerifyResetCodeDto,
   ResetPasswordDto,
+  ChangePasswordDto,
   AuthResponse,
   UserProfile,
 } from '../types';
@@ -81,4 +82,8 @@ export const authApi = {
   /** POST /api/v1/auth/reset-password */
   resetPassword: (dto: ResetPasswordDto) =>
     apiClient.post(`${BASE}/reset-password`, dto),
+
+  /** POST /api/v1/auth/change-password (authenticated) */
+  changePassword: (dto: ChangePasswordDto) =>
+    apiClient.post(`${BASE}/change-password`, dto),
 };
