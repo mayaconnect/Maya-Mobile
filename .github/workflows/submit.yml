@@ -37,18 +37,15 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 💾 Backup Fastlane configuration
-        run: |
-          mkdir -p /tmp/fastlane-backup
-          cp -r android/fastlane /tmp/fastlane-backup/ || echo "No fastlane folder to backup"
-
-      - name: 🔨 Generate Android native folder
+      - name: � Generate Android native folder
         run: npx expo prebuild --platform android --clean
 
-      - name: 📋 Restore Fastlane configuration
+      - name: 📋 Setup Fastlane configuration
         run: |
-          cp -r /tmp/fastlane-backup/fastlane android/
-          echo "Fastlane configuration restored"
+          mkdir -p android/fastlane
+          cp android-fastlane/Fastfile android/fastlane/Fastfile
+          echo "✅ Fastlane configuration copied to android/fastlane/"
+          ls -la android/fastlane/
 
       - name: 🔧 Set gradlew permissions
         working-directory: android
@@ -152,10 +149,12 @@ jobs:
       - name: 🔨 Generate iOS native folder
         run: npx expo prebuild --platform ios --clean
 
-      - name: 🔧 Fix iOS nullability issues
+      - name: 🔧 Fix iOS nullability issues (pre-pods)
         run: |
-          chmod +x scripts/fix-ios-nullability.sh
-          bash scripts/fix-ios-nullability.sh
+          if [ -f scripts/fix-ios-nullability.sh ]; then
+            chmod +x scripts/fix-ios-nullability.sh
+            bash scripts/fix-ios-nullability.sh || echo "⚠️ Pre-pods nullability fix had warnings, continuing..."
+          fi
           node scripts/fix-react-native-maps-nullability.js || true
           node scripts/fix-react-native-svg-nullability.js || true
 
@@ -183,8 +182,10 @@ jobs:
 
       - name: 🔧 Fix iOS nullability issues in Pods
         run: |
-          chmod +x scripts/fix-ios-nullability.sh
-          bash scripts/fix-ios-nullability.sh
+          if [ -f scripts/fix-ios-nullability.sh ]; then
+            chmod +x scripts/fix-ios-nullability.sh
+            bash scripts/fix-ios-nullability.sh || echo "⚠️ Post-pods nullability fix had warnings, continuing..."
+          fi
           node scripts/fix-react-native-maps-nullability.js || true
           node scripts/fix-react-native-svg-nullability.js || true
 

@@ -1,0 +1,43 @@
+# ============================================
+# Maya Connect — Android Fastfile
+# ============================================
+# Used by build.yml for local build verification.
+# Production deploys use EAS Build (deploy.yml).
+# ============================================
+
+default_platform(:android)
+
+platform :android do
+  desc "Build debug APK for CI build check"
+  lane :build_apk do
+    gradle(
+      task: "assembleRelease",
+      project_dir: "./"
+    )
+    UI.success("✅ Android APK built successfully!")
+  end
+
+  desc "Build AAB for production"
+  lane :build_aab do
+    gradle(
+      task: "bundleRelease",
+      project_dir: "./"
+    )
+    UI.success("✅ Android AAB built successfully!")
+  end
+
+  desc "Deploy AAB to Google Play internal track"
+  lane :production do
+    build_aab
+
+    supply(
+      track: "internal",
+      aab: "./app/build/outputs/bundle/release/app-release.aab",
+      json_key: "./fastlane/google-play-service-account.json",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+    UI.success("✅ Android AAB uploaded to Google Play!")
+  end
+end

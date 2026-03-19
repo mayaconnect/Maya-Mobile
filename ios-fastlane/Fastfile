@@ -1,0 +1,45 @@
+# ============================================
+# Maya Connect — iOS Fastfile
+# ============================================
+# Used by submit.yml for App Store submission.
+# Production deploys use EAS Build (deploy.yml).
+# ============================================
+
+default_platform(:ios)
+
+platform :ios do
+  desc "Build iOS for release (CI check only)"
+  lane :build_check do
+    build_app(
+      workspace: "maya.xcworkspace",
+      scheme: "Maya",
+      configuration: "Release",
+      clean: true,
+      skip_codesigning: true,
+      export_method: "ad-hoc",
+      skip_package_ipa: true
+    )
+    UI.success("✅ iOS build check passed!")
+  end
+
+  desc "Release to App Store via Fastlane"
+  lane :release do
+    build_app(
+      workspace: "maya.xcworkspace",
+      scheme: "Maya",
+      configuration: "Release",
+      clean: true,
+      export_method: "app-store"
+    )
+
+    upload_to_app_store(
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: false,
+      automatic_release: false,
+      precheck_include_in_app_purchases: false,
+      api_key_path: "./fastlane/keys/AuthKey_#{ENV['APP_STORE_CONNECT_KEY_ID'] || '44Z65DA5ZQ'}.p8"
+    )
+    UI.success("✅ iOS IPA uploaded to App Store Connect!")
+  end
+end
