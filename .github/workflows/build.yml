@@ -279,18 +279,38 @@ jobs:
       - name: 🔍 List available schemes
         run: |
           cd ios
-          echo "📋 Available schemes in workspace:"
-          xcodebuild -list -workspace maya.xcworkspace
+          # Find the workspace dynamically (expo prebuild names it based on app.json "name")
+          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 -not -name "project.xcworkspace" | head -n 1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "❌ No .xcworkspace found in ios/"
+            ls -la
+            exit 1
+          fi
+          echo "📋 Found workspace: $WORKSPACE"
+          echo "📋 Available schemes:"
+          xcodebuild -list -workspace "$WORKSPACE"
 
       - name: 🏗️ Build iOS (without signing for check)
         env:
           SKIP_SIMULATOR_AVAILABILITY_CHECK: "1"
         run: |
           cd ios
+          # Find the workspace dynamically
+          WORKSPACE=$(find . -name "*.xcworkspace" -maxdepth 1 -not -name "project.xcworkspace" | head -n 1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "❌ No .xcworkspace found in ios/"
+            exit 1
+          fi
+          echo "📋 Using workspace: $WORKSPACE"
+
+          # Extract scheme name (workspace basename without extension)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "📋 Using scheme: $SCHEME"
+
           # Build for iOS device only (avoid simulator runtime issues)
           xcodebuild clean build \
-            -workspace maya.xcworkspace \
-            -scheme Maya \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
