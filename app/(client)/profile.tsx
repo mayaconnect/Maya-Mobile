@@ -11,16 +11,24 @@
  *  • Logout
  */
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  authenticateWithBiometric,
+  checkBiometricAvailability,
+  clearBiometricCredentials,
+  getBiometricType,
+  isBiometricLoginEnabled,
+  saveBiometricCredentials,
+} from '../../src/utils/biometric';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
+    Animated,
     Image,
+    Keyboard,
     Modal,
     Platform,
     Pressable,
@@ -28,6 +36,7 @@ import {
     StyleSheet,
     Switch,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -47,8 +56,6 @@ import { fontFamily, textStyles, textStyles as themeTextStyles } from '../../src
 import { formatDate, formatName } from '../../src/utils/format';
 import { wp } from '../../src/utils/responsive';
 
-const BIOMETRIC_KEY = 'maya_biometric_enabled';
-
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -63,40 +70,81 @@ export default function ProfileScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<string>('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingPassword, setPendingPassword] = useState('');
+  const passwordInputRef = useRef<TextInput>(null);
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => {
+      Animated.timing(keyboardOffset, {
+        toValue: e.endCoordinates.height,
+        duration: e.duration || 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hide = Keyboard.addListener('keyboardWillHide', (e) => {
+      Animated.timing(keyboardOffset, {
+        toValue: 0,
+        duration: e.duration || 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   useEffect(() => {
     (async () => {
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      const enrolled = await LocalAuthentication.isEnrolledAsync();
-      setBiometricAvailable(compatible && enrolled);
+      const available = await checkBiometricAvailability();
+      setBiometricAvailable(available);
 
-      if (compatible && enrolled) {
-        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
-          setBiometricType(Platform.OS === 'ios' ? 'Face ID' : 'Reconnaissance faciale');
-        } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
-          setBiometricType('Empreinte digitale');
-        } else {
-          setBiometricType('Biométrie');
-        }
+      if (available) {
+        const type = await getBiometricType();
+        setBiometricType(type);
+        const enabled = await isBiometricLoginEnabled();
+        setBiometricEnabled(enabled);
       }
-
-      const stored = await AsyncStorage.getItem(BIOMETRIC_KEY);
-      setBiometricEnabled(stored === 'true');
     })();
   }, []);
 
   const toggleBiometric = async (value: boolean) => {
     if (value) {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Vérifiez votre identité pour activer la biométrie',
-        cancelLabel: 'Annuler',
-      });
-      if (!result.success) return;
+      const success = await authenticateWithBiometric(`Activer ${biometricType}`);
+      if (!success) return;
+      // Ask for password to save credentials
+      setShowPasswordModal(true);
+    } else {
+      const success = await authenticateWithBiometric(`Désactiver ${biometricType}`);
+      if (!success) return;
+      await clearBiometricCredentials();
+      setBiometricEnabled(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setBiometricEnabled(value);
-    await AsyncStorage.setItem(BIOMETRIC_KEY, value ? 'true' : 'false');
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+
+  const confirmBiometricPassword = async () => {
+    if (!pendingPassword.trim()) return;
+    try {
+      setVerifyingPassword(true);
+      // Vérifier que le mot de passe est correct avant de le sauvegarder
+      await authApi.login({ email: user?.email ?? '', password: pendingPassword });
+      await saveBiometricCredentials(user?.email ?? '', pendingPassword);
+      setBiometricEnabled(true);
+      setShowPasswordModal(false);
+      setPendingPassword('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.title ||
+        'Mot de passe incorrect. Veuillez réessayer.';
+      Alert.alert('Mot de passe incorrect', msg);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setVerifyingPassword(false);
+    }
   };
 
   /* ── Avatar upload ── */
@@ -395,6 +443,50 @@ export default function ProfileScreen() {
         </Pressable>
       </Modal>
 
+      {/* ── Biometric Password Modal ── */}
+      <MModal
+        visible={showPasswordModal}
+        onClose={() => { setShowPasswordModal(false); setPendingPassword(''); }}
+        title={`Activer ${biometricType}`}
+      >
+        <Animated.View style={{ transform: [{ translateY: Animated.multiply(keyboardOffset, -1) }] }}>
+        <View style={{ alignItems: 'center', paddingTop: spacing[4] }}>
+          <Ionicons
+            name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
+            size={wp(48)}
+            color={colors.orange[500]}
+          />
+          <Text style={[themeTextStyles.body, { textAlign: 'center', marginTop: spacing[3], marginBottom: spacing[4], color: colors.neutral[600] }]}>
+            Entrez votre mot de passe pour associer {biometricType.toLowerCase()} à votre compte.
+          </Text>
+          <TextInput
+            ref={passwordInputRef}
+            value={pendingPassword}
+            onChangeText={setPendingPassword}
+            secureTextEntry
+            placeholder="Mot de passe"
+            placeholderTextColor={colors.neutral[400]}
+            autoFocus
+            style={styles.biometricPasswordInput}
+          />
+        </View>
+        <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
+          <MButton
+            title="Annuler"
+            variant="outline"
+            onPress={() => { setShowPasswordModal(false); setPendingPassword(''); }}
+            style={{ flex: 1 }}
+          />
+          <MButton
+            title="Confirmer"
+            onPress={confirmBiometricPassword}
+            loading={verifyingPassword}
+            style={{ flex: 1 }}
+          />
+        </View>
+        </Animated.View>
+      </MModal>
+
       {/* ── Logout Confirmation Modal ── */}
       <MModal
         visible={showLogoutModal}
@@ -552,6 +644,18 @@ const styles = StyleSheet.create({
     ...textStyles.micro,
     color: colors.neutral[500],
     marginTop: spacing[1],
+  },
+  biometricPasswordInput: {
+    width: '100%',
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: colors.orange[300],
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing[4],
+    fontFamily: fontFamily.regular,
+    fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
   },
 
   /* Info Card */
