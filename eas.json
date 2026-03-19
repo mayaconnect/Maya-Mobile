@@ -32,7 +32,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "RCT_NEW_ARCH_ENABLED": "1"
+        "RCT_NEW_ARCH_ENABLED": "1",
+        "EXPO_PUBLIC_API_BASE_URL": "https://maya-dev-api-cgc5agebeke0hxhq.francecentral-01.azurewebsites.net"
       },
       "node": "20.19.4"
     }
