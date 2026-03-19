@@ -72,11 +72,12 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: 🔧 Install EAS CLI
-        run: npm install -g eas-cli
+        run: npm install -g eas-cli@latest
 
       - name: 🏗️ Build Android with EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_NO_VCS: '1'
         run: |
           echo "🔐 EAS credentials configured via EXPO_TOKEN"
           echo "🏗️ Building Android app with EAS Build..."
@@ -151,7 +152,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: 🔧 Install EAS CLI
-        run: npm install -g eas-cli
+        run: npm install -g eas-cli@latest
 
       - name: 🔑 Setup App Store Connect API Key
         run: |
@@ -164,6 +165,7 @@ jobs:
       - name: 🏗️ Build iOS with EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_NO_VCS: '1'
         run: |
           echo "🔐 EAS credentials configured via EXPO_TOKEN"
           echo "🏗️ Building iOS app with EAS Build..."

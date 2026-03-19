@@ -24,8 +24,7 @@
     "production": {
       "autoIncrement": true,
       "cache": {
-        "key": "production-v1",
-        "cacheDefaultPaths": true
+        "key": "production-v1"
       },
       "ios": {
         "simulator": false,
@@ -34,7 +33,7 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "resourceClass": "medium"
+        "resourceClass": "m-medium"
       },
       "env": {
         "RCT_NEW_ARCH_ENABLED": "1"
