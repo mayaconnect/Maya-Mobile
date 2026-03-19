@@ -14,11 +14,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -49,6 +49,7 @@ export default function PartnerStoreManagementScreen() {
 
   const activeStore = usePartnerStore((s) => s.activeStore);
   const storeId = activeStore?.storeId;
+  const { alert, AlertModal } = useAppAlert();
 
   // Fetch full store data
   const storeQ = useQuery({
@@ -96,14 +97,14 @@ export default function PartnerStoreManagementScreen() {
       setEditHours(null);
       queryClient.invalidateQueries({ queryKey: ['storeDetails', storeId] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Succès', 'Les horaires ont été mis à jour.');
+      alert('Succès', 'Les horaires ont été mis à jour.', 'success');
     },
     onError: (err: any) => {
       const msg =
         err?.response?.status === 403
           ? "Vous n'avez pas les droits pour modifier ce magasin."
           : 'Impossible de sauvegarder les horaires.';
-      Alert.alert('Erreur', msg);
+      alert('Erreur', msg);
     },
   });
 
@@ -283,6 +284,8 @@ export default function PartnerStoreManagementScreen() {
           </View>
         </MCard>
       </ScrollView>
+
+      <AlertModal />
     </KeyboardAvoidingView>
   );
 }

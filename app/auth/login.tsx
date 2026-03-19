@@ -7,9 +7,9 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Image,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -28,7 +28,7 @@ import { colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
-import { MButton, MInput, MDivider } from '../../src/components/ui';
+import { MButton, MInput, MDivider, MModal } from '../../src/components/ui';
 import {
   checkBiometricAvailability,
   getBiometricType,
@@ -55,6 +55,7 @@ export default function LoginScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState('');
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -104,7 +105,7 @@ export default function LoginScreen() {
         err?.response?.data?.detail ||
         err?.response?.data?.title ||
         'Identifiants incorrects. Veuillez réessayer.';
-      Alert.alert('Erreur de connexion', msg);
+      setErrorModal({ title: 'Erreur de connexion', message: msg });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -119,7 +120,7 @@ export default function LoginScreen() {
 
       const credentials = await getBiometricCredentials();
       if (!credentials) {
-        Alert.alert('Erreur', 'Identifiants biométriques introuvables. Veuillez vous reconnecter manuellement.');
+        setErrorModal({ title: 'Erreur', message: 'Identifiants biométriques introuvables. Veuillez vous reconnecter manuellement.' });
         setBiometricAvailable(false);
         return;
       }
@@ -148,7 +149,7 @@ export default function LoginScreen() {
         err?.response?.data?.detail ||
         err?.response?.data?.title ||
         'Connexion biométrique échouée. Veuillez réessayer.';
-      Alert.alert('Erreur', msg);
+      setErrorModal({ title: 'Erreur', message: msg });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setBiometricLoading(false);
@@ -183,11 +184,11 @@ export default function LoginScreen() {
         else if (role === 'partner') router.replace('/(partner)/dashboard');
         else router.replace('/(client)/home');
       } else if (result.type !== 'dismiss') {
-        Alert.alert('Google', 'Connexion annulée ou échouée.');
+        setErrorModal({ title: 'Google', message: 'Connexion annulée ou échouée.' });
       }
     } catch (err: any) {
       console.error('[Google Sign-In]', err);
-      Alert.alert('Erreur', err?.response?.data?.message || 'Connexion Google échouée.');
+      setErrorModal({ title: 'Erreur', message: err?.response?.data?.message || 'Connexion Google échouée.' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -204,7 +205,7 @@ export default function LoginScreen() {
         ],
       });
       if (!credential.identityToken) {
-        Alert.alert('Erreur', 'Aucun token reçu d\'Apple.');
+        setErrorModal({ title: 'Erreur', message: 'Aucun token reçu d\'Apple.' });
         return;
       }
       const { data: loginData } = await authApi.appleSignIn({
@@ -229,7 +230,7 @@ export default function LoginScreen() {
     } catch (err: any) {
       if (err.code === 'ERR_REQUEST_CANCELED') return; // User dismissed
       console.error('[Apple Sign-In]', err);
-      Alert.alert('Erreur', err?.response?.data?.message || 'Connexion Apple échouée.');
+      setErrorModal({ title: 'Erreur', message: err?.response?.data?.message || 'Connexion Apple échouée.' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
@@ -348,13 +349,35 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.registerRow}>
-            <Text style={styles.registerLabel}>Pas encore de compte ? </Text>
-            <TouchableOpacity onPress={() => router.push('/auth/signup')}>
-              <Text style={styles.registerLink}>Créer un compte</Text>
-            </TouchableOpacity>
+            <MButton
+              title="Créer un compte gratuitement"
+              variant="outline"
+              onPress={() => router.push('/auth/signup')}
+              style={styles.registerBtn}
+              icon={<Ionicons name="person-add-outline" size={wp(18)} color={colors.orange[400]} />}
+            />
           </View>
         </View>
       </LinearGradient>
+
+      {/* ── Error Modal ── */}
+      <MModal
+        visible={!!errorModal}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title ?? 'Erreur'}
+      >
+        <View style={{ alignItems: 'center', paddingVertical: spacing[4] }}>
+          <Ionicons name="alert-circle" size={wp(48)} color={colors.error?.[500] ?? '#EF4444'} />
+          <Text style={[textStyles.body, { textAlign: 'center', marginTop: spacing[3], color: colors.neutral[600] }]}>
+            {errorModal?.message}
+          </Text>
+        </View>
+        <MButton
+          title="Compris"
+          onPress={() => setErrorModal(null)}
+          style={{ marginTop: spacing[3] }}
+        />
+      </MModal>
     </KeyboardAvoidingView>
   );
 }
@@ -469,17 +492,11 @@ const styles = StyleSheet.create({
   },
 
   registerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: spacing[3],
+    marginTop: spacing[4],
+    marginBottom: spacing[2],
   },
-  registerLabel: {
-    ...textStyles.caption,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  registerLink: {
-    ...textStyles.caption,
-    color: colors.orange[400],
-    fontFamily: fontFamily.semiBold,
+  registerBtn: {
+    borderColor: `${colors.orange[400]}60`,
+    backgroundColor: `${colors.orange[500]}12`,
   },
 });

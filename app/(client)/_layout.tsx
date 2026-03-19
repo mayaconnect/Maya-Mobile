@@ -154,6 +154,10 @@ export default function ClientTabLayout() {
         name="payment-methods"
         options={{ href: null }}
       />
+      <Tabs.Screen
+        name="invoices"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

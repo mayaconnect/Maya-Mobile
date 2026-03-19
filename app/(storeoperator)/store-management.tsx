@@ -14,11 +14,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -58,6 +58,7 @@ export default function StoreManagementScreen() {
   );
   const isManager = activeStoreInfo?.isManager ?? false;
   const storeId = activeStore?.storeId;
+  const { alert, AlertModal } = useAppAlert();
 
   // Fetch full store data
   const storeQ = useQuery({
@@ -105,7 +106,7 @@ export default function StoreManagementScreen() {
       setEditHours(null);
       queryClient.invalidateQueries({ queryKey: ['storeDetails', storeId] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Succès', 'Les horaires ont été mis à jour.');
+      alert('Succès', 'Les horaires ont été mis à jour.', 'success');
     },
     onError: (err: any) => {
       const msg =
@@ -114,7 +115,7 @@ export default function StoreManagementScreen() {
           : err?.response?.status === 404
           ? "L'endpoint de mise à jour n'est pas disponible."
           : 'Impossible de sauvegarder les horaires.';
-      Alert.alert('Erreur', msg);
+      alert('Erreur', msg);
     },
   });
 
@@ -295,6 +296,8 @@ export default function StoreManagementScreen() {
           </View>
         </MCard>
       </ScrollView>
+
+      <AlertModal />
     </KeyboardAvoidingView>
   );
 }

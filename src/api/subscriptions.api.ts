@@ -17,6 +17,7 @@ import type {
   ChangePlanRequest,
   ChangePlanResult,
   PlanChangePreview,
+  InvoiceDto,
 } from '../types';
 import type { PagedResult } from '../types';
 
@@ -69,4 +70,8 @@ export const paymentsApi = {
       '/api/payments/preview-plan-change',
       dto,
     ),
+
+  /** GET /api/payments/my-invoices — client's own invoices */
+  getMyInvoices: () =>
+    apiClient.get<InvoiceDto[]>('/api/payments/my-invoices'),
 };

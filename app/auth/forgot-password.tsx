@@ -12,7 +12,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   TouchableOpacity,
 } from 'react-native';
@@ -37,6 +36,7 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
 import { MButton, MInput } from '../../src/components/ui';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 
 type Step = 'email' | 'code' | 'reset';
 
@@ -61,6 +61,7 @@ const STEPS: Record<Step, { title: string; sub: string; icon: keyof typeof Ionic
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { alert, AlertModal } = useAppAlert();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -97,7 +98,7 @@ export default function ForgotPasswordScreen() {
         data: JSON.stringify(err?.response?.data),
         message: err?.message,
       });
-      Alert.alert('Erreur', err?.response?.data?.detail || "Impossible d'envoyer le code.");
+      alert('Erreur', err?.response?.data?.detail || "Impossible d'envoyer le code.");
     } finally {
       setLoading(false);
     }
@@ -121,7 +122,7 @@ export default function ForgotPasswordScreen() {
         data: JSON.stringify(err?.response?.data),
         message: err?.message,
       });
-      Alert.alert('Code invalide', err?.response?.data?.detail || 'Le code est incorrect ou a expiré.');
+      alert('Code invalide', err?.response?.data?.detail || 'Le code est incorrect ou a expiré.');
     } finally {
       setLoading(false);
     }
@@ -134,18 +135,15 @@ export default function ForgotPasswordScreen() {
       const res = await authApi.resetPassword({ token: resetToken, newPassword: data.password });
       console.log('[ForgotPassword] resetPassword response:', res.status, JSON.stringify(res.data));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        'Mot de passe réinitialisé',
-        'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.',
-        [{ text: 'OK', onPress: () => router.replace('/auth/login') }],
-      );
+      alert('Mot de passe réinitialisé', 'Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.', 'success');
+      setTimeout(() => router.replace('/auth/login'), 2000);
     } catch (err: any) {
       console.log('[ForgotPassword] Step 3 ERROR:', {
         status: err?.response?.status,
         data: JSON.stringify(err?.response?.data),
         message: err?.message,
       });
-      Alert.alert('Erreur', err?.response?.data?.detail || 'Impossible de réinitialiser le mot de passe.');
+      alert('Erreur', err?.response?.data?.detail || 'Impossible de réinitialiser le mot de passe.');
     } finally {
       setLoading(false);
     }
@@ -294,6 +292,7 @@ export default function ForgotPasswordScreen() {
           )}
         </ScrollView>
       </LinearGradient>
+      <AlertModal />
     </KeyboardAvoidingView>
   );
 }

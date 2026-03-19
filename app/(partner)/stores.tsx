@@ -8,10 +8,10 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
-  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -32,6 +32,7 @@ export default function PartnerStoresScreen() {
 
   const stores = usePartnerStore((s) => s.stores);
   const activeStoreZus = usePartnerStore((s) => s.activeStore);
+  const { alert, confirm, AlertModal } = useAppAlert();
 
   const activeStoreQ = useQuery({
     queryKey: ['activeStore'],
@@ -54,7 +55,7 @@ export default function PartnerStoresScreen() {
       queryClient.invalidateQueries({ queryKey: ['partnerTxHistory'] });
     },
     onError: (err: any) => {
-      Alert.alert('Erreur', err?.response?.data?.detail ?? 'Impossible de changer le magasin actif.');
+      alert('Erreur', err?.response?.data?.detail ?? 'Impossible de changer le magasin actif.');
     },
   });
 
@@ -107,13 +108,10 @@ export default function PartnerStoresScreen() {
                     && styles.activateBtnLoading,
                 ]}
                 onPress={() =>
-                  Alert.alert(
+                  confirm(
                     'Changer de magasin',
                     `Définir "${item.name}" comme magasin actif ?`,
-                    [
-                      { text: 'Annuler', style: 'cancel' },
-                      { text: 'Confirmer', onPress: () => setActiveMutation.mutate(item.id) },
-                    ],
+                    () => setActiveMutation.mutate(item.id),
                   )
                 }
                 disabled={setActiveMutation.isPending}
@@ -176,6 +174,8 @@ export default function PartnerStoresScreen() {
           />
         }
       />
+
+      <AlertModal />
     </View>
   );
 }

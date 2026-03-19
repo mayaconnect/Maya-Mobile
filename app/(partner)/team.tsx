@@ -51,6 +51,7 @@ import type {
   CreateStoreOperatorDto,
   CreateStoreOperatorResultDto,
 } from '../../src/types';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 
 /* ================================================================== */
 /*  Screen                                                             */
@@ -67,6 +68,7 @@ export default function PartnerTeamScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [showAssign, setShowAssign] = useState<StoreOperatorLiteDto | null>(null);
   const [createdResult, setCreatedResult] = useState<CreateStoreOperatorResultDto | null>(null);
+  const { alert, confirm, AlertModal } = useAppAlert();
 
   /* ---- Fetch operators ---- */
   const opsQ = useQuery({
@@ -87,7 +89,7 @@ export default function PartnerTeamScreen() {
       queryClient.invalidateQueries({ queryKey: ['partnerOperators'] });
     },
     onError: (err: any) =>
-      Alert.alert('Erreur', err?.response?.data?.message ?? 'Échec du changement de statut.'),
+      alert('Erreur', err?.response?.data?.message ?? 'Échec du changement de statut.'),
   });
 
   /* ---- Remove mutation ---- */
@@ -99,7 +101,7 @@ export default function PartnerTeamScreen() {
       queryClient.invalidateQueries({ queryKey: ['partnerOperators'] });
     },
     onError: (err: any) =>
-      Alert.alert('Erreur', err?.response?.data?.message ?? 'Impossible de retirer l\'opérateur.'),
+      alert('Erreur', err?.response?.data?.message ?? 'Impossible de retirer l\'opérateur.'),
   });
 
   /* ---- Assign mutation ---- */
@@ -113,7 +115,7 @@ export default function PartnerTeamScreen() {
       queryClient.invalidateQueries({ queryKey: ['myPartnerStores'] });
     },
     onError: (err: any) =>
-      Alert.alert('Erreur', err?.response?.data?.message ?? 'Impossible d\'assigner l\'opérateur.'),
+      alert('Erreur', err?.response?.data?.message ?? 'Impossible d\'assigner l\'opérateur.'),
   });
 
   /* ---- Create mutation ---- */
@@ -126,7 +128,7 @@ export default function PartnerTeamScreen() {
       queryClient.invalidateQueries({ queryKey: ['partnerOperators'] });
     },
     onError: (err: any) =>
-      Alert.alert('Erreur', err?.response?.data?.message ?? 'Impossible de créer l\'opérateur.'),
+      alert('Erreur', err?.response?.data?.message ?? 'Impossible de créer l\'opérateur.'),
   });
 
   /* ---- Handlers ---- */
@@ -134,17 +136,10 @@ export default function PartnerTeamScreen() {
     // For now, we pick the first store — the by-partner endpoint doesn't return storeId per operator
     // We need to prompt the user which store. For simplicity, pick the first store.
     if (stores.length === 1) {
-      Alert.alert(
+      confirm(
         'Retirer l\'opérateur',
         `Voulez-vous retirer ${op.firstName ?? ''} ${op.lastName ?? ''} du magasin ?`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Retirer',
-            style: 'destructive',
-            onPress: () => removeMut.mutate({ userId: op.userId, storeId: stores[0].id }),
-          },
-        ],
+        () => removeMut.mutate({ userId: op.userId, storeId: stores[0].id }),
       );
     } else {
       // Show store picker for removal
@@ -375,6 +370,8 @@ export default function PartnerTeamScreen() {
         loading={createMut.isPending}
         result={createdResult}
       />
+
+      <AlertModal />
     </View>
   );
 }
@@ -403,6 +400,7 @@ function CreateOperatorModal({
   const [lastName, setLastName] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [isManager, setIsManager] = useState(false);
+  const { alert, AlertModal: FormAlertModal } = useAppAlert();
 
   const resetForm = () => {
     setEmail('');
@@ -414,11 +412,11 @@ function CreateOperatorModal({
 
   const handleSubmit = () => {
     if (!email.trim() || !firstName.trim() || !lastName.trim()) {
-      Alert.alert('Champs requis', 'Veuillez remplir tous les champs.');
+      alert('Champs requis', 'Veuillez remplir tous les champs.', 'warning');
       return;
     }
     if (!selectedStoreId) {
-      Alert.alert('Magasin requis', 'Veuillez sélectionner un magasin.');
+      alert('Magasin requis', 'Veuillez sélectionner un magasin.', 'warning');
       return;
     }
     onSubmit({
@@ -460,6 +458,7 @@ function CreateOperatorModal({
             style={{ marginTop: spacing[4] }}
           />
         </View>
+        <FormAlertModal />
       </MModal>
     );
   }
@@ -544,6 +543,7 @@ function CreateOperatorModal({
           />
         </ScrollView>
       </KeyboardAvoidingView>
+      <FormAlertModal />
     </MModal>
   );
 }

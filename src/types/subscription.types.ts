@@ -76,3 +76,15 @@ export interface PlanChangePreview {
   cooldownRemainingDays: number;
   message: string;
 }
+
+export interface InvoiceDto {
+  id: string;
+  userId: string;
+  number: string;
+  amount: number;
+  currency: string;
+  taxAmount: number;
+  pdfPath: string;
+  status: string;
+  createdAt: string;
+}

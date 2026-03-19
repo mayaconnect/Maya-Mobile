@@ -167,15 +167,26 @@ export function usePushNotifications() {
       if (token) {
         setExpoPushToken(token);
 
-        // Send token to backend
-        try {
-          const { pushDeviceApi } = await import('../api/push-device.api');
-          const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-          await pushDeviceApi.register({ token, platform });
-          console.log('[Push] Token registered with backend');
-        } catch (err: any) {
-          const detail = err?.response?.data ?? err?.message ?? err;
-          console.error('[Push] Failed to register token with backend:', JSON.stringify(detail));
+        // Send token to backend (retry up to 3 times)
+        let registered = false;
+        for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+          try {
+            const { pushDeviceApi } = await import('../api/push-device.api');
+            const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+            await pushDeviceApi.register({ token, platform });
+            console.log('[Push] Token registered with backend (attempt', attempt + 1, ')');
+            registered = true;
+            break;
+          } catch (err: any) {
+            const detail = err?.response?.data ?? err?.message ?? err;
+            console.error('[Push] Failed to register token with backend (attempt', attempt + 1, '):', JSON.stringify(detail));
+            if (attempt < 2) {
+              await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            }
+          }
+        }
+        if (!registered) {
+          console.warn('[Push] Token registration failed after 3 attempts');
         }
       }
 

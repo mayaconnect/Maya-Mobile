@@ -128,12 +128,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: async () => {
-    await Promise.all([
-      SecureStoreAdapter.deleteItemAsync(STORAGE_KEYS.ACCESS_TOKEN),
-      SecureStoreAdapter.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
-      SecureStoreAdapter.deleteItemAsync(STORAGE_KEYS.USER),
-    ]).catch(() => {});
+    // Set a flag to prevent re-entrant logout calls
+    const state = get();
+    if (!state.isAuthenticated && !state.accessToken) return;
 
+    // Clear state FIRST to prevent any further API calls with stale tokens
     set({
       user: null,
       accessToken: null,
@@ -141,6 +140,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: false,
       role: null,
     });
+
+    // Then clean up persistent storage (fire-and-forget)
+    await Promise.all([
+      SecureStoreAdapter.deleteItemAsync(STORAGE_KEYS.ACCESS_TOKEN),
+      SecureStoreAdapter.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
+      SecureStoreAdapter.deleteItemAsync(STORAGE_KEYS.USER),
+    ]).catch(() => {});
   },
 
   completeOnboarding: async () => {

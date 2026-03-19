@@ -574,7 +574,7 @@ export default function SubscriptionScreen() {
               <Text style={mStyles.title}>Confirmer la mise à niveau ?</Text>
               <Text style={mStyles.body}>
                 {previewData.proratedAmount != null && previewData.proratedAmount > 0
-                  ? `Vous serez facturé ${formatPrice(previewData.proratedAmount)} au prorata pour le reste de votre période en cours.`
+                  ? `Un montant de ${formatPrice(previewData.proratedAmount)} sera facturé immédiatement. Ce montant correspond au prorata calculé par Stripe pour la différence de prix sur votre période en cours.`
                   : 'Votre abonnement sera immédiatement mis à niveau vers la nouvelle formule.'}
               </Text>
               <View style={mStyles.rowBtns}>

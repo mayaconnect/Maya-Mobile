@@ -166,12 +166,21 @@ export default function PartnerProfileScreen() {
 
   const confirmLogout = async () => {
     try {
-      if (refreshToken) await authApi.logout({ refreshToken });
-    } catch {}
-    await logout();
-    queryClient.clear();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace('/auth/login');
+      setShowLogoutModal(false);
+      queryClient.cancelQueries();
+      queryClient.clear();
+      if (refreshToken) {
+        authApi.logout({ refreshToken }).catch(() => {});
+      }
+      await logout();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => {
+        router.replace('/auth/login');
+      }, 100);
+    } catch {
+      await logout().catch(() => {});
+      router.replace('/auth/login');
+    }
   };
 
   const handleLogout = () => setShowLogoutModal(true);

@@ -12,7 +12,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -25,6 +24,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import Animated, {
   FadeInUp,
   FadeIn,
@@ -40,6 +40,7 @@ import { wp } from '../../src/utils/responsive';
 import { formatPrice, formatPlanLabel } from '../../src/utils/format';
 import { MButton, MInput, MCard, MHeader } from '../../src/components/ui';
 import { StoreSelectionModal } from '../../src/components/partner';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 import type { QrValidateResultDto, QrPreviewDiscountResultDto } from '../../src/types';
 
 const PLAN_THEME: Record<string, { bg: string; text: string; icon: string }> = {
@@ -53,6 +54,7 @@ type ScanState = 'scanning' | 'form' | 'success' | 'error';
 
 export default function PartnerScannerScreen() {
   const insets = useSafeAreaInsets();
+  const { alert, AlertModal } = useAppAlert();
   const user = useAuthStore((s) => s.user);
   const stores = usePartnerStore((s) => s.stores);
   const activeStore = usePartnerStore((s) => s.activeStore);
@@ -148,7 +150,7 @@ export default function PartnerScannerScreen() {
     onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setScanState('error');
-      Alert.alert(
+      alert(
         'Erreur de validation',
         err?.response?.data?.detail ?? 'Le QR code est invalide ou expiré.',
       );
@@ -170,14 +172,14 @@ export default function PartnerScannerScreen() {
     const persons = parseInt(values.personsCount, 10) || 1;
 
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Erreur', 'Veuillez saisir un montant valide.');
+      alert('Erreur', 'Veuillez saisir un montant valide.');
       return;
     }
 
     const { storeIdVal, partnerIdVal } = resolveIds();
 
     if (!partnerIdVal) {
-      Alert.alert('Erreur', "Impossible de déterminer le partenaire. Veuillez sélectionner un magasin.");
+      alert('Erreur', "Impossible de déterminer le partenaire. Veuillez sélectionner un magasin.");
       return;
     }
 
@@ -201,6 +203,15 @@ export default function PartnerScannerScreen() {
     reset();
     setScanState('scanning');
   };
+
+  /* ---- Auto-reset when screen regains focus ---- */
+  useFocusEffect(
+    useCallback(() => {
+      // Always reset to camera mode when navigating back to scanner tab
+      resetScanner();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
 
   /* ---- Permission ---- */
   if (!permission) {
@@ -537,6 +548,7 @@ export default function PartnerScannerScreen() {
         visible={showStoreModal}
         onDismiss={() => setShowStoreModal(false)}
       />
+      <AlertModal />
     </View>
   );
 }

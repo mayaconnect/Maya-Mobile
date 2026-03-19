@@ -5,7 +5,7 @@
  *  1. Profile photo uploaded
  *  2. Active subscription
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Modal,
   Pressable,
   Image,
+  AppState,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -69,9 +70,20 @@ export default function QrCodeScreen() {
     queryFn: () => qrApi.issueToken(),
     select: (res) => res.data,
     refetchInterval: QR_CONFIG.refreshInterval,
+    staleTime: 0, // Always refetch on mount/focus to get fresh token after transaction
     retry: 3,
     enabled: hasAvatar && hasSubscription,
   });
+
+  // Refetch QR token when app returns to foreground (e.g., after a transaction is validated)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && hasAvatar && hasSubscription) {
+        qrQuery.refetch();
+      }
+    });
+    return () => sub.remove();
+  }, [hasAvatar, hasSubscription]);
 
   const qrToken = qrQuery.data?.token;
   const hasError = qrQuery.isError;

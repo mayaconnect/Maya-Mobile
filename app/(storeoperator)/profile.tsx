@@ -8,9 +8,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,6 +50,7 @@ export default function StoreOperatorProfileScreen() {
   const stores = usePartnerStore((s) => s.stores);
   const [showStoreModal, setShowStoreModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const { alert, AlertModal } = useAppAlert();
 
   /* ---- Profile query ---- */
   const profileQ = useQuery({
@@ -99,7 +100,7 @@ export default function StoreOperatorProfileScreen() {
       authApi.getProfile().then((res) => setUser(res.data));
     },
     onError: (err: any) => {
-      Alert.alert('Erreur', err?.response?.data?.detail ?? 'Impossible de mettre à jour le profil.');
+      alert('Erreur', err?.response?.data?.detail ?? 'Impossible de mettre à jour le profil.');
     },
   });
 
@@ -135,7 +136,7 @@ export default function StoreOperatorProfileScreen() {
         setUser(res.data);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
-        Alert.alert('Erreur', "Impossible de mettre à jour la photo.");
+        alert('Erreur', "Impossible de mettre à jour la photo.");
       }
     }
   };
@@ -145,12 +146,21 @@ export default function StoreOperatorProfileScreen() {
 
   const confirmLogout = async () => {
     try {
-      if (refreshToken) await authApi.logout({ refreshToken });
-    } catch {}
-    await logout();
-    queryClient.clear();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace('/auth/login');
+      setShowLogoutModal(false);
+      queryClient.cancelQueries();
+      queryClient.clear();
+      if (refreshToken) {
+        authApi.logout({ refreshToken }).catch(() => {});
+      }
+      await logout();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => {
+        router.replace('/auth/login');
+      }, 100);
+    } catch {
+      await logout().catch(() => {});
+      router.replace('/auth/login');
+    }
   };
 
   return (
@@ -370,6 +380,8 @@ export default function StoreOperatorProfileScreen() {
         visible={showStoreModal}
         onDismiss={() => setShowStoreModal(false)}
       />
+
+      <AlertModal />
     </View>
   );
 }

@@ -13,9 +13,9 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +45,7 @@ export default function PaymentMethodsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { alert, confirm, AlertModal } = useAppAlert();
 
   // TODO: Replace with actual API call
   const paymentMethodsQ = useQuery({
@@ -63,10 +64,10 @@ export default function PaymentMethodsScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['paymentMethods'] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Succès', 'Moyen de paiement supprimé.');
+      alert('Succès', 'Moyen de paiement supprimé.', 'success');
     },
     onError: () => {
-      Alert.alert('Erreur', 'Impossible de supprimer ce moyen de paiement.');
+      alert('Erreur', 'Impossible de supprimer ce moyen de paiement.');
     },
   });
 
@@ -80,32 +81,21 @@ export default function PaymentMethodsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: () => {
-      Alert.alert('Erreur', 'Impossible de définir ce moyen de paiement par défaut.');
+      alert('Erreur', 'Impossible de définir ce moyen de paiement par défaut.');
     },
   });
 
   const handleDelete = (method: PaymentMethod) => {
-    Alert.alert(
+    confirm(
       'Supprimer le moyen de paiement',
       `Êtes-vous sûr de vouloir supprimer la carte se terminant par ${method.last4} ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () => deleteMutation.mutate(method.id),
-        },
-      ]
+      () => deleteMutation.mutate(method.id),
     );
   };
 
   const handleAddCard = () => {
     // TODO: Implement Stripe payment sheet or webview integration
-    Alert.alert(
-      'Ajouter une carte',
-      'L\'intégration Stripe est en cours de développement.',
-      [{ text: 'OK' }]
-    );
+    alert('Ajouter une carte', 'L\'intégration Stripe est en cours de développement.', 'info');
   };
 
   const getCardIcon = (brand: string): React.ComponentProps<typeof Ionicons>['name'] => {
@@ -265,6 +255,8 @@ export default function PaymentMethodsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <AlertModal />
     </View>
   );
 }

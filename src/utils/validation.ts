@@ -31,13 +31,12 @@ const nameSchema = (label: string) =>
     .max(50, `${label} ne peut dépasser 50 caractères`);
 
 const phoneSchema = z
-  .string()
+  .string({ error: 'Numéro de téléphone requis' })
+  .min(1, 'Le numéro de téléphone est obligatoire')
   .regex(
     /^[+\d][\d\s\-().]{5,19}$/,
     'Numéro de téléphone invalide',
-  )
-  .optional()
-  .or(z.literal(''));
+  );
 
 /* ------------------------------------------------------------------ */
 /*  Auth Schemas                                                       */
@@ -90,10 +89,19 @@ export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 /* ------------------------------------------------------------------ */
 /*  Profile Schema                                                     */
 /* ------------------------------------------------------------------ */
+const phoneSchemaOptional = z
+  .string()
+  .regex(
+    /^[+\d][\d\s\-().]{5,19}$/,
+    'Numéro de téléphone invalide',
+  )
+  .optional()
+  .or(z.literal(''));
+
 export const profileSchema = z.object({
   firstName: nameSchema('Prénom'),
   lastName: nameSchema('Nom'),
-  phoneNumber: phoneSchema,
+  phoneNumber: phoneSchemaOptional,
 });
 export type ProfileFormData = z.infer<typeof profileSchema>;
 

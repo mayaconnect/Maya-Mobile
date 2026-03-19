@@ -15,9 +15,9 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Image,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -26,6 +26,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { authApi } from '../../src/api/auth.api';
@@ -34,7 +37,16 @@ import { colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
-import { MButton, MInput, MHeader } from '../../src/components/ui';
+import { MButton, MInput, MHeader, MModal, MDivider } from '../../src/components/ui';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const GOOGLE_WEB_CLIENT_ID = '125229396520-enrhsjtp80ehijnf0ru39n1j18ic2vqv.apps.googleusercontent.com';
+
+const googleDiscovery = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+};
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -44,6 +56,9 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string } | null>(null);
+  const [showPhotoRules, setShowPhotoRules] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(false);
 
   const {
     control,
@@ -63,6 +78,16 @@ export default function SignUpScreen() {
 
   /* ── Avatar picker ── */
   const pickAvatar = async () => {
+    // Show photo rules first time
+    if (!avatarUri) {
+      setShowPhotoRules(true);
+      return;
+    }
+    launchImagePicker();
+  };
+
+  const launchImagePicker = async () => {
+    setShowPhotoRules(false);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -110,7 +135,7 @@ export default function SignUpScreen() {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        phoneNumber: data.phoneNumber || undefined,
+        phoneNumber: data.phoneNumber?.trim() || undefined,
         password: data.password,
         role: 'Client',
         address: { street: '', city: '', state: '', postalCode: '', country: '' },
@@ -172,10 +197,80 @@ export default function SignUpScreen() {
         err?.response?.data?.detail ||
         err?.response?.data?.title ||
         "Impossible de créer votre compte. Veuillez réessayer.";
-      Alert.alert('Erreur', msg);
+      setErrorModal({ title: 'Erreur', message: msg });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* ── Social Sign-Up (create-or-login) ── */
+  const handleSocialSuccess = async (loginData: any) => {
+    const { accessToken, refreshToken, expiresIn } = loginData;
+    useAuthStore.setState({ accessToken });
+    const { data: user } = await authApi.getProfile();
+    await setSession(
+      { accessToken, refreshToken, expiresAt: Date.now() + (expiresIn ?? 3600) * 1000 },
+      user,
+    );
+    await completeOnboarding();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const role = useAuthStore.getState().role;
+    if (role === 'storeOperator') router.replace('/(storeoperator)/dashboard');
+    else if (role === 'partner') router.replace('/(partner)/dashboard');
+    else router.replace('/(client)/subscription');
+  };
+
+  const handleGoogleSignUp = async () => {
+    try {
+      setSocialLoading(true);
+      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.mayaconnect.app' });
+      const request = new AuthSession.AuthRequest({
+        clientId: GOOGLE_WEB_CLIENT_ID,
+        redirectUri,
+        scopes: ['openid', 'profile', 'email'],
+        responseType: AuthSession.ResponseType.IdToken,
+        usePKCE: false,
+      });
+      const result = await request.promptAsync(googleDiscovery);
+      if (result.type === 'success' && result.params?.id_token) {
+        const { data: loginData } = await authApi.googleSignIn({ idToken: result.params.id_token });
+        await handleSocialSuccess(loginData);
+      }
+    } catch (err: any) {
+      setErrorModal({ title: 'Erreur', message: err?.response?.data?.message || 'Inscription Google échouée.' });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSocialLoading(false);
+    }
+  };
+
+  const handleAppleSignUp = async () => {
+    try {
+      setSocialLoading(true);
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (!credential.identityToken) {
+        setErrorModal({ title: 'Erreur', message: "Aucun token reçu d'Apple." });
+        return;
+      }
+      const { data: loginData } = await authApi.appleSignIn({
+        idToken: credential.identityToken,
+        authorizationCode: credential.authorizationCode ?? undefined,
+        firstName: credential.fullName?.givenName ?? undefined,
+        lastName: credential.fullName?.familyName ?? undefined,
+      });
+      await handleSocialSuccess(loginData);
+    } catch (err: any) {
+      if (err.code === 'ERR_REQUEST_CANCELED') return;
+      setErrorModal({ title: 'Erreur', message: err?.response?.data?.message || 'Inscription Apple échouée.' });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSocialLoading(false);
     }
   };
 
@@ -285,13 +380,15 @@ export default function SignUpScreen() {
           name="phoneNumber"
           render={({ field: { onChange, onBlur, value } }) => (
             <MInput
-              label="Téléphone (optionnel)"
+              label="Téléphone"
               icon="call-outline"
               value={value ?? ''}
               onChangeText={onChange}
               onBlur={onBlur}
               error={errors.phoneNumber?.message}
               keyboardType="phone-pad"
+              required
+              placeholder="+33 6 00 00 00 00"
             />
           )}
         />
@@ -308,6 +405,10 @@ export default function SignUpScreen() {
               onBlur={onBlur}
               error={errors.password?.message}
               secureTextEntry
+              autoComplete="off"
+              textContentType="oneTimeCode"
+              autoCorrect={false}
+              spellCheck={false}
               required
             />
           )}
@@ -325,6 +426,10 @@ export default function SignUpScreen() {
               onBlur={onBlur}
               error={errors.confirmPassword?.message}
               secureTextEntry
+              autoComplete="off"
+              textContentType="oneTimeCode"
+              autoCorrect={false}
+              spellCheck={false}
               required
             />
           )}
@@ -334,8 +439,33 @@ export default function SignUpScreen() {
           title="Créer mon compte"
           onPress={handleSubmit(onSubmit)}
           loading={loading}
+          disabled={socialLoading}
           style={{ marginTop: spacing[4] }}
         />
+
+        <MDivider label="ou s'inscrire avec" />
+
+        <View style={styles.socialRow}>
+          <TouchableOpacity
+            style={styles.socialBtn}
+            onPress={handleGoogleSignUp}
+            disabled={loading || socialLoading}
+          >
+            <Ionicons name="logo-google" size={wp(22)} color="#DB4437" />
+            <Text style={styles.socialText}>Google</Text>
+          </TouchableOpacity>
+
+          {isIOS && (
+            <TouchableOpacity
+              style={styles.socialBtn}
+              onPress={handleAppleSignUp}
+              disabled={loading || socialLoading}
+            >
+              <Ionicons name="logo-apple" size={wp(22)} color="#000" />
+              <Text style={styles.socialText}>Apple</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Already have account */}
         <View style={styles.loginRow}>
@@ -345,6 +475,72 @@ export default function SignUpScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* ── Photo Rules Modal ── */}
+      <MModal
+        visible={showPhotoRules}
+        onClose={() => setShowPhotoRules(false)}
+        title="Photo de profil"
+      >
+        <View style={{ paddingVertical: spacing[3] }}>
+          <View style={{ alignItems: 'center', marginBottom: spacing[4] }}>
+            <Ionicons name="camera" size={wp(48)} color={colors.orange[500]} />
+          </View>
+          <Text style={[textStyles.body, { color: colors.neutral[700], marginBottom: spacing[3], textAlign: 'center' }]}>
+            Votre photo de profil est utilisée pour vous identifier en magasin lors de vos achats.
+          </Text>
+          <View style={{ gap: spacing[2], marginBottom: spacing[4] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              <Ionicons name="checkmark-circle" size={wp(18)} color={colors.orange[500]} />
+              <Text style={[textStyles.body, { color: colors.neutral[600], flex: 1 }]}>
+                La photo doit montrer clairement votre visage
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              <Ionicons name="checkmark-circle" size={wp(18)} color={colors.orange[500]} />
+              <Text style={[textStyles.body, { color: colors.neutral[600], flex: 1 }]}>
+                Une seule personne doit figurer sur la photo
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              <Ionicons name="warning" size={wp(18)} color={colors.error?.[500] ?? '#EF4444'} />
+              <Text style={[textStyles.body, { color: colors.neutral[600], flex: 1, fontFamily: fontFamily.semiBold }]}>
+                Cette photo est définitive et ne pourra pas être modifiée
+              </Text>
+            </View>
+          </View>
+          <MButton
+            title="Choisir ma photo"
+            onPress={launchImagePicker}
+            icon={<Ionicons name="image-outline" size={wp(18)} color="#FFF" />}
+          />
+          <MButton
+            title="Annuler"
+            variant="outline"
+            onPress={() => setShowPhotoRules(false)}
+            style={{ marginTop: spacing[2] }}
+          />
+        </View>
+      </MModal>
+
+      {/* ── Error Modal ── */}
+      <MModal
+        visible={!!errorModal}
+        onClose={() => setErrorModal(null)}
+        title={errorModal?.title ?? 'Erreur'}
+      >
+        <View style={{ alignItems: 'center', paddingVertical: spacing[4] }}>
+          <Ionicons name="alert-circle" size={wp(48)} color={colors.error?.[500] ?? '#EF4444'} />
+          <Text style={[textStyles.body, { textAlign: 'center', marginTop: spacing[3], color: colors.neutral[600] }]}>
+            {errorModal?.message}
+          </Text>
+        </View>
+        <MButton
+          title="Compris"
+          onPress={() => setErrorModal(null)}
+          style={{ marginTop: spacing[3] }}
+        />
+      </MModal>
     </KeyboardAvoidingView>
   );
 }
@@ -434,5 +630,27 @@ const styles = StyleSheet.create({
     ...textStyles.body,
     color: colors.orange[500],
     fontFamily: fontFamily.semiBold,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing[3],
+    marginBottom: spacing[2],
+  },
+  socialBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[5],
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.neutral[50],
+    gap: spacing[2],
+  },
+  socialText: {
+    ...textStyles.body,
+    fontFamily: fontFamily.medium,
+    color: colors.neutral[700],
   },
 });

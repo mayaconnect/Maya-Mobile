@@ -7,7 +7,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   TouchableOpacity,
 } from 'react-native';
@@ -26,6 +25,7 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
 import { MInput, MButton } from '../../src/components/ui';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 
 const schema = z.object({
   currentPassword: z.string().min(6, 'Mot de passe actuel requis'),
@@ -41,6 +41,7 @@ type FormData = z.infer<typeof schema>;
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { alert, AlertModal } = useAppAlert();
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -59,13 +60,12 @@ export default function ChangePasswordScreen() {
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Succès', 'Votre mot de passe a été modifié avec succès.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      alert('Succès', 'Votre mot de passe a été modifié avec succès.', 'success');
       reset();
+      setTimeout(() => router.back(), 2000);
     },
     onError: () => {
-      Alert.alert('Erreur', 'Mot de passe actuel incorrect ou erreur de connexion.');
+      alert('Erreur', 'Mot de passe actuel incorrect ou erreur de connexion.');
     },
   });
 
@@ -162,6 +162,7 @@ export default function ChangePasswordScreen() {
           />
         </ScrollView>
       </LinearGradient>
+      <AlertModal />
     </KeyboardAvoidingView>
   );
 }

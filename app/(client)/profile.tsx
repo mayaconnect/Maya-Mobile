@@ -25,7 +25,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
     Animated,
     Image,
     Keyboard,
@@ -41,6 +40,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppAlert } from '../../src/hooks/use-app-alert';
 import { authApi } from '../../src/api/auth.api';
 import {
     MAvatar,
@@ -62,6 +62,7 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
   const { user, setUser, logout: doLogout } = useAuthStore();
   const refreshToken = useAuthStore((s) => s.refreshToken);
+  const { alert, AlertModal } = useAppAlert();
   const [uploading, setUploading] = useState(false);
   const [showAvatarZoom, setShowAvatarZoom] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -140,7 +141,7 @@ export default function ProfileScreen() {
         err?.response?.data?.detail ||
         err?.response?.data?.title ||
         'Mot de passe incorrect. Veuillez réessayer.';
-      Alert.alert('Mot de passe incorrect', msg);
+      alert('Mot de passe incorrect', msg);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setVerifyingPassword(false);
@@ -174,7 +175,7 @@ export default function ProfileScreen() {
         setUser(res.data);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch {
-        Alert.alert('Erreur', "Impossible de mettre à jour votre photo.");
+        alert('Erreur', "Impossible de mettre à jour votre photo.");
       } finally {
         setUploading(false);
       }
@@ -186,12 +187,26 @@ export default function ProfileScreen() {
 
   const confirmLogout = async () => {
     try {
-      if (refreshToken) await authApi.logout({ refreshToken });
-    } catch {}
-    await doLogout();
-    queryClient.clear();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace('/auth/login');
+      setShowLogoutModal(false);
+      // Clear react-query cache FIRST to stop any in-flight queries  
+      queryClient.cancelQueries();
+      queryClient.clear();
+      // Try to inform server (fire-and-forget)
+      if (refreshToken) {
+        authApi.logout({ refreshToken }).catch(() => {});
+      }
+      // Clear local state + storage
+      await doLogout();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Navigate after state is clean
+      setTimeout(() => {
+        router.replace('/auth/login');
+      }, 100);
+    } catch {
+      // Ensure logout completes even if something fails
+      await doLogout().catch(() => {});
+      router.replace('/auth/login');
+    }
   };
 
   return (
@@ -207,7 +222,7 @@ export default function ProfileScreen() {
       <View style={styles.avatarSection}>
         <View>
           <TouchableOpacity
-            onPress={() => user?.avatarUrl ? setShowAvatarZoom(true) : handleAvatarPick()}
+            onPress={() => user?.avatarUrl ? setShowAvatarZoom(true) : undefined}
             disabled={uploading}
           >
             <MAvatar
@@ -216,13 +231,16 @@ export default function ProfileScreen() {
               size="xl"
             />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cameraBadge}
-            onPress={handleAvatarPick}
-            disabled={uploading}
-          >
-            <Ionicons name="camera" size={wp(16)} color="#FFF" />
-          </TouchableOpacity>
+          {/* Avatar badge: only show camera if no avatar yet */}
+          {!user?.avatarUrl && (
+            <TouchableOpacity
+              style={styles.cameraBadge}
+              onPress={handleAvatarPick}
+              disabled={uploading}
+            >
+              <Ionicons name="camera" size={wp(16)} color="#FFF" />
+            </TouchableOpacity>
+          )}
         </View>
         <Text style={styles.displayName}>
           {formatName(user?.firstName, user?.lastName)}
@@ -313,6 +331,19 @@ export default function ProfileScreen() {
         >
           <Ionicons name="card-outline" size={wp(22)} color={colors.orange[500]} />
           <Text style={styles.menuLabel}>Moyens de paiement</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={wp(18)}
+            color={colors.neutral[300]}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/(client)/invoices' as any)}
+        >
+          <Ionicons name="receipt-outline" size={wp(22)} color={colors.orange[500]} />
+          <Text style={styles.menuLabel}>Mes factures</Text>
           <Ionicons
             name="chevron-forward"
             size={wp(18)}
@@ -514,6 +545,8 @@ export default function ProfileScreen() {
           />
         </View>
       </MModal>
+
+      <AlertModal />
     </ScrollView>
   );
 }
