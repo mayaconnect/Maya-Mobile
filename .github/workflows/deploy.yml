@@ -164,10 +164,10 @@ jobs:
           echo "📊 View builds: https://expo.dev/accounts/[your-account]/projects/maya-mobile-app/builds"
 
   # ==========================================
-  # JOB NOTIFICATION - Résumé final
+  # JOB NOTIFICATION - Résumé final + Email Resend
   # ==========================================
-  notify-success:
-    name: 📢 Deployment Summary
+  notify:
+    name: 📢 Deployment Summary + Email
     needs: [deploy-ios, deploy-android]
     if: always()
     runs-on: ubuntu-latest
@@ -179,6 +179,9 @@ jobs:
           echo "🎉 DEPLOYMENT COMPLETED"
           echo "======================================"
           echo ""
+          echo "iOS: ${{ needs.deploy-ios.result }}"
+          echo "Android: ${{ needs.deploy-android.result }}"
+          echo ""
           if [ "${{ needs.deploy-ios.result }}" == "success" ]; then
             echo "✅ iOS: https://appstoreconnect.apple.com/"
           fi
@@ -187,3 +190,204 @@ jobs:
           fi
           echo ""
           echo "======================================"
+
+      - name: 📧 Send deployment email via Resend
+        uses: actions/github-script@v7
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          IOS_RESULT: ${{ needs.deploy-ios.result }}
+          ANDROID_RESULT: ${{ needs.deploy-android.result }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        with:
+          script: |
+            const https = require('https');
+
+            const iosResult = process.env.IOS_RESULT;
+            const androidResult = process.env.ANDROID_RESULT;
+            const commitSha = process.env.COMMIT_SHA.substring(0, 7);
+            const commitMsg = (process.env.COMMIT_MSG || 'No message').substring(0, 120);
+            const runId = process.env.RUN_ID;
+            const runNumber = process.env.RUN_NUMBER;
+            const repo = process.env.REPO;
+            const branch = process.env.BRANCH;
+            const actionsUrl = `https://github.com/${repo}/actions/runs/${runId}`;
+
+            const allSuccess = iosResult === 'success' && androidResult === 'success';
+            const allFailed = iosResult !== 'success' && androidResult !== 'success';
+
+            // Status badges
+            const iosIcon = iosResult === 'success' ? '✅' : (iosResult === 'skipped' ? '⏭️' : '❌');
+            const androidIcon = androidResult === 'success' ? '✅' : (androidResult === 'skipped' ? '⏭️' : '❌');
+
+            // ---------- Recipients ----------
+            // Devs get install invites on success
+            const devRecipients = [
+              'guillaumel1103@gmail.com',
+              'play.castilla@gmail.com',
+              'lharoti.pro@gmail.com',
+              'mayaconnect2025@gmail.com'
+            ];
+            // All team members get status notifications
+            const allRecipients = [ 
+              'guillaumel1103@gmail.com',
+              'lharoti.pro@gmail.com'
+            ];
+
+            // ---------- Build email ----------
+            function buildHtml(recipient) {
+              const isDev = devRecipients.includes(recipient);
+
+              const installSection = allSuccess && isDev ? `
+                <tr><td style="padding:20px 30px;">
+                  <h2 style="color:#1a1a2e;margin:0 0 15px;">📲 Installer la nouvelle version</h2>
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                      <td style="padding:8px 0;">
+                        <a href="https://testflight.apple.com/join/YOUR_TESTFLIGHT_CODE"
+                           style="display:inline-block;padding:12px 28px;background:#007AFF;color:#fff;
+                                  text-decoration:none;border-radius:8px;font-weight:600;">
+                          🍎 Ouvrir TestFlight (iOS)
+                        </a>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:8px 0;">
+                        <a href="https://play.google.com/apps/testing/com.maya.connect"
+                           style="display:inline-block;padding:12px 28px;background:#34A853;color:#fff;
+                                  text-decoration:none;border-radius:8px;font-weight:600;">
+                          🤖 Rejoindre le test interne (Android)
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="color:#666;font-size:13px;margin-top:12px;">
+                    iOS : Ouvre l'app <strong>TestFlight</strong> sur ton iPhone après avoir cliqué le lien.<br/>
+                    Android : Accepte l'invitation puis mets à jour depuis Google Play.
+                  </p>
+                </td></tr>
+              ` : '';
+
+              return `
+              <!DOCTYPE html>
+              <html><head><meta charset="utf-8"></head>
+              <body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr><td align="center" style="padding:30px 0;">
+                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"
+                           style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+                      <!-- Header -->
+                      <tr><td style="background:${allSuccess ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'linear-gradient(135deg,#e53935,#d32f2f)'};
+                               padding:30px;text-align:center;">
+                        <h1 style="color:#fff;margin:0;font-size:22px;">
+                          ${allSuccess ? '🎉 Déploiement réussi !' : '🚨 Déploiement échoué'}
+                        </h1>
+                        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">
+                          Maya Connect — Build #${runNumber} · ${branch}
+                        </p>
+                      </td></tr>
+
+                      <!-- Status -->
+                      <tr><td style="padding:25px 30px 10px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                          <tr>
+                            <td style="padding:10px;background:#f8f9fa;border-radius:8px;margin-bottom:8px;">
+                              <strong>${iosIcon} iOS → TestFlight</strong>
+                              <span style="float:right;color:${iosResult === 'success' ? '#34A853' : '#e53935'};font-weight:600;">
+                                ${iosResult.toUpperCase()}
+                              </span>
+                            </td>
+                          </tr>
+                          <tr><td style="height:8px;"></td></tr>
+                          <tr>
+                            <td style="padding:10px;background:#f8f9fa;border-radius:8px;">
+                              <strong>${androidIcon} Android → Google Play</strong>
+                              <span style="float:right;color:${androidResult === 'success' ? '#34A853' : '#e53935'};font-weight:600;">
+                                ${androidResult.toUpperCase()}
+                              </span>
+                            </td>
+                          </tr>
+                        </table>
+                      </td></tr>
+
+                      <!-- Details -->
+                      <tr><td style="padding:15px 30px;">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                               style="font-size:13px;color:#555;">
+                          <tr><td style="padding:4px 0;"><strong>Commit :</strong> ${commitSha}</td></tr>
+                          <tr><td style="padding:4px 0;"><strong>Message :</strong> ${commitMsg}</td></tr>
+                          <tr><td style="padding:4px 0;"><strong>Branche :</strong> ${branch}</td></tr>
+                          <tr><td style="padding:4px 0;"><strong>Date :</strong> ${new Date().toLocaleString('fr-FR', {timeZone:'Europe/Paris'})}</td></tr>
+                        </table>
+                      </td></tr>
+
+                      ${installSection}
+
+                      <!-- CTA logs -->
+                      <tr><td style="padding:15px 30px 25px;text-align:center;">
+                        <a href="${actionsUrl}"
+                           style="display:inline-block;padding:10px 24px;background:#1a1a2e;color:#fff;
+                                  text-decoration:none;border-radius:6px;font-size:13px;">
+                          📋 Voir les logs GitHub Actions
+                        </a>
+                      </td></tr>
+
+                      <!-- Footer -->
+                      <tr><td style="padding:15px 30px;background:#f8f9fa;text-align:center;
+                               font-size:11px;color:#999;border-top:1px solid #eee;">
+                        Maya Connect © 2026 · Notification automatique de déploiement
+                      </td></tr>
+                    </table>
+                  </td></tr>
+                </table>
+              </body></html>`;
+            }
+
+            // ---------- Send emails ----------
+            async function sendEmail(to, subject, html) {
+              return new Promise((resolve, reject) => {
+                const payload = JSON.stringify({
+                  from: 'Maya Deploy <support@maya-appli.fr>',
+                  to,
+                  subject,
+                  html
+                });
+                const req = https.request({
+                  hostname: 'api.resend.com',
+                  path: '/emails',
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
+                  }
+                }, (res) => {
+                  let data = '';
+                  res.on('data', c => data += c);
+                  res.on('end', () => {
+                    console.log(`→ ${to}: ${res.statusCode} ${data}`);
+                    resolve(res.statusCode);
+                  });
+                });
+                req.on('error', reject);
+                req.write(payload);
+                req.end();
+              });
+            }
+
+            const subject = allSuccess
+              ? `✅ Maya v${runNumber} déployée avec succès (${branch})`
+              : `🚨 Maya v${runNumber} — échec de déploiement (${branch})`;
+
+            const results = await Promise.allSettled(
+              allRecipients.map(email => sendEmail(email, subject, buildHtml(email)))
+            );
+
+            const ok = results.filter(r => r.status === 'fulfilled').length;
+            const ko = results.filter(r => r.status === 'rejected').length;
+            console.log(`\n📧 Emails sent: ${ok} OK, ${ko} failed`);
+            if (ko > 0) core.warning(`${ko} email(s) failed to send`);

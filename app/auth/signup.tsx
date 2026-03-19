@@ -113,7 +113,7 @@ export default function SignUpScreen() {
         phoneNumber: data.phoneNumber || undefined,
         password: data.password,
         role: 'Client',
-        address: { street: '', city: '', country: '' },
+        address: { street: '', city: '', state: '', postalCode: '', country: '' },
         avatarBase64,
         avatarFileName,
       });

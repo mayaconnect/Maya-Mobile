@@ -1,9 +1,13 @@
 /**
  * Maya Connect V2 — Partner QR Scanner Screen
  *
- * Uses expo-camera to scan client QR codes, then validates with amount & persons form.
+ * Redesigned with:
+ * - Real-time discount preview (via API debounce 500ms)
+ * - Subscription plan displayed prominently after scan
+ * - Persons count as secondary compact stepper
+ * - Live discount + net amount calculation
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,32 +17,37 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   FadeInUp,
-  FadeOutDown,
+  FadeIn,
 } from 'react-native-reanimated';
 import { qrApi } from '../../src/api/qr.api';
 import { storeOperatorsApi } from '../../src/api/store-operators.api';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { usePartnerStore } from '../../src/stores/partner.store';
-import { qrValidateSchema } from '../../src/utils/validation';
 import { partnerColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
-import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
+import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
-import { formatPrice, formatPlanCode, formatPlanLabel } from '../../src/utils/format';
+import { formatPrice, formatPlanLabel } from '../../src/utils/format';
 import { MButton, MInput, MCard, MHeader } from '../../src/components/ui';
 import { StoreSelectionModal } from '../../src/components/partner';
-import type { QrValidateResultDto } from '../../src/types';
+import type { QrValidateResultDto, QrPreviewDiscountResultDto } from '../../src/types';
+
+const PLAN_THEME: Record<string, { bg: string; text: string; icon: string }> = {
+  SOLO:   { bg: '#EDE9FE', text: '#7C3AED', icon: 'person' },
+  DUO:    { bg: '#DBEAFE', text: '#2563EB', icon: 'people' },
+  FAMILY: { bg: '#FEF3C7', text: '#D97706', icon: 'home' },
+  VIP:    { bg: '#FEE2E2', text: '#DC2626', icon: 'diamond' },
+};
 
 type ScanState = 'scanning' | 'form' | 'success' | 'error';
 
@@ -52,7 +61,10 @@ export default function PartnerScannerScreen() {
   const [scannedToken, setScannedToken] = useState('');
   const [showStoreModal, setShowStoreModal] = useState(false);
   const [validateResult, setValidateResult] = useState<QrValidateResultDto | null>(null);
+  const [preview, setPreview] = useState<QrPreviewDiscountResultDto | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const scannedRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* ---- Active store ---- */
   const activeStoreQ = useQuery({
@@ -73,6 +85,57 @@ export default function PartnerScannerScreen() {
       personsCount: '1',
     },
   });
+
+  // Watch amount for real-time preview
+  const watchedAmount = useWatch({ control, name: 'amountGross' });
+
+  /* ---- Resolve partner & store IDs ---- */
+  const resolveIds = useCallback(() => {
+    const store = activeStoreQ.data;
+    const storeIdVal = store?.storeId ?? activeStore?.storeId ?? '';
+    const partner = usePartnerStore.getState().partner;
+    const storesArr = usePartnerStore.getState().stores;
+    const matchedStore = storesArr.find((s) => s.id === storeIdVal);
+    const partnerIdVal = partner?.id ?? matchedStore?.partnerId ?? '';
+    return { storeIdVal, partnerIdVal };
+  }, [activeStoreQ.data, activeStore]);
+
+  /* ---- Real-time discount preview (debounced 500ms) ---- */
+  useEffect(() => {
+    if (scanState !== 'form' || !scannedToken) return;
+
+    const amount = parseFloat(watchedAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setPreview(null);
+      return;
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const { storeIdVal, partnerIdVal } = resolveIds();
+      if (!partnerIdVal) return;
+
+      setPreviewLoading(true);
+      try {
+        const res = await qrApi.previewDiscount({
+          qrToken: scannedToken,
+          partnerId: partnerIdVal,
+          storeId: storeIdVal || undefined,
+          amountGross: amount,
+        });
+        setPreview(res.data);
+      } catch {
+        // Silently ignore preview errors — the validate call will catch real issues
+        setPreview(null);
+      } finally {
+        setPreviewLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [watchedAmount, scanState, scannedToken, resolveIds]);
 
   /* ---- Validate mutation ---- */
   const validateMutation = useMutation({
@@ -111,13 +174,7 @@ export default function PartnerScannerScreen() {
       return;
     }
 
-    const store = activeStoreQ.data;
-    const storeIdVal = store?.storeId ?? activeStore?.storeId ?? '';
-    // StoreOperatorDto has no partnerId — resolve from partner store or stores array
-    const partner = usePartnerStore.getState().partner;
-    const storesArr = usePartnerStore.getState().stores;
-    const matchedStore = storesArr.find((s) => s.id === storeIdVal);
-    const partnerIdVal = partner?.id ?? matchedStore?.partnerId ?? '';
+    const { storeIdVal, partnerIdVal } = resolveIds();
 
     if (!partnerIdVal) {
       Alert.alert('Erreur', "Impossible de déterminer le partenaire. Veuillez sélectionner un magasin.");
@@ -139,6 +196,8 @@ export default function PartnerScannerScreen() {
     scannedRef.current = false;
     setScannedToken('');
     setValidateResult(null);
+    setPreview(null);
+    setPreviewLoading(false);
     reset();
     setScanState('scanning');
   };
@@ -262,6 +321,31 @@ export default function PartnerScannerScreen() {
                 </View>
               </MCard>
 
+              {/* ── Plan badge (prominent) ── */}
+              {preview && (() => {
+                const pt = PLAN_THEME[preview.planCode?.toUpperCase()] ?? PLAN_THEME.SOLO;
+                return (
+                  <Animated.View entering={FadeIn.duration(300)}>
+                    <MCard style={[styles.planCard, { backgroundColor: pt.bg }]} elevation="sm">
+                      <View style={styles.planRow}>
+                        <View style={[styles.planIconWrap, { backgroundColor: pt.text + '20' }]}>
+                          <Ionicons name={pt.icon as any} size={wp(22)} color={pt.text} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.planTitle, { color: pt.text }]}>
+                            {preview.planName || formatPlanLabel(preview.planCode)}
+                          </Text>
+                          <Text style={[styles.planSub, { color: pt.text + 'AA' }]}>
+                            {preview.personsAllowed} pers. autorisées · {preview.discountPercent}% de réduction
+                          </Text>
+                        </View>
+                      </View>
+                    </MCard>
+                  </Animated.View>
+                );
+              })()}
+
+              {/* ── Amount input (primary) ── */}
               <Controller
                 control={control}
                 name="amountGross"
@@ -279,22 +363,71 @@ export default function PartnerScannerScreen() {
                 )}
               />
 
-              <Controller
-                control={control}
-                name="personsCount"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <MInput
-                    label="Nombre de personnes"
-                    placeholder="1"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.personsCount?.message}
-                    keyboardType="number-pad"
-                    icon="people-outline"
-                  />
-                )}
-              />
+              {/* ── Real-time discount preview ── */}
+              {(preview || previewLoading) && (
+                <Animated.View entering={FadeIn.duration(200)}>
+                  <MCard style={styles.previewCard} elevation="sm">
+                    {previewLoading ? (
+                      <View style={styles.previewLoading}>
+                        <ActivityIndicator size="small" color={colors.violet[500]} />
+                        <Text style={styles.previewLoadingText}>Calcul en cours…</Text>
+                      </View>
+                    ) : preview ? (
+                      <>
+                        <View style={styles.previewRow}>
+                          <Text style={styles.previewLabel}>Réduction ({preview.discountPercent}%)</Text>
+                          <Text style={[styles.previewValue, { color: colors.success[600] }]}>
+                            -{formatPrice(preview.discountAmount)}
+                          </Text>
+                        </View>
+                        <View style={styles.previewDivider} />
+                        <View style={styles.previewRow}>
+                          <Text style={[styles.previewLabel, { fontFamily: fontFamily.bold }]}>Net à payer</Text>
+                          <Text style={[styles.previewValueBig, { color: colors.neutral[900] }]}>
+                            {formatPrice(preview.amountNet)}
+                          </Text>
+                        </View>
+                      </>
+                    ) : null}
+                  </MCard>
+                </Animated.View>
+              )}
+
+              {/* ── Persons count (secondary compact stepper) ── */}
+              <View style={styles.personsRow}>
+                <View style={styles.personsLabelWrap}>
+                  <Ionicons name="people-outline" size={wp(16)} color={colors.neutral[400]} />
+                  <Text style={styles.personsLabel}>Nombre de personnes</Text>
+                </View>
+                <Controller
+                  control={control}
+                  name="personsCount"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={styles.personsInput}>
+                      <TouchableOpacity
+                        style={styles.personsBtn}
+                        onPress={() => {
+                          const n = Math.max(1, parseInt(value, 10) - 1);
+                          onChange(String(n));
+                        }}
+                      >
+                        <Ionicons name="remove" size={wp(18)} color={colors.neutral[600]} />
+                      </TouchableOpacity>
+                      <Text style={styles.personsValue}>{value}</Text>
+                      <TouchableOpacity
+                        style={styles.personsBtn}
+                        onPress={() => {
+                          const max = preview?.personsAllowed ?? 10;
+                          const n = Math.min(max, parseInt(value, 10) + 1);
+                          onChange(String(n));
+                        }}
+                      >
+                        <Ionicons name="add" size={wp(18)} color={colors.neutral[600]} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                />
+              </View>
 
               <MButton
                 title="Valider la transaction"
@@ -330,12 +463,24 @@ export default function PartnerScannerScreen() {
 
             {validateResult && (
               <MCard style={styles.resultDetailsCard} elevation="md">
-                <View style={styles.resultDetailRow}>
-                  <Ionicons name="diamond-outline" size={wp(18)} color={colors.violet[500]} />
-                  <Text style={styles.resultDetailLabel}>Abonnement</Text>
-                  <Text style={styles.resultDetailValue}>
-                    {formatPlanLabel(validateResult.planCode)}
-                  </Text>
+                {/* Plan — prominent badge */}
+                <View style={styles.resultPlanRow}>
+                  <View style={[
+                    styles.resultPlanBadge,
+                    { backgroundColor: (PLAN_THEME[validateResult.planCode?.toUpperCase()]?.bg ?? '#EDE9FE') }
+                  ]}>
+                    <Ionicons
+                      name={(PLAN_THEME[validateResult.planCode?.toUpperCase()]?.icon ?? 'person') as any}
+                      size={wp(16)}
+                      color={PLAN_THEME[validateResult.planCode?.toUpperCase()]?.text ?? '#7C3AED'}
+                    />
+                    <Text style={[
+                      styles.resultPlanText,
+                      { color: PLAN_THEME[validateResult.planCode?.toUpperCase()]?.text ?? '#7C3AED' }
+                    ]}>
+                      {formatPlanLabel(validateResult.planCode)}
+                    </Text>
+                  </View>
                 </View>
                 <View style={styles.resultDivider} />
                 <View style={styles.resultDetailRow}>
@@ -349,7 +494,7 @@ export default function PartnerScannerScreen() {
                 <View style={styles.resultDetailRow}>
                   <Ionicons name="cash-outline" size={wp(18)} color={colors.orange[500]} />
                   <Text style={styles.resultDetailLabel}>Net à payer</Text>
-                  <Text style={[styles.resultDetailValue, { fontFamily: fontFamily.bold }]}>
+                  <Text style={[styles.resultDetailValue, { fontFamily: fontFamily.bold, fontSize: wp(18) }]}>
                     {formatPrice(validateResult.amountNet)}
                   </Text>
                 </View>
@@ -490,7 +635,7 @@ const styles = StyleSheet.create({
     padding: spacing[4],
   },
   tokenCard: {
-    marginBottom: spacing[4],
+    marginBottom: spacing[3],
     backgroundColor: '#111827',
   },
   tokenRow: {
@@ -518,6 +663,39 @@ const styles = StyleSheet.create({
     color: colors.neutral[900],
     marginTop: spacing[1],
   },
+  // Plan card (prominent after scan)
+  planCard: { marginBottom: spacing[3], padding: spacing[3] },
+  planRow: { flexDirection: 'row', alignItems: 'center' },
+  planIconWrap: {
+    width: wp(44), height: wp(44), borderRadius: borderRadius.lg,
+    alignItems: 'center', justifyContent: 'center', marginRight: spacing[3],
+  },
+  planTitle: { ...textStyles.h4, fontFamily: fontFamily.bold },
+  planSub: { ...textStyles.caption, marginTop: 2 },
+  // Preview card (live discount calculation)
+  previewCard: { marginTop: spacing[2], marginBottom: spacing[2], padding: spacing[3], backgroundColor: '#F0FDF4' },
+  previewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing[1] },
+  previewLabel: { ...textStyles.body, color: colors.neutral[600] },
+  previewValue: { ...textStyles.body, fontFamily: fontFamily.semiBold },
+  previewValueBig: { fontSize: wp(20), fontFamily: fontFamily.bold },
+  previewDivider: { height: 1, backgroundColor: '#D1FAE5', marginVertical: spacing[1] },
+  previewLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: spacing[2] },
+  previewLoadingText: { ...textStyles.caption, color: colors.neutral[500], marginLeft: spacing[2] },
+  // Persons row (secondary compact stepper)
+  personsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: spacing[3], paddingHorizontal: spacing[2], marginTop: spacing[1],
+    backgroundColor: colors.neutral[50], borderRadius: borderRadius.md,
+    borderWidth: 1, borderColor: colors.neutral[100],
+  },
+  personsLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  personsLabel: { ...textStyles.caption, color: colors.neutral[500] },
+  personsInput: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  personsBtn: {
+    width: wp(32), height: wp(32), borderRadius: wp(16),
+    backgroundColor: colors.neutral[100], alignItems: 'center', justifyContent: 'center',
+  },
+  personsValue: { ...textStyles.body, fontFamily: fontFamily.bold, color: colors.neutral[900], minWidth: wp(24), textAlign: 'center' },
   resultContainer: {
     flex: 1,
     backgroundColor: colors.neutral[50],
@@ -554,6 +732,13 @@ const styles = StyleSheet.create({
   resultDetailLabel: { ...textStyles.body, color: colors.neutral[500], flex: 1, marginLeft: spacing[2] },
   resultDetailValue: { ...textStyles.body, fontFamily: fontFamily.medium, color: colors.neutral[900] },
   resultDivider: { height: 1, backgroundColor: colors.neutral[100], marginVertical: spacing[1] },
+  resultPlanRow: { alignItems: 'center', paddingVertical: spacing[2] },
+  resultPlanBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+    borderRadius: borderRadius.full, gap: spacing[2],
+  },
+  resultPlanText: { fontFamily: fontFamily.bold, fontSize: wp(14) },
   storeBadge: {
     flexDirection: 'row',
     alignItems: 'center',

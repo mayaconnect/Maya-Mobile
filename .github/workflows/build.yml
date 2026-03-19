@@ -311,7 +311,7 @@ jobs:
         run: echo "✅ iOS build completed successfully!"
 
   # ==========================================
-  # SUMMARY
+  # SUMMARY + EMAIL NOTIFICATION
   # ==========================================
   build-summary:
     name: 📊 Build Summary
@@ -333,5 +333,142 @@ jobs:
             echo "✅ All builds passed!"
           else
             echo "❌ Some builds failed. Check logs above."
-            exit 1
           fi
+
+      - name: 📧 Send build failure alert via Resend
+        if: needs.build-android.result != 'success' || needs.build-ios.result != 'success'
+        uses: actions/github-script@v7
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ANDROID_RESULT: ${{ needs.build-android.result }}
+          IOS_RESULT: ${{ needs.build-ios.result }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REPO: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        with:
+          script: |
+            const https = require('https');
+
+            const androidResult = process.env.ANDROID_RESULT;
+            const iosResult = process.env.IOS_RESULT;
+            const commitSha = process.env.COMMIT_SHA.substring(0, 7);
+            const runId = process.env.RUN_ID;
+            const runNumber = process.env.RUN_NUMBER;
+            const repo = process.env.REPO;
+            const prTitle = process.env.PR_TITLE || 'N/A';
+            const prNumber = process.env.PR_NUMBER || '';
+            const branch = process.env.BRANCH;
+            const actionsUrl = `https://github.com/${repo}/actions/runs/${runId}`;
+
+            const iosIcon = iosResult === 'success' ? '✅' : '❌';
+            const androidIcon = androidResult === 'success' ? '✅' : '❌';
+
+            // Devs only — build checks are dev business
+            const recipients = [
+              'guillaumel1103@gmail.com',
+              'lharoti.pro@gmail.com'
+            ];
+
+            const html = `
+            <!DOCTYPE html>
+            <html><head><meta charset="utf-8"></head>
+            <body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr><td align="center" style="padding:30px 0;">
+                  <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"
+                         style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+                    <tr><td style="background:linear-gradient(135deg,#ff9800,#f44336);padding:25px;text-align:center;">
+                      <h1 style="color:#fff;margin:0;font-size:20px;">⚠️ Build Check échoué</h1>
+                      <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:13px;">
+                        PR #${prNumber} · ${branch} · Build #${runNumber}
+                      </p>
+                    </td></tr>
+
+                    <tr><td style="padding:20px 30px;">
+                      <p style="color:#333;margin:0 0 15px;">Le build check a échoué sur la PR :</p>
+                      <p style="background:#f8f9fa;padding:10px;border-radius:6px;font-weight:600;color:#1a1a2e;">
+                        ${prTitle}
+                      </p>
+
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:15px 0;">
+                        <tr><td style="padding:8px 10px;background:#f8f9fa;border-radius:6px;">
+                          <strong>${androidIcon} Android</strong>
+                          <span style="float:right;font-weight:600;color:${androidResult === 'success' ? '#34A853' : '#e53935'};">
+                            ${androidResult.toUpperCase()}
+                          </span>
+                        </td></tr>
+                        <tr><td style="height:6px;"></td></tr>
+                        <tr><td style="padding:8px 10px;background:#f8f9fa;border-radius:6px;">
+                          <strong>${iosIcon} iOS</strong>
+                          <span style="float:right;font-weight:600;color:${iosResult === 'success' ? '#34A853' : '#e53935'};">
+                            ${iosResult.toUpperCase()}
+                          </span>
+                        </td></tr>
+                      </table>
+
+                      <p style="font-size:13px;color:#666;">
+                        <strong>Commit :</strong> ${commitSha}<br/>
+                        <strong>Branche :</strong> ${branch}<br/>
+                        <strong>Date :</strong> ${new Date().toLocaleString('fr-FR', {timeZone:'Europe/Paris'})}
+                      </p>
+                    </td></tr>
+
+                    <tr><td style="padding:10px 30px 25px;text-align:center;">
+                      <a href="${actionsUrl}"
+                         style="display:inline-block;padding:10px 24px;background:#1a1a2e;color:#fff;
+                                text-decoration:none;border-radius:6px;font-size:13px;">
+                        🔍 Voir les logs du build
+                      </a>
+                    </td></tr>
+
+                    <tr><td style="padding:12px 30px;background:#f8f9fa;text-align:center;
+                             font-size:11px;color:#999;border-top:1px solid #eee;">
+                      Maya Connect © 2026 · Alerte automatique de build
+                    </td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body></html>`;
+
+            async function sendEmail(to) {
+              return new Promise((resolve, reject) => {
+                const payload = JSON.stringify({
+                  from: 'Maya Build <support@maya-appli.fr>',
+                  to,
+                  subject: `⚠️ Build #${runNumber} échoué — ${branch} (${commitSha})`,
+                  html
+                });
+                const req = https.request({
+                  hostname: 'api.resend.com',
+                  path: '/emails',
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
+                  }
+                }, (res) => {
+                  let data = '';
+                  res.on('data', c => data += c);
+                  res.on('end', () => {
+                    console.log(`→ ${to}: ${res.statusCode} ${data}`);
+                    resolve(res.statusCode);
+                  });
+                });
+                req.on('error', reject);
+                req.write(payload);
+                req.end();
+              });
+            }
+
+            const results = await Promise.allSettled(recipients.map(sendEmail));
+            const ok = results.filter(r => r.status === 'fulfilled').length;
+            console.log(`📧 Failure alerts sent: ${ok}/${recipients.length}`);
+
+      - name: ❌ Fail job if builds failed
+        if: needs.build-android.result != 'success' || needs.build-ios.result != 'success'
+        run: exit 1

@@ -98,7 +98,7 @@ export default function PartnerProfileScreen() {
     mutationFn: (data: any) => {
       const payload = {
         ...data,
-        address: { street: '', city: '', country: '' },
+        address: { street: '', city: '', state: '', postalCode: '', country: '' },
       };
       console.log('[Profile] updateProfile — payload:', JSON.stringify(payload));
       return authApi.updateProfile(payload);

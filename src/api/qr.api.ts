@@ -7,7 +7,7 @@
  *   POST /validate             → StoreOperator, Partner, Admin
  */
 import apiClient from './client';
-import type { QrFrontendTokenResult, QrValidateRequestDto, QrValidateResultDto } from '../types';
+import type { QrFrontendTokenResult, QrValidateRequestDto, QrValidateResultDto, QrPreviewDiscountRequestDto, QrPreviewDiscountResultDto } from '../types';
 
 const BASE = '/api/qr';
 
@@ -23,4 +23,8 @@ export const qrApi = {
   /** POST /api/qr/validate — StoreOperator, Partner, Admin */
   validate: (dto: QrValidateRequestDto) =>
     apiClient.post<QrValidateResultDto>(`${BASE}/validate`, dto),
+
+  /** POST /api/qr/preview-discount — StoreOperator, Partner, Admin */
+  previewDiscount: (dto: QrPreviewDiscountRequestDto) =>
+    apiClient.post<QrPreviewDiscountResultDto>(`${BASE}/preview-discount`, dto),
 };

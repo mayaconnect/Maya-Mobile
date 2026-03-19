@@ -56,6 +56,15 @@
       "expo-router",
       "expo-apple-authentication",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo.png",
+          "color": "#F97316",
+          "defaultChannel": "maya-transactions",
+          "sounds": []
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/logo.png",

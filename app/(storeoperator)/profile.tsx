@@ -89,7 +89,7 @@ export default function StoreOperatorProfileScreen() {
   /* ---- Update profile ---- */
   const updateMutation = useMutation({
     mutationFn: (data: any) => {
-      const payload = { ...data, address: { street: '', city: '', country: '' } };
+      const payload = { ...data, address: { street: '', city: '', state: '', postalCode: '', country: '' } };
       return authApi.updateProfile(payload);
     },
     onSuccess: () => {
