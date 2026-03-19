@@ -25,7 +25,6 @@ import {
 } from '@expo-google-fonts/inter';
 import { useAuthStore } from '../src/stores/auth.store';
 import { authApi } from '../src/api/auth.api';
-import { usePushNotifications } from '../src/hooks/use-push-notifications';
 import { colors } from '../src/theme/colors';
 
 // Prevent splash from auto-hiding
@@ -45,9 +44,6 @@ export default function RootLayout() {
   const hydrate = useAuthStore((s) => s.hydrate);
   const isHydrating = useAuthStore((s) => s.isHydrating);
   const [fontsLoaded, setFontsLoaded] = React.useState(false);
-
-  // Register push notifications — auto-registers token when authenticated
-  usePushNotifications();
 
   useEffect(() => {
     (async () => {

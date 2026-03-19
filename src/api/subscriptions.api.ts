@@ -15,6 +15,8 @@ import type {
   SubscriptionDto,
   CreateCheckoutRequest,
   ChangePlanRequest,
+  ChangePlanResult,
+  PlanChangePreview,
 } from '../types';
 import type { PagedResult } from '../types';
 
@@ -56,8 +58,15 @@ export const paymentsApi = {
 
   /** POST /api/payments/change-plan — swap active subscription to another plan */
   changePlan: (dto: ChangePlanRequest) =>
-    apiClient.post<{ url?: string; sessionId?: string }>(
+    apiClient.post<ChangePlanResult>(
       '/api/payments/change-plan',
+      dto,
+    ),
+
+  /** POST /api/payments/preview-plan-change — preview proration, cooldown, upgrade/downgrade info */
+  previewPlanChange: (dto: ChangePlanRequest) =>
+    apiClient.post<PlanChangePreview>(
+      '/api/payments/preview-plan-change',
       dto,
     ),
 };

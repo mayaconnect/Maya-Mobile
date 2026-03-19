@@ -1,16 +1,16 @@
 name: Deploy to TestFlight & Google Play
 
 on:
-  # Only deploy AFTER build.yml completes successfully on main/master
-  workflow_run:
-    workflows: ["Build Check"]
-    types:
-      - completed
+  push:
     branches:
       - master
       - main
 
-  # Manual deploy still available (bypasses build check)
+  pull_request:
+    branches:
+      - master
+      - main
+
   workflow_dispatch:
     inputs:
       platform:
@@ -25,33 +25,17 @@ on:
 
 jobs:
   # ==========================================
-  # GATE — Block deploy if build failed
-  # ==========================================
-  check-build:
-    name: 🔒 Verify Build Status
-    runs-on: ubuntu-latest
-    # Skip this gate for manual dispatches
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    steps:
-      - name: ✅ Build passed — deploying
-        if: github.event_name == 'workflow_dispatch'
-        run: echo "⚡ Manual deploy triggered — skipping build gate"
-      - name: ✅ Build passed — deploying
-        if: github.event_name != 'workflow_dispatch'
-        run: echo "✅ Build Check workflow succeeded — proceeding with deployment"
-
-  # ==========================================
   # JOB ANDROID - Build et Deploy sur Google Play
   # ==========================================
   deploy-android:
     name: 🤖 Android → Google Play (EAS Build)
-    needs: [check-build]
     # Annule les anciens jobs en queue quand un nouveau est déclenché
     concurrency:
       group: deploy-android
       cancel-in-progress: true
     if: |
-      github.event_name == 'workflow_run' ||
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.platform == 'android' || github.event.inputs.platform == 'both'))
     runs-on: ubuntu-latest
@@ -59,8 +43,6 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
@@ -125,13 +107,13 @@ jobs:
   # ==========================================
   deploy-ios:
     name: 🍎 iOS → TestFlight (EAS Build)
-    needs: [check-build]
     # Annule les anciens jobs en queue quand un nouveau est déclenché
     concurrency:
       group: deploy-ios
       cancel-in-progress: true
     if: |
-      github.event_name == 'workflow_run' ||
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both'))
     runs-on: ubuntu-latest
@@ -139,8 +121,6 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
@@ -224,12 +204,12 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           IOS_RESULT: ${{ needs.deploy-ios.result }}
           ANDROID_RESULT: ${{ needs.deploy-android.result }}
-          COMMIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-          COMMIT_MSG: ${{ github.event.workflow_run.name || 'Deploy' }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message || github.event.pull_request.title || 'Deploy' }}
           RUN_ID: ${{ github.run_id }}
           RUN_NUMBER: ${{ github.run_number }}
           REPO: ${{ github.repository }}
-          BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
         with:
           script: |
             const https = require('https');

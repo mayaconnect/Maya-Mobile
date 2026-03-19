@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
+  type ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
@@ -25,6 +26,7 @@ import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { subscriptionsApi, paymentsApi } from '../../src/api/subscriptions.api';
+import type { PlanChangePreview } from '../../src/types';
 import { clientColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
@@ -47,10 +49,12 @@ export default function SubscriptionScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<PlanChangePreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  type ModalType = 'success-checkout' | 'success-change' | 'confirm-cancel' | 'success-cancel' | 'error';
+  type ModalType = 'success-checkout' | 'success-change' | 'success-downgrade-scheduled' | 'confirm-cancel' | 'success-cancel' | 'confirm-upgrade' | 'confirm-downgrade' | 'cooldown-blocked' | 'error';
   const [modal, setModal] = useState<{ type: ModalType; message?: string } | null>(null);
-  const closeModal = () => setModal(null);
+  const closeModal = () => { setModal(null); setPreviewData(null); };
 
   /* ── Queries ── */
   const hasSubQ = useQuery({
@@ -153,30 +157,30 @@ export default function SubscriptionScreen() {
 
   const changePlanMutation = useMutation({
     mutationFn: async (planCode: string) => {
-      const successUrl = Linking.createURL('subscription/success');
-      const cancelUrl = Linking.createURL('subscription/cancel');
-      console.log('[Subscription] changePlan — planCode:', planCode, '| successUrl:', successUrl);
-
-      const res = await paymentsApi.changePlan({ newPlanCode: planCode, successUrl, cancelUrl });
+      console.log('[Subscription] changePlan — planCode:', planCode);
+      const res = await paymentsApi.changePlan({ newPlanCode: planCode });
       console.log('[Subscription] changePlan response:', res.status, JSON.stringify(res.data));
-
-      const url = res.data?.url;
-      if (url) {
-        console.log('[Subscription] changePlan — opening Stripe URL in browser…');
-        const result = await WebBrowser.openAuthSessionAsync(url, successUrl);
-        console.log('[Subscription] changePlan WebBrowser result:', result.type);
-        return result;
-      }
-      console.log('[Subscription] changePlan — applied directly (no redirect)');
-      return { type: 'success' as const };
+      return res.data;
     },
     onSuccess: (result) => {
-      console.log('[Subscription] changePlan onSuccess — result type:', result.type);
+      console.log('[Subscription] changePlan onSuccess — isUpgrade:', result.isUpgrade);
       queryClient.invalidateQueries({ queryKey: ['hasSubscription'] });
       queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
-      if (result.type === 'success') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setModal({ type: 'success-change' });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (result.isUpgrade) {
+        setModal({
+          type: 'success-change',
+          message: result.proratedAmount
+            ? `Votre formule a été mise à niveau. Un montant de ${formatPrice(result.proratedAmount)} au prorata sera facturé.`
+            : 'Votre formule a été mise à niveau. Les nouveaux avantages sont disponibles immédiatement.',
+        });
+      } else {
+        setModal({
+          type: 'success-downgrade-scheduled',
+          message: result.effectiveDate
+            ? `Votre changement prendra effet le ${formatDate(result.effectiveDate)}.`
+            : 'Votre changement prendra effet à la fin de votre période en cours.',
+        });
       }
     },
     onError: (err: any) => {
@@ -185,12 +189,13 @@ export default function SubscriptionScreen() {
         data: JSON.stringify(err?.response?.data),
         message: err?.message,
       });
-      const detail = err?.response?.data?.detail ?? err?.response?.data?.title ?? err?.message;
+      const detail = err?.response?.data?.message ?? err?.response?.data?.detail ?? err?.response?.data?.title ?? err?.message;
       setModal({ type: 'error', message: detail ?? 'Impossible de changer de formule.' });
     },
   });
 
-  const handleSubscribe = (plan: any) => {
+  /** Call preview API, then show appropriate confirmation modal */
+  const handleSubscribe = async (plan: any) => {
     if (!plan.code) {
       console.log('[Subscription] handleSubscribe — plan has no code:', plan.id);
       setModal({ type: 'error', message: "Ce plan n'est pas encore disponible." });
@@ -199,11 +204,35 @@ export default function SubscriptionScreen() {
     const hasActive = hasSubQ.data === true;
     console.log('[Subscription] handleSubscribe — planCode:', plan.code, '| hasActiveSub:', hasActive);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (hasActive) {
+
+    if (!hasActive) {
+      // New subscription — direct checkout
       setSelectedPlan(plan.id);
-      changePlanMutation.mutate(plan.code);
-    } else {
       checkoutMutation.mutate(plan.code);
+      return;
+    }
+
+    // Existing subscription — preview first
+    setSelectedPlan(plan.id);
+    setPreviewLoading(true);
+    try {
+      const res = await paymentsApi.previewPlanChange({ newPlanCode: plan.code });
+      const preview = res.data;
+      setPreviewData(preview);
+
+      if (!preview.canChange) {
+        // Cooldown active
+        setModal({ type: 'cooldown-blocked', message: preview.message });
+      } else if (preview.isUpgrade) {
+        setModal({ type: 'confirm-upgrade' });
+      } else {
+        setModal({ type: 'confirm-downgrade' });
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.message ?? err?.message;
+      setModal({ type: 'error', message: detail ?? 'Impossible de vérifier le changement.' });
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -381,6 +410,23 @@ export default function SubscriptionScreen() {
           const isSelected = selectedPlan === plan.id;
           const isCurrentPlan = hasActiveSub && currentSub?.planCode === plan.code;
 
+          // Determine upgrade vs downgrade using tier
+          const currentPlanObj = hasActiveSub
+            ? plans.find((p: any) => p.code === currentSub?.planCode)
+            : null;
+          const isUpgradePlan = currentPlanObj && (plan.tier ?? 0) > (currentPlanObj.tier ?? 0);
+          const isDowngradePlan = currentPlanObj && (plan.tier ?? 0) < (currentPlanObj.tier ?? 0);
+
+          const changeBtnTitle = hasActiveSub
+            ? isUpgradePlan
+              ? 'Passer au supérieur'
+              : isDowngradePlan
+                ? 'Réduire ma formule'
+                : 'Changer de formule'
+            : plan.trialDays
+              ? `Essayer ${plan.trialDays} jours gratuitement`
+              : "S'abonner";
+
           return (
             <TouchableOpacity
               key={plan.id}
@@ -389,12 +435,12 @@ export default function SubscriptionScreen() {
               disabled={changePlanMutation.isPending || checkoutMutation.isPending}
             >
               <MCard
-                style={[
+                style={StyleSheet.flatten([
                   styles.planCard,
                   isSelected && styles.planSelected,
                   isPopular && styles.planPopular,
                   isCurrentPlan && styles.planCurrent,
-                ]}
+                ].filter(Boolean)) as ViewStyle}
                 elevation={isSelected ? 'lg' : 'sm'}
               >
                 <View style={styles.planHeader}>
@@ -451,18 +497,12 @@ export default function SubscriptionScreen() {
 
                 {!isCurrentPlan && (
                   <MButton
-                    title={
-                      hasActiveSub
-                        ? 'Changer de formule'
-                        : plan.trialDays
-                          ? `Essayer ${plan.trialDays} jours gratuitement`
-                          : "S'abonner"
-                    }
+                    title={changeBtnTitle}
                     onPress={() => handleSubscribe(plan)}
-                    variant={isPopular ? 'secondary' : 'primary'}
+                    variant={isPopular ? 'secondary' : isDowngradePlan ? 'outline' : 'primary'}
                     loading={
                       selectedPlan === plan.id &&
-                      (checkoutMutation.isPending || changePlanMutation.isPending)
+                      (checkoutMutation.isPending || changePlanMutation.isPending || previewLoading)
                     }
                     style={{ marginTop: spacing[4] }}
                   />
@@ -501,15 +541,97 @@ export default function SubscriptionScreen() {
             </>
           )}
 
-          {/* ── Success change plan ── */}
+          {/* ── Success change plan (upgrade) ── */}
           {modal?.type === 'success-change' && (
             <>
               <LinearGradient colors={['#7C3AED', '#A78BFA']} style={mStyles.iconCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                <Ionicons name="swap-horizontal" size={wp(32)} color="#FFF" />
+                <Ionicons name="arrow-up-circle" size={wp(32)} color="#FFF" />
               </LinearGradient>
-              <Text style={mStyles.title}>Formule mise à jour</Text>
-              <Text style={mStyles.body}>Votre abonnement a bien été modifié. Les nouveaux avantages sont disponibles immédiatement.</Text>
+              <Text style={mStyles.title}>Formule mise à niveau !</Text>
+              <Text style={mStyles.body}>{modal.message ?? 'Votre abonnement a bien été modifié. Les nouveaux avantages sont disponibles immédiatement.'}</Text>
               <MButton title="Super !" onPress={closeModal} style={mStyles.btn} />
+            </>
+          )}
+
+          {/* ── Success downgrade scheduled ── */}
+          {modal?.type === 'success-downgrade-scheduled' && (
+            <>
+              <LinearGradient colors={['#6366F1', '#818CF8']} style={mStyles.iconCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="calendar-outline" size={wp(32)} color="#FFF" />
+              </LinearGradient>
+              <Text style={mStyles.title}>Changement programmé</Text>
+              <Text style={mStyles.body}>{modal.message ?? 'Votre changement prendra effet à la fin de votre période en cours. Vous gardez vos avantages actuels jusque-là.'}</Text>
+              <MButton title="Compris" onPress={closeModal} style={mStyles.btn} />
+            </>
+          )}
+
+          {/* ── Confirm upgrade ── */}
+          {modal?.type === 'confirm-upgrade' && previewData && (
+            <>
+              <LinearGradient colors={['#FF7A18', '#FFB347']} style={mStyles.iconCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="arrow-up-circle" size={wp(32)} color="#FFF" />
+              </LinearGradient>
+              <Text style={mStyles.title}>Confirmer la mise à niveau ?</Text>
+              <Text style={mStyles.body}>
+                {previewData.proratedAmount != null && previewData.proratedAmount > 0
+                  ? `Vous serez facturé ${formatPrice(previewData.proratedAmount)} au prorata pour le reste de votre période en cours.`
+                  : 'Votre abonnement sera immédiatement mis à niveau vers la nouvelle formule.'}
+              </Text>
+              <View style={mStyles.rowBtns}>
+                <MButton title="Annuler" variant="outline" onPress={closeModal} style={{ flex: 1 }} />
+                <MButton
+                  title="Confirmer"
+                  variant="primary"
+                  loading={changePlanMutation.isPending}
+                  onPress={() => {
+                    closeModal();
+                    if (previewData?.newPlanCode) {
+                      changePlanMutation.mutate(previewData.newPlanCode);
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </>
+          )}
+
+          {/* ── Confirm downgrade ── */}
+          {modal?.type === 'confirm-downgrade' && previewData && (
+            <>
+              <View style={mStyles.iconCircleNeutral}>
+                <Ionicons name="arrow-down-circle-outline" size={wp(32)} color={colors.neutral[500]} />
+              </View>
+              <Text style={mStyles.title}>Réduire votre formule ?</Text>
+              <Text style={mStyles.body}>
+                {`Votre changement vers ${previewData.newPlanCode} prendra effet le ${formatDate(previewData.effectiveDate)}. Vous garderez vos avantages actuels jusque-là.`}
+              </Text>
+              <View style={mStyles.rowBtns}>
+                <MButton title="Annuler" variant="outline" onPress={closeModal} style={{ flex: 1 }} />
+                <MButton
+                  title="Confirmer"
+                  variant="primary"
+                  loading={changePlanMutation.isPending}
+                  onPress={() => {
+                    closeModal();
+                    if (previewData?.newPlanCode) {
+                      changePlanMutation.mutate(previewData.newPlanCode);
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </>
+          )}
+
+          {/* ── Cooldown blocked ── */}
+          {modal?.type === 'cooldown-blocked' && (
+            <>
+              <View style={mStyles.iconCircleError}>
+                <Ionicons name="time-outline" size={wp(32)} color={colors.error[500]} />
+              </View>
+              <Text style={mStyles.title}>Changement non disponible</Text>
+              <Text style={mStyles.body}>{modal.message ?? 'Vous ne pouvez changer de formule qu\'une fois par mois.'}</Text>
+              <MButton title="Compris" variant="outline" onPress={closeModal} style={mStyles.btn} />
             </>
           )}
 

@@ -17,8 +17,11 @@ import { clientColors as colors } from '../../src/theme/colors';
 import { fontFamily } from '../../src/theme/typography';
 import { spacing } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
+import { usePushNotifications } from '../../src/hooks/use-push-notifications';
 
 export default function ClientTabLayout() {
+  // Register push notifications when client is authenticated
+  usePushNotifications();
   return (
     <Tabs
       screenOptions={{

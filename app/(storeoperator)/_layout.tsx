@@ -20,6 +20,7 @@ import { fontFamily } from '../../src/theme/typography';
 import { spacing, shadows } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
 import { usePartnerInit } from '../../src/hooks/use-partner-init';
+import { usePushNotifications } from '../../src/hooks/use-push-notifications';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -43,6 +44,9 @@ export default function StoreOperatorLayout() {
 
   // Populate partner Zustand store from auth user's partnerData
   usePartnerInit();
+
+  // Register push notifications when operator is authenticated
+  usePushNotifications();
 
   return (
     <Tabs

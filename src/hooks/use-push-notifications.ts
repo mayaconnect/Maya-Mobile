@@ -3,141 +3,217 @@
  *
  * Handles Expo push token registration, permission requests,
  * and incoming notification listeners.
+ *
+ * IMPORTANT: All expo-notifications calls are wrapped in try-catch
+ * to prevent app crashes if the native module isn't ready.
+ * The notification handler is configured lazily (not at module top-level)
+ * to avoid crashes on app startup.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Platform, AppState } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import Constants from 'expo-constants';
-import { pushDeviceApi } from '../api/push-device.api';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { Platform } from 'react-native';
 import { useAuthStore } from '../stores/auth.store';
 
-// Configure how notifications are handled when the app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    priority: Notifications.AndroidNotificationPriority.HIGH,
-  }),
-});
+// Lazy imports — resolved only when the hook actually runs
+let Notifications: typeof import('expo-notifications') | null = null;
+let Device: typeof import('expo-device') | null = null;
+let Constants: typeof import('expo-constants').default | null = null;
+
+let _handlerConfigured = false;
+
+/**
+ * Safely load expo-notifications and related modules.
+ * Returns false if any module fails to load.
+ */
+async function ensureModulesLoaded(): Promise<boolean> {
+  if (Notifications && Device && Constants) return true;
+
+  try {
+    const [notifModule, deviceModule, constantsModule] = await Promise.all([
+      import('expo-notifications'),
+      import('expo-device'),
+      import('expo-constants'),
+    ]);
+    Notifications = notifModule;
+    Device = deviceModule;
+    Constants = constantsModule.default;
+    return true;
+  } catch (err) {
+    console.error('[Push] Failed to load notification modules:', err);
+    return false;
+  }
+}
+
+/**
+ * Configure the foreground notification handler (once).
+ */
+function configureNotificationHandler() {
+  if (_handlerConfigured || !Notifications) return;
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    _handlerConfigured = true;
+    console.log('[Push] Notification handler configured');
+  } catch (err) {
+    console.error('[Push] Failed to configure notification handler:', err);
+  }
+}
 
 /**
  * Register for push notifications and return the Expo push token.
  * Must be called on a physical device (not simulator).
  */
 async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (!Device.isDevice) {
-    console.warn('[Push] Push notifications require a physical device');
+  if (!Notifications || !Device || !Constants) return null;
+
+  try {
+    if (!Device.isDevice) {
+      console.warn('[Push] Push notifications require a physical device');
+      return null;
+    }
+
+    // Check existing permission
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    // Request permission if not granted
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      console.warn('[Push] Push notification permission not granted');
+      return null;
+    }
+
+    // Get Expo push token
+    const projectId =
+      (Constants as any)?.expoConfig?.extra?.eas?.projectId ??
+      (Constants as any)?.manifest?.extra?.eas?.projectId ??
+      (Constants as any)?.manifest2?.extra?.eas?.projectId;
+
+    if (!projectId) {
+      console.error('[Push] Missing EAS project ID in app config');
+      return null;
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = tokenData.data;
+    console.log('[Push] Expo push token:', token);
+
+    // Android: create notification channels
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('maya-transactions', {
+        name: 'Transactions Maya',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#764ba2',
+      });
+
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Général',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        sound: 'default',
+      });
+    }
+
+    return token;
+  } catch (err) {
+    console.error('[Push] Registration failed:', err);
     return null;
   }
-
-  // Check existing permission
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  // Request permission if not granted
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    console.warn('[Push] Push notification permission not granted');
-    return null;
-  }
-
-  // Get Expo push token
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  if (!projectId) {
-    console.error('[Push] Missing EAS project ID in app.json');
-    return null;
-  }
-
-  const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-  const token = tokenData.data;
-  console.log('[Push] Expo push token:', token);
-
-  // Android: create notification channel
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('maya-transactions', {
-      name: 'Transactions Maya',
-      importance: Notifications.AndroidImportance.HIGH,
-      sound: 'default',
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#764ba2',
-    });
-
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Général',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      sound: 'default',
-    });
-  }
-
-  return token;
 }
 
 /**
  * Hook to manage push notification lifecycle.
  *
- * - Requests permission & registers token on mount (when authenticated)
+ * - Loads notification modules lazily on mount
+ * - Requests permission & registers token (when authenticated)
  * - Listens for incoming notifications (foreground + background tap)
- * - Provides the push token and last notification
+ * - All native calls are wrapped in try-catch to prevent crashes
  */
 export function usePushNotifications() {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const [notification, setNotification] = useState<any>(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const notificationListener = useRef<Notifications.EventSubscription>();
-  const responseListener = useRef<Notifications.EventSubscription>();
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Register for push notifications
-    registerForPushNotificationsAsync().then(async (token) => {
-      if (!token) return;
-      setExpoPushToken(token);
+    let cancelled = false;
 
-      // Send token to backend
-      try {
-        const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-        await pushDeviceApi.register({ token, platform });
-        console.log('[Push] Token registered with backend');
-      } catch (err) {
-        console.error('[Push] Failed to register token with backend:', err);
-      }
-    });
+    (async () => {
+      // Step 1: load native modules
+      const loaded = await ensureModulesLoaded();
+      if (!loaded || cancelled || !Notifications) return;
 
-    // Listener: notification received while app is in foreground
-    notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log('[Push] Notification received:', notification.request.content.title);
-        setNotification(notification);
-      }
-    );
+      // Step 2: configure foreground handler
+      configureNotificationHandler();
 
-    // Listener: user tapped on a notification
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data;
-        console.log('[Push] Notification tapped, data:', data);
+      // Step 3: register for push
+      const token = await registerForPushNotificationsAsync();
+      if (cancelled) return;
 
-        // Handle navigation based on notification type
-        if (data?.type === 'transaction_confirmed') {
-          // Could navigate to transaction detail — for now, just log
-          console.log('[Push] Transaction confirmed:', data.transactionId);
+      if (token) {
+        setExpoPushToken(token);
+
+        // Send token to backend
+        try {
+          const { pushDeviceApi } = await import('../api/push-device.api');
+          const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+          await pushDeviceApi.register({ token, platform });
+          console.log('[Push] Token registered with backend');
+        } catch (err: any) {
+          const detail = err?.response?.data ?? err?.message ?? err;
+          console.error('[Push] Failed to register token with backend:', JSON.stringify(detail));
         }
       }
-    );
+
+      // Step 4: set up listeners
+      try {
+        notificationListener.current = Notifications.addNotificationReceivedListener(
+          (notif) => {
+            console.log('[Push] Notification received:', notif.request.content.title);
+            if (!cancelled) setNotification(notif);
+          }
+        );
+
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(
+          (response) => {
+            const data = response.notification.request.content.data;
+            console.log('[Push] Notification tapped, data:', data);
+
+            if (data?.type === 'transaction_confirmed') {
+              console.log('[Push] Transaction confirmed:', data.transactionId);
+            }
+          }
+        );
+      } catch (err) {
+        console.error('[Push] Failed to set up listeners:', err);
+      }
+    })();
 
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+      cancelled = true;
+      try {
+        if (notificationListener.current) {
+          notificationListener.current.remove();
+        }
+        if (responseListener.current) {
+          responseListener.current.remove();
+        }
+      } catch (err) {
+        console.error('[Push] Cleanup error:', err);
       }
     };
   }, [isAuthenticated]);

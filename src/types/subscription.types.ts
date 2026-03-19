@@ -15,6 +15,8 @@ export interface SubscriptionPlanDto {
   trialDays?: number | null;
   isActive: boolean;
   createdAt: string;
+  /** Plan hierarchy level: SOLO=1, DUO=2, FAMILY=3, VIP=4 */
+  tier: number;
 }
 
 export interface SubscriptionDto {
@@ -50,4 +52,27 @@ export interface ChangePlanRequest {
   newPlanCode: string;
   successUrl?: string;
   cancelUrl?: string;
+}
+
+export interface ChangePlanResult {
+  success: boolean;
+  oldPlanCode?: string | null;
+  newPlanCode: string;
+  proratedAmount?: number | null;
+  message: string;
+  isUpgrade: boolean;
+  effectiveDate?: string | null;
+}
+
+export interface PlanChangePreview {
+  canChange: boolean;
+  isUpgrade: boolean;
+  currentPlanCode?: string | null;
+  newPlanCode: string;
+  currentTier: number;
+  newTier: number;
+  proratedAmount?: number | null;
+  effectiveDate: string;
+  cooldownRemainingDays: number;
+  message: string;
 }
