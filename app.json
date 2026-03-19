@@ -25,7 +25,6 @@
         "com.apple.developer.applesignin": ["Default"]
       },
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Maya utilise Face ID pour sécuriser et simplifier votre connexion.",
         "NSCameraUsageDescription": "Maya a besoin d'accéder à votre caméra pour scanner les codes QR.",
         "NSLocationWhenInUseUsageDescription": "Maya a besoin de votre localisation pour vous montrer les magasins à proximité.",
         "NSPhotoLibraryUsageDescription": "Maya a besoin d'accéder à vos photos pour partager des contenus.",
@@ -83,7 +82,7 @@
       "typedRoutes": true,
       "reactCompiler": false
     },
-      "owner": "glafay996",
+      "owner": "mayaconnect",
     "extra": {
         "googleClientId": "125229396520-enrhsjtp80ehijnf0ru39n1j18ic2vqv.apps.googleusercontent.com",
         "router": {},
@@ -93,3 +92,5 @@
     }
   }
 }
+
+

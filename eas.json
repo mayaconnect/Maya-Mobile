@@ -23,17 +23,13 @@
     },
     "production": {
       "autoIncrement": true,
-      "cache": {
-        "key": "production-v1"
-      },
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release",
         "resourceClass": "m-medium"
       },
       "android": {
-        "buildType": "app-bundle",
-        "resourceClass": "m-medium"
+        "buildType": "app-bundle"
       },
       "env": {
         "RCT_NEW_ARCH_ENABLED": "1"
