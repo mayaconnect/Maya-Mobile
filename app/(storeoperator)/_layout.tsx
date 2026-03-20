@@ -111,6 +111,14 @@ export default function StoreOperatorLayout() {
 
       {/* Hidden screen: store management (accessible via router.push) */}
       <Tabs.Screen
+        name="edit-profile"
+        options={{ href: null, title: 'Modifier le profil' }}
+      />
+      <Tabs.Screen
+        name="change-password"
+        options={{ href: null, title: 'Changer le mot de passe' }}
+      />
+      <Tabs.Screen
         name="store-management"
         options={{
           href: null, // hide from tab bar

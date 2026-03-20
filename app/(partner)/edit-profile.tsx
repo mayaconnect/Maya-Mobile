@@ -28,7 +28,7 @@ import { authApi } from '../../src/api';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
-import { MInput, MButton, MHeader } from '../../src/components/ui';
+import { MInput, MButton } from '../../src/components/ui';
 
 const schema = z.object({
   firstName: z.string().min(1, 'Prénom requis'),
@@ -103,13 +103,20 @@ export default function PartnerEditProfileScreen() {
 
   return (
     <View style={styles.container}>
+      {/* ── Fixed dark header ── */}
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={wp(24)} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
+        <Text style={styles.topTitle} numberOfLines={1}>Modifier le profil</Text>
+        <View style={{ width: wp(40) }} />
+      </View>
+
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing[5], paddingBottom: insets.bottom + wp(40) }]}
+        contentContainerStyle={[styles.scroll, { paddingTop: spacing[4], paddingBottom: insets.bottom + wp(40) }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <MHeader title="Modifier le profil" showBack onBack={() => router.back()} />
-
         {/* ── Informations personnelles ── */}
         <SectionLabel accent="#FF6A00" title="Informations personnelles" />
 
@@ -343,6 +350,29 @@ const sectionStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F172A' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[3],
+    backgroundColor: '#0F172A',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  backBtn: {
+    width: wp(40),
+    height: wp(40),
+    borderRadius: wp(20),
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topTitle: {
+    flex: 1,
+    textAlign: 'center',
+    ...textStyles.h4,
+    color: '#FFFFFF',
+  },
   scroll: { paddingHorizontal: spacing[5] },
   row: { flexDirection: 'row', gap: spacing[3] },
   field: {},

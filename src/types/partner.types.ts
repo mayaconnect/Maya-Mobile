@@ -110,6 +110,39 @@ export interface StoreUpdateDto {
   isActive?: boolean;
 }
 
+/** DTO for partial store update — only include fields you want to change */
+export interface StorePatchDto {
+  id: string;
+  name?: string | null;
+  address?: string | null;
+  city?: string | null;
+  country?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  categoryId?: string | null;
+  avgDiscountPercent?: number;
+  openingJson?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  isActive?: boolean;
+}
+
+/** DTO to create a new store (partner request → created inactive) */
+export interface StoreCreateDto {
+  partnerId: string;
+  name: string;
+  address: string;
+  city: string;
+  country: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  categoryId: string;
+  avgDiscountPercent: number;
+  openingJson?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
 export interface StoreSubscriberDto {
   userId: string;
   email: string;

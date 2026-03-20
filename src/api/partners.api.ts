@@ -1,22 +1,13 @@
 /**
  * Maya Connect V2 — Partners API Module
  *
- * ⚠️  ALL /api/partners/* endpoints are **Admin-only** in the backend.
- *     Mobile client screens must NOT call these — use storesApi instead:
- *       • Browse merchants → storesApi.search()
- *       • Store detail     → storesApi.getById()
- *
- *     This file is kept for admin/backoffice tooling only.
+ * Some endpoints are Admin-only; image endpoints are accessible to Partner role.
  */
 import apiClient from './client';
 import type { PartnerDto, PartnerDetailsDto } from '../types';
 
 const BASE = '/api/partners';
 
-/**
- * Admin-only partner management endpoints.
- * Do NOT use from client or partner screens — they will return 403.
- */
 export const partnersApi = {
   /** GET /api/partners — Admin only */
   getAll: (params?: {
@@ -34,4 +25,21 @@ export const partnersApi = {
   /** GET /api/partners/:id/details — Admin only */
   getDetails: (id: string) =>
     apiClient.get<PartnerDetailsDto>(`${BASE}/${id}/details`),
+
+  /**
+   * POST /api/partners/:id/image — Upload partner profile image (Admin, Partner)
+   * Max 5MB, image/* only.
+   * Note: Content-Type is intentionally undefined so React Native's native XHR
+   * can set the correct multipart/form-data boundary automatically.
+   */
+  uploadImage: (id: string, formData: FormData) =>
+    apiClient.post<{ url: string }>(`${BASE}/${id}/image`, formData, {
+      headers: { 'Content-Type': undefined },
+    }),
+
+  /**
+   * DELETE /api/partners/:id/image — Remove partner profile image (Admin, Partner)
+   */
+  deleteImage: (id: string) =>
+    apiClient.delete(`${BASE}/${id}/image`),
 };

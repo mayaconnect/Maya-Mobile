@@ -17,8 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { storeOperatorsApi } from '../../src/api/store-operators.api';
 import { usePartnerStore } from '../../src/stores/partner.store';
+import { useAuthStore } from '../../src/stores/auth.store';
 import { operatorColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
@@ -45,20 +47,25 @@ function StoreImage({ item, isActive }: { item: any; isActive: boolean }) {
   }
 
   return (
-    <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
-      <Ionicons name="storefront" size={wp(22)} color={isActive ? '#FFF' : colors.violet[400]} />
-    </View>
+    <Image
+      source={DEFAULT_IMAGE}
+      style={[styles.storeImage, isActive && styles.storeImageActive]}
+      resizeMode="cover"
+    />
   );
 }
 
 export default function MyStoresScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const stores = usePartnerStore((s) => s.stores);
   const partner = usePartnerStore((s) => s.partner);
   const activeStoreZus = usePartnerStore((s) => s.activeStore);
   const setActiveZus = usePartnerStore((s) => s.setActiveStore);
+  const user = useAuthStore((s) => s.user);
+  const operatorStores = user?.partnerData?.operatorStores ?? [];
   const { alert, confirm, AlertModal } = useAppAlert();
 
   const activeStoreQ = useQuery({
@@ -131,37 +138,69 @@ export default function MyStoresScreen() {
           const isPending = setActiveMutation.isPending && setActiveMutation.variables === item.id;
 
           return (
-            <TouchableOpacity
-              style={[styles.card, isActive && styles.cardActive]}
-              activeOpacity={isActive ? 1 : 0.7}
-              onPress={() => handleSelect(item.id, item.name ?? 'Magasin')}
-              disabled={isActive || setActiveMutation.isPending}
-            >
-              {/* Image / icône */}
-              <StoreImage item={item} isActive={isActive} />
+            <View key={item.id}>
+              <TouchableOpacity
+                style={[styles.card, isActive && styles.cardActive]}
+                activeOpacity={isActive ? 1 : 0.7}
+                onPress={() => handleSelect(item.id, item.name ?? 'Magasin')}
+                disabled={isActive || setActiveMutation.isPending}
+              >
+                {/* Image / icône */}
+                <StoreImage item={item} isActive={isActive} />
 
-              {/* Infos */}
-              <View style={styles.cardBody}>
-                <Text style={[styles.cardName, isActive && styles.cardNameActive]} numberOfLines={1}>
-                  {item.name ?? 'Magasin'}
-                </Text>
-                <Text style={styles.cardSub} numberOfLines={1}>
-                  {[item.address, item.city].filter(Boolean).join(' · ') || 'Adresse non renseignée'}
-                </Text>
-              </View>
-
-              {/* État droit */}
-              {isActive ? (
-                <View style={styles.activeChip}>
-                  <View style={styles.activeDot} />
-                  <Text style={styles.activeChipText}>Actif</Text>
+                {/* Infos */}
+                <View style={styles.cardBody}>
+                  <Text style={[styles.cardName, isActive && styles.cardNameActive]} numberOfLines={1}>
+                    {item.name ?? 'Magasin'}
+                  </Text>
+                  <Text style={styles.cardSub} numberOfLines={1}>
+                    {[item.address, item.city].filter(Boolean).join(' · ') || 'Adresse non renseignée'}
+                  </Text>
                 </View>
-              ) : isPending ? (
-                <Ionicons name="sync-outline" size={wp(20)} color={colors.violet[400]} />
-              ) : (
-                <Ionicons name="chevron-forward" size={wp(20)} color={colors.neutral[300]} />
-              )}
-            </TouchableOpacity>
+
+                {/* État droit */}
+                {isActive ? (
+                  <View style={styles.activeChip}>
+                    <View style={styles.activeDot} />
+                    <Text style={styles.activeChipText}>Actif</Text>
+                  </View>
+                ) : isPending ? (
+                  <Ionicons name="sync-outline" size={wp(20)} color={colors.violet[400]} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={wp(20)} color={colors.neutral[300]} />
+                )}
+              </TouchableOpacity>
+
+              {/* Configurer button — shown for manager stores */}
+              {(() => {
+                const opInfo = operatorStores.find((o) => o.id === item.id);
+                const canManage = opInfo?.isManager ?? false;
+                if (!canManage) return null;
+                return (
+                  <TouchableOpacity
+                    style={[styles.configureBtn, isActive && styles.configureBtnActive]}
+                    onPress={() =>
+                      router.push(`/(storeoperator)/store-management?storeId=${item.id}` as any)
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="settings-outline"
+                      size={wp(15)}
+                      color={isActive ? colors.orange[500] : colors.violet[400]}
+                    />
+                    <Text style={[styles.configureBtnText, isActive && styles.configureBtnTextActive]}>
+                      Configurer ce magasin
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={wp(15)}
+                      color={isActive ? colors.orange[500] : colors.violet[400]}
+                    />
+                  </TouchableOpacity>
+                );
+              })()}
+            </View>
           );
         }}
         ListEmptyComponent={
@@ -283,5 +322,36 @@ const styles = StyleSheet.create({
     ...textStyles.micro,
     fontFamily: fontFamily.semiBold,
     color: colors.violet[700],
+  },
+
+  /* Configure button under each card */
+  configureBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    marginTop: -spacing[1],
+    marginHorizontal: spacing[2],
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    backgroundColor: colors.violet[50],
+    borderBottomLeftRadius: borderRadius.xl,
+    borderBottomRightRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: colors.neutral[100],
+  },
+  configureBtnActive: {
+    backgroundColor: '#FFF7ED',
+    borderColor: colors.orange[100],
+  },
+  configureBtnText: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.semiBold,
+    color: colors.violet[600],
+    flex: 1,
+  },
+  configureBtnTextActive: {
+    color: colors.orange[600],
   },
 });

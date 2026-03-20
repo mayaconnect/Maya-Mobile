@@ -152,7 +152,7 @@ export default function PartnerProfileScreen() {
     {
       icon: 'lock-closed-outline',
       label: 'Changer le mot de passe',
-      onPress: () => router.push('/(client)/change-password' as any),
+      onPress: () => router.push('/(partner)/change-password' as any),
     },
   ];
 

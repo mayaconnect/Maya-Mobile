@@ -254,7 +254,7 @@ export default function StoreOperatorProfileScreen() {
           <Text style={styles.sectionTitle}>Sécurité</Text>
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => router.push('/(client)/change-password' as any)}
+            onPress={() => router.push('/(storeoperator)/change-password' as any)}
           >
             <Ionicons name="lock-closed-outline" size={wp(20)} color={colors.violet[500]} />
             <Text style={styles.menuLabel}>Changer le mot de passe</Text>

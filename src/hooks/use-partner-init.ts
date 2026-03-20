@@ -1,27 +1,32 @@
 /**
  * Maya Connect V2 — Partner Store Initialization Hook
  *
- * Syncs the partner Zustand store from the authenticated user's
- * `partnerData` (returned by GET /api/v1/auth/me for Partner/StoreOperator roles).
+ * Two-phase init:
+ *  1. Instant hydration from `user.partnerData.operatorStores` (returned by GET /api/v1/auth/me)
+ *     → gives fast initial state (partner name, store names, active store)
+ *  2. Background fetch of `GET /api/v1/store-operators/my-partner-stores`
+ *     → replaces Zustand data with COMPLETE PartnerDto (imageUrl!) + full StoreDto[] (imageUrl, address, etc.)
  *
- * Place this hook inside the (partner) _layout.tsx so it runs once
- * when the partner tab group mounts.
+ * Place this hook inside the (partner) and (storeoperator) _layout.tsx.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuthStore } from '../stores/auth.store';
 import { usePartnerStore } from '../stores/partner.store';
+import { storeOperatorsApi } from '../api/store-operators.api';
 import type { PartnerDto, StoreDto, OperatorStoreInfo, StoreOperatorDto } from '../types';
 
 /**
- * Extracts partner & store data from `UserProfile.partnerData.operatorStores`
- * and populates the partner Zustand store.
- * Also sets the initial active store from the operatorStores data.
+ * Hydrates the partner Zustand store:
+ *  - Phase 1: instant from user.partnerData (partial data)
+ *  - Phase 2: async from /my-partner-stores (complete data with images)
  */
 export function usePartnerInit(): void {
   const user = useAuthStore((s: { user: any }) => s.user);
   const setPartner = usePartnerStore((s: { setPartner: any }) => s.setPartner);
   const setStores = usePartnerStore((s: { setStores: any }) => s.setStores);
   const setActiveStore = usePartnerStore((s: { setActiveStore: any }) => s.setActiveStore);
+  const setLoading = usePartnerStore((s: { setLoading: any }) => s.setLoading);
+  const didFetchRef = useRef(false);
 
   useEffect(() => {
     const opStores: OperatorStoreInfo[] | undefined = user?.partnerData?.operatorStores;
@@ -29,10 +34,11 @@ export function usePartnerInit(): void {
       // No operator stores — clear partner context
       setPartner(null);
       setStores([]);
+      didFetchRef.current = false;
       return;
     }
 
-    // --- Derive the partner from the first store's partner info ---
+    // ═══ Phase 1: Instant hydration from auth/me (partial) ═══
     const firstWithPartner = opStores.find((s: OperatorStoreInfo) => s.partner);
     if (firstWithPartner?.partner) {
       const p = firstWithPartner.partner;
@@ -43,12 +49,13 @@ export function usePartnerInit(): void {
         email: p.email ?? null,
         isActive: true,
         createdAt: user!.createdAt,
+        // imageUrl is NOT available from auth/me — will be filled by Phase 2
       };
       setPartner(partnerDto);
     }
 
-    // --- Map operator stores into StoreDto-like objects ---
-    const stores: StoreDto[] = opStores.map((os: OperatorStoreInfo) => ({
+    // Lightweight store list (no images/addresses yet)
+    const lightStores: StoreDto[] = opStores.map((os: OperatorStoreInfo) => ({
       id: os.id,
       partnerId: os.partnerId ?? '',
       name: os.name ?? 'Magasin',
@@ -62,20 +69,21 @@ export function usePartnerInit(): void {
       phone: null,
       email: null,
       openingJson: null,
+      imageUrl: null,
+      partnerImageUrl: null,
       isActive: true,
       createdAt: user!.createdAt,
       distanceKm: null,
       subscribersCount: 0,
       operators: null,
     }));
-    setStores(stores);
+    setStores(lightStores);
 
-    // --- Set initial active store from operatorStores data ---
-    // Find the store marked as isActiveStore, or fall back to first
+    // Set initial active store
     const activeOs = opStores.find((os: OperatorStoreInfo) => os.isActiveStore) ?? opStores[0];
     if (activeOs) {
       const activeStoreDto: StoreOperatorDto = {
-        id: activeOs.id,           // StoreId doubles as id here
+        id: activeOs.id,
         userId: user!.id,
         storeId: activeOs.id,
         isManager: activeOs.isManager ?? false,
@@ -85,5 +93,38 @@ export function usePartnerInit(): void {
       };
       setActiveStore(activeStoreDto);
     }
-  }, [user?.partnerData, setPartner, setStores, setActiveStore]);
+
+    // ═══ Phase 2: Fetch complete data from /my-partner-stores ═══
+    if (didFetchRef.current) return;
+    didFetchRef.current = true;
+    setLoading(true);
+
+    storeOperatorsApi.getMyPartnerStores()
+      .then((res) => {
+        const data = res.data;
+        if (!data) return;
+
+        // Complete PartnerDto with imageUrl, phone, kycStatus, etc.
+        if (data.partner) {
+          setPartner(data.partner);
+        }
+
+        // Complete StoreDto[] with imageUrl, partnerImageUrl, address, phone, etc.
+        if (data.stores?.length) {
+          setStores(data.stores);
+        }
+
+        // Active store from API (may differ from auth/me if changed recently)
+        if (data.activeStore) {
+          setActiveStore(data.activeStore);
+        }
+      })
+      .catch(() => {
+        // Silently fail — Phase 1 data is still usable
+        // The user can still use the app, just without images
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [user?.partnerData, setPartner, setStores, setActiveStore, setLoading]);
 }

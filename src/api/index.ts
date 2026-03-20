@@ -12,3 +12,4 @@ export { subscriptionsApi, paymentsApi } from './subscriptions.api';
 export { storeOperatorsApi } from './store-operators.api';
 export { clientsApi } from './clients.api';
 export { referentielApi } from './referentiel.api';
+export { supportApi, SUPPORT_CATEGORY } from './support.api';

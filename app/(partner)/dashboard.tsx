@@ -186,6 +186,34 @@ export default function PartnerDashboardScreen() {
           />
         ) : null}
 
+                {/* ── Quick actions ── */}
+        <Text style={styles.sectionTitle}>Actions rapides</Text>
+        <View style={styles.actionsRow}>
+          {([
+            { icon: 'scan', label: 'Scanner', route: '/(partner)/scanner' },
+            { icon: 'receipt', label: 'Historique', route: '/(partner)/history' },
+            { icon: 'storefront', label: 'Magasins', route: '/(partner)/stores' },
+            { icon: 'people', label: 'Équipe', route: '/(partner)/team' },
+          ] as { icon: IoniconsName; label: string; route: string }[]).map(
+            (action) => (
+              <TouchableOpacity
+                key={action.label}
+                style={styles.actionBtn}
+                onPress={() => router.push(action.route as any)}
+              >
+                <View style={styles.actionIcon}>
+                  <Ionicons
+                    name={action.icon}
+                    size={wp(22)}
+                    color={colors.violet[600]}
+                  />
+                </View>
+                <Text style={styles.actionLabel}>{action.label}</Text>
+              </TouchableOpacity>
+            ),
+          )}
+        </View>
+
         {/* ── Global KPIs (partner-level) ── */}
         <Text style={styles.sectionTitle}>Vue globale</Text>
         <View style={styles.statsRow}>
@@ -284,33 +312,7 @@ export default function PartnerDashboardScreen() {
           </View>
         </MCard>
 
-        {/* ── Quick actions ── */}
-        <Text style={styles.sectionTitle}>Actions rapides</Text>
-        <View style={styles.actionsRow}>
-          {([
-            { icon: 'scan', label: 'Scanner', route: '/(partner)/scanner' },
-            { icon: 'receipt', label: 'Historique', route: '/(partner)/history' },
-            { icon: 'storefront', label: 'Magasins', route: '/(partner)/stores' },
-            { icon: 'people', label: 'Équipe', route: '/(partner)/team' },
-          ] as { icon: IoniconsName; label: string; route: string }[]).map(
-            (action) => (
-              <TouchableOpacity
-                key={action.label}
-                style={styles.actionBtn}
-                onPress={() => router.push(action.route as any)}
-              >
-                <View style={styles.actionIcon}>
-                  <Ionicons
-                    name={action.icon}
-                    size={wp(22)}
-                    color={colors.violet[600]}
-                  />
-                </View>
-                <Text style={styles.actionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ),
-          )}
-        </View>
+
 
         {/* ── Recent transactions (active store) ── */}
         <Text style={styles.sectionTitle}>Transactions récentes</Text>

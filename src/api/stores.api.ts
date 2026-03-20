@@ -9,7 +9,7 @@
  *   GET  /{id}/details  → Admin only (do NOT call from mobile)
  */
 import apiClient from './client';
-import type { StoreDto, StoreDetailsDto, StoreSearchRequestDto, StoreSubscriberDto, StoreUpdateDto } from '../types';
+import type { StoreDto, StoreDetailsDto, StoreSearchRequestDto, StoreSubscriberDto, StoreUpdateDto, StorePatchDto, StoreCreateDto } from '../types';
 import type { PagedResult } from '../types';
 
 const BASE = '/api/stores';
@@ -48,19 +48,33 @@ export const storesApi = {
     }),
 
   /**
-   * PUT /api/stores/:id — Update store data (opening hours, contact, etc.)
+   * POST /api/stores/request — Partner requests a new store (created as inactive, pending validation).
+   * Sends email notifications to admin + confirmation to partner.
+   */
+  requestStore: (dto: StoreCreateDto) =>
+    apiClient.post<StoreDto>(`${BASE}/request`, dto),
+
+  /**
+   * PUT /api/stores/:id — Full update (all fields required).
    * Admin can update any store; Partner/StoreOperator can update their own stores only.
    */
   updateStore: (id: string, dto: StoreUpdateDto) =>
     apiClient.put<StoreDto>(`${BASE}/${id}`, dto),
 
   /**
+   * PATCH /api/stores/:id — Partial update (only non-null fields are applied).
+   * Admin can patch any store; Partner/StoreOperator can patch their own stores only.
+   */
+  patchStore: (id: string, dto: StorePatchDto) =>
+    apiClient.patch<void>(`${BASE}/${id}`, dto),
+
+  /**
    * POST /api/stores/:id/image — Upload store image (multipart, max 5MB)
    * Admin, Partner, StoreOperator (must be assigned to the store).
    */
   uploadImage: (id: string, formData: FormData) =>
-    apiClient.post<{ imageUrl: string }>(`${BASE}/${id}/image`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    apiClient.post<{ url: string; message: string }>(`${BASE}/${id}/image`, formData, {
+      headers: { 'Content-Type': undefined },
     }),
 
   /**

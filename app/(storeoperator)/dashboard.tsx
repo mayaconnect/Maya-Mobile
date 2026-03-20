@@ -252,21 +252,22 @@ export default function StoreOperatorDashboardScreen() {
 
         {/* ── Global KPIs (partner-level) ── */}
         <Text style={styles.sectionTitle}>Vue globale</Text>
-        <View style={styles.statsRow}>
-          <KPIStat
-            icon="scan"
-            iconBg={colors.violet[50]}
-            iconColor={colors.violet[500]}
-            value={formatNumber(partnerScansQ.data?.count ?? 0)}
-            label="Scans total"
-          />
-          <KPIStat
-            icon="storefront"
-            iconBg={colors.orange[50]}
-            iconColor={colors.orange[500]}
-            value={formatNumber(stores.length)}
-            label="Magasins"
-          />
+        <View style={styles.kpiRow}>
+          <MCard style={styles.kpiCard} elevation="sm">
+            <View style={[styles.statIconBox, { backgroundColor: colors.violet[50] }]}>
+              <Ionicons name="scan" size={wp(20)} color={colors.violet[500]} />
+            </View>
+            <Text style={styles.avgValue}>{formatNumber(partnerScansQ.data?.count ?? 0)}</Text>
+            <Text style={styles.avgLabel}>Scans total</Text>
+          </MCard>
+
+          <MCard style={styles.kpiCard} elevation="sm">
+            <View style={[styles.statIconBox, { backgroundColor: colors.orange[50] }]}>
+              <Ionicons name="storefront" size={wp(20)} color={colors.orange[500]} />
+            </View>
+            <Text style={styles.avgValue}>{formatNumber(stores.length)}</Text>
+            <Text style={styles.avgLabel}>Magasins</Text>
+          </MCard>
         </View>
 
         {/* Average basket card */}
@@ -436,6 +437,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing[3],
     marginBottom: spacing[3],
+  },
+  kpiRow: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    marginBottom: spacing[4],
+  },
+  kpiCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing[4],
   },
   avgCard: {
     marginBottom: spacing[4],

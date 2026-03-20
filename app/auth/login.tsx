@@ -9,7 +9,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Image,
-  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -240,65 +239,82 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: '#FFFFFF' }]}
-      behavior={isIOS ? 'padding' : undefined}
+      behavior={isIOS ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
     >
-      {/* Logo en haut, fond blanc */}
-      <View style={[styles.logoArea, { paddingTop: insets.top + spacing[6] }]}>
+      {/* ── Top white area: logo + inscription CTA ── */}
+      <View style={[styles.logoArea, { paddingTop: insets.top + spacing[4] }]}>
         <Image
-          source={require('../../assets/images/logo-text-on-dark.png')}
+          source={require('../../assets/images/logo.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />
-        {/* <Text style={styles.brand}>maya connect.</Text> */}
+        <Text style={styles.brand}>maya connect.</Text>
         <Text style={styles.tagline}>Connectez-vous et commencez à économiser</Text>
+
+        {/* Inline signup nudge */}
+        <TouchableOpacity
+          style={styles.signupNudge}
+          onPress={() => router.push('/auth/signup')}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.signupNudgeText}>Pas encore de compte ?</Text>
+          <View style={styles.signupNudgePill}>
+            <Text style={styles.signupNudgePillText}>Commencer</Text>
+            <Ionicons name="arrow-forward" size={wp(12)} color={colors.orange[500]} />
+          </View>
+        </TouchableOpacity>
       </View>
 
-      {/* Bulle sombre en bas */}
+      {/* ── Dark bubble ── */}
       <LinearGradient
         colors={['#1E293B', '#0F172A']}
-        style={[styles.card, { paddingBottom: insets.bottom + spacing[6] }]}
+        style={[styles.card, { paddingBottom: insets.bottom + spacing[4] }]}
       >
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle}>Connexion</Text>
+          <Text style={styles.cardSub}>Ravi de vous revoir 👋</Text>
 
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <MInput
-                label="Adresse e-mail"
-                icon="mail-outline"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.email?.message}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                textContentType="emailAddress"
-                required
-              />
-            )}
-          />
+          <View style={styles.fields}>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <MInput
+                  label="Adresse e-mail"
+                  icon="mail-outline"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.email?.message}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  required
+                />
+              )}
+            />
 
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <MInput
-                label="Mot de passe"
-                icon="lock-closed-outline"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.password?.message}
-                secureTextEntry
-                autoComplete="password"
-                textContentType="password"
-                required
-              />
-            )}
-          />
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <MInput
+                  label="Mot de passe"
+                  icon="lock-closed-outline"
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.password?.message}
+                  secureTextEntry
+                  autoComplete="password"
+                  textContentType="password"
+                  required
+                />
+              )}
+            />
+          </View>
 
           <TouchableOpacity
             onPress={() => router.push('/auth/forgot-password')}
@@ -336,26 +352,16 @@ export default function LoginScreen() {
 
           <View style={styles.socialRow}>
             <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleLogin}>
-              <Ionicons name="logo-google" size={wp(22)} color="#DB4437" />
+              <Ionicons name="logo-google" size={wp(20)} color="#DB4437" />
               <Text style={styles.socialText}>Google</Text>
             </TouchableOpacity>
 
             {isIOS && (
               <TouchableOpacity style={styles.socialBtn} onPress={handleAppleLogin}>
-                <Ionicons name="logo-apple" size={wp(22)} color="#000" />
+                <Ionicons name="logo-apple" size={wp(20)} color="#FFFFFF" />
                 <Text style={styles.socialText}>Apple</Text>
               </TouchableOpacity>
             )}
-          </View>
-
-          <View style={styles.registerRow}>
-            <MButton
-              title="Créer un compte gratuitement"
-              variant="outline"
-              onPress={() => router.push('/auth/signup')}
-              style={styles.registerBtn}
-              icon={<Ionicons name="person-add-outline" size={wp(18)} color={colors.orange[400]} />}
-            />
           </View>
         </View>
       </LinearGradient>
@@ -385,23 +391,19 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
 
-  background: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
+  /* ── Top white area ── */
   logoArea: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[6],
+    gap: spacing[1],
   },
   logoImage: {
     width: wp(64),
     height: wp(64),
     borderRadius: wp(16),
-    marginBottom: spacing[3],
+    marginBottom: spacing[2],
   },
   brand: {
     ...textStyles.h3,
@@ -412,9 +414,39 @@ const styles = StyleSheet.create({
     ...textStyles.caption,
     color: colors.neutral[500],
     textAlign: 'center',
+    marginBottom: spacing[3],
   },
 
-  /* Bulle sombre */
+  /* Signup nudge */
+  signupNudge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[1],
+  },
+  signupNudgeText: {
+    ...textStyles.caption,
+    color: colors.neutral[500],
+    fontFamily: fontFamily.regular,
+  },
+  signupNudgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    backgroundColor: `${colors.orange[500]}15`,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: `${colors.orange[400]}35`,
+  },
+  signupNudgePillText: {
+    fontSize: wp(12),
+    fontFamily: fontFamily.semiBold,
+    color: colors.orange[500],
+  },
+
+  /* ── Dark bubble ── */
   card: {
     flex: 2,
     borderTopLeftRadius: wp(32),
@@ -429,18 +461,28 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing[5],
     paddingTop: spacing[5],
-    justifyContent: 'space-between',
+    paddingBottom: spacing[2],
   },
   cardTitle: {
     ...textStyles.h4,
     fontFamily: fontFamily.bold,
     color: '#FFFFFF',
-    marginBottom: spacing[3],
+    marginBottom: spacing[1],
+  },
+  cardSub: {
+    ...textStyles.caption,
+    color: 'rgba(255,255,255,0.4)',
+    marginBottom: spacing[4],
+  },
+
+  fields: {
+    gap: spacing[1],
   },
 
   forgotBtn: {
     alignSelf: 'flex-end',
-    marginBottom: spacing[2],
+    marginTop: spacing[1],
+    marginBottom: spacing[3],
   },
   forgotText: {
     ...textStyles.caption,
@@ -460,7 +502,7 @@ const styles = StyleSheet.create({
     borderColor: `${colors.orange[400]}40`,
     backgroundColor: `${colors.orange[500]}18`,
     gap: spacing[2],
-    marginTop: spacing[2],
+    marginTop: spacing[3],
   },
   biometricText: {
     ...textStyles.body,
@@ -477,26 +519,19 @@ const styles = StyleSheet.create({
   socialBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[2],
-    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[5],
     borderRadius: borderRadius.xl,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
     backgroundColor: 'rgba(255,255,255,0.06)',
     gap: spacing[2],
+    flex: 1,
+    justifyContent: 'center',
   },
   socialText: {
     ...textStyles.body,
     fontFamily: fontFamily.medium,
     color: 'rgba(255,255,255,0.85)',
-  },
-
-  registerRow: {
-    marginTop: spacing[4],
-    marginBottom: spacing[2],
-  },
-  registerBtn: {
-    borderColor: `${colors.orange[400]}60`,
-    backgroundColor: `${colors.orange[500]}12`,
   },
 });

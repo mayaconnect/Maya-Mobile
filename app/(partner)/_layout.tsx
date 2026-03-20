@@ -115,6 +115,14 @@ export default function PartnerLayout() {
 
       {/* Hidden screen — accessible via router.push, not shown in tab bar */}
       <Tabs.Screen
+        name="edit-profile"
+        options={{ href: null, title: 'Modifier le profil' }}
+      />
+      <Tabs.Screen
+        name="change-password"
+        options={{ href: null, title: 'Changer le mot de passe' }}
+      />
+      <Tabs.Screen
         name="team"
         options={{
           href: null,          // hides from tab bar

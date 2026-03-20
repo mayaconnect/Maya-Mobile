@@ -35,7 +35,7 @@ import { spacing, borderRadius } from '../../theme/spacing';
 import { wp } from '../../utils/responsive';
 import { MButton } from '../ui';
 
-const DEFAULT_IMAGE = require('../../../assets/images/logo.png');
+const DEFAULT_IMAGE = require('../../../assets/images/centered_logo_gradient.png');
 
 interface StoreImageManagerProps {
   storeId: string;
@@ -53,6 +53,11 @@ export default function StoreImageManager({
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [currentImage, setCurrentImage] = useState(imageUrl);
+
+  // Sync from parent when imageUrl prop changes (e.g. after query invalidation)
+  React.useEffect(() => {
+    setCurrentImage(imageUrl ?? null);
+  }, [imageUrl]);
 
   const imgSource = currentImage
     ? { uri: currentImage }
@@ -120,7 +125,9 @@ export default function StoreImageManager({
         type: asset.mimeType ?? 'image/jpeg',
       } as any);
       const res = await storesApi.uploadImage(storeId, form);
-      const newUrl = res.data.imageUrl;
+      // API returns { url, message } — cache-bust with timestamp to bypass CDN/RN cache
+      const rawUrl = res.data.url;
+      const newUrl = rawUrl ? `${rawUrl}?v=${Date.now()}` : rawUrl;
       setCurrentImage(newUrl);
       onImageUpdated?.(newUrl);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

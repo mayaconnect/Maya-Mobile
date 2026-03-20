@@ -61,23 +61,30 @@ export const MInput: React.FC<MInputProps> = ({
   value,
   onFocus,
   onBlur,
+  onChange: onChangeProp,
+  onChangeText: onChangeTextProp,
   editable = true,
   ...rest
 }) => {
   const [isFocused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [nativeHasValue, setNativeHasValue] = useState(!!value);
   const inputRef = useRef<TextInput>(null);
 
-  const isActive = isFocused || !!value;
-  const focusAnim = useSharedValue(value ? 1 : 0);
+  // isActive = focused OR controlled value OR native content (covers autofill)
+  const isActive = isFocused || !!value || nativeHasValue;
+  const focusAnim = useSharedValue((value || nativeHasValue) ? 1 : 0);
   const shakeAnim = useSharedValue(0);
 
-  // Animate label when value changes externally
+  // Animate label when value changes externally (including autofill)
   useEffect(() => {
-    if (value && focusAnim.value === 0) {
+    const hasVal = !!value || nativeHasValue;
+    if (hasVal && focusAnim.value === 0) {
       focusAnim.value = withTiming(1, { duration: LABEL_DURATION });
+    } else if (!hasVal && !isFocused && focusAnim.value === 1) {
+      focusAnim.value = withTiming(0, { duration: LABEL_DURATION });
     }
-  }, [value, focusAnim]);
+  }, [value, nativeHasValue, isFocused, focusAnim]);
 
   // Shake on error
   useEffect(() => {
@@ -103,7 +110,10 @@ export const MInput: React.FC<MInputProps> = ({
   const handleBlur = useCallback(
     (e: any) => {
       setFocused(false);
-      if (!value) {
+      // Re-read native value on blur to catch late autofill
+      const nativeText: string = e?.nativeEvent?.text ?? '';
+      if (nativeText) setNativeHasValue(true);
+      if (!value && !nativeText && !nativeHasValue) {
         focusAnim.value = withTiming(0, {
           duration: LABEL_DURATION,
           easing: Easing.in(Easing.cubic),
@@ -111,7 +121,7 @@ export const MInput: React.FC<MInputProps> = ({
       }
       onBlur?.(e);
     },
-    [onBlur, value, focusAnim],
+    [onBlur, value, nativeHasValue, focusAnim],
   );
 
   /* ---- Animated styles ---- */
@@ -229,6 +239,16 @@ export const MInput: React.FC<MInputProps> = ({
               secureTextEntry={secureTextEntry && !showPassword}
               placeholderTextColor="transparent"
               selectionColor={colors.orange[400]}
+              onChange={(e) => {
+                // Catches autofill events that may not trigger onChangeText
+                const text = e.nativeEvent.text;
+                setNativeHasValue(!!text);
+                onChangeProp?.(e);
+              }}
+              onChangeText={(text) => {
+                setNativeHasValue(!!text);
+                onChangeTextProp?.(text);
+              }}
               style={[
                 styles.input,
                 isActive && styles.inputActive,
