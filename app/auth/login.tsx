@@ -245,11 +245,11 @@ export default function LoginScreen() {
       {/* Logo en haut, fond blanc */}
       <View style={[styles.logoArea, { paddingTop: insets.top + spacing[6] }]}>
         <Image
-          source={require('../../assets/images/logo.png')}
+          source={require('../../assets/images/logo-text-on-dark.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />
-        <Text style={styles.brand}>Maya Connect</Text>
+        {/* <Text style={styles.brand}>maya connect.</Text> */}
         <Text style={styles.tagline}>Connectez-vous et commencez à économiser</Text>
       </View>
 

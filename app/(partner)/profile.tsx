@@ -3,21 +3,17 @@
  *
  * Profile management for partner / store operator role.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
+  Alert,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Modal,
-  Pressable,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -25,17 +21,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authApi } from '../../src/api/auth.api';
 import { useAuthStore } from '../../src/stores/auth.store';
-import { profileSchema } from '../../src/utils/validation';
 import { partnerColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import {
   MButton,
-  MInput,
   MCard,
   MAvatar,
-  MHeader,
   MDivider,
   MModal,
 } from '../../src/components/ui';
@@ -55,8 +48,6 @@ export default function PartnerProfileScreen() {
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
   const refreshToken = useAuthStore((s) => s.refreshToken);
-  const [isEditing, setIsEditing] = useState(false);
-
   /* ---- Profile query ---- */
   const profileQ = useQuery({
     queryKey: ['profile'],
@@ -66,70 +57,6 @@ export default function PartnerProfileScreen() {
   });
 
   const profile = profileQ.data ?? user;
-
-  /* ---- Form ---- */
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors, isDirty },
-  } = useForm({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      firstName: profile?.firstName ?? '',
-      lastName: profile?.lastName ?? '',
-      phoneNumber: profile?.phoneNumber ?? '',
-    },
-  });
-
-  // Resync form quand les données du profil arrivent depuis le serveur
-  useEffect(() => {
-    if (profile) {
-      reset({
-        firstName: profile.firstName ?? '',
-        lastName: profile.lastName ?? '',
-        phoneNumber: profile.phoneNumber ?? '',
-      });
-    }
-  }, [profile?.firstName, profile?.lastName, profile?.phoneNumber]);
-
-  /* ---- Update profile ---- */
-  const updateMutation = useMutation({
-    mutationFn: (data: any) => {
-      const payload = {
-        ...data,
-        address: { street: '', city: '', state: '', postalCode: '', country: '' },
-      };
-      console.log('[Profile] updateProfile — payload:', JSON.stringify(payload));
-      return authApi.updateProfile(payload);
-    },
-    onSuccess: (res) => {
-      console.log('[Profile] updateProfile success:', res.status, JSON.stringify(res.data));
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setUser(res.data);
-      setIsEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-    },
-    onError: (err: any) => {
-      const responseData = err?.response?.data;
-      console.log('[Profile] updateProfile ERROR:', {
-        status: err?.response?.status,
-        data: JSON.stringify(responseData),
-        message: err?.message,
-      });
-      const validationErrors = responseData?.errors;
-      if (validationErrors) {
-        const lines = Object.entries(validationErrors)
-          .map(([field, msgs]) => `${(msgs as string[]).join(', ')}`)
-          .filter(Boolean);
-        console.log('[Profile] validation fields:', lines.join(' | '));
-        setErrorModal({ title: 'Erreur de validation', lines });
-      } else {
-        const detail = responseData?.detail ?? responseData?.title ?? err?.message ?? 'Impossible de mettre à jour le profil.';
-        setErrorModal({ title: 'Erreur', lines: [detail] });
-      }
-    },
-  });
 
   /* ---- Avatar upload ---- */
   const avatarMutation = useMutation({
@@ -148,21 +75,37 @@ export default function PartnerProfileScreen() {
     },
   });
 
-  const pickAvatar = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      avatarMutation.mutate(result.assets[0].uri);
-    }
+  const pickAvatar = () => {
+    Alert.alert(
+      'Photo de profil',
+      'Choisissez une option',
+      [
+        {
+          text: 'Prendre une photo',
+          onPress: async () => {
+            const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+            if (!granted) { Alert.alert('Permission refusée', "L'accès à l'appareil photo est nécessaire."); return; }
+            const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+            if (!result.canceled && result.assets[0]) avatarMutation.mutate(result.assets[0].uri);
+          },
+        },
+        {
+          text: 'Choisir depuis la galerie',
+          onPress: async () => {
+            const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!granted) { Alert.alert('Permission refusée', "L'accès à la galerie est nécessaire."); return; }
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+            if (!result.canceled && result.assets[0]) avatarMutation.mutate(result.assets[0].uri);
+          },
+        },
+        { text: 'Annuler', style: 'cancel' },
+      ],
+      { cancelable: true },
+    );
   };
 
   /* ---- Logout ---- */
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [errorModal, setErrorModal] = useState<{ title: string; lines: string[] } | null>(null);
 
   const confirmLogout = async () => {
     try {
@@ -200,6 +143,11 @@ export default function PartnerProfileScreen() {
       icon: 'scan-outline',
       label: 'Scanner un QR code',
       onPress: () => router.push('/(partner)/scanner'),
+    },
+    {
+      icon: 'people-outline' as const,
+      label: 'Mon équipe',
+      onPress: () => router.push('/(partner)/team' as any),
     },
     {
       icon: 'lock-closed-outline',
@@ -252,7 +200,7 @@ export default function PartnerProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Edit form */}
+        {/* Informations personnelles — read-only */}
         <MCard style={styles.formCard} elevation="sm">
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
@@ -262,74 +210,44 @@ export default function PartnerProfileScreen() {
               <Text style={styles.cardTitle}>Informations personnelles</Text>
             </View>
             <TouchableOpacity
-              style={[styles.editBtnWrap, isEditing && styles.editBtnWrapActive]}
-              onPress={() => setIsEditing(!isEditing)}
+              style={styles.editBtnWrap}
+              onPress={() => router.push('/(partner)/edit-profile' as any)}
             >
-              <Text style={[styles.editBtn, isEditing && styles.editBtnActive]}>
-                {isEditing ? 'Annuler' : 'Modifier'}
-              </Text>
+              <Text style={styles.editBtn}>Modifier</Text>
             </TouchableOpacity>
           </View>
 
-          <Controller
-            control={control}
-            name="firstName"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <MInput
-                label="Prénom"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.firstName?.message}
-                editable={isEditing}
-                icon="person-outline"
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="lastName"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <MInput
-                label="Nom"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.lastName?.message}
-                editable={isEditing}
-                icon="person-outline"
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="phoneNumber"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <MInput
-                label="Téléphone"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.phoneNumber?.message}
-                editable={isEditing}
-                keyboardType="phone-pad"
-                icon="call-outline"
-              />
-            )}
-          />
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <Ionicons name="person-outline" size={wp(14)} color={colors.violet[500]} />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Nom complet</Text>
+              <Text style={styles.infoValue}>{profile?.firstName} {profile?.lastName}</Text>
+            </View>
+          </View>
 
-          {isEditing && (
-            <MButton
-              title="Enregistrer les modifications"
-              onPress={handleSubmit(
-                (data) => updateMutation.mutate(data),
-                (validationErrors) => console.log('[Profile] form validation errors:', JSON.stringify(validationErrors)),
-              )}
-              loading={updateMutation.isPending}
-              disabled={!isDirty}
-              style={{ marginTop: spacing[3] }}
-            />
-          )}
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconWrap}>
+              <Ionicons name="mail-outline" size={wp(14)} color={colors.violet[500]} />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoValue}>{profile?.email ?? '—'}</Text>
+            </View>
+          </View>
+
+          {profile?.phoneNumber ? (
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconWrap}>
+                <Ionicons name="call-outline" size={wp(14)} color={colors.violet[500]} />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Téléphone</Text>
+                <Text style={styles.infoValue}>{profile.phoneNumber}</Text>
+              </View>
+            </View>
+          ) : null}
         </MCard>
 
         {/* Navigation rapide */}
@@ -370,34 +288,13 @@ export default function PartnerProfileScreen() {
               Se déconnecter
             </Text>
             <View style={styles.chevronBox}>
-              <Ionicons name="chevron-forward" size={wp(14)} color={colors.error[300]} />
+              <Ionicons name="chevron-forward" size={wp(14)} color={colors.error[400]} />
             </View>
           </TouchableOpacity>
         </MCard>
 
         <View style={{ height: wp(100) }} />
       </ScrollView>
-
-      {/* Error modal */}
-      <Modal visible={!!errorModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setErrorModal(null)}>
-        <Pressable style={mStyles.backdrop} onPress={() => setErrorModal(null)}>
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-        </Pressable>
-        <View style={mStyles.sheet}>
-          <View style={mStyles.handle} />
-          <View style={mStyles.iconWrap}>
-            <Ionicons name="alert-circle-outline" size={wp(36)} color={colors.error[500]} />
-          </View>
-          <Text style={mStyles.title}>{errorModal?.title}</Text>
-          {errorModal?.lines.map((line, i) => (
-            <View key={i} style={mStyles.lineRow}>
-              <Ionicons name="close-circle" size={wp(14)} color={colors.error[400]} style={{ marginTop: 2 }} />
-              <Text style={mStyles.lineText}>{line}</Text>
-            </View>
-          ))}
-          <MButton title="Fermer" variant="outline" onPress={() => setErrorModal(null)} style={mStyles.btn} />
-        </View>
-      </Modal>
 
       {/* Logout confirmation modal */}
       <MModal
@@ -506,6 +403,39 @@ const styles = StyleSheet.create({
   logoutCard: {
     marginBottom: spacing[3],
     backgroundColor: '#111827',
+  },
+
+  /* ── Info rows ── */
+  infoRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: spacing[3],
+    gap: spacing[3],
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  infoIconWrap: {
+    width: wp(32),
+    height: wp(32),
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.violet[50],
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    flexShrink: 0,
+  },
+  infoContent: { flex: 1 },
+  infoLabel: {
+    fontSize: 10,
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.35)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  infoValue: {
+    ...textStyles.body,
+    color: 'rgba(255,255,255,0.85)',
+    fontFamily: fontFamily.medium,
   },
 
   cardHeader: {

@@ -24,7 +24,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { qrApi } from '../../src/api/qr.api';
 import { storeOperatorsApi } from '../../src/api/store-operators.api';
@@ -36,7 +36,7 @@ import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { formatPrice, formatPlanLabel } from '../../src/utils/format';
 import { MButton, MInput, MCard, MHeader } from '../../src/components/ui';
-import StoreSelectionModal from '../../src/components/partner/StoreSelectionModal';
+
 import { useAppAlert } from '../../src/hooks/use-app-alert';
 import type { QrValidateResultDto, QrPreviewDiscountResultDto } from '../../src/types';
 
@@ -50,6 +50,7 @@ const PLAN_THEME: Record<string, { bg: string; text: string; icon: string }> = {
 type ScanState = 'scanning' | 'form' | 'success' | 'error';
 
 export default function StoreOperatorScannerScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { alert, AlertModal } = useAppAlert();
   const user = useAuthStore((s) => s.user);
@@ -167,6 +168,15 @@ export default function StoreOperatorScannerScreen() {
       return;
     }
 
+    // Enforce subscription seat limit
+    if (preview?.personsAllowed && persons > preview.personsAllowed) {
+      alert(
+        'Limite atteinte',
+        `L'abonnement ${preview.planName || preview.planCode} autorise ${preview.personsAllowed} personne${preview.personsAllowed > 1 ? 's' : ''} maximum.`,
+      );
+      return;
+    }
+
     const { storeIdVal, partnerIdVal } = resolveIds();
 
     if (!partnerIdVal) {
@@ -203,14 +213,17 @@ export default function StoreOperatorScannerScreen() {
     }, []),
   );
 
-  /* ---- If no active store → show selection modal ---- */
+  /* ---- If no active store → redirect to my-stores ---- */
   if (!hasActiveStore && !activeStoreQ.isLoading) {
     return (
-      <StoreSelectionModal
-        visible
-        onDismiss={() => {}}
-        mandatory
-      />
+      <View style={styles.permissionContainer}>
+        <Ionicons name="storefront-outline" size={wp(60)} color={colors.neutral[300]} />
+        <Text style={styles.permTitle}>Aucun magasin actif</Text>
+        <Text style={styles.permDesc}>
+          Sélectionnez un magasin pour commencer à scanner.
+        </Text>
+        <MButton title="Choisir un magasin" onPress={() => router.push('/(storeoperator)/my-stores')} />
+      </View>
     );
   }
 

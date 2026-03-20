@@ -205,7 +205,7 @@ jobs:
           IOS_RESULT: ${{ needs.deploy-ios.result }}
           ANDROID_RESULT: ${{ needs.deploy-android.result }}
           COMMIT_SHA: ${{ github.sha }}
-          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message || github.event.head_commit.message || github.event.pull_request.title || 'Deploy' }}
+          COMMIT_MSG: ${{ github.event.head_commit.message || github.event.pull_request.title || 'Deploy' }}
           RUN_ID: ${{ github.run_id }}
           RUN_NUMBER: ${{ github.run_number }}
           REPO: ${{ github.repository }}

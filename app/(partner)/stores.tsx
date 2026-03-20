@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Maya Connect V2 — Partner Stores Management Screen
  */
 import React from 'react';
@@ -9,6 +9,7 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppAlert } from '../../src/hooks/use-app-alert';
@@ -23,7 +24,31 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { LinearGradient } from 'expo-linear-gradient';
-import { EmptyState, MButton } from '../../src/components/ui';
+import { EmptyState } from '../../src/components/ui';
+import { config } from '../../src/constants/config';
+
+function StoreImage({ item, isActive }: { item: any; isActive: boolean }) {
+  const [errored, setErrored] = React.useState(false);
+  const imageUri = item.imageUrl || item.partnerImageUrl ||
+    (item.partnerId ? `${config.api.baseUrl}/api/partners/${item.partnerId}/image` : null);
+
+  if (!errored && imageUri) {
+    return (
+      <Image
+        source={{ uri: imageUri }}
+        style={[styles.storeImage, isActive && styles.storeImageActive]}
+        resizeMode="cover"
+        onError={() => setErrored(true)}
+      />
+    );
+  }
+
+  return (
+    <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
+      <Ionicons name="storefront" size={wp(22)} color={isActive ? '#FFF' : colors.violet[500]} />
+    </View>
+  );
+}
 
 export default function PartnerStoresScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +56,7 @@ export default function PartnerStoresScreen() {
   const router = useRouter();
 
   const stores = usePartnerStore((s) => s.stores);
+  const partner = usePartnerStore((s) => s.partner);
   const activeStoreZus = usePartnerStore((s) => s.activeStore);
   const { alert, confirm, AlertModal } = useAppAlert();
 
@@ -59,81 +85,12 @@ export default function PartnerStoresScreen() {
     },
   });
 
-  const renderStore = ({ item, index }: any) => {
-    const isActive = item.id === activeId;
-    return (
-      <View style={[styles.card, isActive && styles.cardActive]}>
-        {/* Accent bar left */}
-        {isActive && <View style={styles.accentBar} />}
-
-        <View style={styles.cardInner}>
-          {/* Icon + Info */}
-          <View style={styles.row}>
-            <View style={[styles.iconBox, isActive && styles.iconBoxActive]}>
-              <Ionicons
-                name="storefront"
-                size={wp(20)}
-                color={isActive ? '#FFFFFF' : colors.violet[500]}
-              />
-            </View>
-
-            <View style={styles.info}>
-              <Text style={styles.storeName} numberOfLines={1}>
-                {item.name ?? 'Magasin'}
-              </Text>
-              {item.address ? (
-                <Text style={styles.storeAddr} numberOfLines={1}>
-                  <Ionicons name="location-outline" size={wp(11)} color={colors.neutral[400]} />
-                  {' '}{item.address}{item.city ? `, ${item.city}` : ''}
-                </Text>
-              ) : null}
-              {item.category ? (
-                <View style={styles.categoryPill}>
-                  <Text style={styles.categoryText}>{item.category}</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Right badge / button */}
-            {isActive ? (
-              <View style={styles.activeBadge}>
-                <Ionicons name="checkmark-circle" size={wp(14)} color={colors.violet[500]} />
-                <Text style={styles.activeBadgeText}>Actif</Text>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[
-                  styles.activateBtn,
-                  setActiveMutation.isPending && setActiveMutation.variables === item.id
-                    && styles.activateBtnLoading,
-                ]}
-                onPress={() =>
-                  confirm(
-                    'Changer de magasin',
-                    `Définir "${item.name}" comme magasin actif ?`,
-                    () => setActiveMutation.mutate(item.id),
-                  )
-                }
-                disabled={setActiveMutation.isPending}
-              >
-                <Text style={styles.activateTxt}>Activer</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Manage button — only for active store */}
-          {isActive && (
-            <MButton
-              title="Gérer le magasin"
-              variant="outline"
-              size="sm"
-              onPress={() => router.push('/(partner)/store-management' as any)}
-              style={{ marginTop: spacing[3] }}
-              icon={<Ionicons name="settings-outline" size={wp(14)} color={colors.violet[500]} />}
-            />
-          )}
-        </View>
-      </View>
+  const handleSelect = (storeId: string, storeName: string) => {
+    if (storeId === activeId) return;
+    confirm(
+      'Changer de magasin',
+      `Activer "${storeName}" ?`,
+      () => setActiveMutation.mutate(storeId),
     );
   };
 
@@ -144,20 +101,18 @@ export default function PartnerStoresScreen() {
         colors={['#FF6A00', '#FFB347']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + spacing[2] }]}
+        style={[styles.header, { paddingTop: insets.top + spacing[5] }]}
       >
-        <Text style={styles.headerTitle}>Mes magasins</Text>
-        <Text style={styles.headerSubtitle}>
-          {stores.length} magasin{stores.length !== 1 ? 's' : ''}
-          {activeId ? ' · 1 actif' : ''}
+        <Text style={styles.headerSub}>
+          {partner?.displayName ?? partner?.legalName ?? 'Partenaire'}
         </Text>
+        <Text style={styles.headerTitle}>Mes magasins</Text>
       </LinearGradient>
 
       <FlatList
         data={stores}
         keyExtractor={(item: any) => item.id}
-        renderItem={renderStore}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + wp(80) }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -166,6 +121,63 @@ export default function PartnerStoresScreen() {
             tintColor={colors.violet[500]}
           />
         }
+        renderItem={({ item }: any) => {
+          const isActive = item.id === activeId;
+          const isPending = setActiveMutation.isPending && setActiveMutation.variables === item.id;
+
+          return (
+            <View style={[styles.card, isActive && styles.cardActive]}>
+              <TouchableOpacity
+                style={styles.cardTop}
+                activeOpacity={isActive ? 1 : 0.7}
+                onPress={() => handleSelect(item.id, item.name ?? 'Magasin')}
+                disabled={isActive || setActiveMutation.isPending}
+              >
+                {/* Image / icône */}
+                <StoreImage item={item} isActive={isActive} />
+
+                {/* Infos */}
+                <View style={styles.cardBody}>
+                  <Text style={[styles.cardName, isActive && styles.cardNameActive]} numberOfLines={1}>
+                    {item.name ?? 'Magasin'}
+                  </Text>
+                  <Text style={styles.cardSub} numberOfLines={1}>
+                    {[item.address, item.city].filter(Boolean).join(' · ') || 'Adresse non renseignée'}
+                  </Text>
+                  {item.category ? (
+                    <View style={styles.categoryPill}>
+                      <Text style={styles.categoryText}>{item.category}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {/* Right state */}
+                {isActive ? (
+                  <View style={styles.activeChip}>
+                    <View style={styles.activeDot} />
+                    <Text style={styles.activeChipText}>Actif</Text>
+                  </View>
+                ) : isPending ? (
+                  <Ionicons name="sync-outline" size={wp(20)} color={colors.violet[400]} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={wp(20)} color={colors.neutral[300]} />
+                )}
+              </TouchableOpacity>
+
+              {/* Manage button — only for active store */}
+              {isActive && (
+                <TouchableOpacity
+                  style={styles.manageBtn}
+                  onPress={() => router.push('/(partner)/store-management' as any)}
+                >
+                  <Ionicons name="settings-outline" size={wp(14)} color={colors.violet[600]} />
+                  <Text style={styles.manageBtnText}>Gérer le magasin</Text>
+                  <Ionicons name="chevron-forward" size={wp(14)} color={colors.violet[400]} />
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        }}
         ListEmptyComponent={
           <EmptyState
             icon="storefront-outline"
@@ -185,79 +197,87 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral[50],
   },
+
   header: {
-    paddingHorizontal: spacing[4],
-    paddingBottom: spacing[5],
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[6],
+    borderBottomLeftRadius: wp(32),
+    borderBottomRightRadius: wp(32),
+    overflow: 'hidden',
   },
-  headerTitle: {
-    ...textStyles.h3,
-    color: '#FFFFFF',
-  },
-  headerSubtitle: {
+  headerSub: {
     ...textStyles.caption,
     color: 'rgba(255,255,255,0.75)',
-    marginTop: spacing[1],
+    fontFamily: fontFamily.medium,
+    marginBottom: spacing[1],
+  },
+  headerTitle: {
+    ...textStyles.h2,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
   },
 
   list: {
     padding: spacing[4],
     gap: spacing[3],
-    paddingBottom: wp(100),
   },
 
   card: {
-    backgroundColor: '#111827',
-    borderRadius: borderRadius.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius['2xl'],
+    borderWidth: 1.5,
+    borderColor: colors.neutral[100],
+    ...shadows.sm,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    ...shadows.md,
-    flexDirection: 'row',
   },
   cardActive: {
-    borderColor: colors.violet[500],
-    backgroundColor: '#131E35',
+    borderColor: colors.violet[400],
+    backgroundColor: '#F5F3FF',
   },
-  accentBar: {
-    width: 4,
-    backgroundColor: colors.violet[500],
-    borderTopLeftRadius: borderRadius.xl,
-    borderBottomLeftRadius: borderRadius.xl,
-  },
-  cardInner: {
-    flex: 1,
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
     padding: spacing[4],
   },
 
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
+  storeImage: {
+    width: wp(64),
+    height: wp(64),
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.neutral[100],
+    borderWidth: 1.5,
+    borderColor: colors.neutral[100],
+  },
+  storeImageActive: {
+    borderColor: colors.violet[300],
   },
   iconBox: {
-    width: wp(42),
-    height: wp(42),
-    borderRadius: borderRadius.lg,
+    width: wp(64),
+    height: wp(64),
+    borderRadius: borderRadius.xl,
     backgroundColor: colors.violet[50],
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
   iconBoxActive: {
     backgroundColor: colors.violet[500],
   },
 
-  info: {
+  cardBody: {
     flex: 1,
     gap: spacing[1],
   },
-  storeName: {
+  cardName: {
     ...textStyles.body,
     fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
+    color: colors.neutral[800],
   },
-  storeAddr: {
-    ...textStyles.micro,
+  cardNameActive: {
+    color: colors.violet[700],
+  },
+  cardSub: {
+    ...textStyles.caption,
     color: colors.neutral[400],
   },
   categoryPill: {
@@ -274,36 +294,41 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
 
-  activeBadge: {
+  activeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.violet[50],
-    paddingHorizontal: spacing[2],
-    paddingVertical: spacing[1],
+    gap: spacing[1],
+    backgroundColor: colors.violet[100],
     borderRadius: borderRadius.full,
-    flexShrink: 0,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
   },
-  activeBadgeText: {
+  activeDot: {
+    width: wp(7),
+    height: wp(7),
+    borderRadius: wp(4),
+    backgroundColor: '#22C55E',
+  },
+  activeChipText: {
     ...textStyles.micro,
     fontFamily: fontFamily.semiBold,
-    color: colors.violet[500],
+    color: colors.violet[700],
   },
 
-  activateBtn: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    flexShrink: 0,
+  manageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: colors.violet[100],
+    backgroundColor: colors.violet[50],
   },
-  activateBtnLoading: {
-    opacity: 0.5,
-  },
-  activateTxt: {
+  manageBtnText: {
+    flex: 1,
     ...textStyles.caption,
     fontFamily: fontFamily.semiBold,
-    color: colors.neutral[700],
+    color: colors.violet[600],
   },
 });

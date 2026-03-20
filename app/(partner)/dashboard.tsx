@@ -4,7 +4,7 @@
  * Global KPIs across all stores, active store card, per-store breakdown,
  * recent transactions, and quick actions.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,7 @@ import {
   EmptyState,
   ErrorState,
 } from '../../src/components/ui';
-import { StoreSelectionModal } from '../../src/components/partner';
+
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -47,7 +47,7 @@ export default function PartnerDashboardScreen() {
   const partner = usePartnerStore((s) => s.partner);
   const stores = usePartnerStore((s) => s.stores);
   const activeStoreZus = usePartnerStore((s) => s.activeStore);
-  const [showStoreModal, setShowStoreModal] = useState(false);
+
 
   const partnerId = partner?.id;
 
@@ -276,7 +276,7 @@ export default function PartnerDashboardScreen() {
               ) : null}
             </View>
             <TouchableOpacity
-              onPress={() => setShowStoreModal(true)}
+              onPress={() => router.push('/(partner)/stores')}
               style={styles.changeBtn}
             >
               <Text style={styles.changeTxt}>Changer</Text>
@@ -358,11 +358,7 @@ export default function PartnerDashboardScreen() {
         <View style={{ height: wp(100) }} />
       </ScrollView>
 
-      {/* Store selection modal */}
-      <StoreSelectionModal
-        visible={showStoreModal}
-        onDismiss={() => setShowStoreModal(false)}
-      />
+
     </View>
   );
 }

@@ -49,6 +49,8 @@ export default function StoreManagementScreen() {
   const queryClient = useQueryClient();
 
   const activeStore = usePartnerStore((s) => s.activeStore);
+  const stores = usePartnerStore((s) => s.stores);
+  const setStores = usePartnerStore((s) => s.setStores);
   const user = useAuthStore((s) => s.user);
 
   // Get the operator store info to check isManager
@@ -224,6 +226,8 @@ export default function StoreManagementScreen() {
             partnerImageUrl={store.partnerImageUrl}
             onImageUpdated={(newUrl) => {
               queryClient.invalidateQueries({ queryKey: ['storeDetails', storeId] });
+              // Immediately update the stores list in Zustand so my-stores.tsx reflects the new image
+              setStores(stores.map((s) => s.id === storeId ? { ...s, imageUrl: newUrl ?? undefined } : s));
             }}
           />
         </MCard>

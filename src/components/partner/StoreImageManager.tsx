@@ -63,32 +63,62 @@ export default function StoreImageManager({
   const hasOwnImage = !!currentImage;
 
   /* ── Pick & Upload ── */
-  const handlePickImage = async () => {
-    const permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permResult.granted) {
-      Alert.alert('Permission requise', "L'accès à la galerie est nécessaire pour ajouter une image.");
-      return;
-    }
+  const handlePickImage = () => {
+    Alert.alert(
+      'Image du magasin',
+      '',
+      [
+        {
+          text: 'Prendre une photo',
+          onPress: async () => {
+            const perm = await ImagePicker.requestCameraPermissionsAsync();
+            if (!perm.granted) {
+              Alert.alert('Permission requise', "L'accès à la caméra est nécessaire.");
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [16, 9],
+              quality: 0.85,
+            });
+            if (!result.canceled && result.assets[0]) {
+              await doUpload(result.assets[0]);
+            }
+          },
+        },
+        {
+          text: 'Choisir depuis la galerie',
+          onPress: async () => {
+            const permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permResult.granted) {
+              Alert.alert('Permission requise', "L'accès à la galerie est nécessaire pour ajouter une image.");
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [16, 9],
+              quality: 0.85,
+            });
+            if (!result.canceled && result.assets[0]) {
+              await doUpload(result.assets[0]);
+            }
+          },
+        },
+        { text: 'Annuler', style: 'cancel' },
+      ],
+    );
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.85,
-    });
-
-    if (result.canceled || !result.assets[0]) return;
-
+  const doUpload = async (asset: ImagePicker.ImagePickerAsset) => {
     setUploading(true);
     try {
-      const asset = result.assets[0];
       const form = new FormData();
       form.append('file', {
         uri: asset.uri,
         name: 'store-image.jpg',
         type: asset.mimeType ?? 'image/jpeg',
       } as any);
-
       const res = await storesApi.uploadImage(storeId, form);
       const newUrl = res.data.imageUrl;
       setCurrentImage(newUrl);

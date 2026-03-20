@@ -7,7 +7,7 @@
  * - Routes point to /(storeoperator)/…
  * - Graceful handling when partnerId or activeStore are missing
  */
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -38,7 +38,7 @@ import {
   EmptyState,
   ErrorState,
 } from '../../src/components/ui';
-import { StoreSelectionModal } from '../../src/components/partner';
+
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -49,7 +49,7 @@ export default function StoreOperatorDashboardScreen() {
   const partner = usePartnerStore((s) => s.partner);
   const stores = usePartnerStore((s) => s.stores);
   const activeStoreZus = usePartnerStore((s) => s.activeStore);
-  const [showStoreModal, setShowStoreModal] = useState(false);
+
 
   /* ---- Active store (with 404 graceful handling) ---- */
   const activeStoreQ = useQuery({
@@ -242,7 +242,7 @@ export default function StoreOperatorDashboardScreen() {
               ) : null}
             </View>
             <TouchableOpacity
-              onPress={() => setShowStoreModal(true)}
+              onPress={() => router.push('/(storeoperator)/my-stores')}
               style={styles.changeBtn}
             >
               <Text style={styles.changeTxt}>Changer</Text>
@@ -329,11 +329,7 @@ export default function StoreOperatorDashboardScreen() {
         <View style={{ height: wp(100) }} />
       </ScrollView>
 
-      {/* Store selection modal */}
-      <StoreSelectionModal
-        visible={showStoreModal}
-        onDismiss={() => setShowStoreModal(false)}
-      />
+
     </View>
   );
 }
@@ -357,7 +353,7 @@ function KPIStat({
       <View style={[styles.statIconBox, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={wp(20)} color={iconColor} />
       </View>
-      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
         {value}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>

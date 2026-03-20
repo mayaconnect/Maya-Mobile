@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ViewStyle,
+  StyleProp,
 } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -24,7 +25,7 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 interface MCardProps {
   children: React.ReactNode;
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   elevation?: 'sm' | 'md' | 'lg' | 'xl';
   noPadding?: boolean;
 }
@@ -49,12 +50,12 @@ export const MCard: React.FC<MCardProps> = ({
     scale.value = withSpring(1, { damping: 15, stiffness: 300 });
   };
 
-  const cardStyle: ViewStyle[] = [
+  const cardStyle = [
     styles.card,
     shadows[elevation],
     !noPadding && styles.padding,
     style,
-  ].filter(Boolean) as ViewStyle[];
+  ].filter(Boolean);
 
   if (onPress) {
     return (

@@ -10,6 +10,7 @@
  */
 import React, { useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   ScrollView,
@@ -86,19 +87,54 @@ export default function SignUpScreen() {
     launchImagePicker();
   };
 
-  const launchImagePicker = async () => {
+  const launchImagePicker = () => {
     setShowPhotoRules(false);
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
-      setAvatarError(null);
-    }
+    Alert.alert(
+      'Ajouter une photo',
+      '',
+      [
+        {
+          text: 'Prendre une photo',
+          onPress: async () => {
+            const perm = await ImagePicker.requestCameraPermissionsAsync();
+            if (!perm.granted) {
+              Alert.alert('Permission requise', "L'accès à la caméra est nécessaire pour prendre une photo.");
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+              setAvatarUri(result.assets[0].uri);
+              setAvatarError(null);
+            }
+          },
+        },
+        {
+          text: 'Choisir depuis la galerie',
+          onPress: async () => {
+            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!perm.granted) {
+              Alert.alert('Permission requise', "L'accès à la galerie est nécessaire.");
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+              setAvatarUri(result.assets[0].uri);
+              setAvatarError(null);
+            }
+          },
+        },
+        { text: 'Annuler', style: 'cancel' },
+      ],
+    );
   };
 
   /* ── Submit ── */

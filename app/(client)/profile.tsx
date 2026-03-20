@@ -25,6 +25,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+    Alert,
     Animated,
     Image,
     Keyboard,
@@ -149,37 +150,73 @@ export default function ProfileScreen() {
   };
 
   /* ── Avatar upload ── */
-  const handleAvatarPick = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      try {
-        setUploading(true);
-        const formData = new FormData();
-        const asset = result.assets[0];
-        const ext = asset.uri.split('.').pop() || 'jpg';
-        const mime = asset.mimeType || `image/${ext === 'png' ? 'png' : 'jpeg'}`;
-        formData.append('file', {
-          uri: Platform.OS === 'web' ? asset.uri : asset.uri.replace('file://', ''),
-          name: asset.fileName || `avatar.${ext}`,
-          type: mime,
-        } as any);
-        await authApi.uploadAvatar(formData);
-        // Refresh profile
-        const res = await authApi.getProfile();
-        setUser(res.data);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch {
-        alert('Erreur', "Impossible de mettre à jour votre photo.");
-      } finally {
-        setUploading(false);
-      }
+  const uploadAvatarAsset = async (asset: ImagePicker.ImagePickerAsset) => {
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      const ext = asset.uri.split('.').pop() || 'jpg';
+      const mime = asset.mimeType || `image/${ext === 'png' ? 'png' : 'jpeg'}`;
+      formData.append('file', {
+        uri: Platform.OS === 'web' ? asset.uri : asset.uri.replace('file://', ''),
+        name: asset.fileName || `avatar.${ext}`,
+        type: mime,
+      } as any);
+      await authApi.uploadAvatar(formData);
+      const res = await authApi.getProfile();
+      setUser(res.data);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      alert('Erreur', "Impossible de mettre à jour votre photo.");
+    } finally {
+      setUploading(false);
     }
+  };
+
+  const handleAvatarPick = () => {
+    Alert.alert(
+      'Photo de profil',
+      '',
+      [
+        {
+          text: 'Prendre une photo',
+          onPress: async () => {
+            const perm = await ImagePicker.requestCameraPermissionsAsync();
+            if (!perm.granted) {
+              alert('Permission requise', "L'accès à la caméra est nécessaire.");
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+              await uploadAvatarAsset(result.assets[0]);
+            }
+          },
+        },
+        {
+          text: 'Choisir depuis la galerie',
+          onPress: async () => {
+            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!perm.granted) {
+              alert('Permission requise', "L'accès à la galerie est nécessaire.");
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              aspect: [1, 1],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+              await uploadAvatarAsset(result.assets[0]);
+            }
+          },
+        },
+        { text: 'Annuler', style: 'cancel' },
+      ],
+    );
   };
 
   /* ── Logout ── */
@@ -222,7 +259,7 @@ export default function ProfileScreen() {
       <View style={styles.avatarSection}>
         <View>
           <TouchableOpacity
-            onPress={() => user?.avatarUrl ? setShowAvatarZoom(true) : undefined}
+            onPress={() => user?.avatarUrl ? setShowAvatarZoom(true) : handleAvatarPick()}
             disabled={uploading}
           >
             <MAvatar
@@ -231,16 +268,14 @@ export default function ProfileScreen() {
               size="xl"
             />
           </TouchableOpacity>
-          {/* Avatar badge: only show camera if no avatar yet */}
-          {!user?.avatarUrl && (
-            <TouchableOpacity
-              style={styles.cameraBadge}
-              onPress={handleAvatarPick}
-              disabled={uploading}
-            >
-              <Ionicons name="camera" size={wp(16)} color="#FFF" />
-            </TouchableOpacity>
-          )}
+          {/* Camera badge — always visible for avatar change */}
+          <TouchableOpacity
+            style={styles.cameraBadge}
+            onPress={handleAvatarPick}
+            disabled={uploading}
+          >
+            <Ionicons name="camera" size={wp(16)} color="#FFF" />
+          </TouchableOpacity>
         </View>
         <Text style={styles.displayName}>
           {formatName(user?.firstName, user?.lastName)}

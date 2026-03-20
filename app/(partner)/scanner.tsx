@@ -24,7 +24,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Animated, {
   FadeInUp,
   FadeIn,
@@ -39,7 +39,7 @@ import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { formatPrice, formatPlanLabel } from '../../src/utils/format';
 import { MButton, MInput, MCard, MHeader } from '../../src/components/ui';
-import { StoreSelectionModal } from '../../src/components/partner';
+
 import { useAppAlert } from '../../src/hooks/use-app-alert';
 import type { QrValidateResultDto, QrPreviewDiscountResultDto } from '../../src/types';
 
@@ -53,6 +53,7 @@ const PLAN_THEME: Record<string, { bg: string; text: string; icon: string }> = {
 type ScanState = 'scanning' | 'form' | 'success' | 'error';
 
 export default function PartnerScannerScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { alert, AlertModal } = useAppAlert();
   const user = useAuthStore((s) => s.user);
@@ -61,7 +62,7 @@ export default function PartnerScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [scannedToken, setScannedToken] = useState('');
-  const [showStoreModal, setShowStoreModal] = useState(false);
+
   const [validateResult, setValidateResult] = useState<QrValidateResultDto | null>(null);
   const [preview, setPreview] = useState<QrPreviewDiscountResultDto | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -176,6 +177,15 @@ export default function PartnerScannerScreen() {
       return;
     }
 
+    // Enforce subscription seat limit
+    if (preview?.personsAllowed && persons > preview.personsAllowed) {
+      alert(
+        'Limite atteinte',
+        `L'abonnement ${preview.planName || preview.planCode} autorise ${preview.personsAllowed} personne${preview.personsAllowed > 1 ? 's' : ''} maximum.`,
+      );
+      return;
+    }
+
     const { storeIdVal, partnerIdVal } = resolveIds();
 
     if (!partnerIdVal) {
@@ -244,12 +254,7 @@ export default function PartnerScannerScreen() {
         </Text>
         <MButton
           title="Choisir un magasin"
-          onPress={() => setShowStoreModal(true)}
-        />
-        <StoreSelectionModal
-          visible={showStoreModal}
-          onDismiss={() => setShowStoreModal(false)}
-          mandatory
+          onPress={() => router.push('/(partner)/stores')}
         />
       </View>
     );
@@ -275,7 +280,7 @@ export default function PartnerScannerScreen() {
               {/* Active store badge */}
               <TouchableOpacity
                 style={styles.storeBadge}
-                onPress={() => setShowStoreModal(true)}
+                onPress={() => router.push('/(partner)/stores')}
               >
                 <Ionicons name="storefront" size={wp(14)} color={colors.violet[600]} />
                 <Text style={styles.storeBadgeText} numberOfLines={1}>
@@ -543,11 +548,6 @@ export default function PartnerScannerScreen() {
         </View>
       )}
 
-      {/* Store selection modal */}
-      <StoreSelectionModal
-        visible={showStoreModal}
-        onDismiss={() => setShowStoreModal(false)}
-      />
       <AlertModal />
     </View>
   );
