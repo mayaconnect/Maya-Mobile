@@ -253,7 +253,6 @@ export default function SubscriptionScreen() {
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Abonnement</Text>
         </LinearGradient>
         <ErrorState
           fullScreen

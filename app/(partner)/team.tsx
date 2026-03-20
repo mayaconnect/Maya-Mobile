@@ -228,7 +228,7 @@ export default function PartnerTeamScreen() {
               </View>
 
               {/* Action buttons (Partner only) */}
-              {role === 'partner' && (
+              {(role === 'partner' || partner != null) && (
                 <View style={styles.actionRow}>
                   <TouchableOpacity style={styles.actionBtn} onPress={() => confirmToggle(item)}>
                     <Ionicons
@@ -264,46 +264,28 @@ export default function PartnerTeamScreen() {
     [role, stores, toggleMgr, removeMut],
   );
 
-  /* ─── Loading / Error ─── */
-  if (opsQ.isLoading) {
-    return (
-      <View style={styles.bg}>
-        <LinearGradient colors={['#0F172A', '#1E293B']} style={[styles.header, { paddingTop: insets.top }]}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={wp(22)} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Mon équipe</Text>
-            <View style={{ width: wp(40) }} />
-          </View>
-        </LinearGradient>
-        <LoadingSpinner message="Chargement de l'équipe…" />
-      </View>
-    );
-  }
+  /* ─── Determine content to show ─── */
+  const isPartnerOrHasContext = role === 'partner' || partner != null;
 
-  if (opsQ.isError) {
-    return (
-      <View style={styles.bg}>
-        <LinearGradient colors={['#0F172A', '#1E293B']} style={[styles.header, { paddingTop: insets.top }]}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={wp(22)} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Mon équipe</Text>
-            <View style={{ width: wp(40) }} />
-          </View>
-        </LinearGradient>
-        <ErrorState
-          fullScreen
-          title="Erreur de chargement"
-          description="Impossible de charger la liste des opérateurs."
-          onRetry={() => opsQ.refetch()}
-          icon="people-outline"
-        />
+  /* ─── Tab bar height (matches _layout.tsx tabBarStyle) ─── */
+  const TAB_BAR_HEIGHT = wp(80) + insets.bottom;
+
+  /* ─── Render FAB helper ─── */
+  const renderFab = () =>
+    isPartnerOrHasContext ? (
+      <View style={[styles.fabWrap, { bottom: TAB_BAR_HEIGHT + spacing[3] }]}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => { setCreatedResult(null); setShowCreate(true); }}
+          activeOpacity={0.85}
+        >
+          <LinearGradient colors={['#FF6A00', '#FF3D00']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.fabGradient}>
+            <Ionicons name="person-add-outline" size={wp(20)} color="#FFFFFF" />
+            <Text style={styles.fabText}>Ajouter un opérateur</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
-    );
-  }
+    ) : null;
 
   return (
     <View style={styles.bg}>
@@ -316,7 +298,7 @@ export default function PartnerTeamScreen() {
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Mon équipe</Text>
-            {operators.length > 0 && (
+            {!opsQ.isLoading && !opsQ.isError && operators.length > 0 && (
               <Animated.View entering={FadeIn.duration(400)} style={styles.countChip}>
                 <Text style={styles.countChipText}>{operators.length} opérateur{operators.length > 1 ? 's' : ''}</Text>
               </Animated.View>
@@ -326,91 +308,140 @@ export default function PartnerTeamScreen() {
         </View>
       </LinearGradient>
 
-      {/* ── List ── */}
-      <FlatList
-        data={operators}
-        keyExtractor={(item) => item.userId}
-        renderItem={renderOperator}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: insets.bottom + (role === 'partner' ? wp(100) : wp(40)) },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={opsQ.isFetching}
-            onRefresh={() => opsQ.refetch()}
-            tintColor={colors.orange[400]}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="people-outline" size={wp(40)} color="rgba(255,255,255,0.2)" />
+      {/* ── Content: loading / error / list ── */}
+      {opsQ.isLoading ? (
+        <LoadingSpinner message="Chargement de l'équipe…" />
+      ) : opsQ.isError ? (
+        <ErrorState
+          fullScreen
+          title="Erreur de chargement"
+          description="Impossible de charger la liste des opérateurs."
+          onRetry={() => opsQ.refetch()}
+          icon="people-outline"
+        />
+      ) : (
+        <FlatList
+          data={operators}
+          keyExtractor={(item) => item.userId}
+          renderItem={renderOperator}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: TAB_BAR_HEIGHT + (isPartnerOrHasContext ? wp(100) : wp(40)) },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={opsQ.isFetching}
+              onRefresh={() => opsQ.refetch()}
+              tintColor={colors.orange[400]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="people-outline" size={wp(40)} color="rgba(255,255,255,0.2)" />
+              </View>
+              <Text style={styles.emptyTitle}>Aucun opérateur</Text>
+              <Text style={styles.emptyDesc}>
+                Ajoutez votre premier opérateur pour qu'il puisse scanner les clients.
+              </Text>
             </View>
-            <Text style={styles.emptyTitle}>Aucun opérateur</Text>
-            <Text style={styles.emptyDesc}>
-              Ajoutez votre premier opérateur pour qu'il puisse scanner les clients.
-            </Text>
-          </View>
-        }
-      />
+          }
+        />
+      )}
 
       {/* ── FAB: Ajouter un opérateur ── */}
-      {role === 'partner' && (
-        <View style={[styles.fabWrap, { bottom: insets.bottom + spacing[5] }]}>
-          <TouchableOpacity
-            style={styles.fab}
-            onPress={() => { setCreatedResult(null); setShowCreate(true); }}
-            activeOpacity={0.85}
-          >
-            <LinearGradient colors={['#FF6A00', '#FF3D00']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.fabGradient}>
-              <Ionicons name="person-add-outline" size={wp(20)} color="#FFFFFF" />
-              <Text style={styles.fabText}>Ajouter un opérateur</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      )}
+      {renderFab()}
 
       {/* ── Assign to store modal ── */}
       <MModal
         visible={!!showAssign}
         onClose={() => setShowAssign(null)}
-        title={`Assigner ${showAssign?.firstName ?? ''} à un magasin`}
+        title={`Assigner à un magasin`}
       >
-        <ScrollView style={{ maxHeight: wp(300) }}>
+        <ScrollView style={{ maxHeight: wp(400) }} showsVerticalScrollIndicator={false}>
           {(() => {
+            const fullName = `${showAssign?.firstName ?? ''} ${showAssign?.lastName ?? ''}`.trim() || showAssign?.email || 'Opérateur';
             const assignedStoreIds = new Set(
               stores
                 .filter((s) => s.operators?.some((op) => op.userId === showAssign?.userId))
                 .map((s) => s.id),
             );
             const available = stores.filter((s) => !assignedStoreIds.has(s.id));
+            const assigned = stores.filter((s) => assignedStoreIds.has(s.id));
 
-            if (available.length === 0) {
-              return (
-                <View style={styles.assignDone}>
-                  <Ionicons name="checkmark-circle" size={wp(36)} color="#4ADE80" />
-                  <Text style={styles.assignDoneText}>
-                    Cet opérateur est déjà assigné à tous les magasins.
-                  </Text>
+            return (
+              <View>
+                {/* Operator info banner */}
+                <View style={styles.assignOperatorBanner}>
+                  <OperatorAvatar name={fullName} uri={showAssign?.avatarUrl} size={wp(36)} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.assignOperatorName} numberOfLines={1}>{fullName}</Text>
+                    {showAssign?.email ? (
+                      <Text style={styles.assignOperatorEmail} numberOfLines={1}>{showAssign.email}</Text>
+                    ) : null}
+                  </View>
                 </View>
-              );
-            }
 
-            return available.map((s) => (
-              <TouchableOpacity
-                key={s.id}
-                style={styles.storeOption}
-                onPress={() => { if (showAssign) assignMut.mutate({ userId: showAssign.userId, storeId: s.id }); }}
-              >
-                <Ionicons name="storefront-outline" size={wp(18)} color={colors.violet[400]} />
-                <Text style={styles.storeOptText} numberOfLines={1}>{s.name ?? s.id.slice(0, 8)}</Text>
-                {assignMut.isPending
-                  ? <ActivityIndicator size="small" color={colors.orange[400]} />
-                  : <Ionicons name="chevron-forward" size={wp(14)} color="rgba(255,255,255,0.25)" />}
-              </TouchableOpacity>
-            ));
+                {/* Already assigned stores */}
+                {assigned.length > 0 && (
+                  <View style={styles.assignSection}>
+                    <Text style={styles.assignSectionTitle}>
+                      <Ionicons name="checkmark-circle" size={wp(13)} color="#22C55E" /> Déjà assigné ({assigned.length})
+                    </Text>
+                    {assigned.map((s) => (
+                      <View key={s.id} style={styles.assignStoreRowDone}>
+                        <Ionicons name="storefront" size={wp(16)} color="#94A3B8" />
+                        <Text style={styles.assignStoreNameDone} numberOfLines={1}>{s.name ?? s.id.slice(0, 8)}</Text>
+                        <View style={styles.assignedBadge}>
+                          <Ionicons name="checkmark" size={wp(10)} color="#22C55E" />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Available stores to assign */}
+                {available.length > 0 ? (
+                  <View style={styles.assignSection}>
+                    <Text style={styles.assignSectionTitle}>
+                      <Ionicons name="add-circle-outline" size={wp(13)} color={colors.orange[500]} /> Magasins disponibles ({available.length})
+                    </Text>
+                    <Text style={styles.assignSectionHint}>
+                      Appuyez sur un magasin pour y assigner {showAssign?.firstName ?? 'l\'opérateur'}
+                    </Text>
+                    {available.map((s) => (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={styles.assignStoreRowAvailable}
+                        onPress={() => { if (showAssign) assignMut.mutate({ userId: showAssign.userId, storeId: s.id }); }}
+                        activeOpacity={0.7}
+                        disabled={assignMut.isPending}
+                      >
+                        <Ionicons name="storefront-outline" size={wp(16)} color={colors.orange[500]} />
+                        <Text style={styles.assignStoreNameAvailable} numberOfLines={1}>{s.name ?? s.id.slice(0, 8)}</Text>
+                        {assignMut.isPending
+                          ? <ActivityIndicator size="small" color={colors.orange[500]} />
+                          : <View style={styles.assignArrowBtn}>
+                              <Ionicons name="add" size={wp(14)} color="#FFFFFF" />
+                            </View>
+                        }
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.assignAllDone}>
+                    <View style={styles.assignAllDoneIcon}>
+                      <Ionicons name="checkmark-circle" size={wp(40)} color="#22C55E" />
+                    </View>
+                    <Text style={styles.assignAllDoneTitle}>Tout est bon !</Text>
+                    <Text style={styles.assignAllDoneDesc}>
+                      {showAssign?.firstName ?? 'Cet opérateur'} est déjà assigné à tous vos magasins.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
           })()}
         </ScrollView>
       </MModal>
@@ -585,7 +616,7 @@ function CreateOperatorModal({
             {/* Email status */}
             {hasPassword && (
               <View style={styles.resultEmailSent}>
-                <Ionicons name="mail-outline" size={wp(16)} color={colors.violet[300]} />
+                <Ionicons name="mail-outline" size={wp(16)} color={colors.violet[500]} />
                 <Text style={styles.resultEmailSentText}>
                   {sendEmail
                     ? 'Un email d\'invitation avec les identifiants a été envoyé.'
@@ -596,7 +627,7 @@ function CreateOperatorModal({
 
             {!hasPassword && (
               <View style={styles.resultEmailSent}>
-                <Ionicons name="information-circle-outline" size={wp(16)} color={colors.violet[300]} />
+                <Ionicons name="information-circle-outline" size={wp(16)} color={colors.violet[500]} />
                 <Text style={styles.resultEmailSentText}>
                   Cet utilisateur existait déjà. Il a été lié aux magasins sélectionnés sans nouveau mot de passe.
                 </Text>
@@ -668,7 +699,7 @@ function CreateOperatorModal({
                     <Ionicons
                       name="storefront-outline"
                       size={wp(16)}
-                      color={isSelected ? colors.orange[400] : 'rgba(255,255,255,0.3)'}
+                      color={isSelected ? colors.orange[400] : '#94A0B8'}
                     />
                     <Text
                       style={[styles.storeRowName, isSelected && styles.storeRowNameSelected]}
@@ -688,7 +719,7 @@ function CreateOperatorModal({
                       <Ionicons
                         name={isMgr ? 'shield-checkmark' : 'shield-outline'}
                         size={wp(14)}
-                        color={isMgr ? '#34D399' : 'rgba(255,255,255,0.3)'}
+                        color={isMgr ? '#34D399' : '#94A0B8'}
                       />
                       {isMgr && <Text style={styles.managerBadgeText}>Manager</Text>}
                     </TouchableOpacity>
@@ -713,12 +744,12 @@ function CreateOperatorModal({
                 L'opérateur recevra ses identifiants par email
               </Text>
             </View>
-            <Ionicons name="mail-outline" size={wp(18)} color={sendEmail ? colors.orange[400] : 'rgba(255,255,255,0.2)'} />
+            <Ionicons name="mail-outline" size={wp(18)} color={sendEmail ? colors.orange[400] : '#CBD0DC'} />
           </TouchableOpacity>
 
           {/* Info callout */}
           <View style={styles.infoCallout}>
-            <Ionicons name="information-circle-outline" size={wp(16)} color={colors.violet[300]} />
+            <Ionicons name="information-circle-outline" size={wp(16)} color={colors.violet[500]} />
             <Text style={styles.infoCalloutText}>
               Un mot de passe sera généré automatiquement. {sendEmail ? "Il sera inclus dans l'email d'invitation." : "Vous pourrez le copier et le partager manuellement."}
             </Text>
@@ -847,7 +878,7 @@ const styles = StyleSheet.create({
   emptyDesc: { ...textStyles.body, color: 'rgba(255,255,255,0.2)', textAlign: 'center', lineHeight: 22 },
 
   /* FAB */
-  fabWrap: { position: 'absolute', left: spacing[4], right: spacing[4] },
+  fabWrap: { position: 'absolute', left: spacing[4], right: spacing[4], zIndex: 100, elevation: 10 },
   fab: { borderRadius: borderRadius['2xl'], overflow: 'hidden', ...shadows.lg },
   fabGradient: {
     flexDirection: 'row',
@@ -858,30 +889,127 @@ const styles = StyleSheet.create({
   },
   fabText: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
 
-  /* Assign modal items */
-  assignDone: { alignItems: 'center', paddingVertical: spacing[6], gap: spacing[3] },
-  assignDoneText: { ...textStyles.body, color: 'rgba(255,255,255,0.5)', textAlign: 'center' },
-  storeOption: {
+  /* Assign modal — redesigned for white MModal background */
+  assignOperatorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
     paddingVertical: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: spacing[3],
+    borderRadius: borderRadius.lg,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: spacing[4],
   },
-  storeOptText: { ...textStyles.body, color: 'rgba(255,255,255,0.7)', flex: 1 },
+  assignOperatorName: {
+    ...textStyles.body,
+    fontFamily: fontFamily.semiBold,
+    color: '#1E293B',
+  },
+  assignOperatorEmail: {
+    ...textStyles.micro,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  assignSection: {
+    marginBottom: spacing[4],
+  },
+  assignSectionTitle: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.semiBold,
+    color: '#475569',
+    marginBottom: spacing[2],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  assignSectionHint: {
+    ...textStyles.micro,
+    color: '#94A3B8',
+    marginBottom: spacing[3],
+  },
+  assignStoreRowDone: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    borderRadius: borderRadius.md,
+    backgroundColor: '#F1F5F9',
+    marginBottom: spacing[1],
+    opacity: 0.7,
+  },
+  assignStoreNameDone: {
+    ...textStyles.body,
+    color: '#94A3B8',
+    flex: 1,
+  },
+  assignedBadge: {
+    width: wp(20),
+    height: wp(20),
+    borderRadius: wp(10),
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignStoreRowAvailable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+    borderRadius: borderRadius.lg,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginBottom: spacing[2],
+  },
+  assignStoreNameAvailable: {
+    ...textStyles.body,
+    fontFamily: fontFamily.medium,
+    color: '#1E293B',
+    flex: 1,
+  },
+  assignArrowBtn: {
+    width: wp(28),
+    height: wp(28),
+    borderRadius: wp(14),
+    backgroundColor: colors.orange[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignAllDone: {
+    alignItems: 'center',
+    paddingVertical: spacing[6],
+    paddingHorizontal: spacing[4],
+  },
+  assignAllDoneIcon: {
+    marginBottom: spacing[3],
+  },
+  assignAllDoneTitle: {
+    ...textStyles.h4,
+    fontFamily: fontFamily.bold,
+    color: '#1E293B',
+    marginBottom: spacing[1],
+  },
+  assignAllDoneDesc: {
+    ...textStyles.body,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 
-  /* Create modal form */
+  /* Create modal form — redesigned for white MModal background */
   fieldLabel: {
     ...textStyles.caption,
     fontFamily: fontFamily.semiBold,
-    color: 'rgba(255,255,255,0.45)',
+    color: '#475569',
     marginTop: spacing[4],
     marginBottom: spacing[1],
   },
   fieldHint: {
     ...textStyles.micro,
-    color: 'rgba(255,255,255,0.25)',
+    color: '#94A3B8',
     marginBottom: spacing[2],
   },
 
@@ -894,13 +1022,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     paddingHorizontal: spacing[3],
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   storeRowSelected: {
-    borderColor: 'rgba(255,106,0,0.3)',
-    backgroundColor: 'rgba(255,106,0,0.06)',
+    borderColor: colors.orange[400],
+    backgroundColor: '#FFF4EC',
   },
   storeSelectArea: {
     flexDirection: 'row',
@@ -913,7 +1041,7 @@ const styles = StyleSheet.create({
     height: wp(20),
     borderRadius: borderRadius.sm,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: '#CBD0DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -923,11 +1051,11 @@ const styles = StyleSheet.create({
   },
   storeRowName: {
     ...textStyles.body,
-    color: 'rgba(255,255,255,0.45)',
+    color: '#64708B',
     flex: 1,
   },
   storeRowNameSelected: {
-    color: '#FFFFFF',
+    color: '#1E293B',
     fontFamily: fontFamily.medium,
   },
 
@@ -939,7 +1067,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
     paddingVertical: spacing[1],
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: '#F1F5F9',
   },
   managerBadgeActive: {
     backgroundColor: 'rgba(52,211,153,0.12)',
@@ -961,16 +1089,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     paddingHorizontal: spacing[3],
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   emailToggleCheck: {
     width: wp(22),
     height: wp(22),
     borderRadius: borderRadius.sm,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: '#CBD0DC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -981,11 +1109,11 @@ const styles = StyleSheet.create({
   emailToggleText: {
     ...textStyles.body,
     fontFamily: fontFamily.medium,
-    color: 'rgba(255,255,255,0.7)',
+    color: '#1E293B',
   },
   emailToggleHint: {
     ...textStyles.micro,
-    color: 'rgba(255,255,255,0.3)',
+    color: '#94A3B8',
     marginTop: 2,
   },
 
@@ -998,13 +1126,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     paddingHorizontal: spacing[3],
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(124,58,237,0.08)',
+    backgroundColor: '#F0F1F5',
     borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.2)',
+    borderColor: '#DDE0E8',
   },
   infoCalloutText: {
     ...textStyles.caption,
-    color: colors.violet[300],
+    color: '#475569',
     flex: 1,
     lineHeight: wp(16),
   },
@@ -1022,29 +1150,29 @@ const styles = StyleSheet.create({
   resultTitle: {
     ...textStyles.h4,
     fontFamily: fontFamily.bold,
-    color: '#FFFFFF',
+    color: '#1E293B',
     marginBottom: spacing[1],
   },
   resultEmail: {
     ...textStyles.body,
-    color: 'rgba(255,255,255,0.5)',
+    color: '#94A3B8',
     marginBottom: spacing[4],
   },
 
   /* Assigned stores in result */
   resultStoresBox: {
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: '#F8FAFC',
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: '#E2E8F0',
     padding: spacing[3],
     marginBottom: spacing[3],
   },
   resultStoresLabel: {
     ...textStyles.micro,
     fontFamily: fontFamily.semiBold,
-    color: 'rgba(255,255,255,0.35)',
+    color: '#475569',
     marginBottom: spacing[2],
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -1057,7 +1185,7 @@ const styles = StyleSheet.create({
   },
   resultStoreName: {
     ...textStyles.body,
-    color: 'rgba(255,255,255,0.7)',
+    color: '#1E293B',
     flex: 1,
   },
   resultManagerChip: {
@@ -1079,24 +1207,24 @@ const styles = StyleSheet.create({
 
   /* Password result */
   resultPasswordBox: {
-    backgroundColor: 'rgba(255,106,0,0.06)',
+    backgroundColor: '#FFF4EC',
     borderRadius: borderRadius.lg,
     padding: spacing[4],
     width: '100%',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,106,0,0.2)',
+    borderColor: '#FFE4CC',
     marginBottom: spacing[3],
   },
   resultPasswordLabel: {
     ...textStyles.caption,
-    color: 'rgba(255,255,255,0.4)',
+    color: '#64708B',
     marginBottom: spacing[2],
   },
   resultPassword: {
     ...textStyles.h3,
     fontFamily: fontFamily.bold,
-    color: colors.orange[300],
+    color: colors.orange[600],
     letterSpacing: 3,
     marginBottom: spacing[3],
   },
@@ -1107,21 +1235,21 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     paddingHorizontal: spacing[4],
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,106,0,0.12)',
+    backgroundColor: '#FFF4EC',
     borderWidth: 1,
-    borderColor: 'rgba(255,106,0,0.25)',
+    borderColor: '#FFE4CC',
   },
   copyBtnDone: {
-    backgroundColor: 'rgba(74,222,128,0.12)',
-    borderColor: 'rgba(74,222,128,0.25)',
+    backgroundColor: '#ECFDF5',
+    borderColor: '#D1FAE5',
   },
   copyBtnText: {
     ...textStyles.caption,
     fontFamily: fontFamily.semiBold,
-    color: colors.orange[400],
+    color: colors.orange[500],
   },
   copyBtnTextDone: {
-    color: '#4ADE80',
+    color: '#059669',
   },
 
   /* Email sent notice in result */
@@ -1132,14 +1260,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     paddingHorizontal: spacing[3],
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(124,58,237,0.08)',
+    backgroundColor: '#F0F1F5',
     borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.2)',
+    borderColor: '#DDE0E8',
     width: '100%',
   },
   resultEmailSentText: {
     ...textStyles.caption,
-    color: colors.violet[300],
+    color: '#475569',
     flex: 1,
     lineHeight: wp(16),
   },

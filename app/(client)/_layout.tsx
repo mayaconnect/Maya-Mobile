@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { clientColors as colors } from '../../src/theme/colors';
 import { fontFamily } from '../../src/theme/typography';
-import { spacing } from '../../src/theme/spacing';
+import { spacing, shadows } from '../../src/theme/spacing';
 import { wp, isIOS } from '../../src/utils/responsive';
 import { usePushNotifications } from '../../src/hooks/use-push-notifications';
 
@@ -82,17 +82,12 @@ export default function ClientTabLayout() {
         name="qrcode"
         options={{
           title: 'QR Code',
-          tabBarIcon: ({ color, focused }) => (
-            <View
-              style={[
-                styles.qrIconContainer,
-                focused && styles.qrIconActive,
-              ]}
-            >
+          tabBarIcon: () => (
+            <View style={styles.qrIconContainer}>
               <Ionicons
                 name="qr-code"
                 size={wp(26)}
-                color={focused ? '#FFF' : colors.orange[500]}
+                color="#FFFFFF"
               />
             </View>
           ),
@@ -164,17 +159,13 @@ export default function ClientTabLayout() {
 
 const styles = StyleSheet.create({
   qrIconContainer: {
-    width: wp(52),
-    height: wp(52),
-    borderRadius: wp(26),
-    backgroundColor: colors.orange[50],
+    width: wp(56),
+    height: wp(56),
+    borderRadius: wp(28),
+    backgroundColor: colors.orange[500],
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: wp(-20),
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  qrIconActive: {
-    backgroundColor: colors.orange[500],
+    ...shadows.lg,
   },
 });

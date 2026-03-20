@@ -240,7 +240,7 @@ export default function StoresMapView() {
 
       {/* Radius indicator */}
       {currentRadius > INITIAL_RADIUS && (
-        <View style={[styles.radiusBadge, { top: insets.top + wp(96) }]}>
+        <View style={[styles.radiusBadge, { top: insets.top + wp(96), marginTop: spacing[3] }]}>
           <LinearGradient
             colors={['#FF7A18', '#FFB347']}
             start={{ x: 0, y: 0 }}
@@ -248,7 +248,7 @@ export default function StoresMapView() {
             style={styles.radiusBadgeInner}
           >
             <Ionicons name="expand-outline" size={wp(12)} color="#FFF" />
-            <Text style={styles.radiusText}>Rayon élargi : {currentRadius} km</Text>
+            <Text style={styles.radiusText }>Rayon élargi : {currentRadius} km</Text>
           </LinearGradient>
         </View>
       )}

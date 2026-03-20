@@ -2,7 +2,7 @@
  * Maya Connect V2 — Partner Tab Layout
  *
  * Bottom tabs for Partner / StoreOperator role:
- * Dashboard | Scanner | Historique | Magasins | Profil
+ * Dashboard | Équipe | Scan | Magasins | Profil
  * Floating center scanner button (like client QR).
  */
 import React from 'react';
@@ -36,8 +36,8 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { name: 'dashboard', title: 'Dashboard', icon: 'grid-outline', iconFocused: 'grid' },
-  { name: 'history', title: 'Historique', icon: 'receipt-outline', iconFocused: 'receipt' },
-  { name: 'scanner', title: 'Scanner', icon: 'scan-outline', iconFocused: 'scan' },
+  { name: 'team', title: 'Équipe', icon: 'people-outline', iconFocused: 'people' },
+  { name: 'scanner', title: 'Scan', icon: 'scan-outline', iconFocused: 'scan' },
   { name: 'stores', title: 'Magasins', icon: 'storefront-outline', iconFocused: 'storefront' },
   { name: 'profile', title: 'Profil', icon: 'person-outline', iconFocused: 'person' },
 ];
@@ -113,7 +113,7 @@ export default function PartnerLayout() {
         );
       })}
 
-      {/* Hidden screen — accessible via router.push, not shown in tab bar */}
+      {/* Hidden screens — accessible via router.push, not shown in tab bar */}
       <Tabs.Screen
         name="edit-profile"
         options={{ href: null, title: 'Modifier le profil' }}
@@ -123,10 +123,10 @@ export default function PartnerLayout() {
         options={{ href: null, title: 'Changer le mot de passe' }}
       />
       <Tabs.Screen
-        name="team"
+        name="history"
         options={{
-          href: null,          // hides from tab bar
-          title: 'Mon équipe',
+          href: null,
+          title: 'Historique',
         }}
       />
       <Tabs.Screen
