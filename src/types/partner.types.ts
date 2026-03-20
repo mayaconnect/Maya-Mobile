@@ -275,12 +275,27 @@ export interface MyPartnerStoresDto {
   activeStore?: StoreOperatorDto | null;
 }
 
+export interface StoreAssignmentDto {
+  storeId: string;
+  isManager?: boolean;
+}
+
+export interface StoreAssignmentResultDto {
+  storeId: string;
+  storeName: string;
+  isManager: boolean;
+}
+
 export interface CreateStoreOperatorDto {
   email: string;
   firstName: string;
   lastName: string;
   storeId: string;
   isManager?: boolean;
+  /** Multi-store assignments. When set, storeId/isManager are ignored. */
+  storeAssignments?: StoreAssignmentDto[];
+  /** Send a welcome email with credentials (default: true). */
+  sendInvitationEmail?: boolean;
 }
 
 export interface CreateStoreOperatorResultDto {
@@ -289,4 +304,6 @@ export interface CreateStoreOperatorResultDto {
   temporaryPassword: string;
   storeId: string;
   isManager: boolean;
+  /** All store assignments made during creation. */
+  assignments: StoreAssignmentResultDto[];
 }

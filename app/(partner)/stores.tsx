@@ -22,6 +22,7 @@ import {
   ActivityIndicator,
   LayoutAnimation,
   UIManager,
+  Dimensions,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppAlert } from '../../src/hooks/use-app-alert';
@@ -41,7 +42,9 @@ import { wp } from '../../src/utils/responsive';
 import { LinearGradient } from 'expo-linear-gradient';
 import { config } from '../../src/constants/config';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { OpeningHoursEditor } from '../../src/components/partner/OpeningHoursEditor';
+import OpeningHoursEditor from '../../src/components/partner/OpeningHoursEditor';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -96,7 +99,39 @@ const thumbStyles = StyleSheet.create({
   placeholderActive: { backgroundColor: colors.orange[500] },
 });
 
-/* ─── Request new store modal ─── */
+/* ─── Request new store modal — Multi-step wizard ─── */
+const STEPS = [
+  { key: 'location', title: 'Localisation', icon: 'location-outline' as const },
+  { key: 'activity', title: 'Activité', icon: 'grid-outline' as const },
+  { key: 'contact', title: 'Contact & Horaires', icon: 'call-outline' as const },
+] as const;
+
+function StepIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <View style={mStyles.stepRow}>
+      {Array.from({ length: total }).map((_, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <View key={i} style={mStyles.stepItem}>
+            <View style={[mStyles.stepDot, done && mStyles.stepDotDone, active && mStyles.stepDotActive]}>
+              {done ? (
+                <Ionicons name="checkmark" size={wp(12)} color="#FFFFFF" />
+              ) : (
+                <Text style={[mStyles.stepNum, active && mStyles.stepNumActive]}>{i + 1}</Text>
+              )}
+            </View>
+            <Text style={[mStyles.stepLabel, (done || active) && mStyles.stepLabelActive]}>
+              {STEPS[i].title}
+            </Text>
+            {i < total - 1 && <View style={[mStyles.stepLine, done && mStyles.stepLineDone]} />}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function RequestStoreModal({
   visible,
   partnerId,
@@ -110,6 +145,9 @@ function RequestStoreModal({
   onClose: () => void;
   onCreated?: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+  const [step, setStep] = useState(0);
+
   // Form fields
   const [storeName, setStoreName] = useState('');
   const [address, setAddress] = useState('');
@@ -127,6 +165,11 @@ function RequestStoreModal({
   const [submitted, setSubmitted] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Validation per step
+  const step0Valid = storeName.trim().length > 0 && address.trim().length > 0 && city.trim().length > 0;
+  const step1Valid = selectedCategoryId != null;
+  const canSubmit = step0Valid && step1Valid;
+
   // Fetch store categories
   const categoriesQ = useQuery({
     queryKey: ['storeCategories'],
@@ -136,12 +179,6 @@ function RequestStoreModal({
   });
   const categories: StoreCategoryDto[] = categoriesQ.data ?? [];
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
-
-  const isValid =
-    storeName.trim().length > 0 &&
-    address.trim().length > 0 &&
-    city.trim().length > 0 &&
-    selectedCategoryId != null;
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -169,6 +206,7 @@ function RequestStoreModal({
   });
 
   const resetAndClose = useCallback(() => {
+    setStep(0);
     setStoreName('');
     setAddress('');
     setCity('');
@@ -187,6 +225,15 @@ function RequestStoreModal({
     onClose();
   }, [mutation, onClose]);
 
+  const goNext = () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+  const goBack = () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setStep((s) => Math.max(s - 1, 0));
+  };
+
   const toggleOpeningAccordion = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setOpeningExpanded((prev) => !prev);
@@ -197,6 +244,220 @@ function RequestStoreModal({
     setCategoryDropdownOpen((prev) => !prev);
   }, []);
 
+  const isNextDisabled = (step === 0 && !step0Valid) || (step === 1 && !step1Valid);
+
+  /* ── Step content renderers ── */
+  const renderStep0 = () => (
+    <View style={mStyles.stepContent}>
+      <View style={mStyles.fieldGroup}>
+        <Text style={mStyles.fieldLabel}>Nom du magasin <Text style={mStyles.required}>*</Text></Text>
+        <View style={mStyles.inputWrap}>
+          <Ionicons name="storefront-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
+          <TextInput
+            style={mStyles.input}
+            value={storeName}
+            onChangeText={setStoreName}
+            placeholder="Ex: Maya Connect – Lyon Part-Dieu"
+            placeholderTextColor="rgba(255,255,255,0.2)"
+          />
+        </View>
+      </View>
+
+      <View style={mStyles.fieldGroup}>
+        <Text style={mStyles.fieldLabel}>Adresse <Text style={mStyles.required}>*</Text></Text>
+        <View style={[mStyles.inputWrap, { alignItems: 'flex-start', paddingTop: spacing[2] }]}>
+          <Ionicons name="map-outline" size={wp(16)} color="rgba(255,255,255,0.35)" style={{ marginTop: 2 }} />
+          <TextInput
+            style={[mStyles.input, { textAlignVertical: 'top', minHeight: wp(48) }]}
+            value={address}
+            onChangeText={setAddress}
+            multiline
+            placeholder="Ex: 12 Rue de la Paix"
+            placeholderTextColor="rgba(255,255,255,0.2)"
+          />
+        </View>
+      </View>
+
+      <View style={mStyles.row2}>
+        <View style={{ flex: 1 }}>
+          <Text style={mStyles.fieldLabel}>Ville <Text style={mStyles.required}>*</Text></Text>
+          <View style={mStyles.inputWrap}>
+            <Ionicons name="location-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
+            <TextInput style={mStyles.input} value={city} onChangeText={setCity}
+              placeholder="Lyon" placeholderTextColor="rgba(255,255,255,0.2)" />
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={mStyles.fieldLabel}>Pays</Text>
+          <View style={mStyles.inputWrap}>
+            <Ionicons name="globe-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
+            <TextInput style={mStyles.input} value={country} onChangeText={setCountry}
+              placeholder="France" placeholderTextColor="rgba(255,255,255,0.2)" />
+          </View>
+        </View>
+      </View>
+
+      <View style={mStyles.row2}>
+        <View style={{ flex: 1 }}>
+          <Text style={mStyles.fieldLabel}>Latitude</Text>
+          <View style={mStyles.inputWrap}>
+            <TextInput style={mStyles.input} value={latitude} onChangeText={setLatitude}
+              placeholder="48.8566" placeholderTextColor="rgba(255,255,255,0.2)"
+              keyboardType="decimal-pad" />
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={mStyles.fieldLabel}>Longitude</Text>
+          <View style={mStyles.inputWrap}>
+            <TextInput style={mStyles.input} value={longitude} onChangeText={setLongitude}
+              placeholder="2.3522" placeholderTextColor="rgba(255,255,255,0.2)"
+              keyboardType="decimal-pad" />
+          </View>
+        </View>
+      </View>
+
+      <Text style={mStyles.fieldHint}>Les coordonnées GPS sont optionnelles mais recommandées pour la géolocalisation.</Text>
+    </View>
+  );
+
+  const renderStep1 = () => (
+    <View style={mStyles.stepContent}>
+      <View style={mStyles.fieldGroup}>
+        <Text style={mStyles.fieldLabel}>Catégorie <Text style={mStyles.required}>*</Text></Text>
+        <TouchableOpacity
+          style={[mStyles.inputWrap, { justifyContent: 'space-between' }]}
+          onPress={toggleCategoryDropdown}
+          activeOpacity={0.7}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], flex: 1 }}>
+            <Ionicons name="grid-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
+            <Text style={[mStyles.input, !selectedCategory && { color: 'rgba(255,255,255,0.2)' }]}>
+              {selectedCategory?.name ?? 'Sélectionnez une catégorie'}
+            </Text>
+          </View>
+          <Ionicons
+            name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
+            size={wp(16)}
+            color="rgba(255,255,255,0.35)"
+          />
+        </TouchableOpacity>
+
+        {categoryDropdownOpen && (
+          <View style={mStyles.dropdownList}>
+            {categoriesQ.isLoading ? (
+              <ActivityIndicator size="small" color={colors.orange[400]} style={{ padding: spacing[3] }} />
+            ) : (
+              categories.map((cat) => {
+                const sel = cat.id === selectedCategoryId;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[mStyles.dropdownItem, sel && mStyles.dropdownItemActive]}
+                    onPress={() => {
+                      setSelectedCategoryId(sel ? null : cat.id);
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setCategoryDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={[mStyles.dropdownItemText, sel && mStyles.dropdownItemTextActive]}>
+                      {cat.name ?? cat.code ?? cat.id.slice(0, 8)}
+                    </Text>
+                    {sel && <Ionicons name="checkmark" size={wp(16)} color={colors.orange[400]} />}
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+        )}
+      </View>
+
+      <View style={mStyles.fieldGroup}>
+        <Text style={mStyles.fieldLabel}>Réduction moyenne</Text>
+        <View style={mStyles.inputWrap}>
+          <Ionicons name="pricetag-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
+          <TextInput style={mStyles.input} value={avgDiscount} onChangeText={setAvgDiscount}
+            placeholder="Ex: 10" placeholderTextColor="rgba(255,255,255,0.2)"
+            keyboardType="numeric" maxLength={3} />
+          <Text style={mStyles.unitText}>%</Text>
+        </View>
+        <Text style={mStyles.fieldHint}>Le pourcentage moyen de réduction offert dans ce magasin.</Text>
+      </View>
+    </View>
+  );
+
+  const renderStep2 = () => (
+    <View style={mStyles.stepContent}>
+      <View style={mStyles.row2}>
+        <View style={{ flex: 1 }}>
+          <Text style={mStyles.fieldLabel}>Téléphone</Text>
+          <View style={mStyles.inputWrap}>
+            <Ionicons name="call-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
+            <TextInput style={mStyles.input} value={phone} onChangeText={setPhone}
+              placeholder="+33 ..." placeholderTextColor="rgba(255,255,255,0.2)"
+              keyboardType="phone-pad" />
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={mStyles.fieldLabel}>Email</Text>
+          <View style={mStyles.inputWrap}>
+            <Ionicons name="mail-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
+            <TextInput style={mStyles.input} value={email} onChangeText={setEmail}
+              placeholder="contact@..." placeholderTextColor="rgba(255,255,255,0.2)"
+              keyboardType="email-address" autoCapitalize="none" />
+          </View>
+        </View>
+      </View>
+
+      <View style={[mStyles.fieldGroup, { marginTop: spacing[4] }]}>
+        <Text style={mStyles.fieldLabel}>Horaires d'ouverture</Text>
+        <TouchableOpacity
+          style={[mStyles.accordionHeader, openingExpanded && mStyles.accordionHeaderActive]}
+          onPress={toggleOpeningAccordion}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="time-outline" size={wp(16)} color={openingExpanded ? colors.orange[400] : 'rgba(255,255,255,0.35)'} />
+          <Text style={[mStyles.accordionTitle, openingExpanded && mStyles.accordionTitleActive]}>
+            {openingExpanded ? 'Masquer les horaires' : 'Définir les horaires'}
+          </Text>
+          <Ionicons
+            name={openingExpanded ? 'chevron-up' : 'chevron-down'}
+            size={wp(16)}
+            color={openingExpanded ? colors.orange[400] : 'rgba(255,255,255,0.35)'}
+          />
+        </TouchableOpacity>
+
+        {openingExpanded && (
+          <View style={mStyles.accordionBody}>
+            <OpeningHoursEditor value={openingHours} onChange={setOpeningHours} />
+          </View>
+        )}
+      </View>
+
+      {/* Summary preview */}
+      <View style={mStyles.summaryCard}>
+        <Text style={mStyles.summaryTitle}>Récapitulatif</Text>
+        <View style={mStyles.summaryRow}>
+          <Ionicons name="storefront-outline" size={wp(14)} color={colors.orange[400]} />
+          <Text style={mStyles.summaryText}>{storeName || '—'}</Text>
+        </View>
+        <View style={mStyles.summaryRow}>
+          <Ionicons name="location-outline" size={wp(14)} color={colors.orange[400]} />
+          <Text style={mStyles.summaryText}>{[address, city, country].filter(Boolean).join(', ') || '—'}</Text>
+        </View>
+        <View style={mStyles.summaryRow}>
+          <Ionicons name="grid-outline" size={wp(14)} color={colors.orange[400]} />
+          <Text style={mStyles.summaryText}>{selectedCategory?.name ?? '—'}</Text>
+        </View>
+        {(phone || email) ? (
+          <View style={mStyles.summaryRow}>
+            <Ionicons name="call-outline" size={wp(14)} color={colors.orange[400]} />
+            <Text style={mStyles.summaryText}>{[phone, email].filter(Boolean).join(' · ') || '—'}</Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={resetAndClose}>
       <Pressable style={mStyles.backdrop} onPress={resetAndClose} />
@@ -205,251 +466,100 @@ function RequestStoreModal({
         style={mStyles.kavWrap}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <View style={mStyles.sheet}>
+        <View style={[mStyles.sheet, { paddingBottom: insets.bottom + spacing[4] }]}>
           <View style={mStyles.handle} />
 
           {submitted ? (
-            /* ── Success ── */
+            /* ── Success state ── */
             <View style={mStyles.successWrap}>
               <View style={mStyles.successIcon}>
                 <Ionicons name="checkmark-circle" size={wp(52)} color="#4ADE80" />
               </View>
-              <Text style={mStyles.successTitle}>Magasin créé !</Text>
+              <Text style={mStyles.successTitle}>Demande envoyée !</Text>
               <Text style={mStyles.successDesc}>
-                Votre magasin a été créé avec succès et est en attente de validation par notre équipe. Vous serez notifié dès qu'il sera activé.
+                Votre demande de création de magasin a été soumise avec succès. Notre équipe la traitera dans les plus brefs délais. Vous serez notifié dès qu'il sera activé.
               </Text>
-              <TouchableOpacity style={mStyles.okBtn} onPress={resetAndClose}>
+              <TouchableOpacity style={mStyles.okBtn} onPress={resetAndClose} activeOpacity={0.8}>
                 <Text style={mStyles.okBtnText}>Parfait, merci</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            /* ── Form ── */
+            /* ── Wizard form ── */
             <View style={mStyles.formWrap}>
-              {/* Gradient Header */}
-              <LinearGradient colors={['#FF6A00', '#1E293B']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={mStyles.formHeader}>
-                <View style={mStyles.formIconWrap}>
-                  <Ionicons name="add-circle" size={wp(30)} color="#FFFFFF" />
+              {/* Header */}
+              <View style={mStyles.formHeaderRow}>
+                <View style={mStyles.formHeaderLeft}>
+                  <View style={mStyles.formIconBubble}>
+                    <Ionicons name={STEPS[step].icon} size={wp(18)} color={colors.orange[400]} />
+                  </View>
+                  <View>
+                    <Text style={mStyles.formTitle}>Nouveau magasin</Text>
+                    <Text style={mStyles.formPartnerName}>{partnerName}</Text>
+                  </View>
                 </View>
-                <Text style={mStyles.formTitle}>Nouveau magasin</Text>
-                <Text style={mStyles.formSub}>Le magasin sera créé en attente de validation</Text>
-              </LinearGradient>
+                <TouchableOpacity onPress={resetAndClose} hitSlop={12}>
+                  <Ionicons name="close-circle" size={wp(24)} color="rgba(255,255,255,0.25)" />
+                </TouchableOpacity>
+              </View>
 
+              {/* Step indicator */}
+              <StepIndicator current={step} total={STEPS.length} />
+
+              {/* Scrollable content */}
               <ScrollView
                 ref={scrollRef}
-                style={{ maxHeight: wp(520) }}
+                style={mStyles.scrollArea}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="interactive"
               >
-                <View style={mStyles.fields}>
+                {step === 0 && renderStep0()}
+                {step === 1 && renderStep1()}
+                {step === 2 && renderStep2()}
 
-                  {/* Partenaire (lecture seule) */}
-                  <View style={mStyles.readOnlyRow}>
-                    <Ionicons name="business-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
-                    <Text style={mStyles.readOnlyLabel}>Partenaire</Text>
-                    <Text style={mStyles.readOnlyValue} numberOfLines={1}>{partnerName}</Text>
-                  </View>
-                  <View style={mStyles.divider} />
-
-                  {/* ── Section : Localisation ── */}
-                  <Text style={mStyles.sectionHeading}>Localisation</Text>
-
-                  <Text style={mStyles.fieldLabel}>Nom du magasin *</Text>
-                  <View style={mStyles.inputWrap}>
-                    <Ionicons name="storefront-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
-                    <TextInput style={mStyles.input} value={storeName} onChangeText={setStoreName}
-                      placeholder="Ex: Maya Connect – Lyon Part-Dieu" placeholderTextColor="rgba(255,255,255,0.2)"
-                      onFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} />
-                  </View>
-
-                  <Text style={[mStyles.fieldLabel, { marginTop: spacing[3] }]}>Adresse *</Text>
-                  <View style={[mStyles.inputWrap, { alignItems: 'flex-start', paddingTop: spacing[2] }]}>
-                    <Ionicons name="map-outline" size={wp(16)} color="rgba(255,255,255,0.35)" style={{ marginTop: 2 }} />
-                    <TextInput style={[mStyles.input, { textAlignVertical: 'top', minHeight: wp(52) }]}
-                      value={address} onChangeText={setAddress} multiline
-                      placeholder="Ex: 12 Rue de la Paix" placeholderTextColor="rgba(255,255,255,0.2)" />
-                  </View>
-
-                  <View style={mStyles.row2}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={mStyles.fieldLabel}>Ville *</Text>
-                      <View style={mStyles.inputWrap}>
-                        <Ionicons name="location-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
-                        <TextInput style={mStyles.input} value={city} onChangeText={setCity}
-                          placeholder="Lyon" placeholderTextColor="rgba(255,255,255,0.2)" />
-                      </View>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={mStyles.fieldLabel}>Pays *</Text>
-                      <View style={mStyles.inputWrap}>
-                        <Ionicons name="globe-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
-                        <TextInput style={mStyles.input} value={country} onChangeText={setCountry}
-                          placeholder="France" placeholderTextColor="rgba(255,255,255,0.2)" />
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={mStyles.row2}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={mStyles.fieldLabel}>Latitude</Text>
-                      <View style={mStyles.inputWrap}>
-                        <Ionicons name="navigate-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
-                        <TextInput style={mStyles.input} value={latitude} onChangeText={setLatitude}
-                          placeholder="48.8566" placeholderTextColor="rgba(255,255,255,0.2)"
-                          keyboardType="decimal-pad" />
-                      </View>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={mStyles.fieldLabel}>Longitude</Text>
-                      <View style={mStyles.inputWrap}>
-                        <Ionicons name="navigate-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
-                        <TextInput style={mStyles.input} value={longitude} onChangeText={setLongitude}
-                          placeholder="2.3522" placeholderTextColor="rgba(255,255,255,0.2)"
-                          keyboardType="decimal-pad" />
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* ── Section : Activité ── */}
-                  <Text style={[mStyles.sectionHeading, { marginTop: spacing[4] }]}>Activité</Text>
-
-                  {/* Category dropdown */}
-                  <Text style={mStyles.fieldLabel}>Catégorie *</Text>
-                  <TouchableOpacity
-                    style={[mStyles.inputWrap, { justifyContent: 'space-between' }]}
-                    onPress={toggleCategoryDropdown}
-                    activeOpacity={0.7}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], flex: 1 }}>
-                      <Ionicons name="grid-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
-                      <Text style={[mStyles.input, !selectedCategory && { color: 'rgba(255,255,255,0.2)' }]}>
-                        {selectedCategory?.name ?? 'Sélectionnez une catégorie'}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                      size={wp(16)}
-                      color="rgba(255,255,255,0.35)"
-                    />
-                  </TouchableOpacity>
-
-                  {categoryDropdownOpen && (
-                    <View style={mStyles.dropdownList}>
-                      {categoriesQ.isLoading ? (
-                        <ActivityIndicator size="small" color={colors.orange[400]} style={{ padding: spacing[3] }} />
-                      ) : (
-                        categories.map((cat) => {
-                          const sel = cat.id === selectedCategoryId;
-                          return (
-                            <TouchableOpacity
-                              key={cat.id}
-                              style={[mStyles.dropdownItem, sel && mStyles.dropdownItemActive]}
-                              onPress={() => {
-                                setSelectedCategoryId(sel ? null : cat.id);
-                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                                setCategoryDropdownOpen(false);
-                              }}
-                            >
-                              <Text style={[mStyles.dropdownItemText, sel && mStyles.dropdownItemTextActive]}>
-                                {cat.name ?? cat.code ?? cat.id.slice(0, 8)}
-                              </Text>
-                              {sel && <Ionicons name="checkmark" size={wp(16)} color={colors.orange[400]} />}
-                            </TouchableOpacity>
-                          );
-                        })
-                      )}
-                    </View>
-                  )}
-
-                  <Text style={[mStyles.fieldLabel, { marginTop: spacing[3] }]}>Réduction moyenne (%)</Text>
-                  <View style={mStyles.inputWrap}>
-                    <Ionicons name="pricetag-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
-                    <TextInput style={mStyles.input} value={avgDiscount} onChangeText={setAvgDiscount}
-                      placeholder="Ex: 10" placeholderTextColor="rgba(255,255,255,0.2)"
-                      keyboardType="numeric" maxLength={3} />
-                    <Text style={mStyles.unitText}>%</Text>
-                  </View>
-
-                  {/* ── Section : Contact ── */}
-                  <Text style={[mStyles.sectionHeading, { marginTop: spacing[4] }]}>Contact</Text>
-
-                  <View style={mStyles.row2}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={mStyles.fieldLabel}>Téléphone</Text>
-                      <View style={mStyles.inputWrap}>
-                        <Ionicons name="call-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
-                        <TextInput style={mStyles.input} value={phone} onChangeText={setPhone}
-                          placeholder="+33 ..." placeholderTextColor="rgba(255,255,255,0.2)"
-                          keyboardType="phone-pad" />
-                      </View>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={mStyles.fieldLabel}>Email</Text>
-                      <View style={mStyles.inputWrap}>
-                        <Ionicons name="mail-outline" size={wp(14)} color="rgba(255,255,255,0.35)" />
-                        <TextInput style={mStyles.input} value={email} onChangeText={setEmail}
-                          placeholder="contact@..." placeholderTextColor="rgba(255,255,255,0.2)"
-                          keyboardType="email-address" autoCapitalize="none" />
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* ── Section : Horaires (accordion) ── */}
-                  <Text style={[mStyles.sectionHeading, { marginTop: spacing[4] }]}>Horaires d'ouverture</Text>
-
-                  <TouchableOpacity
-                    style={[mStyles.accordionHeader, openingExpanded && mStyles.accordionHeaderActive]}
-                    onPress={toggleOpeningAccordion}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="time-outline" size={wp(16)} color={openingExpanded ? colors.orange[400] : 'rgba(255,255,255,0.35)'} />
-                    <Text style={[mStyles.accordionTitle, openingExpanded && mStyles.accordionTitleActive]}>
-                      {openingExpanded ? 'Masquer les horaires' : 'Définir les horaires'}
-                    </Text>
-                    <Ionicons
-                      name={openingExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={wp(16)}
-                      color={openingExpanded ? colors.orange[400] : 'rgba(255,255,255,0.35)'}
-                    />
-                  </TouchableOpacity>
-
-                  {openingExpanded && (
-                    <View style={mStyles.accordionBody}>
-                      <OpeningHoursEditor
-                        value={openingHours}
-                        onChange={setOpeningHours}
-                      />
-                    </View>
-                  )}
-
-                  {mutation.isError && (
-                    <Text style={[mStyles.errorText, { marginTop: spacing[3] }]}>
-                      Une erreur est survenue. Veuillez réessayer.
-                    </Text>
-                  )}
-
-                </View>
+                {mutation.isError && (
+                  <Text style={mStyles.errorText}>
+                    {(mutation.error as any)?.response?.data?.detail ?? 'Une erreur est survenue. Veuillez réessayer.'}
+                  </Text>
+                )}
               </ScrollView>
 
+              {/* Bottom actions */}
               <View style={mStyles.formActions}>
-                <TouchableOpacity
-                  style={[mStyles.submitBtn, !isValid && mStyles.submitBtnDisabled]}
-                  onPress={() => mutation.mutate()}
-                  disabled={!isValid || mutation.isPending}
-                  activeOpacity={0.8}
-                >
-                  {mutation.isPending ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="storefront-outline" size={wp(18)} color="#FFFFFF" />
-                      <Text style={mStyles.submitBtnText}>Créer le magasin</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity style={mStyles.cancelBtn} onPress={resetAndClose}>
-                  <Text style={mStyles.cancelBtnText}>Annuler</Text>
-                </TouchableOpacity>
+                {step > 0 && (
+                  <TouchableOpacity style={mStyles.backBtn} onPress={goBack} activeOpacity={0.7}>
+                    <Ionicons name="arrow-back" size={wp(18)} color="rgba(255,255,255,0.5)" />
+                    <Text style={mStyles.backBtnText}>Retour</Text>
+                  </TouchableOpacity>
+                )}
+
+                {step < STEPS.length - 1 ? (
+                  <TouchableOpacity
+                    style={[mStyles.nextBtn, isNextDisabled && mStyles.nextBtnDisabled, step === 0 && { flex: 1 }]}
+                    onPress={goNext}
+                    disabled={isNextDisabled}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={mStyles.nextBtnText}>Continuer</Text>
+                    <Ionicons name="arrow-forward" size={wp(18)} color="#FFFFFF" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[mStyles.submitBtn, !canSubmit && mStyles.submitBtnDisabled]}
+                    onPress={() => mutation.mutate()}
+                    disabled={!canSubmit || mutation.isPending}
+                    activeOpacity={0.8}
+                  >
+                    {mutation.isPending ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="storefront-outline" size={wp(18)} color="#FFFFFF" />
+                        <Text style={mStyles.submitBtnText}>Envoyer la demande</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           )}
@@ -882,6 +992,8 @@ const mStyles = StyleSheet.create({
     overflow: 'hidden',
     borderTopWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
+    maxHeight: SCREEN_HEIGHT * 0.92,
+    minHeight: SCREEN_HEIGHT * 0.80,
   },
   handle: {
     width: wp(40),
@@ -892,56 +1004,154 @@ const mStyles = StyleSheet.create({
     marginVertical: spacing[3],
   },
 
-  /* Form */
-  formWrap: { paddingBottom: spacing[6] },
-  formHeader: {
-    marginHorizontal: spacing[5],
-    borderRadius: borderRadius.xl,
-    alignItems: 'center',
-    paddingVertical: spacing[4],
-    marginBottom: spacing[4],
-  },
-  formIconWrap: {
-    width: wp(56),
-    height: wp(56),
-    borderRadius: wp(28),
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  /* ── Step indicator ── */
+  stepRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing[2],
+    paddingHorizontal: spacing[6],
+    marginBottom: spacing[4],
   },
-  formTitle: { ...textStyles.h4, fontFamily: fontFamily.bold, color: '#FFFFFF' },
-  formSub: { ...textStyles.caption, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepDot: {
+    width: wp(26),
+    height: wp(26),
+    borderRadius: wp(13),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotDone: {
+    backgroundColor: colors.orange[500],
+    borderColor: colors.orange[500],
+  },
+  stepDotActive: {
+    borderColor: colors.orange[400],
+    backgroundColor: 'rgba(255,106,0,0.15)',
+  },
+  stepNum: {
+    fontSize: wp(11),
+    fontFamily: fontFamily.semiBold,
+    color: 'rgba(255,255,255,0.25)',
+  },
+  stepNumActive: {
+    color: colors.orange[400],
+  },
+  stepLabel: {
+    fontSize: wp(9),
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.2)',
+    marginLeft: spacing[1],
+  },
+  stepLabelActive: {
+    color: 'rgba(255,255,255,0.6)',
+  },
+  stepLine: {
+    width: wp(20),
+    height: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginHorizontal: spacing[1],
+  },
+  stepLineDone: {
+    backgroundColor: colors.orange[500],
+  },
 
-  fields: { paddingHorizontal: spacing[5] },
-  readOnlyRow: {
+  /* ── Form header ── */
+  formWrap: { flex: 1, flexShrink: 1 },
+  formHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing[5],
+    marginBottom: spacing[4],
+  },
+  formHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  formIconBubble: {
+    width: wp(40),
+    height: wp(40),
+    borderRadius: wp(20),
+    backgroundColor: 'rgba(255,106,0,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formTitle: {
+    ...textStyles.body,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+  },
+  formPartnerName: {
+    ...textStyles.caption,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 1,
+  },
+
+  /* ── Scroll / step content ── */
+  scrollArea: {
+    flex: 1,
+    minHeight: SCREEN_HEIGHT * 0.35,
+    maxHeight: SCREEN_HEIGHT * 0.52,
+  },
+  stepContent: {
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[4],
+  },
+  fieldGroup: {
+    marginBottom: spacing[3],
+  },
+  fieldLabel: {
+    ...textStyles.caption,
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: spacing[1],
+  },
+  required: {
+    color: colors.orange[400],
+  },
+  fieldHint: {
+    ...textStyles.micro,
+    color: 'rgba(255,255,255,0.2)',
+    marginTop: spacing[1],
+  },
+  row2: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    marginBottom: spacing[3],
+  },
+  inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    paddingVertical: spacing[2],
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: spacing[3],
+    paddingVertical: Platform.OS === 'ios' ? spacing[3] : spacing[2],
   },
-  readOnlyLabel: { ...textStyles.caption, color: 'rgba(255,255,255,0.35)', flex: 1 },
-  readOnlyValue: { ...textStyles.body, fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.7)', flex: 2, textAlign: 'right' },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: spacing[2] },
-  fieldLabel: { ...textStyles.caption, color: 'rgba(255,255,255,0.4)', marginBottom: spacing[1] },
-  sectionHeading: { ...textStyles.caption, fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.55)', marginBottom: spacing[2], textTransform: 'uppercase', letterSpacing: 0.6 },
-  fieldHint: { ...textStyles.micro, color: 'rgba(255,255,255,0.25)', marginBottom: spacing[2], marginTop: -spacing[1] },
-  row2: { flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginBottom: spacing[2] },
-  chip: { paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: borderRadius.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.04)' },
-  chipActive: { backgroundColor: 'rgba(255,106,0,0.2)', borderColor: colors.orange[500] },
-  chipText: { ...textStyles.caption, color: 'rgba(255,255,255,0.45)', fontFamily: fontFamily.medium },
-  chipTextActive: { color: colors.orange[300] },
+  input: {
+    flex: 1,
+    ...textStyles.body,
+    color: '#FFFFFF',
+    fontFamily: fontFamily.regular,
+    paddingVertical: 0,
+  },
   unitText: { ...textStyles.body, color: 'rgba(255,255,255,0.3)' },
 
-  /* Dropdown */
+  /* ── Dropdown ── */
   dropdownList: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     marginTop: spacing[1],
-    marginBottom: spacing[2],
     maxHeight: wp(200),
     overflow: 'hidden',
   },
@@ -967,7 +1177,7 @@ const mStyles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
   },
 
-  /* Accordion (opening hours) */
+  /* ── Accordion (opening hours) ── */
   accordionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -996,34 +1206,68 @@ const mStyles = StyleSheet.create({
     marginTop: spacing[2],
     paddingHorizontal: spacing[1],
   },
-  inputWrap: {
+
+  /* ── Summary card ── */
+  summaryCard: {
+    marginTop: spacing[4],
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,106,0,0.15)',
+    padding: spacing[4],
+  },
+  summaryTitle: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.semiBold,
+    color: 'rgba(255,255,255,0.55)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: spacing[3],
+  },
+  summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
+    marginBottom: spacing[2],
   },
-  input: {
-    flex: 1,
+  summaryText: {
     ...textStyles.body,
-    color: '#FFFFFF',
-    fontFamily: fontFamily.regular,
-    paddingVertical: 0,
+    color: 'rgba(255,255,255,0.65)',
+    flex: 1,
   },
+
+  /* ── Error ── */
   errorText: {
     ...textStyles.caption,
     color: '#F87171',
     textAlign: 'center',
     marginHorizontal: spacing[5],
-    marginBottom: spacing[3],
+    marginTop: spacing[3],
+    marginBottom: spacing[2],
   },
 
-  formActions: { gap: spacing[3], paddingHorizontal: spacing[5], marginTop: spacing[4] },
-  submitBtn: {
+  /* ── Bottom actions ── */
+  formActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+  },
+  backBtnText: {
+    ...textStyles.body,
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: fontFamily.medium,
+  },
+  nextBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1032,12 +1276,28 @@ const mStyles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     paddingVertical: spacing[4],
   },
-  submitBtnDisabled: { backgroundColor: 'rgba(255,106,0,0.35)' },
+  nextBtnDisabled: {
+    backgroundColor: 'rgba(255,106,0,0.3)',
+  },
+  nextBtnText: {
+    ...textStyles.body,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+  },
+  submitBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    backgroundColor: colors.orange[500],
+    borderRadius: borderRadius.xl,
+    paddingVertical: spacing[4],
+  },
+  submitBtnDisabled: { backgroundColor: 'rgba(255,106,0,0.3)' },
   submitBtnText: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
-  cancelBtn: { alignItems: 'center', paddingVertical: spacing[3] },
-  cancelBtnText: { ...textStyles.body, color: 'rgba(255,255,255,0.3)', fontFamily: fontFamily.medium },
 
-  /* Success */
+  /* ── Success ── */
   successWrap: {
     alignItems: 'center',
     paddingHorizontal: spacing[6],
