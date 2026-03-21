@@ -122,6 +122,15 @@ export default function StoreOperatorProfileScreen() {
   const confirmLogout = async () => {
     try {
       setShowLogoutModal(false);
+      try {
+        const SecureStore = await import('expo-secure-store');
+        const pushToken = await SecureStore.getItemAsync('expo_push_token');
+        if (pushToken) {
+          const { pushDeviceApi } = await import('../../src/api/push-device.api');
+          pushDeviceApi.unregister({ token: pushToken }).catch(() => {});
+          SecureStore.deleteItemAsync('expo_push_token').catch(() => {});
+        }
+      } catch {}
       queryClient.cancelQueries();
       queryClient.clear();
       if (refreshToken) {

@@ -1,43 +1,54 @@
 /**
- * Maya Connect V2 — Partner Profile Screen
- *
- * Profile management for partner / store operator role.
+ * Maya Connect V2 — Partner Profile Screen (redesigned)
  */
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Alert,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Keyboard,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authApi } from '../../src/api/auth.api';
+import { MAvatar, MButton, MModal } from '../../src/components/ui';
 import { useAuthStore } from '../../src/stores/auth.store';
-import { partnerColors as colors } from '../../src/theme/colors';
-import { textStyles, fontFamily } from '../../src/theme/typography';
-import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
-import { wp } from '../../src/utils/responsive';
+import { usePartnerStore } from '../../src/stores/partner.store';
+import { borderRadius, shadows, spacing } from '../../src/theme/spacing';
+import { fontFamily } from '../../src/theme/typography';
 import {
-  MButton,
-  MCard,
-  MAvatar,
-  MDivider,
-  MModal,
-} from '../../src/components/ui';
+  authenticateWithBiometric,
+  checkBiometricAvailability,
+  clearBiometricCredentials,
+  getBiometricType,
+  isBiometricLoginEnabled,
+  saveBiometricCredentials,
+} from '../../src/utils/biometric';
+import { wp } from '../../src/utils/responsive';
 
-interface MenuItem {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  label: string;
-  color?: string;
-  onPress: () => void;
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface Section {
+  title: string;
+  items: {
+    icon: IoniconsName;
+    label: string;
+    sublabel?: string;
+    onPress: () => void;
+    danger?: boolean;
+    accent?: string;
+  }[];
 }
 
 export default function PartnerProfileScreen() {
@@ -48,25 +59,100 @@ export default function PartnerProfileScreen() {
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
   const refreshToken = useAuthStore((s) => s.refreshToken);
-  /* ---- Profile query ---- */
+  const stores = usePartnerStore((s) => s.stores);
+  const partner = usePartnerStore((s) => s.partner);
+
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Biometric state
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricType, setBiometricType] = useState<string>('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingPassword, setPendingPassword] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const passwordInputRef = useRef<TextInput>(null);
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => {
+      Animated.timing(keyboardOffset, {
+        toValue: e.endCoordinates.height,
+        duration: e.duration || 250,
+        useNativeDriver: true,
+      }).start();
+    });
+    const hide = Keyboard.addListener('keyboardWillHide', (e) => {
+      Animated.timing(keyboardOffset, {
+        toValue: 0,
+        duration: e.duration || 200,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const available = await checkBiometricAvailability();
+      setBiometricAvailable(available);
+      if (available) {
+        const type = await getBiometricType();
+        setBiometricType(type);
+        const enabled = await isBiometricLoginEnabled();
+        setBiometricEnabled(enabled);
+      }
+    })();
+  }, []);
+
+  const toggleBiometric = async (value: boolean) => {
+    if (value) {
+      const success = await authenticateWithBiometric(`Activer ${biometricType}`);
+      if (!success) return;
+      setShowPasswordModal(true);
+    } else {
+      const success = await authenticateWithBiometric(`Désactiver ${biometricType}`);
+      if (!success) return;
+      await clearBiometricCredentials();
+      setBiometricEnabled(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const confirmBiometricPassword = async () => {
+    if (!pendingPassword.trim()) return;
+    try {
+      setVerifyingPassword(true);
+      await authApi.login({ email: user?.email ?? '', password: pendingPassword });
+      await saveBiometricCredentials(user?.email ?? '', pendingPassword);
+      setBiometricEnabled(true);
+      setShowPasswordModal(false);
+      setPendingPassword('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.title ||
+        'Mot de passe incorrect. Veuillez réessayer.';
+      Alert.alert('Erreur', msg);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
   const profileQ = useQuery({
     queryKey: ['profile'],
     queryFn: () => authApi.getProfile(),
     select: (res) => res.data,
     initialData: { data: user } as any,
   });
-
   const profile = profileQ.data ?? user;
 
-  /* ---- Avatar upload ---- */
   const avatarMutation = useMutation({
     mutationFn: async (uri: string) => {
       const form = new FormData();
-      form.append('file', {
-        uri,
-        name: 'avatar.jpg',
-        type: 'image/jpeg',
-      } as any);
+      form.append('file', { uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
       return authApi.uploadAvatar(form);
     },
     onSuccess: (res) => {
@@ -76,520 +162,606 @@ export default function PartnerProfileScreen() {
   });
 
   const pickAvatar = () => {
-    Alert.alert(
-      'Photo de profil',
-      'Choisissez une option',
-      [
-        {
-          text: 'Prendre une photo',
-          onPress: async () => {
-            const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-            if (!granted) { Alert.alert('Permission refusée', "L'accès à l'appareil photo est nécessaire."); return; }
-            const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-            if (!result.canceled && result.assets[0]) avatarMutation.mutate(result.assets[0].uri);
-          },
+    Alert.alert('Photo de profil', 'Choisissez une option', [
+      {
+        text: 'Prendre une photo',
+        onPress: async () => {
+          const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+          if (!granted) return;
+          const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+          if (!result.canceled && result.assets[0]) avatarMutation.mutate(result.assets[0].uri);
         },
-        {
-          text: 'Choisir depuis la galerie',
-          onPress: async () => {
-            const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!granted) { Alert.alert('Permission refusée', "L'accès à la galerie est nécessaire."); return; }
-            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-            if (!result.canceled && result.assets[0]) avatarMutation.mutate(result.assets[0].uri);
-          },
+      },
+      {
+        text: 'Choisir depuis la galerie',
+        onPress: async () => {
+          const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!granted) return;
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+          if (!result.canceled && result.assets[0]) avatarMutation.mutate(result.assets[0].uri);
         },
-        { text: 'Annuler', style: 'cancel' },
-      ],
-      { cancelable: true },
-    );
+      },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
   };
-
-  /* ---- Logout ---- */
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const confirmLogout = async () => {
     try {
       setShowLogoutModal(false);
+      try {
+        const SecureStore = await import('expo-secure-store');
+        const pushToken = await SecureStore.getItemAsync('expo_push_token');
+        if (pushToken) {
+          const { pushDeviceApi } = await import('../../src/api/push-device.api');
+          pushDeviceApi.unregister({ token: pushToken }).catch(() => {});
+          SecureStore.deleteItemAsync('expo_push_token').catch(() => {});
+        }
+      } catch {}
       queryClient.cancelQueries();
       queryClient.clear();
-      if (refreshToken) {
-        authApi.logout({ refreshToken }).catch(() => {});
-      }
+      if (refreshToken) authApi.logout({ refreshToken }).catch(() => {});
       await logout();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => {
-        router.replace('/auth/login');
-      }, 100);
+      setTimeout(() => router.replace('/auth/login'), 100);
     } catch {
       await logout().catch(() => {});
       router.replace('/auth/login');
     }
   };
 
-  const handleLogout = () => setShowLogoutModal(true);
+  const fullName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Partenaire';
+  const partnerName = partner?.displayName ?? partner?.legalName ?? null;
 
-  const menuItems: MenuItem[] = [
+  const sections: Section[] = [
     {
-      icon: 'storefront-outline',
-      label: 'Mes magasins',
-      onPress: () => router.push('/(partner)/stores'),
+      title: 'Mon compte',
+      items: [
+        {
+          icon: 'person-outline',
+          label: 'Modifier le profil',
+          sublabel: 'Nom, téléphone, adresse',
+          onPress: () => router.push('/(partner)/edit-profile' as any),
+        },
+        {
+          icon: 'lock-closed-outline',
+          label: 'Changer le mot de passe',
+          sublabel: 'Sécurité du compte',
+          onPress: () => router.push('/(partner)/change-password' as any),
+        },
+      ],
     },
     {
-      icon: 'receipt-outline',
-      label: 'Historique des transactions',
-      onPress: () => router.push('/(partner)/history'),
+      title: 'Mon équipe',
+      items: [
+        {
+          icon: 'people-outline',
+          label: 'Gérer les opérateurs',
+          sublabel: 'Inviter et gérer votre équipe',
+          onPress: () => router.push('/(partner)/team' as any),
+          accent: '#818CF8',
+        },
+      ],
     },
     {
-      icon: 'scan-outline',
-      label: 'Scanner un QR code',
-      onPress: () => router.push('/(partner)/scanner'),
+      title: 'Activité',
+      items: [
+        {
+          icon: 'time-outline',
+          label: 'Historique',
+          sublabel: 'Transactions et activités',
+          onPress: () => router.push('/(partner)/history' as any),
+          accent: '#34D399',
+        },
+      ],
     },
     {
-      icon: 'people-outline' as const,
-      label: 'Mon équipe',
-      onPress: () => router.push('/(partner)/team' as any),
-    },
-    {
-      icon: 'lock-closed-outline',
-      label: 'Changer le mot de passe',
-      onPress: () => router.push('/(partner)/change-password' as any),
+      title: 'Session',
+      items: [
+        {
+          icon: 'log-out-outline',
+          label: 'Se déconnecter',
+          onPress: () => setShowLogoutModal(true),
+          danger: true,
+        },
+      ],
     },
   ];
 
-  const roleName = profile?.role?.toLowerCase?.() ??
-    profile?.roles?.[0]?.name?.toLowerCase?.() ?? '';
-
   return (
     <View style={styles.container}>
-      {/* Gradient header with rounded bottom */}
-      <LinearGradient
-        colors={['#FF6A00', '#FFB347']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + spacing[3] }]}
-      >
-        {/* Avatar centré */}
-        <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap}>
-          <MAvatar
-            name={profile?.firstName ?? 'P'}
-            uri={profile?.avatarUrl}
-            size="lg"
-          />
-          <View style={styles.cameraBadge}>
-            <Ionicons name="camera" size={wp(14)} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
-
-        <Text style={styles.profileName}>
-          {profile?.firstName} {profile?.lastName}
-        </Text>
-        <Text style={styles.profileEmail}>{profile?.email}</Text>
-
-        {roleName ? (
-          <View style={styles.roleBadge}>
-            <Ionicons name="briefcase-outline" size={wp(11)} color="#FFFFFF" />
-            <Text style={styles.roleText}>
-              {roleName === 'partner' ? 'Partenaire' : 'Opérateur'}
-            </Text>
-          </View>
-        ) : null}
-      </LinearGradient>
-
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
       >
-        {/* Informations personnelles — read-only */}
-        <MCard style={styles.formCard} elevation="sm">
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <View style={styles.cardTitleIcon}>
-                <Ionicons name="person-outline" size={wp(16)} color={colors.violet[500]} />
-              </View>
-              <Text style={styles.cardTitle}>Informations personnelles</Text>
+        {/* ── Hero header ── */}
+        <LinearGradient
+          colors={['#0F172A', '#1E293B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={[styles.hero, { paddingTop: insets.top + spacing[3] }]}
+        >
+          {/* Avatar */}
+          <TouchableOpacity onPress={pickAvatar} style={styles.avatarWrap} activeOpacity={0.85}>
+            <View style={styles.avatarBorder}>
+              <MAvatar
+                uri={profile?.avatarUrl}
+                name={fullName}
+                size="lg"
+              />
             </View>
-            <TouchableOpacity
-              style={styles.editBtnWrap}
-              onPress={() => router.push('/(partner)/edit-profile' as any)}
-            >
-              <Text style={styles.editBtn}>Modifier</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.cameraBadge}>
+              <Ionicons name="camera" size={wp(13)} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconWrap}>
-              <Ionicons name="person-outline" size={wp(14)} color={colors.violet[500]} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Nom complet</Text>
-              <Text style={styles.infoValue}>{profile?.firstName} {profile?.lastName}</Text>
-            </View>
-          </View>
+          <Text style={styles.heroName}>{fullName}</Text>
+          {partnerName && <Text style={styles.heroPartner}>{partnerName}</Text>}
+          <Text style={styles.heroEmail}>{profile?.email}</Text>
 
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconWrap}>
-              <Ionicons name="mail-outline" size={wp(14)} color={colors.violet[500]} />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{profile?.email ?? '—'}</Text>
-            </View>
-          </View>
+       
+        </LinearGradient>
 
-          {profile?.phoneNumber ? (
+        {/* ── Content below header ── */}
+        <View style={styles.content}>
+          {/* Info card */}
+          <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <View style={styles.infoIconWrap}>
-                <Ionicons name="call-outline" size={wp(14)} color={colors.violet[500]} />
+                <Ionicons name="mail-outline" size={wp(16)} color="#FF7A18" />
               </View>
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Téléphone</Text>
-                <Text style={styles.infoValue}>{profile.phoneNumber}</Text>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{profile?.email ?? '—'}</Text>
+              </View>
+            </View>
+            {profile?.phoneNumber ? (
+              <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }]}>
+                <View style={styles.infoIconWrap}>
+                  <Ionicons name="call-outline" size={wp(16)} color="#FF7A18" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Téléphone</Text>
+                  <Text style={styles.infoValue}>{profile.phoneNumber}</Text>
+                </View>
+              </View>
+            ) : null}
+            {profile?.address?.city ? (
+              <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }]}>
+                <View style={styles.infoIconWrap}>
+                  <Ionicons name="location-outline" size={wp(16)} color="#FF7A18" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Ville</Text>
+                  <Text style={styles.infoValue}>
+                    {[profile.address.city, profile.address.country].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Biometric section */}
+          {biometricAvailable ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Sécurité</Text>
+              <View style={styles.sectionCard}>
+                <View style={styles.biometricRow}>
+                  <View style={styles.biometricLeft}>
+                    <View style={styles.itemIcon}>
+                      <Ionicons
+                        name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
+                        size={wp(20)}
+                        color="#FF7A18"
+                      />
+                    </View>
+                    <View style={styles.biometricInfo}>
+                      <Text style={styles.itemLabel}>{biometricType}</Text>
+                      <Text style={styles.itemSublabel}>
+                        Se connecter avec {biometricType.toLowerCase()}
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={biometricEnabled}
+                    onValueChange={toggleBiometric}
+                    trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(255,122,24,0.4)' }}
+                    thumbColor={biometricEnabled ? '#FF7A18' : 'rgba(255,255,255,0.4)'}
+                  />
+                </View>
               </View>
             </View>
           ) : null}
-        </MCard>
 
-        {/* Navigation rapide */}
-        <MCard style={styles.menuCard} elevation="sm">
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <View style={styles.cardTitleIcon}>
-                <Ionicons name="apps-outline" size={wp(16)} color={colors.violet[500]} />
+          {/* Menu sections */}
+          {sections.map((section) => (
+            <View key={section.title} style={styles.section}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <View style={styles.sectionCard}>
+                {section.items.map((item, idx) => (
+                  <React.Fragment key={item.label}>
+                    {idx > 0 && <View style={styles.itemDivider} />}
+                    <TouchableOpacity
+                      style={styles.item}
+                      onPress={item.onPress}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[
+                        styles.itemIcon,
+                        item.danger && styles.itemIconDanger,
+                        item.accent && { backgroundColor: `${item.accent}18` },
+                      ]}>
+                        <Ionicons
+                          name={item.icon}
+                          size={wp(20)}
+                          color={item.danger ? '#EF4444' : item.accent ?? '#FF7A18'}
+                        />
+                      </View>
+                      <View style={styles.itemContent}>
+                        <Text style={[styles.itemLabel, item.danger && styles.itemLabelDanger]}>
+                          {item.label}
+                        </Text>
+                        {item.sublabel && (
+                          <Text style={styles.itemSublabel}>{item.sublabel}</Text>
+                        )}
+                      </View>
+                      <View style={styles.itemChevron}>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={wp(14)}
+                          color={item.danger ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                ))}
               </View>
-              <Text style={styles.cardTitle}>Navigation</Text>
             </View>
-          </View>
-          {menuItems.map((item, idx) => (
-            <React.Fragment key={item.label}>
-              <TouchableOpacity style={styles.menuItem} onPress={item.onPress} activeOpacity={0.7}>
-                <View style={[styles.menuIcon, item.color ? { backgroundColor: `${item.color}18` } : undefined]}>
-                  <Ionicons name={item.icon} size={wp(20)} color={item.color ?? colors.violet[500]} />
-                </View>
-                <Text style={[styles.menuLabel, item.color ? { color: item.color } : undefined]}>
-                  {item.label}
-                </Text>
-                <View style={styles.chevronBox}>
-                  <Ionicons name="chevron-forward" size={wp(14)} color={colors.neutral[400]} />
-                </View>
-              </TouchableOpacity>
-              {idx < menuItems.length - 1 && <MDivider />}
-            </React.Fragment>
           ))}
-        </MCard>
-
-        {/* Déconnexion */}
-        <MCard style={styles.logoutCard} elevation="sm">
-          <TouchableOpacity style={styles.menuItem} onPress={handleLogout} activeOpacity={0.7}>
-            <View style={[styles.menuIcon, { backgroundColor: `${colors.error[500]}18` }]}>
-              <Ionicons name="log-out-outline" size={wp(20)} color={colors.error[500]} />
-            </View>
-            <Text style={[styles.menuLabel, { color: colors.error[500] }]}>
-              Se déconnecter
-            </Text>
-            <View style={styles.chevronBox}>
-              <Ionicons name="chevron-forward" size={wp(14)} color={colors.error[400]} />
-            </View>
-          </TouchableOpacity>
-        </MCard>
-
-        <View style={{ height: wp(100) }} />
+        </View>
       </ScrollView>
 
-      {/* Logout confirmation modal */}
-      <MModal
-        visible={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        title="Déconnexion"
-      >
+      {/* Logout modal */}
+      <MModal visible={showLogoutModal} onClose={() => setShowLogoutModal(false)} title="Déconnexion">
         <View style={{ alignItems: 'center', paddingVertical: spacing[4] }}>
-          <View style={styles.logoutModalIcon}>
-            <Ionicons name="log-out-outline" size={wp(32)} color={colors.error[500]} />
+          <View style={styles.logoutIcon}>
+            <Ionicons name="log-out-outline" size={wp(32)} color="#EF4444" />
           </View>
-          <Text style={[textStyles.body, { textAlign: 'center', marginTop: spacing[3], color: colors.neutral[600] }]}>
+          <Text style={styles.logoutText}>
             Êtes-vous sûr de vouloir vous déconnecter ?
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
-          <MButton
-            title="Annuler"
-            variant="outline"
-            onPress={() => setShowLogoutModal(false)}
-            style={{ flex: 1 }}
-          />
-          <MButton
-            title="Déconnecter"
-            variant="danger"
-            onPress={confirmLogout}
-            style={{ flex: 1 }}
-          />
+          <MButton title="Annuler" variant="outline" onPress={() => setShowLogoutModal(false)} style={{ flex: 1 }} />
+          <MButton title="Déconnecter" variant="danger" onPress={confirmLogout} style={{ flex: 1 }} />
         </View>
+      </MModal>
+
+      {/* Biometric Password Modal */}
+      <MModal
+        visible={showPasswordModal}
+        onClose={() => { setShowPasswordModal(false); setPendingPassword(''); }}
+        title={`Activer ${biometricType}`}
+      >
+        <Animated.View style={{ transform: [{ translateY: Animated.multiply(keyboardOffset, -1) }] }}>
+          <View style={{ alignItems: 'center', paddingTop: spacing[4] }}>
+            <Ionicons
+              name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
+              size={wp(48)}
+              color="#FF7A18"
+            />
+            <Text style={styles.biometricModalText}>
+              Entrez votre mot de passe pour associer {biometricType.toLowerCase()} à votre compte.
+            </Text>
+            <TextInput
+              ref={passwordInputRef}
+              value={pendingPassword}
+              onChangeText={setPendingPassword}
+              secureTextEntry
+              placeholder="Mot de passe"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              autoFocus
+              style={styles.biometricPasswordInput}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
+            <MButton
+              title="Annuler"
+              variant="outline"
+              onPress={() => { setShowPasswordModal(false); setPendingPassword(''); }}
+              style={{ flex: 1 }}
+            />
+            <MButton
+              title="Confirmer"
+              onPress={confirmBiometricPassword}
+              loading={verifyingPassword}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Animated.View>
       </MModal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.neutral[50] },
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
 
-  /* ── Header ── */
-  header: {
-    paddingHorizontal: spacing[4],
-    paddingBottom: spacing[8],
+  /* ── Hero ── */
+  hero: {
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[5],
     alignItems: 'center',
-    borderBottomLeftRadius: wp(32),
-    borderBottomRightRadius: wp(32),
+    borderBottomLeftRadius: wp(24),
+    borderBottomRightRadius: wp(24),
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   avatarWrap: {
     position: 'relative',
     marginBottom: spacing[3],
+    marginTop: 0,
+  },
+  avatarBorder: {
+    borderWidth: 3,
+    borderColor: 'rgba(255,122,24,0.5)',
+    borderRadius: borderRadius.full,
+    padding: 2,
+    backgroundColor: 'rgba(255,122,24,0.08)',
   },
   cameraBadge: {
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: wp(26),
-    height: wp(26),
-    borderRadius: wp(13),
-    backgroundColor: colors.violet[500],
+    width: wp(28),
+    height: wp(28),
+    borderRadius: wp(14),
+    backgroundColor: '#FF7A18',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: '#0F172A',
   },
-  profileName: {
-    ...textStyles.h3,
+  heroName: {
+    fontSize: wp(19),
+    fontFamily: fontFamily.bold,
     color: '#FFFFFF',
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
-  profileEmail: {
-    ...textStyles.caption,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: spacing[1],
+  heroPartner: {
+    fontSize: wp(12),
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
     textAlign: 'center',
   },
-  roleBadge: {
+  heroEmail: {
+    fontSize: wp(11),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.3)',
+    marginTop: 2,
+    textAlign: 'center',
+    marginBottom: spacing[3],
+  },
+
+  /* Stats */
+  statsRow: {
     flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: borderRadius.xl,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[6],
+    alignItems: 'center',
+    gap: spacing[5],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  statItem: {
+    flex: 1,
     alignItems: 'center',
     gap: spacing[1],
-    marginTop: spacing[2],
+  },
+  statValue: {
+    fontSize: wp(18),
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+  },
+  statLabel: {
+    fontSize: wp(10),
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.55)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: wp(28),
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  rolePill: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: borderRadius.full,
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  roleText: {
-    ...textStyles.micro,
+  rolePillText: {
+    fontSize: wp(11),
     fontFamily: fontFamily.semiBold,
     color: '#FFFFFF',
   },
 
-  /* ── Scroll ── */
-  scroll: { flex: 1 },
-  scrollContent: {
-    padding: spacing[4],
+  /* ── Content area below header ── */
+  content: {
+    paddingHorizontal: spacing[4],
     paddingTop: spacing[5],
+    gap: spacing[4],
   },
 
-  /* ── Cards ── */
-  formCard: {
-    marginBottom: spacing[3],
-    backgroundColor: '#111827',
+  /* ── Info card ── */
+  infoCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: borderRadius['2xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    overflow: 'hidden',
+    ...shadows.md,
   },
-  menuCard: {
-    marginBottom: spacing[3],
-    backgroundColor: '#111827',
-  },
-  logoutCard: {
-    marginBottom: spacing[3],
-    backgroundColor: '#111827',
-  },
-
-  /* ── Info rows ── */
   infoRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingVertical: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
   },
   infoIconWrap: {
-    width: wp(32),
-    height: wp(32),
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.violet[50],
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    width: wp(36),
+    height: wp(36),
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255,122,24,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   infoContent: { flex: 1 },
   infoLabel: {
-    fontSize: 10,
+    fontSize: wp(10),
     fontFamily: fontFamily.medium,
     color: 'rgba(255,255,255,0.35)',
-    textTransform: 'uppercase' as const,
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   infoValue: {
-    ...textStyles.body,
-    color: 'rgba(255,255,255,0.85)',
+    fontSize: wp(14),
     fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.85)',
   },
 
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing[4],
-  },
-  cardTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  cardTitleIcon: {
-    width: wp(30),
-    height: wp(30),
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.violet[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    ...textStyles.body,
+  /* ── Sections ── */
+  section: {},
+  sectionTitle: {
+    fontSize: wp(11),
     fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
+    color: 'rgba(255,255,255,0.3)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing[2],
+    marginLeft: spacing[1],
   },
-  editBtnWrap: {
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.violet[50],
+  sectionCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: borderRadius['2xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    overflow: 'hidden',
+    ...shadows.sm,
   },
-  editBtnWrapActive: {
-    backgroundColor: 'rgba(239,68,68,0.1)',
-  },
-  editBtn: {
-    ...textStyles.caption,
-    fontFamily: fontFamily.semiBold,
-    color: colors.violet[600],
-  },
-  editBtnActive: {
-    color: colors.error[500],
-  },
-
-  /* ── Menu items ── */
-  menuItem: {
+  item: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[3],
     gap: spacing[3],
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
   },
-  menuIcon: {
+  itemDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginHorizontal: spacing[4],
+  },
+  itemIcon: {
     width: wp(40),
     height: wp(40),
     borderRadius: borderRadius.lg,
-    backgroundColor: colors.violet[50],
+    backgroundColor: 'rgba(255,122,24,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  menuLabel: {
-    ...textStyles.body,
-    color: colors.neutral[900],
-    flex: 1,
+  itemIconDanger: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
   },
-  chevronBox: {
+  itemContent: { flex: 1 },
+  itemLabel: {
+    fontSize: wp(14),
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  itemLabelDanger: {
+    color: '#EF4444',
+  },
+  itemSublabel: {
+    fontSize: wp(11),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 2,
+  },
+  itemChevron: {
     width: wp(28),
     height: wp(28),
     borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  /* ── Error modal ── */
-  errorModalIcon: {
-    width: wp(72),
-    height: wp(72),
-    borderRadius: wp(36),
-    backgroundColor: `${colors.error[500]}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* ── Logout modal ── */
-  logoutModalIcon: {
-    width: wp(72),
-    height: wp(72),
-    borderRadius: wp(36),
-    backgroundColor: `${colors.error[500]}15`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-
-const mStyles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: wp(32),
-    borderTopRightRadius: wp(32),
-    paddingHorizontal: spacing[6],
-    paddingBottom: spacing[8],
-    alignItems: 'center',
-  },
-  handle: {
-    width: wp(40),
-    height: wp(4),
-    borderRadius: 2,
-    backgroundColor: colors.neutral[200],
-    marginVertical: spacing[3],
-  },
-  iconWrap: {
-    width: wp(80),
-    height: wp(80),
-    borderRadius: wp(40),
-    backgroundColor: `${colors.error[500]}12`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[2],
-    marginBottom: spacing[4],
-  },
-  title: {
-    ...textStyles.h4,
-    fontFamily: fontFamily.bold,
-    color: colors.neutral[900],
-    textAlign: 'center',
-    marginBottom: spacing[4],
-  },
-  lineRow: {
+  /* Biometric */
+  biometricRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing[2],
-    alignSelf: 'stretch',
-    marginBottom: spacing[2],
-    backgroundColor: `${colors.error[500]}08`,
-    borderRadius: borderRadius.lg,
-    padding: spacing[3],
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[4],
   },
-  lineText: {
-    ...textStyles.body,
-    color: colors.neutral[700],
+  biometricLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    lineHeight: 20,
+    gap: spacing[3],
   },
-  btn: {
+  biometricInfo: {
+    flex: 1,
+  },
+
+  /* Biometric modal */
+  biometricModalText: {
+    fontSize: wp(13),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    marginTop: spacing[3],
+    marginBottom: spacing[4],
+  },
+  biometricPasswordInput: {
     width: '100%',
-    marginTop: spacing[4],
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,122,24,0.5)',
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing[4],
+    fontFamily: fontFamily.regular,
+    fontSize: 16,
+    color: '#FFFFFF',
+    backgroundColor: '#1E293B',
+  },
+
+  /* Logout modal */
+  logoutIcon: {
+    width: wp(72),
+    height: wp(72),
+    borderRadius: wp(36),
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: {
+    fontSize: wp(14),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    marginTop: spacing[3],
   },
 });

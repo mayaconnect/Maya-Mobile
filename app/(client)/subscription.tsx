@@ -249,19 +249,18 @@ export default function SubscriptionScreen() {
   if (plansQ.isError && hasSubQ.isError) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#FF7A18', '#FFB347']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
+            <Ionicons name="chevron-back" size={wp(22)} color={colors.neutral[700]} />
           </TouchableOpacity>
-        </LinearGradient>
+          <Text style={styles.headerTitle}>Abonnement</Text>
+          <View style={{ width: wp(36) }} />
+        </View>
         <ErrorState
           fullScreen
           title="Erreur de chargement"
           description="Impossible de charger les informations d'abonnement."
-          onRetry={() => {
-            plansQ.refetch();
-            hasSubQ.refetch();
-          }}
+          onRetry={() => { plansQ.refetch(); hasSubQ.refetch(); }}
           icon="diamond-outline"
         />
       </View>
@@ -274,12 +273,13 @@ export default function SubscriptionScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#FF7A18', '#FFB347']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + spacing[3] }]}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={wp(22)} color={colors.neutral[700]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Abonnement</Text>
-      </LinearGradient>
+        <View style={{ width: wp(36) }} />
+      </View>
 
       <ScrollView
         contentContainerStyle={[
@@ -292,20 +292,19 @@ export default function SubscriptionScreen() {
         {hasActiveSub ? (
           <>
             {/* Status Hero */}
-            <LinearGradient
-              colors={colors.gradients.accent}
-              style={styles.hero}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
+            <View style={styles.hero}>
               <View style={styles.heroIconWrap}>
-                <Ionicons name="diamond" size={wp(32)} color="#FFF" />
+                <Ionicons name="diamond" size={wp(28)} color={colors.orange[500]} />
               </View>
-              <Text style={styles.heroTitle}>Abonnement actif</Text>
-              <Text style={styles.heroDesc}>
-                Profitez de vos avantages chez tous nos partenaires
-              </Text>
-            </LinearGradient>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroTitle}>Abonnement actif</Text>
+                <Text style={styles.heroDesc}>Profitez de vos avantages chez tous nos partenaires</Text>
+              </View>
+              <View style={styles.heroActiveBadge}>
+                <View style={styles.heroActiveDot} />
+                <Text style={styles.heroActiveTxt}>Actif</Text>
+              </View>
+            </View>
 
             {/* Subscription Card */}
             <MCard style={styles.subCard} elevation="lg">
@@ -387,20 +386,15 @@ export default function SubscriptionScreen() {
           </>
         ) : (
           /* ─── No Subscription — Hero ─── */
-          <LinearGradient
-            colors={['#FF7A18', '#FFB347']}
-            style={styles.hero}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.heroIconWrap}>
-              <Ionicons name="diamond" size={wp(40)} color="#FFF" />
+          <View style={styles.heroNoSub}>
+            <View style={styles.heroNoSubIcon}>
+              <LinearGradient colors={[...colors.gradients.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroNoSubGradient}>
+                <Ionicons name="diamond" size={wp(32)} color="#FFF" />
+              </LinearGradient>
             </View>
-            <Text style={styles.heroTitle}>Choisissez votre formule</Text>
-            <Text style={styles.heroDesc}>
-              Débloquez des réductions exclusives chez tous nos partenaires
-            </Text>
-          </LinearGradient>
+            <Text style={styles.heroNoSubTitle}>Choisissez votre formule</Text>
+            <Text style={styles.heroNoSubDesc}>Débloquez des réductions exclusives chez tous nos partenaires</Text>
+          </View>
         )}
 
         {/* ─── Plans ─── */}
@@ -691,54 +685,119 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.neutral[50] },
 
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing[4],
-    paddingBottom: spacing[5],
+    paddingBottom: spacing[3],
+    paddingTop: spacing[2],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.neutral[100],
+    backgroundColor: colors.neutral[50],
   },
   backBtn: {
     width: wp(36),
     height: wp(36),
     borderRadius: wp(18),
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: colors.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing[2],
   },
   headerTitle: {
-    ...textStyles.h3,
-    color: '#FFFFFF',
+    ...textStyles.h4,
+    color: colors.neutral[900],
+    fontFamily: fontFamily.bold,
   },
 
   scroll: {
-    paddingHorizontal: spacing[6],
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
   },
 
-  /* Hero */
+  /* Hero — abonnement actif (inline row) */
   hero: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[8],
+    gap: spacing[3],
+    backgroundColor: colors.orange[50],
     borderRadius: borderRadius['2xl'],
-    marginBottom: spacing[5],
+    borderWidth: 1,
+    borderColor: colors.orange[100],
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
+    marginBottom: spacing[4],
   },
   heroIconWrap: {
-    width: wp(64),
-    height: wp(64),
-    borderRadius: wp(32),
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: wp(44),
+    height: wp(44),
+    borderRadius: wp(22),
+    backgroundColor: colors.orange[100],
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing[3],
+    flexShrink: 0,
   },
   heroTitle: {
-    ...textStyles.h3,
-    color: '#FFFFFF',
-    marginTop: spacing[1],
+    ...textStyles.body,
+    fontFamily: fontFamily.bold,
+    color: colors.neutral[900],
   },
   heroDesc: {
-    ...textStyles.body,
-    color: 'rgba(255,255,255,0.85)',
+    ...textStyles.micro,
+    color: colors.neutral[500],
+    marginTop: 2,
+  },
+  heroActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.success[50],
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderWidth: 1,
+    borderColor: colors.success[200],
+    flexShrink: 0,
+  },
+  heroActiveDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: colors.success[500],
+  },
+  heroActiveTxt: {
+    fontSize: wp(11),
+    fontFamily: fontFamily.semiBold,
+    color: colors.success[600],
+  },
+
+  /* Hero — pas d'abonnement (centré) */
+  heroNoSub: {
+    alignItems: 'center',
+    paddingVertical: spacing[6],
+    marginBottom: spacing[4],
+  },
+  heroNoSubIcon: {
+    marginBottom: spacing[4],
+    ...shadows.md,
+  },
+  heroNoSubGradient: {
+    width: wp(72),
+    height: wp(72),
+    borderRadius: wp(36),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroNoSubTitle: {
+    ...textStyles.h3,
+    color: colors.neutral[900],
+    fontFamily: fontFamily.bold,
     textAlign: 'center',
-    marginTop: spacing[2],
-    paddingHorizontal: spacing[4],
+    marginBottom: spacing[2],
+  },
+  heroNoSubDesc: {
+    ...textStyles.body,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    paddingHorizontal: spacing[6],
+    lineHeight: 22,
   },
 
   /* Active Subscription Card */

@@ -116,7 +116,9 @@ apiClient.interceptors.response.use(
     if (!originalRequest) return Promise.reject(error);
 
     // ── 401 → Attempt token refresh ──
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Skip refresh for auth endpoints (login, register, Apple sign-in, etc.)
+    const isAuthEndpoint = originalRequest.url?.includes('/api/v1/auth/');
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

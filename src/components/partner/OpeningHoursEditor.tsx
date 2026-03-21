@@ -1,21 +1,6 @@
 /**
  * OpeningHoursEditor — Edit opening hours for a store (Manager only).
- *
- * Multi-slot schema:
- *   { "tz": "Europe/Paris", "mon": [["12:00","14:30"],["19:00","23:00"]], ... }
- *
- * Features:
- *  • Toggle days open/closed
- *  • Add/remove time slots per day
- *  • Time picker for each slot boundary
- *  • Timezone display
- *
- * Usage:
- *   <OpeningHoursEditor
- *     value={storeOpeningHours}
- *     onChange={(hours) => updateStore(hours)}
- *     loading={isSaving}
- *   />
+ * Dark-themed, simplified UI.
  */
 import React, { useState, useCallback } from 'react';
 import {
@@ -23,16 +8,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Platform,
   Modal,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { operatorColors as colors } from '../../theme/colors';
-import { textStyles, fontFamily } from '../../theme/typography';
+import { fontFamily } from '../../theme/typography';
 import { spacing, borderRadius } from '../../theme/spacing';
 import { wp } from '../../utils/responsive';
-import { MCard, MButton } from '../ui';
 import type { StoreOpeningHours, DayKey, TimeSlot } from '../../types';
 import { DAY_KEYS, DAY_LABELS_FR } from '../../types';
 
@@ -51,16 +33,11 @@ interface OpeningHoursEditorProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '15', '30', '45'];
 
-function formatTime(h: string, m: string) {
-  return `${h}:${m}`;
-}
-
 function parseTime(time: string): [string, string] {
   const [h, m] = time.split(':');
   return [h ?? '00', m ?? '00'];
 }
 
-/** Inline time picker: scrollable hours + minutes columns */
 function TimePicker({
   value,
   onSelect,
@@ -77,7 +54,7 @@ function TimePicker({
   const [selM, setSelM] = useState(m);
 
   const handleConfirm = () => {
-    onSelect(formatTime(selH, selM));
+    onSelect(`${selH}:${selM}`);
     onClose();
   };
 
@@ -85,50 +62,61 @@ function TimePicker({
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <TouchableOpacity style={pickerStyles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={pickerStyles.container}>
-          <Text style={pickerStyles.title}>Sélectionner l'heure</Text>
+      <TouchableOpacity style={pStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={pStyles.container}>
+          <Text style={pStyles.title}>Choisir l'heure</Text>
 
-          <View style={pickerStyles.columns}>
+          <View style={pStyles.grid}>
             {/* Hours */}
-            <ScrollView style={pickerStyles.column} showsVerticalScrollIndicator={false}>
-              {HOURS.map((hour) => (
-                <TouchableOpacity
-                  key={hour}
-                  style={[pickerStyles.cell, selH === hour && pickerStyles.cellActive]}
-                  onPress={() => setSelH(hour)}
-                >
-                  <Text style={[pickerStyles.cellText, selH === hour && pickerStyles.cellTextActive]}>
-                    {hour}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View style={pStyles.col}>
+              <Text style={pStyles.colLabel}>Heure</Text>
+              <View style={pStyles.pills}>
+                {HOURS.map((hour) => (
+                  <TouchableOpacity
+                    key={hour}
+                    style={[pStyles.pill, selH === hour && pStyles.pillActive]}
+                    onPress={() => setSelH(hour)}
+                  >
+                    <Text style={[pStyles.pillText, selH === hour && pStyles.pillTextActive]}>
+                      {hour}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
-            <Text style={pickerStyles.separator}>:</Text>
+            <View style={pStyles.divider} />
 
             {/* Minutes */}
-            <ScrollView style={pickerStyles.column} showsVerticalScrollIndicator={false}>
-              {MINUTES.map((min) => (
-                <TouchableOpacity
-                  key={min}
-                  style={[pickerStyles.cell, selM === min && pickerStyles.cellActive]}
-                  onPress={() => setSelM(min)}
-                >
-                  <Text style={[pickerStyles.cellText, selM === min && pickerStyles.cellTextActive]}>
-                    {min}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <View style={pStyles.col}>
+              <Text style={pStyles.colLabel}>Min</Text>
+              <View style={pStyles.pills}>
+                {MINUTES.map((min) => (
+                  <TouchableOpacity
+                    key={min}
+                    style={[pStyles.pill, selM === min && pStyles.pillActive]}
+                    onPress={() => setSelM(min)}
+                  >
+                    <Text style={[pStyles.pillText, selM === min && pStyles.pillTextActive]}>
+                      {min}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
 
-          <View style={pickerStyles.actions}>
-            <TouchableOpacity onPress={onClose} style={pickerStyles.cancelBtn}>
-              <Text style={pickerStyles.cancelText}>Annuler</Text>
+          <View style={pStyles.preview}>
+            <Text style={pStyles.previewTime}>{selH}:{selM}</Text>
+          </View>
+
+          <View style={pStyles.actions}>
+            <TouchableOpacity onPress={onClose} style={pStyles.cancelBtn}>
+              <Text style={pStyles.cancelText}>Annuler</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleConfirm} style={pickerStyles.confirmBtn}>
-              <Text style={pickerStyles.confirmText}>Confirmer</Text>
+            <TouchableOpacity onPress={handleConfirm} style={pStyles.confirmBtn}>
+              <Ionicons name="checkmark" size={wp(14)} color="#FFFFFF" />
+              <Text style={pStyles.confirmText}>OK</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -163,55 +151,58 @@ function DayRow({
 
   return (
     <View style={styles.dayRow}>
-      {/* Day header */}
+      {/* Day toggle row */}
       <View style={styles.dayHeader}>
-        <TouchableOpacity style={styles.dayToggle} onPress={onToggle}>
-          <View style={[styles.toggleDot, isOpen && styles.toggleDotActive]} />
-          <Text style={[styles.dayLabel, isOpen && styles.dayLabelActive]}>
-            {DAY_LABELS_FR[dayKey]}
-          </Text>
-        </TouchableOpacity>
-
-        {isOpen && (
-          <TouchableOpacity onPress={onAddSlot} style={styles.addSlotBtn}>
-            <Ionicons name="add-circle-outline" size={wp(18)} color={colors.violet[500]} />
-            <Text style={styles.addSlotText}>Créneau</Text>
-          </TouchableOpacity>
-        )}
+        <Text style={[styles.dayLabel, isOpen && styles.dayLabelActive]}>
+          {DAY_LABELS_FR[dayKey]}
+        </Text>
+        <Switch
+          value={isOpen}
+          onValueChange={onToggle}
+          trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(255,122,24,0.4)' }}
+          thumbColor={isOpen ? '#FF7A18' : 'rgba(255,255,255,0.3)'}
+          ios_backgroundColor="rgba(255,255,255,0.1)"
+        />
       </View>
 
-      {/* Time slots */}
-      {isOpen ? (
-        slots.map(([open, close], idx) => (
-          <View key={idx} style={styles.slotRow}>
-            <TouchableOpacity
-              style={styles.timeBtn}
-              onPress={() => setPickerTarget({ slotIdx: idx, field: 'open' })}
-            >
-              <Text style={styles.timeText}>{open}</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.timeSep}>—</Text>
-
-            <TouchableOpacity
-              style={styles.timeBtn}
-              onPress={() => setPickerTarget({ slotIdx: idx, field: 'close' })}
-            >
-              <Text style={styles.timeText}>{close}</Text>
-            </TouchableOpacity>
-
-            {slots.length > 1 && (
+      {/* Slots */}
+      {isOpen && (
+        <View style={styles.slotsWrap}>
+          {slots.map(([open, close], idx) => (
+            <View key={idx} style={styles.slotRow}>
               <TouchableOpacity
-                onPress={() => onRemoveSlot(idx)}
-                style={styles.removeSlotBtn}
+                style={styles.timeBtn}
+                onPress={() => setPickerTarget({ slotIdx: idx, field: 'open' })}
               >
-                <Ionicons name="close-circle" size={wp(18)} color={colors.error[400]} />
+                <Ionicons name="time-outline" size={wp(13)} color="#FF7A18" />
+                <Text style={styles.timeText}>{open}</Text>
               </TouchableOpacity>
-            )}
-          </View>
-        ))
-      ) : (
-        <Text style={styles.closedLabel}>Fermé</Text>
+
+              <Text style={styles.timeSep}>→</Text>
+
+              <TouchableOpacity
+                style={styles.timeBtn}
+                onPress={() => setPickerTarget({ slotIdx: idx, field: 'close' })}
+              >
+                <Ionicons name="time-outline" size={wp(13)} color="rgba(255,255,255,0.4)" />
+                <Text style={styles.timeText}>{close}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.slotActions}>
+                {slots.length > 1 && (
+                  <TouchableOpacity onPress={() => onRemoveSlot(idx)} style={styles.removeBtn} hitSlop={8}>
+                    <Ionicons name="close-circle" size={wp(16)} color="rgba(248,113,113,0.6)" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))}
+
+          <TouchableOpacity onPress={onAddSlot} style={styles.addSlotBtn}>
+            <Ionicons name="add" size={wp(13)} color="rgba(255,255,255,0.3)" />
+            <Text style={styles.addSlotText}>Ajouter un créneau</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Time picker modal */}
@@ -223,9 +214,7 @@ function DayRow({
               ? slots[pickerTarget.slotIdx][0]
               : slots[pickerTarget.slotIdx][1]
           }
-          onSelect={(time) => {
-            onChangeSlot(pickerTarget.slotIdx, pickerTarget.field, time);
-          }}
+          onSelect={(time) => onChangeSlot(pickerTarget.slotIdx, pickerTarget.field, time)}
           onClose={() => setPickerTarget(null)}
         />
       )}
@@ -239,7 +228,6 @@ function DayRow({
 export default function OpeningHoursEditor({
   value,
   onChange,
-  loading = false,
 }: OpeningHoursEditorProps) {
   const getSlots = useCallback(
     (day: DayKey): TimeSlot[] => value[day] ?? [],
@@ -256,12 +244,7 @@ export default function OpeningHoursEditor({
   const toggleDay = useCallback(
     (day: DayKey) => {
       const current = getSlots(day);
-      if (current.length > 0) {
-        updateDay(day, []);
-      } else {
-        // Default: single slot 09:00–18:00
-        updateDay(day, [['09:00', '18:00']]);
-      }
+      updateDay(day, current.length > 0 ? [] : [['09:00', '18:00']]);
     },
     [getSlots, updateDay],
   );
@@ -270,7 +253,6 @@ export default function OpeningHoursEditor({
     (day: DayKey) => {
       const current = getSlots(day);
       const lastClose = current.length > 0 ? current[current.length - 1][1] : '09:00';
-      // Default new slot: 1 hour after last close
       const [h] = lastClose.split(':').map(Number);
       const newOpen = `${String(Math.min(h + 1, 23)).padStart(2, '0')}:00`;
       const newClose = `${String(Math.min(h + 3, 23)).padStart(2, '0')}:00`;
@@ -281,8 +263,7 @@ export default function OpeningHoursEditor({
 
   const removeSlot = useCallback(
     (day: DayKey, index: number) => {
-      const current = getSlots(day);
-      updateDay(day, current.filter((_, i) => i !== index));
+      updateDay(day, getSlots(day).filter((_, i) => i !== index));
     },
     [getSlots, updateDay],
   );
@@ -300,13 +281,6 @@ export default function OpeningHoursEditor({
 
   return (
     <View style={styles.container}>
-      {/* Timezone badge */}
-      <View style={styles.tzRow}>
-        <Ionicons name="globe-outline" size={wp(14)} color={colors.neutral[400]} />
-        <Text style={styles.tzLabel}>{value.tz ?? 'Europe/Paris'}</Text>
-      </View>
-
-      {/* Days */}
       {DAY_KEYS.map((day) => (
         <DayRow
           key={day}
@@ -327,183 +301,199 @@ export default function OpeningHoursEditor({
 /* ────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   container: {
-    gap: spacing[1],
+    gap: 2,
   },
-  tzRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    marginBottom: spacing[2],
-  },
-  tzLabel: {
-    ...textStyles.caption,
-    color: colors.neutral[400],
-    fontFamily: fontFamily.medium,
-  },
-
-  /* Day row */
   dayRow: {
     paddingVertical: spacing[2],
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.neutral[100],
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   dayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: spacing[1],
   },
-  dayToggle: {
+  dayLabel: {
+    fontSize: wp(14),
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.3)',
+  },
+  dayLabelActive: {
+    color: '#FFFFFF',
+    fontFamily: fontFamily.semiBold,
+  },
+
+  slotsWrap: {
+    marginTop: spacing[2],
+    gap: spacing[2],
+    paddingLeft: spacing[2],
+  },
+  slotRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
   },
-  toggleDot: {
-    width: wp(10),
-    height: wp(10),
-    borderRadius: wp(5),
-    backgroundColor: colors.neutral[200],
+  timeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    minWidth: wp(72),
   },
-  toggleDotActive: {
-    backgroundColor: colors.success[500],
+  timeText: {
+    fontSize: wp(14),
+    fontFamily: fontFamily.semiBold,
+    color: '#FFFFFF',
   },
-  dayLabel: {
-    ...textStyles.body,
-    fontFamily: fontFamily.medium,
-    color: colors.neutral[400],
+  timeSep: {
+    fontSize: wp(12),
+    color: 'rgba(255,255,255,0.2)',
   },
-  dayLabelActive: {
-    color: colors.neutral[700],
+  slotActions: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
-  closedLabel: {
-    ...textStyles.caption,
-    color: colors.neutral[300],
-    marginLeft: wp(22),
-    marginTop: spacing[1],
+  removeBtn: {
+    padding: 2,
   },
   addSlotBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing[1],
+    paddingVertical: spacing[1],
+    alignSelf: 'flex-start',
   },
   addSlotText: {
-    ...textStyles.caption,
-    color: colors.violet[500],
+    fontSize: wp(11),
     fontFamily: fontFamily.medium,
-  },
-
-  /* Slot row */
-  slotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: wp(22),
-    marginTop: spacing[1],
-    gap: spacing[2],
-  },
-  timeBtn: {
-    backgroundColor: colors.neutral[50],
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    minWidth: wp(70),
-    alignItems: 'center',
-  },
-  timeText: {
-    ...textStyles.body,
-    fontFamily: fontFamily.semiBold,
-    color: colors.neutral[700],
-  },
-  timeSep: {
-    ...textStyles.body,
-    color: colors.neutral[300],
-  },
-  removeSlotBtn: {
-    padding: 2,
+    color: 'rgba(255,255,255,0.25)',
   },
 });
 
-const pickerStyles = StyleSheet.create({
+/* ── Time picker styles ── */
+const pStyles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: spacing[4],
   },
   container: {
-    backgroundColor: '#FFF',
-    borderRadius: borderRadius.xl,
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
     padding: spacing[5],
-    width: wp(280),
-    maxHeight: wp(400),
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   title: {
-    ...textStyles.subtitle,
+    fontSize: wp(15),
     fontFamily: fontFamily.bold,
-    color: colors.neutral[700],
+    color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: spacing[3],
+    marginBottom: spacing[4],
   },
-  columns: {
+  grid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: wp(160),
+    gap: spacing[3],
+  },
+  col: {
+    flex: 1,
+  },
+  colLabel: {
+    fontSize: wp(10),
+    fontFamily: fontFamily.semiBold,
+    color: 'rgba(255,255,255,0.3)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing[2],
+    textAlign: 'center',
+  },
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing[2],
+    justifyContent: 'center',
   },
-  column: {
-    width: wp(60),
-    maxHeight: wp(160),
-  },
-  separator: {
-    ...textStyles.h3,
-    color: colors.neutral[400],
-  },
-  cell: {
+  pill: {
     paddingVertical: spacing[2],
-    alignItems: 'center',
+    paddingHorizontal: spacing[2],
     borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    minWidth: wp(36),
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
-  cellActive: {
-    backgroundColor: colors.violet[500],
+  pillActive: {
+    backgroundColor: '#FF7A18',
+    borderColor: '#FF7A18',
   },
-  cellText: {
-    ...textStyles.body,
+  pillText: {
+    fontSize: wp(13),
     fontFamily: fontFamily.medium,
-    color: colors.neutral[600],
+    color: 'rgba(255,255,255,0.5)',
   },
-  cellTextActive: {
-    color: '#FFF',
+  pillTextActive: {
+    color: '#FFFFFF',
     fontFamily: fontFamily.bold,
+  },
+  divider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    marginVertical: spacing[2],
+  },
+  preview: {
+    alignItems: 'center',
+    marginVertical: spacing[4],
+    paddingVertical: spacing[3],
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255,122,24,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,122,24,0.15)',
+  },
+  previewTime: {
+    fontSize: wp(28),
+    fontFamily: fontFamily.bold,
+    color: '#FF7A18',
+    letterSpacing: 2,
   },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing[4],
     gap: spacing[3],
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: spacing[2],
+    paddingVertical: spacing[3],
     alignItems: 'center',
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral[100],
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   cancelText: {
-    ...textStyles.body,
+    fontSize: wp(14),
     fontFamily: fontFamily.medium,
-    color: colors.neutral[500],
+    color: 'rgba(255,255,255,0.4)',
   },
   confirmBtn: {
     flex: 1,
-    paddingVertical: spacing[2],
+    flexDirection: 'row',
+    paddingVertical: spacing[3],
     alignItems: 'center',
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.violet[500],
+    justifyContent: 'center',
+    gap: spacing[1],
+    borderRadius: borderRadius.lg,
+    backgroundColor: '#FF7A18',
   },
   confirmText: {
-    ...textStyles.body,
+    fontSize: wp(14),
     fontFamily: fontFamily.bold,
-    color: '#FFF',
+    color: '#FFFFFF',
   },
 });

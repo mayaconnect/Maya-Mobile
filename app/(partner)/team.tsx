@@ -18,6 +18,10 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  Pressable,
+  TextInput,
+  Dimensions,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,7 +40,6 @@ import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import {
   MModal,
-  MInput,
   MButton,
   LoadingSpinner,
   ErrorState,
@@ -145,15 +148,28 @@ export default function PartnerTeamScreen() {
 
   /* ─── Create ─── */
   const createMut = useMutation({
-    mutationFn: (dto: CreateStoreOperatorDto) =>
-      storeOperatorsApi.createOperator(dto),
+    mutationFn: (dto: CreateStoreOperatorDto) => {
+      console.log('[CreateOperator] Payload:', JSON.stringify(dto));
+      return storeOperatorsApi.createOperator(dto);
+    },
     onSuccess: (res) => {
+      console.log('[CreateOperator] Success:', JSON.stringify(res.data));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCreatedResult(res.data);
       queryClient.invalidateQueries({ queryKey: ['partnerOperators'] });
     },
-    onError: (err: any) =>
-      alert('Erreur', err?.response?.data?.message ?? "Impossible de créer l'opérateur."),
+    onError: (err: any) => {
+      const data = err?.response?.data;
+      console.error('[CreateOperator] Error:', JSON.stringify(data));
+      const msg =
+        data?.detail ??
+        data?.title ??
+        data?.message ??
+        (data?.errors ? Object.values(data.errors).flat().join(', ') : null) ??
+        err?.message ??
+        "Impossible de créer l'opérateur.";
+      alert('Erreur', msg);
+    },
   });
 
   /* ─── Store picker helpers ─── */
@@ -464,6 +480,44 @@ export default function PartnerTeamScreen() {
 /* ══════════════════════════════════════════════════════════════════ */
 /*  Create Operator Modal — Multi-store + Email invitation            */
 /* ══════════════════════════════════════════════════════════════════ */
+const SCREEN_H = Dimensions.get('window').height;
+
+/* ── Dark field input ── */
+function DarkField({
+  label, value, onChangeText, placeholder, icon, keyboardType, autoCapitalize,
+}: {
+  label: string; value: string; onChangeText: (v: string) => void;
+  placeholder?: string; icon?: React.ComponentProps<typeof Ionicons>['name'];
+  keyboardType?: React.ComponentProps<typeof TextInput>['keyboardType'];
+  autoCapitalize?: React.ComponentProps<typeof TextInput>['autoCapitalize'];
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[cStyles.fieldWrap, focused && cStyles.fieldWrapFocused]}>
+      {icon && (
+        <View style={[cStyles.fieldIcon, focused && cStyles.fieldIconFocused]}>
+          <Ionicons name={icon} size={wp(15)} color={focused ? '#FF7A18' : 'rgba(255,255,255,0.25)'} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={[cStyles.fieldLabel, focused && cStyles.fieldLabelFocused]}>{label}</Text>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          placeholderTextColor="rgba(255,255,255,0.18)"
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize ?? 'none'}
+          style={cStyles.fieldInput}
+        />
+      </View>
+      {focused && <View style={cStyles.fieldBar} />}
+    </View>
+  );
+}
+
 function CreateOperatorModal({
   visible,
   onClose,
@@ -479,13 +533,13 @@ function CreateOperatorModal({
   loading: boolean;
   result: CreateStoreOperatorResultDto | null;
 }) {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [selectedStores, setSelectedStores] = useState<Map<string, boolean>>(new Map()); // storeId → isManager
+  const [selectedStores, setSelectedStores] = useState<Map<string, boolean>>(new Map());
   const [sendEmail, setSendEmail] = useState(true);
   const [passwordCopied, setPasswordCopied] = useState(false);
-  const { alert, AlertModal: FormAlertModal } = useAppAlert();
 
   const resetForm = () => {
     setEmail(''); setFirstName(''); setLastName('');
@@ -495,11 +549,8 @@ function CreateOperatorModal({
   const toggleStore = (storeId: string) => {
     setSelectedStores((prev) => {
       const next = new Map(prev);
-      if (next.has(storeId)) {
-        next.delete(storeId);
-      } else {
-        next.set(storeId, false); // default: not manager
-      }
+      if (next.has(storeId)) next.delete(storeId);
+      else next.set(storeId, false);
       return next;
     });
   };
@@ -507,35 +558,27 @@ function CreateOperatorModal({
   const toggleStoreManager = (storeId: string) => {
     setSelectedStores((prev) => {
       const next = new Map(prev);
-      if (next.has(storeId)) {
-        next.set(storeId, !next.get(storeId));
-      }
+      if (next.has(storeId)) next.set(storeId, !next.get(storeId));
       return next;
     });
   };
 
   const handleSubmit = () => {
     if (!email.trim() || !firstName.trim() || !lastName.trim()) {
-      alert('Champs requis', 'Veuillez remplir l\'email, le prénom et le nom.', 'warning');
+      Alert.alert('Champs requis', 'Veuillez remplir l\'email, le prénom et le nom.');
       return;
     }
     if (selectedStores.size === 0) {
-      alert('Magasin requis', 'Veuillez sélectionner au moins un magasin.', 'warning');
+      Alert.alert('Magasin requis', 'Veuillez sélectionner au moins un magasin.');
       return;
     }
-
     const storeAssignments: StoreAssignmentDto[] = Array.from(selectedStores.entries()).map(
       ([storeId, isManager]) => ({ storeId, isManager }),
     );
-
     onSubmit({
-      email: email.trim(),
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      storeId: storeAssignments[0].storeId, // backward compat
-      isManager: storeAssignments[0].isManager,
-      storeAssignments,
-      sendInvitationEmail: sendEmail,
+      email: email.trim(), firstName: firstName.trim(), lastName: lastName.trim(),
+      storeId: storeAssignments[0].storeId, isManager: storeAssignments[0].isManager,
+      storeAssignments, sendInvitationEmail: sendEmail,
     });
   };
 
@@ -548,224 +591,215 @@ function CreateOperatorModal({
 
   const handleClose = () => { resetForm(); onClose(); };
 
-  /* ── Success state ── */
-  if (result) {
-    const hasPassword = !!result.temporaryPassword;
-    const assignedStores = result.assignments ?? [];
+  return (
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={handleClose}>
+      <Pressable style={cStyles.backdrop} onPress={handleClose} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={[cStyles.kav, { height: SCREEN_H * 0.92 }]}
+      >
+        <View style={[cStyles.sheet, { paddingBottom: insets.bottom + spacing[4] }]}>
+          {/* Handle */}
+          <View style={cStyles.handle} />
 
-    return (
-      <MModal visible={visible} onClose={handleClose} title="Invitation envoyée ✓">
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.resultWrap}>
-            {/* Success icon */}
-            <View style={styles.resultIconBox}>
-              <LinearGradient
-                colors={['rgba(74,222,128,0.2)', 'rgba(74,222,128,0.05)']}
-                style={styles.resultIconGradient}
-              >
-                <Ionicons name="checkmark-circle" size={wp(48)} color="#4ADE80" />
-              </LinearGradient>
+          {/* Header — simple dark */}
+          <View style={cStyles.darkHeader}>
+            <View style={cStyles.headerIcon}>
+              <Ionicons name="person-add-outline" size={wp(16)} color="#FF7A18" />
             </View>
+            <View style={{ flex: 1 }}>
+              <Text style={cStyles.headerTitle}>Inviter un opérateur</Text>
+              <Text style={cStyles.headerSub}>Créez un compte et assignez-le à vos magasins</Text>
+            </View>
+            <TouchableOpacity style={cStyles.closeBtn} onPress={handleClose}>
+              <Ionicons name="close" size={wp(18)} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
+          </View>
 
-            <Text style={styles.resultTitle}>
-              {hasPassword ? 'Compte créé avec succès' : 'Opérateur lié avec succès'}
-            </Text>
-            <Text style={styles.resultEmail}>{result.email}</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={cStyles.scrollContent}
+          >
+            {result ? (
+              /* ── Success state ── */
+              <View style={cStyles.successWrap}>
+                <LinearGradient colors={['#22C55E', '#16A34A']} style={cStyles.successIcon}>
+                  <Ionicons name="checkmark" size={wp(36)} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={cStyles.successTitle}>
+                  {result.temporaryPassword ? 'Compte créé !' : 'Opérateur lié !'}
+                </Text>
+                <Text style={cStyles.successEmail}>{result.email}</Text>
 
-            {/* Assigned stores list */}
-            {assignedStores.length > 0 && (
-              <View style={styles.resultStoresBox}>
-                <Text style={styles.resultStoresLabel}>Magasins assignés</Text>
-                {assignedStores.map((a) => (
-                  <View key={a.storeId} style={styles.resultStoreRow}>
-                    <Ionicons name="storefront-outline" size={wp(14)} color={colors.violet[400]} />
-                    <Text style={styles.resultStoreName} numberOfLines={1}>{a.storeName}</Text>
-                    {a.isManager && (
-                      <View style={styles.resultManagerChip}>
-                        <Ionicons name="shield-checkmark" size={wp(9)} color="#34D399" />
-                        <Text style={styles.resultManagerText}>Manager</Text>
+                {(result.assignments ?? []).length > 0 && (
+                  <View style={cStyles.resultStores}>
+                    <Text style={cStyles.resultStoresLabel}>Magasins assignés</Text>
+                    {(result.assignments ?? []).map((a) => (
+                      <View key={a.storeId} style={cStyles.resultStoreRow}>
+                        <Ionicons name="storefront-outline" size={wp(13)} color={colors.orange[400]} />
+                        <Text style={cStyles.resultStoreName} numberOfLines={1}>{a.storeName}</Text>
+                        {a.isManager && (
+                          <View style={cStyles.resultMgrChip}>
+                            <Ionicons name="shield-checkmark" size={wp(9)} color="#34D399" />
+                            <Text style={cStyles.resultMgrText}>Manager</Text>
+                          </View>
+                        )}
                       </View>
-                    )}
+                    ))}
                   </View>
-                ))}
-              </View>
-            )}
+                )}
 
-            {/* Temporary password (only for new users) */}
-            {hasPassword && (
-              <View style={styles.resultPasswordBox}>
-                <Text style={styles.resultPasswordLabel}>Mot de passe temporaire</Text>
-                <Text style={styles.resultPassword}>{result.temporaryPassword}</Text>
-                <TouchableOpacity
-                  style={[styles.copyBtn, passwordCopied && styles.copyBtnDone]}
-                  onPress={() => handleCopyPassword(result.temporaryPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={passwordCopied ? 'checkmark-circle' : 'copy-outline'}
-                    size={wp(16)}
-                    color={passwordCopied ? '#4ADE80' : colors.orange[400]}
-                  />
-                  <Text style={[styles.copyBtnText, passwordCopied && styles.copyBtnTextDone]}>
-                    {passwordCopied ? 'Copié !' : 'Copier le mot de passe'}
+                {result.temporaryPassword && (
+                  <View style={cStyles.pwdBox}>
+                    <Text style={cStyles.pwdLabel}>Mot de passe temporaire</Text>
+                    <Text style={cStyles.pwdValue}>{result.temporaryPassword}</Text>
+                    <TouchableOpacity
+                      style={[cStyles.copyBtn, passwordCopied && cStyles.copyBtnDone]}
+                      onPress={() => handleCopyPassword(result.temporaryPassword)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name={passwordCopied ? 'checkmark-circle' : 'copy-outline'} size={wp(15)} color={passwordCopied ? '#4ADE80' : '#FF7A18'} />
+                      <Text style={[cStyles.copyBtnText, passwordCopied && cStyles.copyBtnDoneText]}>
+                        {passwordCopied ? 'Copié !' : 'Copier'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <View style={cStyles.infoRow}>
+                  <Ionicons name={sendEmail ? 'mail-outline' : 'information-circle-outline'} size={wp(15)} color="rgba(255,122,24,0.7)" />
+                  <Text style={cStyles.infoText}>
+                    {result.temporaryPassword
+                      ? (sendEmail ? "Email d'invitation envoyé avec les identifiants." : 'Partagez les identifiants manuellement.')
+                      : 'Utilisateur existant lié aux magasins sélectionnés.'}
                   </Text>
+                </View>
+
+                <TouchableOpacity style={cStyles.submitBtn} onPress={handleClose} activeOpacity={0.85}>
+                  <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={cStyles.submitBtnInner}>
+                    <Text style={cStyles.submitBtnText}>Fermer</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
-            )}
-
-            {/* Email status */}
-            {hasPassword && (
-              <View style={styles.resultEmailSent}>
-                <Ionicons name="mail-outline" size={wp(16)} color={colors.violet[500]} />
-                <Text style={styles.resultEmailSentText}>
-                  {sendEmail
-                    ? 'Un email d\'invitation avec les identifiants a été envoyé.'
-                    : 'Aucun email envoyé — partagez manuellement les identifiants.'}
-                </Text>
-              </View>
-            )}
-
-            {!hasPassword && (
-              <View style={styles.resultEmailSent}>
-                <Ionicons name="information-circle-outline" size={wp(16)} color={colors.violet[500]} />
-                <Text style={styles.resultEmailSentText}>
-                  Cet utilisateur existait déjà. Il a été lié aux magasins sélectionnés sans nouveau mot de passe.
-                </Text>
-              </View>
-            )}
-
-            <MButton title="Fermer" variant="primary" onPress={handleClose} style={{ marginTop: spacing[4], width: '100%' }} />
-          </View>
-        </ScrollView>
-        <FormAlertModal />
-      </MModal>
-    );
-  }
-
-  /* ── Form ── */
-  return (
-    <MModal visible={visible} onClose={handleClose} title="Inviter un opérateur">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Identity fields */}
-          <MInput
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            required
-            placeholder="operateur@exemple.fr"
-          />
-          <View style={{ flexDirection: 'row', gap: spacing[2], marginTop: spacing[3] }}>
-            <View style={{ flex: 1 }}>
-              <MInput
-                label="Prénom"
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-                required
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <MInput
-                label="Nom"
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-                required
-              />
-            </View>
-          </View>
-
-          {/* Store multi-selector */}
-          <Text style={styles.fieldLabel}>Magasins <Text style={{ color: colors.orange[400] }}>*</Text></Text>
-          <Text style={styles.fieldHint}>Sélectionnez un ou plusieurs magasins. Appuyez sur le bouclier pour définir comme manager.</Text>
-
-          <View style={styles.storeList}>
-            {stores.map((s) => {
-              const isSelected = selectedStores.has(s.id);
-              const isMgr = selectedStores.get(s.id) === true;
-              return (
-                <View key={s.id} style={[styles.storeRow, isSelected && styles.storeRowSelected]}>
-                  <TouchableOpacity
-                    style={styles.storeSelectArea}
-                    onPress={() => toggleStore(s.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.storeCheckbox, isSelected && styles.storeCheckboxActive]}>
-                      {isSelected && <Ionicons name="checkmark" size={wp(12)} color="#FFFFFF" />}
-                    </View>
-                    <Ionicons
-                      name="storefront-outline"
-                      size={wp(16)}
-                      color={isSelected ? colors.orange[400] : '#94A0B8'}
-                    />
-                    <Text
-                      style={[styles.storeRowName, isSelected && styles.storeRowNameSelected]}
-                      numberOfLines={1}
-                    >
-                      {s.name ?? s.id.slice(0, 8)}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Manager toggle (only visible when store is selected) */}
-                  {isSelected && (
-                    <TouchableOpacity
-                      style={[styles.managerBadge, isMgr && styles.managerBadgeActive]}
-                      onPress={() => toggleStoreManager(s.id)}
-                      hitSlop={8}
-                    >
-                      <Ionicons
-                        name={isMgr ? 'shield-checkmark' : 'shield-outline'}
-                        size={wp(14)}
-                        color={isMgr ? '#34D399' : '#94A0B8'}
-                      />
-                      {isMgr && <Text style={styles.managerBadgeText}>Manager</Text>}
-                    </TouchableOpacity>
-                  )}
+            ) : (
+              /* ── Form ── */
+              <>
+                {/* Section identité */}
+                <View style={cStyles.sectionHead}>
+                  <View style={[cStyles.sectionDot, { backgroundColor: '#FF7A18' }]} />
+                  <Ionicons name="person-outline" size={wp(12)} color="#FF7A18" />
+                  <Text style={[cStyles.sectionLabel, { color: '#FF7A18' }]}>Identité</Text>
+                  <View style={cStyles.sectionLine} />
                 </View>
-              );
-            })}
-          </View>
 
-          {/* Email invitation toggle */}
-          <TouchableOpacity
-            style={styles.emailToggle}
-            onPress={() => setSendEmail(!sendEmail)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.emailToggleCheck, sendEmail && styles.emailToggleCheckActive]}>
-              {sendEmail && <Ionicons name="checkmark" size={wp(14)} color="#FFFFFF" />}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.emailToggleText}>Envoyer un email d'invitation</Text>
-              <Text style={styles.emailToggleHint}>
-                L'opérateur recevra ses identifiants par email
-              </Text>
-            </View>
-            <Ionicons name="mail-outline" size={wp(18)} color={sendEmail ? colors.orange[400] : '#CBD0DC'} />
-          </TouchableOpacity>
+                <DarkField label="Email" value={email} onChangeText={setEmail}
+                  icon="mail-outline" placeholder="operateur@exemple.fr" keyboardType="email-address" />
 
-          {/* Info callout */}
-          <View style={styles.infoCallout}>
-            <Ionicons name="information-circle-outline" size={wp(16)} color={colors.violet[500]} />
-            <Text style={styles.infoCalloutText}>
-              Un mot de passe sera généré automatiquement. {sendEmail ? "Il sera inclus dans l'email d'invitation." : "Vous pourrez le copier et le partager manuellement."}
-            </Text>
-          </View>
+                <View style={{ flexDirection: 'row', gap: spacing[3] }}>
+                  <View style={{ flex: 1 }}>
+                    <DarkField label="Prénom" value={firstName} onChangeText={setFirstName}
+                      icon="person-outline" placeholder="Jean" autoCapitalize="words" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <DarkField label="Nom" value={lastName} onChangeText={setLastName}
+                      placeholder="Dupont" autoCapitalize="words" />
+                  </View>
+                </View>
 
-          <MButton
-            title={`Inviter${selectedStores.size > 0 ? ` (${selectedStores.size} magasin${selectedStores.size > 1 ? 's' : ''})` : ''}`}
-            variant="primary"
-            onPress={handleSubmit}
-            loading={loading}
-            style={{ marginTop: spacing[4] }}
-          />
-        </ScrollView>
+                {/* Section magasins */}
+                <View style={cStyles.sectionHead}>
+                  <View style={[cStyles.sectionDot, { backgroundColor: '#818CF8' }]} />
+                  <Ionicons name="storefront-outline" size={wp(12)} color="#818CF8" />
+                  <Text style={[cStyles.sectionLabel, { color: '#818CF8' }]}>Magasins</Text>
+                  <View style={cStyles.sectionLine} />
+                </View>
+
+                <Text style={cStyles.sectionHint}>Appuyez sur le bouclier pour définir comme manager.</Text>
+
+                {stores.map((s) => {
+                  const isSelected = selectedStores.has(s.id);
+                  const isMgr = selectedStores.get(s.id) === true;
+                  return (
+                    <View key={s.id} style={[cStyles.storeRow, isSelected && cStyles.storeRowActive]}>
+                      <TouchableOpacity style={cStyles.storeLeft} onPress={() => toggleStore(s.id)} activeOpacity={0.7}>
+                        <View style={[cStyles.checkbox, isSelected && cStyles.checkboxActive]}>
+                          {isSelected && <Ionicons name="checkmark" size={wp(11)} color="#FFFFFF" />}
+                        </View>
+                        <Ionicons name="storefront-outline" size={wp(15)} color={isSelected ? colors.orange[400] : 'rgba(255,255,255,0.3)'} />
+                        <Text style={[cStyles.storeName, isSelected && cStyles.storeNameActive]} numberOfLines={1}>
+                          {s.name ?? s.id.slice(0, 8)}
+                        </Text>
+                      </TouchableOpacity>
+                      {isSelected && (
+                        <TouchableOpacity
+                          style={[cStyles.mgrBtn, isMgr && cStyles.mgrBtnActive]}
+                          onPress={() => toggleStoreManager(s.id)}
+                          hitSlop={8}
+                        >
+                          <Ionicons name={isMgr ? 'shield-checkmark' : 'shield-outline'} size={wp(13)} color={isMgr ? '#34D399' : 'rgba(255,255,255,0.35)'} />
+                          {isMgr && <Text style={cStyles.mgrBtnText}>Manager</Text>}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+
+                {/* Email toggle */}
+                <View style={cStyles.sectionHead}>
+                  <View style={[cStyles.sectionDot, { backgroundColor: '#38BDF8' }]} />
+                  <Ionicons name="mail-outline" size={wp(12)} color="#38BDF8" />
+                  <Text style={[cStyles.sectionLabel, { color: '#38BDF8' }]}>Invitation</Text>
+                  <View style={cStyles.sectionLine} />
+                </View>
+
+                <TouchableOpacity style={[cStyles.emailToggle, sendEmail && cStyles.emailToggleActive]} onPress={() => setSendEmail(!sendEmail)} activeOpacity={0.8}>
+                  <View style={[cStyles.checkbox, sendEmail && cStyles.checkboxActive]}>
+                    {sendEmail && <Ionicons name="checkmark" size={wp(11)} color="#FFFFFF" />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={cStyles.emailToggleText}>Envoyer un email d'invitation</Text>
+                    <Text style={cStyles.emailToggleHint}>L'opérateur recevra ses identifiants par email</Text>
+                  </View>
+                  <Ionicons name="mail-outline" size={wp(17)} color={sendEmail ? colors.orange[400] : 'rgba(255,255,255,0.2)'} />
+                </TouchableOpacity>
+
+                <View style={cStyles.infoRow}>
+                  <Ionicons name="information-circle-outline" size={wp(14)} color="rgba(255,122,24,0.6)" />
+                  <Text style={cStyles.infoText}>
+                    Un mot de passe sera généré. {sendEmail ? "Il sera inclus dans l'email." : 'Vous pourrez le copier après création.'}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[cStyles.submitBtn, (loading) && { opacity: 0.6 }]}
+                  onPress={handleSubmit}
+                  disabled={loading}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient
+                    colors={['#FF6A00', '#FF9F45']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={cStyles.submitBtnInner}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Ionicons name="person-add-outline" size={wp(17)} color="#FFFFFF" />
+                        <Text style={cStyles.submitBtnText}>
+                          Inviter{selectedStores.size > 0 ? ` (${selectedStores.size} magasin${selectedStores.size > 1 ? 's' : ''})` : ''}
+                        </Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
-      <FormAlertModal />
-    </MModal>
+    </Modal>
   );
 }
 
@@ -1298,4 +1332,103 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxActive: { backgroundColor: colors.violet[600], borderColor: colors.violet[500] },
+});
+
+/* ── Create Operator Modal styles ── */
+const cStyles = StyleSheet.create({
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  kav: { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  sheet: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  handle: { width: wp(40), height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'center', marginTop: spacing[3], marginBottom: spacing[1] },
+
+  /* Header */
+  darkHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    paddingHorizontal: spacing[4], paddingVertical: spacing[3],
+    marginBottom: spacing[2],
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  headerIcon: { width: wp(36), height: wp(36), borderRadius: wp(18), backgroundColor: 'rgba(255,122,24,0.12)', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: wp(15), fontFamily: fontFamily.bold, color: '#FFFFFF' },
+  headerSub: { fontSize: wp(11), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  closeBtn: { width: wp(32), height: wp(32), borderRadius: wp(16), backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+
+  scrollContent: { paddingHorizontal: spacing[4], paddingBottom: spacing[6] },
+
+  /* Section head */
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[4], marginBottom: spacing[3] },
+  sectionDot: { width: 6, height: 6, borderRadius: 3 },
+  sectionLabel: { fontSize: wp(11), fontFamily: fontFamily.bold, textTransform: 'uppercase', letterSpacing: 0.9 },
+  sectionLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.07)' },
+  sectionHint: { fontSize: wp(11), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.3)', marginBottom: spacing[2], marginTop: -spacing[2] },
+
+  /* Dark field */
+  fieldWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2],
+    backgroundColor: '#1A2640', borderRadius: borderRadius.xl,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.07)',
+    paddingHorizontal: spacing[3], paddingVertical: 10,
+    marginBottom: spacing[3], position: 'relative', overflow: 'hidden',
+  },
+  fieldWrapFocused: { borderColor: '#FF7A18', backgroundColor: '#1E2D45' },
+  fieldIcon: { width: wp(28), height: wp(28), borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  fieldIconFocused: { backgroundColor: 'rgba(255,122,24,0.15)' },
+  fieldLabel: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 },
+  fieldLabelFocused: { color: '#FF7A18' },
+  fieldInput: { fontSize: wp(14), fontFamily: fontFamily.medium, color: '#FFFFFF', padding: 0, margin: 0 },
+  fieldBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: '#FF7A18' },
+
+  /* Stores */
+  storeRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E293B', borderRadius: borderRadius.xl, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', marginBottom: spacing[2], overflow: 'hidden' },
+  storeRowActive: { borderColor: 'rgba(255,122,24,0.35)', backgroundColor: '#1E2D3A' },
+  storeLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], paddingHorizontal: spacing[3] },
+  checkbox: { width: wp(20), height: wp(20), borderRadius: borderRadius.sm, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  checkboxActive: { backgroundColor: '#FF7A18', borderColor: '#FF7A18' },
+  storeName: { fontSize: wp(13), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.4)', flex: 1 },
+  storeNameActive: { color: '#FFFFFF' },
+  mgrBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing[3], paddingHorizontal: spacing[3], borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.07)' },
+  mgrBtnActive: { backgroundColor: 'rgba(52,211,153,0.08)' },
+  mgrBtnText: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: '#34D399' },
+
+  /* Email toggle */
+  emailToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: '#1E293B', borderRadius: borderRadius.xl, padding: spacing[3], borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  emailToggleActive: { borderColor: 'rgba(255,122,24,0.3)', backgroundColor: '#1E2D3A' },
+  emailToggleText: { fontSize: wp(13), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.85)' },
+  emailToggleHint: { fontSize: wp(10), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.3)', marginTop: 2 },
+
+  /* Info row */
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[2], marginTop: spacing[3], paddingHorizontal: spacing[1] },
+  infoText: { fontSize: wp(11), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.35)', flex: 1, lineHeight: 16 },
+
+  /* Submit */
+  submitBtn: { borderRadius: borderRadius['2xl'], overflow: 'hidden', marginTop: spacing[5] },
+  submitBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], paddingVertical: spacing[4] },
+  submitBtnText: { fontSize: wp(15), fontFamily: fontFamily.bold, color: '#FFFFFF' },
+
+  /* Success */
+  successWrap: { alignItems: 'center', paddingTop: spacing[4] },
+  successIcon: { width: wp(80), height: wp(80), borderRadius: wp(40), alignItems: 'center', justifyContent: 'center', marginBottom: spacing[4] },
+  successTitle: { fontSize: wp(20), fontFamily: fontFamily.bold, color: '#FFFFFF', marginBottom: spacing[1] },
+  successEmail: { fontSize: wp(13), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.4)', marginBottom: spacing[5] },
+  resultStores: { width: '100%', backgroundColor: '#1E293B', borderRadius: borderRadius.xl, padding: spacing[3], marginBottom: spacing[4], borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  resultStoresLabel: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing[2] },
+  resultStoreRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[2] },
+  resultStoreName: { fontSize: wp(13), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.8)', flex: 1 },
+  resultMgrChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(52,211,153,0.12)', borderRadius: borderRadius.full, paddingHorizontal: spacing[2], paddingVertical: 2 },
+  resultMgrText: { fontSize: wp(9), fontFamily: fontFamily.semiBold, color: '#34D399' },
+  pwdBox: { width: '100%', backgroundColor: '#1E293B', borderRadius: borderRadius.xl, padding: spacing[4], marginBottom: spacing[4], borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignItems: 'center' },
+  pwdLabel: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing[2] },
+  pwdValue: { fontSize: wp(20), fontFamily: fontFamily.bold, color: '#FFFFFF', letterSpacing: 2, marginBottom: spacing[3] },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], backgroundColor: 'rgba(255,122,24,0.12)', borderRadius: borderRadius.lg, paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderWidth: 1, borderColor: 'rgba(255,122,24,0.2)' },
+  copyBtnDone: { backgroundColor: 'rgba(74,222,128,0.12)', borderColor: 'rgba(74,222,128,0.2)' },
+  copyBtnText: { fontSize: wp(12), fontFamily: fontFamily.semiBold, color: '#FF7A18' },
+  copyBtnDoneText: { color: '#4ADE80' },
 });

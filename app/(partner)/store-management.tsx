@@ -375,7 +375,7 @@ export default function PartnerStoreManagementScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + wp(60) }]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + wp(140) }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >

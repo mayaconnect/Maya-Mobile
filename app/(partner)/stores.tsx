@@ -52,33 +52,57 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 /* ─── Store thumbnail ─── */
-const DEFAULT_STORE_IMAGE = require('../../assets/images/centered_logo_gradient.png');
+
+/** Résout une URL relative en URL absolue. */
+function resolveImageUri(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  // Chemin relatif → préfixer avec la base API
+  return `${config.api.baseUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+}
 
 function StoreThumbnail({ item, isActive }: { item: any; isActive: boolean }) {
   const [errored, setErrored] = React.useState(false);
-  const uri =
-    item.imageUrl ||
-    item.partnerImageUrl ||
-    (item.partnerId ? `${config.api.baseUrl}/api/partners/${item.partnerId}/image` : null);
+  const [loaded, setLoaded] = React.useState(false);
 
-  if (!errored && uri) {
-    return (
-      <Image
-        source={{ uri }}
-        style={[thumbStyles.img, isActive && thumbStyles.imgActive]}
-        resizeMode="cover"
-        onError={() => setErrored(true)}
-      />
-    );
-  }
+  const uri =
+    resolveImageUri(item.imageUrl) ??
+    resolveImageUri(item.logoUrl) ??
+    resolveImageUri(item.partnerImageUrl) ??
+    (item.partnerId ? `${config.api.baseUrl}/api/partners/${item.partnerId}/image` : null) ??
+    (item.id ? `${config.api.baseUrl}/api/stores/${item.id}/image` : null);
+
+  const initials = (item.name ?? '?').trim().slice(0, 2).toUpperCase();
+  const dim = wp(60);
+
+  // Placeholder coloré avec initiales (affiché tant que l'image charge ou si erreur)
+  const Placeholder = (
+    <View style={[thumbStyles.img, thumbStyles.placeholder, isActive && thumbStyles.placeholderActive]}>
+      <Text style={thumbStyles.initials}>{initials}</Text>
+    </View>
+  );
+
+  if (errored || !uri) return Placeholder;
+
   return (
-    <Image
-      source={DEFAULT_STORE_IMAGE}
-      style={[thumbStyles.img, isActive && thumbStyles.imgActive]}
-      resizeMode="cover"
-    />
+    <View style={[thumbStyles.img, isActive && thumbStyles.imgActive, { overflow: 'hidden' }]}>
+      {/* Placeholder visible pendant le chargement */}
+      {!loaded && (
+        <View style={[StyleSheet.absoluteFill, thumbStyles.placeholder, isActive && thumbStyles.placeholderActive]}>
+          <ActivityIndicator size="small" color={isActive ? '#FFFFFF' : colors.orange[400]} />
+        </View>
+      )}
+      <Image
+        source={{ uri, cache: 'force-cache' } as any}
+        style={[{ width: dim, height: dim }, !loaded && { opacity: 0 }]}
+        resizeMode="cover"
+        onLoad={() => setLoaded(true)}
+        onError={() => { setErrored(true); setLoaded(true); }}
+      />
+    </View>
   );
 }
+
 const thumbStyles = StyleSheet.create({
   img: {
     width: wp(60),
@@ -92,11 +116,21 @@ const thumbStyles = StyleSheet.create({
     width: wp(60),
     height: wp(60),
     borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(124,58,237,0.15)',
+    backgroundColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  placeholderActive: { backgroundColor: colors.orange[500] },
+  placeholderActive: {
+    backgroundColor: 'rgba(255,122,24,0.2)',
+    borderColor: colors.orange[400],
+  },
+  initials: {
+    fontSize: wp(18),
+    fontFamily: fontFamily.bold,
+    color: 'rgba(255,255,255,0.5)',
+  },
 });
 
 /* ─── Request new store modal — Multi-step wizard ─── */
@@ -460,11 +494,14 @@ function RequestStoreModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={resetAndClose}>
+      {/* Backdrop — tap pour fermer */}
       <Pressable style={mStyles.backdrop} onPress={resetAndClose} />
+
+      {/* Sheet en position absolue en bas */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={mStyles.kavWrap}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={0}
       >
         <View style={[mStyles.sheet, { paddingBottom: insets.bottom + spacing[4] }]}>
           <View style={mStyles.handle} />
@@ -980,20 +1017,25 @@ const styles = StyleSheet.create({
 
 /* ─── Modal styles ─── */
 const mStyles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
   kavWrap: {
-    flex: 1,
-    justifyContent: 'flex-end',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SCREEN_HEIGHT * 0.93,
   },
   sheet: {
+    flex: 1,
     backgroundColor: '#0F172A',
     borderTopLeftRadius: wp(32),
     borderTopRightRadius: wp(32),
     overflow: 'hidden',
     borderTopWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
-    maxHeight: SCREEN_HEIGHT * 0.92,
-    minHeight: SCREEN_HEIGHT * 0.80,
   },
   handle: {
     width: wp(40),
@@ -1062,7 +1104,7 @@ const mStyles = StyleSheet.create({
   },
 
   /* ── Form header ── */
-  formWrap: { flex: 1, flexShrink: 1 },
+  formWrap: { flex: 1, overflow: 'hidden' },
   formHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1097,8 +1139,6 @@ const mStyles = StyleSheet.create({
   /* ── Scroll / step content ── */
   scrollArea: {
     flex: 1,
-    minHeight: SCREEN_HEIGHT * 0.35,
-    maxHeight: SCREEN_HEIGHT * 0.52,
   },
   stepContent: {
     paddingHorizontal: spacing[5],
