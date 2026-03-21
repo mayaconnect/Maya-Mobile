@@ -89,7 +89,7 @@ function StoreThumbnail({ item, isActive }: { item: any; isActive: boolean }) {
       {/* Placeholder visible pendant le chargement */}
       {!loaded && (
         <View style={[StyleSheet.absoluteFill, thumbStyles.placeholder, isActive && thumbStyles.placeholderActive]}>
-          <ActivityIndicator size="small" color={isActive ? '#FFFFFF' : colors.orange[400]} />
+          <ActivityIndicator size="small" color={isActive ? '#FFFFFF' : '#6366F1'} />
         </View>
       )}
       <Image
@@ -111,7 +111,7 @@ const thumbStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  imgActive: { borderColor: colors.orange[400] },
+  imgActive: { borderColor: '#6366F1' },
   placeholder: {
     width: wp(60),
     height: wp(60),
@@ -123,8 +123,8 @@ const thumbStyles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   placeholderActive: {
-    backgroundColor: 'rgba(255,122,24,0.2)',
-    borderColor: colors.orange[400],
+    backgroundColor: 'rgba(99,102,241,0.2)',
+    borderColor: '#6366F1',
   },
   initials: {
     fontSize: wp(18),
@@ -379,7 +379,7 @@ function RequestStoreModal({
         {categoryDropdownOpen && (
           <View style={mStyles.dropdownList}>
             {categoriesQ.isLoading ? (
-              <ActivityIndicator size="small" color={colors.orange[400]} style={{ padding: spacing[3] }} />
+              <ActivityIndicator size="small" color="#6366F1" style={{ padding: spacing[3] }} />
             ) : (
               categories.map((cat) => {
                 const sel = cat.id === selectedCategoryId;
@@ -396,7 +396,7 @@ function RequestStoreModal({
                     <Text style={[mStyles.dropdownItemText, sel && mStyles.dropdownItemTextActive]}>
                       {cat.name ?? cat.code ?? cat.id.slice(0, 8)}
                     </Text>
-                    {sel && <Ionicons name="checkmark" size={wp(16)} color={colors.orange[400]} />}
+                    {sel && <Ionicons name="checkmark" size={wp(16)} color="#6366F1" />}
                   </TouchableOpacity>
                 );
               })
@@ -449,14 +449,14 @@ function RequestStoreModal({
           onPress={toggleOpeningAccordion}
           activeOpacity={0.7}
         >
-          <Ionicons name="time-outline" size={wp(16)} color={openingExpanded ? colors.orange[400] : 'rgba(255,255,255,0.35)'} />
+          <Ionicons name="time-outline" size={wp(16)} color={openingExpanded ? '#6366F1' : 'rgba(255,255,255,0.35)'} />
           <Text style={[mStyles.accordionTitle, openingExpanded && mStyles.accordionTitleActive]}>
             {openingExpanded ? 'Masquer les horaires' : 'Définir les horaires'}
           </Text>
           <Ionicons
             name={openingExpanded ? 'chevron-up' : 'chevron-down'}
             size={wp(16)}
-            color={openingExpanded ? colors.orange[400] : 'rgba(255,255,255,0.35)'}
+            color={openingExpanded ? '#6366F1' : 'rgba(255,255,255,0.35)'}
           />
         </TouchableOpacity>
 
@@ -471,20 +471,20 @@ function RequestStoreModal({
       <View style={mStyles.summaryCard}>
         <Text style={mStyles.summaryTitle}>Récapitulatif</Text>
         <View style={mStyles.summaryRow}>
-          <Ionicons name="storefront-outline" size={wp(14)} color={colors.orange[400]} />
+          <Ionicons name="storefront-outline" size={wp(14)} color="#6366F1" />
           <Text style={mStyles.summaryText}>{storeName || '—'}</Text>
         </View>
         <View style={mStyles.summaryRow}>
-          <Ionicons name="location-outline" size={wp(14)} color={colors.orange[400]} />
+          <Ionicons name="location-outline" size={wp(14)} color="#6366F1" />
           <Text style={mStyles.summaryText}>{[address, city, country].filter(Boolean).join(', ') || '—'}</Text>
         </View>
         <View style={mStyles.summaryRow}>
-          <Ionicons name="grid-outline" size={wp(14)} color={colors.orange[400]} />
+          <Ionicons name="grid-outline" size={wp(14)} color="#6366F1" />
           <Text style={mStyles.summaryText}>{selectedCategory?.name ?? '—'}</Text>
         </View>
         {(phone || email) ? (
           <View style={mStyles.summaryRow}>
-            <Ionicons name="call-outline" size={wp(14)} color={colors.orange[400]} />
+            <Ionicons name="call-outline" size={wp(14)} color="#6366F1" />
             <Text style={mStyles.summaryText}>{[phone, email].filter(Boolean).join(' · ') || '—'}</Text>
           </View>
         ) : null}
@@ -527,7 +527,7 @@ function RequestStoreModal({
               <View style={mStyles.formHeaderRow}>
                 <View style={mStyles.formHeaderLeft}>
                   <View style={mStyles.formIconBubble}>
-                    <Ionicons name={STEPS[step].icon} size={wp(18)} color={colors.orange[400]} />
+                    <Ionicons name={STEPS[step].icon} size={wp(18)} color="#6366F1" />
                   </View>
                   <View>
                     <Text style={mStyles.formTitle}>Nouveau magasin</Text>
@@ -614,6 +614,7 @@ export default function PartnerStoresScreen() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [requestModalVisible, setRequestModalVisible] = useState(false);
+  const [confirmStore, setConfirmStore] = useState<{ storeId: string; storeName: string } | null>(null);
 
   const stores = usePartnerStore((s) => s.stores);
   const partner = usePartnerStore((s) => s.partner);
@@ -646,9 +647,7 @@ export default function PartnerStoresScreen() {
 
   const handleActivate = (storeId: string, storeName: string) => {
     if (storeId === activeId) return;
-    confirm('Activer ce magasin', `Définir "${storeName}" comme magasin actif ?`, () =>
-      setActiveMutation.mutate(storeId),
-    );
+    setConfirmStore({ storeId, storeName });
   };
 
   const partnerName = partner?.displayName ?? partner?.legalName ?? 'Partenaire';
@@ -657,7 +656,7 @@ export default function PartnerStoresScreen() {
     <View style={styles.bg}>
       {/* ── Dark gradient header ── */}
       <LinearGradient
-        colors={['#0F172A', '#1E293B']}
+        colors={['#0D0E20', '#1a1b3e']}
         style={[styles.header, { paddingTop: insets.top }]}
       >
         <View style={styles.headerTop}>
@@ -696,7 +695,7 @@ export default function PartnerStoresScreen() {
           <RefreshControl
             refreshing={activeStoreQ.isFetching}
             onRefresh={() => activeStoreQ.refetch()}
-            tintColor={colors.orange[400]}
+            tintColor="#6366F1"
           />
         }
         ListEmptyComponent={
@@ -752,7 +751,7 @@ export default function PartnerStoresScreen() {
                         disabled={setActiveMutation.isPending}
                       >
                         {isPending ? (
-                          <ActivityIndicator size="small" color={colors.orange[400]} />
+                          <ActivityIndicator size="small" color="#6366F1" />
                         ) : (
                           <Ionicons name="radio-button-off-outline" size={wp(20)} color="rgba(255,255,255,0.3)" />
                         )}
@@ -771,7 +770,7 @@ export default function PartnerStoresScreen() {
                     <Ionicons
                       name="settings-outline"
                       size={wp(15)}
-                      color={isActive ? colors.orange[400] : 'rgba(255,255,255,0.55)'}
+                      color={isActive ? '#6366F1' : 'rgba(255,255,255,0.55)'}
                     />
                     <Text style={[styles.manageBtnText, isActive && styles.manageBtnTextActive]}>
                       Gérer ce magasin
@@ -779,7 +778,7 @@ export default function PartnerStoresScreen() {
                     <Ionicons
                       name="chevron-forward"
                       size={wp(15)}
-                      color={isActive ? colors.orange[400] : 'rgba(255,255,255,0.3)'}
+                      color={isActive ? '#6366F1' : 'rgba(255,255,255,0.3)'}
                     />
                   </TouchableOpacity>
                 </View>
@@ -797,7 +796,7 @@ export default function PartnerStoresScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={['#FF6A00', '#FF9F45']}
+            colors={['#4F46E5', '#6366F1']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.fabGradient}
@@ -818,6 +817,50 @@ export default function PartnerStoresScreen() {
       />
 
       <AlertModal />
+
+      {/* ── Confirm activate store modal ── */}
+      <Modal
+        visible={!!confirmStore}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setConfirmStore(null)}
+      >
+        <Pressable style={cStyles.backdrop} onPress={() => setConfirmStore(null)} />
+        <View style={cStyles.sheet}>
+          <View style={cStyles.handle} />
+          <View style={cStyles.iconWrap}>
+            <Ionicons name="storefront-outline" size={wp(32)} color="#6366F1" />
+          </View>
+          <Text style={cStyles.title}>Activer ce magasin</Text>
+          <Text style={cStyles.message}>
+            Définir{' '}
+            <Text style={cStyles.storeName}>{confirmStore?.storeName}</Text>
+            {' '}comme magasin actif ?
+          </Text>
+          <View style={cStyles.actions}>
+            <TouchableOpacity style={cStyles.cancelBtn} onPress={() => setConfirmStore(null)}>
+              <Text style={cStyles.cancelText}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={cStyles.confirmBtn}
+              onPress={() => {
+                if (confirmStore) setActiveMutation.mutate(confirmStore.storeId);
+                setConfirmStore(null);
+              }}
+            >
+              <LinearGradient
+                colors={['#4F46E5', '#6366F1']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={cStyles.confirmGradient}
+              >
+                <Ionicons name="checkmark-circle" size={wp(16)} color="#FFFFFF" />
+                <Text style={cStyles.confirmText}>Confirmer</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -859,7 +902,7 @@ const styles = StyleSheet.create({
     width: wp(36),
     height: wp(36),
     borderRadius: wp(18),
-    backgroundColor: colors.orange[500],
+    backgroundColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -898,12 +941,12 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   cardActive: {
-    borderColor: 'rgba(255,106,0,0.3)',
-    backgroundColor: 'rgba(255,106,0,0.05)',
+    borderColor: 'rgba(99,102,241,0.3)',
+    backgroundColor: 'rgba(99,102,241,0.05)',
   },
   activeBar: {
     width: wp(4),
-    backgroundColor: colors.orange[400],
+    backgroundColor: '#6366F1',
   },
   cardBody: { flex: 1, padding: spacing[4] },
   cardTop: {
@@ -962,14 +1005,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  manageBtnActive: { backgroundColor: 'rgba(255,106,0,0.08)' },
+  manageBtnActive: { backgroundColor: 'rgba(99,102,241,0.08)' },
   manageBtnText: {
     flex: 1,
     ...textStyles.caption,
     fontFamily: fontFamily.semiBold,
     color: 'rgba(255,255,255,0.55)',
   },
-  manageBtnTextActive: { color: colors.orange[400] },
+  manageBtnTextActive: { color: '#6366F1' },
 
   /* FAB */
   fabWrap: {
@@ -1069,12 +1112,12 @@ const mStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepDotDone: {
-    backgroundColor: colors.orange[500],
-    borderColor: colors.orange[500],
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
   },
   stepDotActive: {
-    borderColor: colors.orange[400],
-    backgroundColor: 'rgba(255,106,0,0.15)',
+    borderColor: '#6366F1',
+    backgroundColor: 'rgba(99,102,241,0.15)',
   },
   stepNum: {
     fontSize: wp(11),
@@ -1082,7 +1125,7 @@ const mStyles = StyleSheet.create({
     color: 'rgba(255,255,255,0.75)',
   },
   stepNumActive: {
-    color: colors.orange[400],
+    color: '#6366F1',
   },
   stepLabel: {
     fontSize: wp(9),
@@ -1100,7 +1143,7 @@ const mStyles = StyleSheet.create({
     marginHorizontal: spacing[1],
   },
   stepLineDone: {
-    backgroundColor: colors.orange[500],
+    backgroundColor: '#6366F1',
   },
 
   /* ── Form header ── */
@@ -1121,7 +1164,7 @@ const mStyles = StyleSheet.create({
     width: wp(40),
     height: wp(40),
     borderRadius: wp(20),
-    backgroundColor: 'rgba(255,106,0,0.12)',
+    backgroundColor: 'rgba(99,102,241,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1153,7 +1196,7 @@ const mStyles = StyleSheet.create({
     marginBottom: spacing[1],
   },
   required: {
-    color: colors.orange[400],
+    color: '#6366F1',
   },
   fieldHint: {
     ...textStyles.micro,
@@ -1205,7 +1248,7 @@ const mStyles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   dropdownItemActive: {
-    backgroundColor: 'rgba(255,106,0,0.12)',
+    backgroundColor: 'rgba(99,102,241,0.12)',
   },
   dropdownItemText: {
     ...textStyles.body,
@@ -1213,7 +1256,7 @@ const mStyles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
   dropdownItemTextActive: {
-    color: colors.orange[400],
+    color: '#6366F1',
     fontFamily: fontFamily.semiBold,
   },
 
@@ -1230,8 +1273,8 @@ const mStyles = StyleSheet.create({
     paddingVertical: spacing[3],
   },
   accordionHeaderActive: {
-    borderColor: 'rgba(255,106,0,0.3)',
-    backgroundColor: 'rgba(255,106,0,0.06)',
+    borderColor: 'rgba(99,102,241,0.3)',
+    backgroundColor: 'rgba(99,102,241,0.06)',
   },
   accordionTitle: {
     flex: 1,
@@ -1240,7 +1283,7 @@ const mStyles = StyleSheet.create({
     fontFamily: fontFamily.medium,
   },
   accordionTitleActive: {
-    color: colors.orange[400],
+    color: '#6366F1',
   },
   accordionBody: {
     marginTop: spacing[2],
@@ -1253,7 +1296,7 @@ const mStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: borderRadius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,106,0,0.15)',
+    borderColor: 'rgba(99,102,241,0.15)',
     padding: spacing[4],
   },
   summaryTitle: {
@@ -1312,12 +1355,12 @@ const mStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],
-    backgroundColor: colors.orange[500],
+    backgroundColor: '#6366F1',
     borderRadius: borderRadius.xl,
     paddingVertical: spacing[4],
   },
   nextBtnDisabled: {
-    backgroundColor: 'rgba(255,106,0,0.3)',
+    backgroundColor: 'rgba(99,102,241,0.3)',
   },
   nextBtnText: {
     ...textStyles.body,
@@ -1330,11 +1373,11 @@ const mStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],
-    backgroundColor: colors.orange[500],
+    backgroundColor: '#6366F1',
     borderRadius: borderRadius.xl,
     paddingVertical: spacing[4],
   },
-  submitBtnDisabled: { backgroundColor: 'rgba(255,106,0,0.3)' },
+  submitBtnDisabled: { backgroundColor: 'rgba(99,102,241,0.3)' },
   submitBtnText: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
 
   /* ── Success ── */
@@ -1356,10 +1399,45 @@ const mStyles = StyleSheet.create({
   successDesc: { ...textStyles.body, color: 'rgba(255,255,255,0.45)', textAlign: 'center', lineHeight: 22 },
   okBtn: {
     marginTop: spacing[5],
-    backgroundColor: colors.orange[500],
+    backgroundColor: '#6366F1',
     borderRadius: borderRadius.xl,
     paddingVertical: spacing[4],
     paddingHorizontal: spacing[8],
   },
   okBtnText: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
+});
+
+/* ── Confirm store modal styles ── */
+const cStyles = StyleSheet.create({
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
+  sheet: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: wp(28), borderTopRightRadius: wp(28),
+    paddingHorizontal: spacing[6], paddingBottom: spacing[10],
+    alignItems: 'center',
+    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+  },
+  handle: { width: wp(40), height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: spacing[3] },
+  iconWrap: {
+    width: wp(72), height: wp(72), borderRadius: wp(36),
+    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: spacing[2], marginBottom: spacing[4],
+  },
+  title: { fontSize: wp(18), fontFamily: fontFamily.bold, color: '#FFFFFF', textAlign: 'center', marginBottom: spacing[2] },
+  message: { fontSize: wp(13), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginBottom: spacing[6] },
+  storeName: { fontFamily: fontFamily.semiBold, color: '#FFFFFF' },
+  actions: { flexDirection: 'row', gap: spacing[3], width: '100%' },
+  cancelBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: spacing[4], borderRadius: borderRadius.xl,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  cancelText: { fontSize: wp(14), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.5)' },
+  confirmBtn: { flex: 1, borderRadius: borderRadius.xl, overflow: 'hidden' },
+  confirmGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], paddingVertical: spacing[4] },
+  confirmText: { fontSize: wp(14), fontFamily: fontFamily.semiBold, color: '#FFFFFF' },
 });

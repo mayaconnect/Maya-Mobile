@@ -110,7 +110,7 @@ function Field({
           <Ionicons
             name={icon}
             size={wp(16)}
-            color={focused ? '#FF7A18' : 'rgba(255,255,255,0.25)'}
+            color={focused ? '#6366F1' : 'rgba(255,255,255,0.25)'}
           />
         </View>
       )}
@@ -158,7 +158,7 @@ const fStyles = StyleSheet.create({
     overflow: 'hidden',
   },
   wrapFocused: {
-    borderColor: '#FF7A18',
+    borderColor: '#6366F1',
     backgroundColor: '#1E2D45',
   },
   wrapError: {
@@ -179,7 +179,7 @@ const fStyles = StyleSheet.create({
     flexShrink: 0,
   },
   iconBoxFocused: {
-    backgroundColor: 'rgba(255,122,24,0.15)',
+    backgroundColor: 'rgba(99,102,241,0.15)',
   },
   inner: { flex: 1 },
   label: {
@@ -190,7 +190,7 @@ const fStyles = StyleSheet.create({
     letterSpacing: 0.6,
     marginBottom: 3,
   },
-  labelFocused: { color: '#FF7A18' },
+  labelFocused: { color: '#6366F1' },
   labelError: { color: '#EF4444' },
   input: {
     fontSize: wp(14),
@@ -211,7 +211,7 @@ const fStyles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 3,
-    backgroundColor: '#FF7A18',
+    backgroundColor: '#6366F1',
     borderTopLeftRadius: borderRadius.xl,
     borderBottomLeftRadius: borderRadius.xl,
   },
@@ -338,7 +338,7 @@ export default function PartnerEditProfileScreen() {
         </View>
 
         {/* ── Identité ── */}
-        <SectionHead icon="person-outline" label="Identité" color="#FF7A18" />
+        <SectionHead icon="person-outline" label="Identité" color="#6366F1" />
 
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
@@ -484,7 +484,7 @@ export default function PartnerEditProfileScreen() {
             style={[styles.saveBtn, (!isDirty || updateMutation.isPending) && { opacity: 0.45 }]}
           >
             <LinearGradient
-              colors={['#FF6A00', '#FF9F45']}
+              colors={['#4F46E5', '#6366F1']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={styles.saveBtnInner}
             >

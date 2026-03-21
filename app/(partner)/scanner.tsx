@@ -212,7 +212,7 @@ export default function PartnerScannerScreen() {
         <Text style={styles.guardTitle}>Caméra requise</Text>
         <Text style={styles.guardDesc}>Autorisez l'accès à la caméra pour scanner les QR codes clients.</Text>
         <TouchableOpacity style={styles.guardBtn} onPress={requestPermission}>
-          <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.guardBtnInner}>
+          <LinearGradient colors={['#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.guardBtnInner}>
             <Text style={styles.guardBtnText}>Autoriser la caméra</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -229,7 +229,7 @@ export default function PartnerScannerScreen() {
         <Text style={styles.guardTitle}>Aucun magasin actif</Text>
         <Text style={styles.guardDesc}>Sélectionnez un magasin pour commencer à scanner.</Text>
         <TouchableOpacity style={styles.guardBtn} onPress={() => router.push('/(partner)/stores')}>
-          <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.guardBtnInner}>
+          <LinearGradient colors={['#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.guardBtnInner}>
             <Text style={styles.guardBtnText}>Choisir un magasin</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -252,7 +252,7 @@ export default function PartnerScannerScreen() {
           <View style={[styles.overlayTop, { paddingTop: insets.top + spacing[3] }]}>
             <Text style={styles.overlayTitle}>Scanner un QR</Text>
             <TouchableOpacity style={styles.storePill} onPress={() => router.push('/(partner)/stores')}>
-              <Ionicons name="storefront" size={wp(12)} color="#FF7A18" />
+              <Ionicons name="storefront" size={wp(12)} color="#6366F1" />
               <Text style={styles.storePillText} numberOfLines={1}>
                 {(activeStoreQ.data as any)?.name ?? `#${activeStoreQ.data?.storeId?.slice(0, 6) ?? '—'}`}
               </Text>
@@ -307,7 +307,7 @@ export default function PartnerScannerScreen() {
               {/* Token card */}
               <View style={styles.tokenCard}>
                 <View style={styles.tokenIconWrap}>
-                  <Ionicons name="qr-code" size={wp(18)} color="#818CF8" />
+                  <Ionicons name="qr-code" size={wp(18)} color="#6366F1" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.tokenLabel}>QR Token</Text>
@@ -319,7 +319,7 @@ export default function PartnerScannerScreen() {
               {/* ── Abonnement (chargé immédiatement après scan) ── */}
               {planInfoLoading && !planInfo && (
                 <View style={styles.planLoadingCard}>
-                  <ActivityIndicator size="small" color="#818CF8" />
+                  <ActivityIndicator size="small" color="#6366F1" />
                   <Text style={styles.planLoadingText}>Vérification abonnement…</Text>
                 </View>
               )}
@@ -384,7 +384,7 @@ export default function PartnerScannerScreen() {
                 <Animated.View entering={FadeIn.duration(200)} style={styles.previewCard}>
                   {previewLoading ? (
                     <View style={styles.previewLoading}>
-                      <ActivityIndicator size="small" color="#818CF8" />
+                      <ActivityIndicator size="small" color="#6366F1" />
                       <Text style={styles.previewLoadingText}>Calcul en cours…</Text>
                     </View>
                   ) : preview ? (
@@ -433,7 +433,7 @@ export default function PartnerScannerScreen() {
                 disabled={validateMutation.isPending}
                 activeOpacity={0.85}
               >
-                <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
+                <LinearGradient colors={['#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
                   {validateMutation.isPending
                     ? <ActivityIndicator color="#FFFFFF" size="small" />
                     : <>
@@ -493,7 +493,7 @@ export default function PartnerScannerScreen() {
               <View style={styles.resultSep} />
 
               <View style={styles.resultRow}>
-                <Ionicons name="cash-outline" size={wp(16)} color="#FF7A18" />
+                <Ionicons name="cash-outline" size={wp(16)} color="#6366F1" />
                 <Text style={styles.resultRowLabel}>Net à payer</Text>
                 <Text style={[styles.resultRowValue, { color: '#FFFFFF', fontFamily: fontFamily.bold, fontSize: wp(17) }]}>
                   {formatPrice(validateResult.amountNet)}
@@ -503,7 +503,7 @@ export default function PartnerScannerScreen() {
           )}
 
           <TouchableOpacity style={[styles.submitBtn, { marginTop: spacing[6] }]} onPress={resetScanner} activeOpacity={0.85}>
-            <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
+            <LinearGradient colors={['#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
               <Ionicons name="scan-outline" size={wp(18)} color="#FFFFFF" />
               <Text style={styles.submitBtnText}>Scanner un autre QR</Text>
             </LinearGradient>
@@ -524,7 +524,7 @@ export default function PartnerScannerScreen() {
         <Text style={styles.resultTitle}>Échec de validation</Text>
         <Text style={styles.resultDesc}>Le QR code est invalide, expiré ou déjà utilisé.</Text>
         <TouchableOpacity style={[styles.submitBtn, { marginTop: spacing[6] }]} onPress={resetScanner} activeOpacity={0.85}>
-          <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
+          <LinearGradient colors={['#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
             <Ionicons name="refresh-outline" size={wp(18)} color="#FFFFFF" />
             <Text style={styles.submitBtnText}>Réessayer</Text>
           </LinearGradient>
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   scanFrame: { width: FRAME, height: FRAME },
   corner: {
     position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE,
-    borderColor: '#FF7A18',
+    borderColor: '#6366F1',
   },
   cornerTL: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
   cornerTR: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   },
   tokenIconWrap: {
     width: wp(38), height: wp(38), borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(129,140,248,0.12)',
+    backgroundColor: 'rgba(99,102,241,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
   tokenLabel: { fontSize: wp(9), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 0.5 },

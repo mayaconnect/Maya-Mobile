@@ -240,8 +240,8 @@ export default function PartnerTeamScreen() {
                   <View style={styles.actionSep} />
 
                   <TouchableOpacity style={styles.actionBtn} onPress={() => setShowAssign(item)}>
-                    <Ionicons name="add-circle-outline" size={wp(15)} color={colors.orange[400]} />
-                    <Text style={[styles.actionText, { color: colors.orange[400] }]}>Assigner</Text>
+                    <Ionicons name="add-circle-outline" size={wp(15)} color="#6366F1" />
+                    <Text style={[styles.actionText, { color: '#6366F1' }]}>Assigner</Text>
                   </TouchableOpacity>
 
                   <View style={styles.actionSep} />
@@ -275,7 +275,7 @@ export default function PartnerTeamScreen() {
           onPress={() => { setCreatedResult(null); setShowCreate(true); }}
           activeOpacity={0.85}
         >
-          <LinearGradient colors={['#FF6A00', '#FF3D00']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.fabGradient}>
+          <LinearGradient colors={['#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.fabGradient}>
             <Ionicons name="person-add-outline" size={wp(20)} color="#FFFFFF" />
             <Text style={styles.fabText}>Ajouter un opérateur</Text>
           </LinearGradient>
@@ -287,7 +287,7 @@ export default function PartnerTeamScreen() {
     <View style={styles.bg}>
 
       {/* ── Dark gradient header ── */}
-      <LinearGradient colors={['#0F172A', '#1E293B']} style={[styles.header, { paddingTop: insets.top }]}>
+      <LinearGradient colors={['#0D0E20', '#1a1b3e']} style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={wp(22)} color="rgba(255,255,255,0.85)" />
@@ -329,7 +329,7 @@ export default function PartnerTeamScreen() {
             <RefreshControl
               refreshing={opsQ.isFetching}
               onRefresh={() => opsQ.refetch()}
-              tintColor={colors.orange[400]}
+              tintColor="#6366F1"
             />
           }
           ListEmptyComponent={
@@ -366,8 +366,8 @@ export default function PartnerTeamScreen() {
 
               {/* Header */}
               <View style={rStyles.header}>
-                <View style={[rStyles.headerIcon, { backgroundColor: 'rgba(251,146,60,0.12)' }]}>
-                  <Ionicons name="add-circle-outline" size={wp(18)} color="#FB923C" />
+                <View style={[rStyles.headerIcon, { backgroundColor: 'rgba(99,102,241,0.12)' }]}>
+                  <Ionicons name="add-circle-outline" size={wp(18)} color="#6366F1" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={rStyles.headerTitle}>Assigner à un magasin</Text>
@@ -425,7 +425,7 @@ export default function PartnerTeamScreen() {
                     {available.map((s) => (
                       <TouchableOpacity
                         key={s.id}
-                        style={[rStyles.storeRow, { borderColor: 'rgba(251,146,60,0.15)' }]}
+                        style={[rStyles.storeRow, { borderColor: 'rgba(99,102,241,0.15)' }]}
                         activeOpacity={0.7}
                         disabled={assignMut.isPending}
                         onPress={() => assignMut.mutate(
@@ -433,14 +433,14 @@ export default function PartnerTeamScreen() {
                           { onSuccess: () => setShowAssign(null) },
                         )}
                       >
-                        <View style={[rStyles.storeIconWrap, { backgroundColor: 'rgba(251,146,60,0.1)' }]}>
-                          <Ionicons name="storefront-outline" size={wp(16)} color="#FB923C" />
+                        <View style={[rStyles.storeIconWrap, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
+                          <Ionicons name="storefront-outline" size={wp(16)} color="#6366F1" />
                         </View>
                         <Text style={rStyles.storeName} numberOfLines={1}>{s.name ?? s.id.slice(0, 8)}</Text>
                         {assignMut.isPending && assignMut.variables?.storeId === s.id
-                          ? <ActivityIndicator size="small" color="#FB923C" />
+                          ? <ActivityIndicator size="small" color="#6366F1" />
                           : <View style={aStyles.addChip}>
-                              <Ionicons name="add" size={wp(12)} color="#FB923C" />
+                              <Ionicons name="add" size={wp(12)} color="#6366F1" />
                               <Text style={aStyles.addChipText}>Assigner</Text>
                             </View>
                         }
@@ -682,7 +682,7 @@ function DarkField({
     <View style={[cStyles.fieldWrap, focused && cStyles.fieldWrapFocused]}>
       {icon && (
         <View style={[cStyles.fieldIcon, focused && cStyles.fieldIconFocused]}>
-          <Ionicons name={icon} size={wp(15)} color={focused ? '#FF7A18' : 'rgba(255,255,255,0.25)'} />
+          <Ionicons name={icon} size={wp(15)} color={focused ? '#6366F1' : 'rgba(255,255,255,0.25)'} />
         </View>
       )}
       <View style={{ flex: 1 }}>
@@ -791,7 +791,7 @@ function CreateOperatorModal({
           {/* Header — simple dark */}
           <View style={cStyles.darkHeader}>
             <View style={cStyles.headerIcon}>
-              <Ionicons name="person-add-outline" size={wp(16)} color="#FF7A18" />
+              <Ionicons name="person-add-outline" size={wp(16)} color="#6366F1" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={cStyles.headerTitle}>Inviter un opérateur</Text>
@@ -823,7 +823,7 @@ function CreateOperatorModal({
                     <Text style={cStyles.resultStoresLabel}>Magasins assignés</Text>
                     {(result.assignments ?? []).map((a) => (
                       <View key={a.storeId} style={cStyles.resultStoreRow}>
-                        <Ionicons name="storefront-outline" size={wp(13)} color={colors.orange[400]} />
+                        <Ionicons name="storefront-outline" size={wp(13)} color="#6366F1" />
                         <Text style={cStyles.resultStoreName} numberOfLines={1}>{a.storeName}</Text>
                         {a.isManager && (
                           <View style={cStyles.resultMgrChip}>
@@ -845,7 +845,7 @@ function CreateOperatorModal({
                       onPress={() => handleCopyPassword(result.temporaryPassword)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name={passwordCopied ? 'checkmark-circle' : 'copy-outline'} size={wp(15)} color={passwordCopied ? '#4ADE80' : '#FF7A18'} />
+                      <Ionicons name={passwordCopied ? 'checkmark-circle' : 'copy-outline'} size={wp(15)} color={passwordCopied ? '#4ADE80' : '#6366F1'} />
                       <Text style={[cStyles.copyBtnText, passwordCopied && cStyles.copyBtnDoneText]}>
                         {passwordCopied ? 'Copié !' : 'Copier'}
                       </Text>
@@ -854,7 +854,7 @@ function CreateOperatorModal({
                 )}
 
                 <View style={cStyles.infoRow}>
-                  <Ionicons name={sendEmail ? 'mail-outline' : 'information-circle-outline'} size={wp(15)} color="rgba(255,122,24,0.7)" />
+                  <Ionicons name={sendEmail ? 'mail-outline' : 'information-circle-outline'} size={wp(15)} color="rgba(99,102,241,0.7)" />
                   <Text style={cStyles.infoText}>
                     {result.temporaryPassword
                       ? (sendEmail ? "Email d'invitation envoyé avec les identifiants." : 'Partagez les identifiants manuellement.')
@@ -863,7 +863,7 @@ function CreateOperatorModal({
                 </View>
 
                 <TouchableOpacity style={cStyles.submitBtn} onPress={handleClose} activeOpacity={0.85}>
-                  <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={cStyles.submitBtnInner}>
+                  <LinearGradient colors={['#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={cStyles.submitBtnInner}>
                     <Text style={cStyles.submitBtnText}>Fermer</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -873,9 +873,9 @@ function CreateOperatorModal({
               <>
                 {/* Section identité */}
                 <View style={cStyles.sectionHead}>
-                  <View style={[cStyles.sectionDot, { backgroundColor: '#FF7A18' }]} />
-                  <Ionicons name="person-outline" size={wp(12)} color="#FF7A18" />
-                  <Text style={[cStyles.sectionLabel, { color: '#FF7A18' }]}>Identité</Text>
+                  <View style={[cStyles.sectionDot, { backgroundColor: '#6366F1' }]} />
+                  <Ionicons name="person-outline" size={wp(12)} color="#6366F1" />
+                  <Text style={[cStyles.sectionLabel, { color: '#6366F1' }]}>Identité</Text>
                   <View style={cStyles.sectionLine} />
                 </View>
 
@@ -895,9 +895,9 @@ function CreateOperatorModal({
 
                 {/* Section magasins */}
                 <View style={cStyles.sectionHead}>
-                  <View style={[cStyles.sectionDot, { backgroundColor: '#818CF8' }]} />
-                  <Ionicons name="storefront-outline" size={wp(12)} color="#818CF8" />
-                  <Text style={[cStyles.sectionLabel, { color: '#818CF8' }]}>Magasins</Text>
+                  <View style={[cStyles.sectionDot, { backgroundColor: '#6366F1' }]} />
+                  <Ionicons name="storefront-outline" size={wp(12)} color="#6366F1" />
+                  <Text style={[cStyles.sectionLabel, { color: '#6366F1' }]}>Magasins</Text>
                   <View style={cStyles.sectionLine} />
                 </View>
 
@@ -912,7 +912,7 @@ function CreateOperatorModal({
                         <View style={[cStyles.checkbox, isSelected && cStyles.checkboxActive]}>
                           {isSelected && <Ionicons name="checkmark" size={wp(11)} color="#FFFFFF" />}
                         </View>
-                        <Ionicons name="storefront-outline" size={wp(15)} color={isSelected ? colors.orange[400] : 'rgba(255,255,255,0.3)'} />
+                        <Ionicons name="storefront-outline" size={wp(15)} color={isSelected ? '#6366F1' : 'rgba(255,255,255,0.3)'} />
                         <Text style={[cStyles.storeName, isSelected && cStyles.storeNameActive]} numberOfLines={1}>
                           {s.name ?? s.id.slice(0, 8)}
                         </Text>
@@ -947,11 +947,11 @@ function CreateOperatorModal({
                     <Text style={cStyles.emailToggleText}>Envoyer un email d'invitation</Text>
                     <Text style={cStyles.emailToggleHint}>L'opérateur recevra ses identifiants par email</Text>
                   </View>
-                  <Ionicons name="mail-outline" size={wp(17)} color={sendEmail ? colors.orange[400] : 'rgba(255,255,255,0.2)'} />
+                  <Ionicons name="mail-outline" size={wp(17)} color={sendEmail ? '#6366F1' : 'rgba(255,255,255,0.2)'} />
                 </TouchableOpacity>
 
                 <View style={cStyles.infoRow}>
-                  <Ionicons name="information-circle-outline" size={wp(14)} color="rgba(255,122,24,0.6)" />
+                  <Ionicons name="information-circle-outline" size={wp(14)} color="rgba(99,102,241,0.6)" />
                   <Text style={cStyles.infoText}>
                     Un mot de passe sera généré. {sendEmail ? "Il sera inclus dans l'email." : 'Vous pourrez le copier après création.'}
                   </Text>
@@ -964,7 +964,7 @@ function CreateOperatorModal({
                   activeOpacity={0.85}
                 >
                   <LinearGradient
-                    colors={['#FF6A00', '#FF9F45']}
+                    colors={['#4F46E5', '#6366F1']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={cStyles.submitBtnInner}
                   >
@@ -1018,11 +1018,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingVertical: 2,
     borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,106,0,0.15)',
+    backgroundColor: 'rgba(99,102,241,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255,106,0,0.25)',
+    borderColor: 'rgba(99,102,241,0.25)',
   },
-  countChipText: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: colors.orange[300] },
+  countChipText: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: '#818CF8' },
 
   /* List */
   listContent: { padding: spacing[4] },
@@ -1194,7 +1194,7 @@ const styles = StyleSheet.create({
     width: wp(28),
     height: wp(28),
     borderRadius: wp(14),
-    backgroundColor: colors.orange[500],
+    backgroundColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1247,7 +1247,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   storeRowSelected: {
-    borderColor: colors.orange[400],
+    borderColor: '#6366F1',
     backgroundColor: '#FFF4EC',
   },
   storeSelectArea: {
@@ -1266,8 +1266,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   storeCheckboxActive: {
-    backgroundColor: colors.orange[500],
-    borderColor: colors.orange[400],
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
   },
   storeRowName: {
     ...textStyles.body,
@@ -1323,8 +1323,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emailToggleCheckActive: {
-    backgroundColor: colors.orange[500],
-    borderColor: colors.orange[400],
+    backgroundColor: '#6366F1',
+    borderColor: '#6366F1',
   },
   emailToggleText: {
     ...textStyles.body,
@@ -1444,7 +1444,7 @@ const styles = StyleSheet.create({
   resultPassword: {
     ...textStyles.h3,
     fontFamily: fontFamily.bold,
-    color: colors.orange[600],
+    color: '#6366F1',
     letterSpacing: 3,
     marginBottom: spacing[3],
   },
@@ -1466,7 +1466,7 @@ const styles = StyleSheet.create({
   copyBtnText: {
     ...textStyles.caption,
     fontFamily: fontFamily.semiBold,
-    color: colors.orange[500],
+    color: '#6366F1',
   },
   copyBtnTextDone: {
     color: '#059669',
@@ -1542,7 +1542,7 @@ const cStyles = StyleSheet.create({
     marginBottom: spacing[2],
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  headerIcon: { width: wp(36), height: wp(36), borderRadius: wp(18), backgroundColor: 'rgba(255,122,24,0.12)', alignItems: 'center', justifyContent: 'center' },
+  headerIcon: { width: wp(36), height: wp(36), borderRadius: wp(18), backgroundColor: 'rgba(99,102,241,0.12)', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: wp(15), fontFamily: fontFamily.bold, color: '#FFFFFF' },
   headerSub: { fontSize: wp(11), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
   closeBtn: { width: wp(32), height: wp(32), borderRadius: wp(16), backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
@@ -1564,20 +1564,20 @@ const cStyles = StyleSheet.create({
     paddingHorizontal: spacing[3], paddingVertical: 10,
     marginBottom: spacing[3], position: 'relative', overflow: 'hidden',
   },
-  fieldWrapFocused: { borderColor: '#FF7A18', backgroundColor: '#1E2D45' },
+  fieldWrapFocused: { borderColor: '#6366F1', backgroundColor: '#1E2D45' },
   fieldIcon: { width: wp(28), height: wp(28), borderRadius: borderRadius.md, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  fieldIconFocused: { backgroundColor: 'rgba(255,122,24,0.15)' },
+  fieldIconFocused: { backgroundColor: 'rgba(99,102,241,0.15)' },
   fieldLabel: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 },
-  fieldLabelFocused: { color: '#FF7A18' },
+  fieldLabelFocused: { color: '#6366F1' },
   fieldInput: { fontSize: wp(14), fontFamily: fontFamily.medium, color: '#FFFFFF', padding: 0, margin: 0 },
-  fieldBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: '#FF7A18' },
+  fieldBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: '#6366F1' },
 
   /* Stores */
   storeRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E293B', borderRadius: borderRadius.xl, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', marginBottom: spacing[2], overflow: 'hidden' },
-  storeRowActive: { borderColor: 'rgba(255,122,24,0.35)', backgroundColor: '#1E2D3A' },
+  storeRowActive: { borderColor: 'rgba(99,102,241,0.35)', backgroundColor: '#1E2D3A' },
   storeLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3], paddingHorizontal: spacing[3] },
   checkbox: { width: wp(20), height: wp(20), borderRadius: borderRadius.sm, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  checkboxActive: { backgroundColor: '#FF7A18', borderColor: '#FF7A18' },
+  checkboxActive: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
   storeName: { fontSize: wp(13), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.7)', flex: 1 },
   storeNameActive: { color: '#FFFFFF' },
   mgrBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing[3], paddingHorizontal: spacing[3], borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.07)' },
@@ -1586,7 +1586,7 @@ const cStyles = StyleSheet.create({
 
   /* Email toggle */
   emailToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], backgroundColor: '#1E293B', borderRadius: borderRadius.xl, padding: spacing[3], borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  emailToggleActive: { borderColor: 'rgba(255,122,24,0.3)', backgroundColor: '#1E2D3A' },
+  emailToggleActive: { borderColor: 'rgba(99,102,241,0.3)', backgroundColor: '#1E2D3A' },
   emailToggleText: { fontSize: wp(13), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.85)' },
   emailToggleHint: { fontSize: wp(10), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
 
@@ -1613,9 +1613,9 @@ const cStyles = StyleSheet.create({
   pwdBox: { width: '100%', backgroundColor: '#1E293B', borderRadius: borderRadius.xl, padding: spacing[4], marginBottom: spacing[4], borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', alignItems: 'center' },
   pwdLabel: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing[2] },
   pwdValue: { fontSize: wp(20), fontFamily: fontFamily.bold, color: '#FFFFFF', letterSpacing: 2, marginBottom: spacing[3] },
-  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], backgroundColor: 'rgba(255,122,24,0.12)', borderRadius: borderRadius.lg, paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderWidth: 1, borderColor: 'rgba(255,122,24,0.2)' },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], backgroundColor: 'rgba(99,102,241,0.12)', borderRadius: borderRadius.lg, paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)' },
   copyBtnDone: { backgroundColor: 'rgba(74,222,128,0.12)', borderColor: 'rgba(74,222,128,0.2)' },
-  copyBtnText: { fontSize: wp(12), fontFamily: fontFamily.semiBold, color: '#FF7A18' },
+  copyBtnText: { fontSize: wp(12), fontFamily: fontFamily.semiBold, color: '#6366F1' },
   copyBtnDoneText: { color: '#4ADE80' },
 });
 
@@ -1762,10 +1762,10 @@ const aStyles = StyleSheet.create({
 
   addChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(251,146,60,0.1)',
+    backgroundColor: 'rgba(99,102,241,0.1)',
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing[2], paddingVertical: spacing[1],
-    borderWidth: 1, borderColor: 'rgba(251,146,60,0.2)',
+    borderWidth: 1, borderColor: 'rgba(99,102,241,0.2)',
   },
-  addChipText: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: '#FB923C' },
+  addChipText: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: '#6366F1' },
 });

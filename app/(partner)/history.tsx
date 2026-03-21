@@ -10,12 +10,13 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { transactionsApi } from '../../src/api/transactions.api';
+import { storeOperatorsApi } from '../../src/api/store-operators.api';
 import { fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
@@ -28,21 +29,34 @@ const PAGE_SIZE = 15;
 export default function PartnerHistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const activeStore = usePartnerStore((s) => s.activeStore);
+  const activeStoreZus = usePartnerStore((s) => s.activeStore);
   const partner = usePartnerStore((s) => s.partner);
-  const storeId = activeStore?.storeId ?? undefined;
   const partnerId = partner?.id ?? undefined;
+
+  // Same pattern as dashboard — get active store from API first, fallback to Zustand
+  const activeStoreQ = useQuery({
+    queryKey: ['activeStore'],
+    queryFn: () => storeOperatorsApi.getActiveStore(),
+    select: (res) => res.data,
+    retry: (count, error: any) => {
+      if (error?.response?.status === 404) return false;
+      return count < 2;
+    },
+  });
+
+  const storeId = activeStoreQ.data?.storeId ?? activeStoreZus?.storeId ?? undefined;
 
   const txQ = useInfiniteQuery({
     queryKey: ['partnerTxHistory', partnerId, storeId],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
-      transactionsApi.getByPartner(partnerId!, {
-        storeId,
-        page: pageParam,
-        pageSize: PAGE_SIZE,
+      transactionsApi.getFiltered({
+        PartnerId: partnerId,
+        StoreId: storeId,
+        Page: pageParam,
+        PageSize: PAGE_SIZE,
       }),
-    enabled: !!partnerId,
+    enabled: !!partnerId || !!storeId,
     getNextPageParam: (lastPage) => {
       const d = lastPage.data;
       return d.page < d.totalPages ? d.page + 1 : undefined;
@@ -61,10 +75,10 @@ export default function PartnerHistoryScreen() {
       return (
         <View style={styles.txCard}>
           {/* Left accent */}
-          <View style={[styles.txAccent, { backgroundColor: discount > 0 ? '#FBBF24' : '#818CF8' }]} />
+          <View style={[styles.txAccent, { backgroundColor: discount > 0 ? '#FBBF24' : '#6366F1' }]} />
 
           <View style={styles.txIcon}>
-            <Ionicons name="receipt-outline" size={wp(16)} color="#818CF8" />
+            <Ionicons name="receipt-outline" size={wp(16)} color="#6366F1" />
           </View>
 
           <View style={styles.txInfo}>
@@ -97,7 +111,7 @@ export default function PartnerHistoryScreen() {
 
   const Header = (
     <LinearGradient
-      colors={['#0F172A', '#1E293B']}
+      colors={['#0D0E20', '#1a1b3e']}
       style={[styles.header, { paddingTop: insets.top + spacing[2] }]}
     >
       {/* Nav row */}
@@ -114,7 +128,7 @@ export default function PartnerHistoryScreen() {
       {/* Stats row */}
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
-          <View style={[styles.statAccent, { backgroundColor: '#818CF8' }]} />
+          <View style={[styles.statAccent, { backgroundColor: '#6366F1' }]} />
           <Text style={styles.statValue}>{formatPrice(totalGross)}</Text>
           <Text style={styles.statLabel}>CA brut</Text>
         </View>
@@ -162,7 +176,7 @@ export default function PartnerHistoryScreen() {
           <RefreshControl
             refreshing={txQ.isRefetching && !txQ.isFetchingNextPage}
             onRefresh={() => txQ.refetch()}
-            tintColor="#FF7A18"
+            tintColor="#6366F1"
           />
         }
         ListEmptyComponent={
@@ -293,7 +307,7 @@ const styles = StyleSheet.create({
     width: wp(36),
     height: wp(36),
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(129,140,248,0.1)',
+    backgroundColor: 'rgba(99,102,241,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: spacing[1],

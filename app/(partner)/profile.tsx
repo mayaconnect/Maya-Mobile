@@ -238,7 +238,7 @@ export default function PartnerProfileScreen() {
           label: 'Gérer les opérateurs',
           sublabel: 'Inviter et gérer votre équipe',
           onPress: () => router.push('/(partner)/team' as any),
-          accent: '#818CF8',
+          accent: '#6366F1',
         },
       ],
     },
@@ -275,7 +275,7 @@ export default function PartnerProfileScreen() {
       >
         {/* ── Hero header ── */}
         <LinearGradient
-          colors={['#0F172A', '#1E293B']}
+          colors={['#0D0E20', '#1a1b3e']}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={[styles.hero, { paddingTop: insets.top + spacing[3] }]}
@@ -307,7 +307,7 @@ export default function PartnerProfileScreen() {
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <View style={styles.infoIconWrap}>
-                <Ionicons name="mail-outline" size={wp(16)} color="#FF7A18" />
+                <Ionicons name="mail-outline" size={wp(16)} color="#6366F1" />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Email</Text>
@@ -317,7 +317,7 @@ export default function PartnerProfileScreen() {
             {profile?.phoneNumber ? (
               <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }]}>
                 <View style={styles.infoIconWrap}>
-                  <Ionicons name="call-outline" size={wp(16)} color="#FF7A18" />
+                  <Ionicons name="call-outline" size={wp(16)} color="#6366F1" />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Téléphone</Text>
@@ -328,7 +328,7 @@ export default function PartnerProfileScreen() {
             {profile?.address?.city ? (
               <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }]}>
                 <View style={styles.infoIconWrap}>
-                  <Ionicons name="location-outline" size={wp(16)} color="#FF7A18" />
+                  <Ionicons name="location-outline" size={wp(16)} color="#6366F1" />
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Ville</Text>
@@ -351,7 +351,7 @@ export default function PartnerProfileScreen() {
                       <Ionicons
                         name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
                         size={wp(20)}
-                        color="#FF7A18"
+                        color="#6366F1"
                       />
                     </View>
                     <View style={styles.biometricInfo}>
@@ -364,8 +364,8 @@ export default function PartnerProfileScreen() {
                   <Switch
                     value={biometricEnabled}
                     onValueChange={toggleBiometric}
-                    trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(255,122,24,0.4)' }}
-                    thumbColor={biometricEnabled ? '#FF7A18' : 'rgba(255,255,255,0.4)'}
+                    trackColor={{ false: 'rgba(255,255,255,0.1)', true: 'rgba(99,102,241,0.4)' }}
+                    thumbColor={biometricEnabled ? '#6366F1' : 'rgba(255,255,255,0.4)'}
                   />
                 </View>
               </View>
@@ -393,7 +393,7 @@ export default function PartnerProfileScreen() {
                         <Ionicons
                           name={item.icon}
                           size={wp(20)}
-                          color={item.danger ? '#EF4444' : item.accent ?? '#FF7A18'}
+                          color={item.danger ? '#EF4444' : item.accent ?? '#6366F1'}
                         />
                       </View>
                       <View style={styles.itemContent}>
@@ -447,7 +447,7 @@ export default function PartnerProfileScreen() {
             <Ionicons
               name={biometricType.includes('Face') ? 'scan-outline' : 'finger-print-outline'}
               size={wp(48)}
-              color="#FF7A18"
+              color="#6366F1"
             />
             <Text style={styles.biometricModalText}>
               Entrez votre mot de passe pour associer {biometricType.toLowerCase()} à votre compte.
@@ -507,10 +507,10 @@ const styles = StyleSheet.create({
   },
   avatarBorder: {
     borderWidth: 3,
-    borderColor: 'rgba(255,122,24,0.5)',
+    borderColor: 'rgba(99,102,241,0.5)',
     borderRadius: borderRadius.full,
     padding: 2,
-    backgroundColor: 'rgba(255,122,24,0.08)',
+    backgroundColor: 'rgba(99,102,241,0.08)',
   },
   cameraBadge: {
     position: 'absolute',
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     width: wp(28),
     height: wp(28),
     borderRadius: wp(14),
-    backgroundColor: '#FF7A18',
+    backgroundColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
     width: wp(36),
     height: wp(36),
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,122,24,0.12)',
+    backgroundColor: 'rgba(99,102,241,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
     width: wp(40),
     height: wp(40),
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,122,24,0.12)',
+    backgroundColor: 'rgba(99,102,241,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 52,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,122,24,0.5)',
+    borderColor: 'rgba(99,102,241,0.5)',
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing[4],
     fontFamily: fontFamily.regular,

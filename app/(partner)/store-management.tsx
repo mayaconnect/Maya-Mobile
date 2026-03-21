@@ -176,7 +176,7 @@ function PartnerImageManager({
           onPress={handlePick}
           disabled={uploading || deleting}
         >
-          <Ionicons name="camera-outline" size={wp(16)} color={colors.orange[400]} />
+          <Ionicons name="camera-outline" size={wp(16)} color="#6366F1" />
           <Text style={imgStyles.actionText}>{current ? "Changer l'image" : 'Ajouter une image'}</Text>
         </TouchableOpacity>
         {current && (
@@ -206,7 +206,7 @@ const imgStyles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing[3], flexWrap: 'wrap', justifyContent: 'center' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], paddingHorizontal: spacing[3], paddingVertical: spacing[2], borderRadius: borderRadius.full, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   deleteActionBtn: { borderColor: 'rgba(248,113,113,0.2)', backgroundColor: 'rgba(248,113,113,0.06)' },
-  actionText: { ...textStyles.caption, fontFamily: fontFamily.medium, color: colors.orange[400] },
+  actionText: { ...textStyles.caption, fontFamily: fontFamily.medium, color: '#6366F1' },
 });
 
 /* ══════════════════════════════════════════════════════════════════ */
@@ -361,7 +361,7 @@ export default function PartnerStoreManagementScreen() {
     <KeyboardAvoidingView style={styles.bg} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
       {/* ── Dark gradient header ── */}
-      <LinearGradient colors={['#0F172A', '#1E293B']} style={[styles.header, { paddingTop: insets.top }]}>
+      <LinearGradient colors={['#0D0E20', '#1a1b3e']} style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={wp(22)} color="rgba(255,255,255,0.85)" />
@@ -410,8 +410,8 @@ export default function PartnerStoreManagementScreen() {
         {/* ════════════════════════════════════════ */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(255,106,0,0.12)' }]}>
-              <Ionicons name="image" size={wp(16)} color={colors.orange[400]} />
+            <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(99,102,241,0.12)' }]}>
+              <Ionicons name="image" size={wp(16)} color="#6366F1" />
             </View>
             <View>
               <Text style={styles.sectionTitle}>Image du magasin</Text>
@@ -443,7 +443,7 @@ export default function PartnerStoreManagementScreen() {
                 style={styles.editIconBtn}
                 onPress={() => { setPhoneValue(store.phone ?? ''); setEditingPhone(true); }}
               >
-                <Ionicons name="pencil" size={wp(15)} color={colors.orange[400]} />
+                <Ionicons name="pencil" size={wp(15)} color="#6366F1" />
               </TouchableOpacity>
             )}
           </View>
@@ -476,7 +476,7 @@ export default function PartnerStoreManagementScreen() {
                   disabled={savePhoneMutation.isPending}
                 >
                   <LinearGradient
-                    colors={['#FF7A18', '#FF4D00']}
+                    colors={['#4F46E5', '#6366F1']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={styles.saveGradient}
                   >
@@ -568,7 +568,7 @@ export default function PartnerStoreManagementScreen() {
                     disabled={saveHoursMutation.isPending}
                   >
                     <LinearGradient
-                      colors={['#FF7A18', '#FF4D00']}
+                      colors={['#4F46E5', '#6366F1']}
                       start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                       style={styles.saveGradient}
                     >
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
   sectionIconWrap: { width: wp(38), height: wp(38), borderRadius: borderRadius.lg, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
   sectionDesc: { ...textStyles.micro, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  editIconBtn: { width: wp(34), height: wp(34), borderRadius: wp(17), backgroundColor: 'rgba(255,106,0,0.1)', alignItems: 'center', justifyContent: 'center' },
+  editIconBtn: { width: wp(34), height: wp(34), borderRadius: wp(17), backgroundColor: 'rgba(99,102,241,0.1)', alignItems: 'center', justifyContent: 'center' },
 
   /* Phone */
   phoneDisplayWrap: { gap: spacing[2] },
@@ -730,6 +730,6 @@ const styles = StyleSheet.create({
   centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing[6], gap: spacing[3] },
   fallbackTitle: { ...textStyles.h4, color: 'rgba(255,255,255,0.5)', textAlign: 'center' },
   fallbackText: { ...textStyles.body, color: 'rgba(255,255,255,0.25)', textAlign: 'center' },
-  backLinkBtn: { marginTop: spacing[3], backgroundColor: colors.orange[500], borderRadius: borderRadius.xl, paddingVertical: spacing[3], paddingHorizontal: spacing[6] },
+  backLinkBtn: { marginTop: spacing[3], backgroundColor: '#6366F1', borderRadius: borderRadius.xl, paddingVertical: spacing[3], paddingHorizontal: spacing[6] },
   backLinkText: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
 });

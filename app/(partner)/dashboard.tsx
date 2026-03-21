@@ -175,7 +175,7 @@ export default function PartnerDashboardScreen() {
 
       {/* ── Header ── */}
       <LinearGradient
-        colors={['#0F172A', '#1E293B']}
+        colors={['#0D0E20', '#1a1b3e']}
         style={[styles.header, { paddingTop: insets.top + spacing[3] }]}
       >
         <View style={styles.headerRow}>
@@ -199,7 +199,7 @@ export default function PartnerDashboardScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={['#FF6A00', '#FF9F45']}
+            colors={['#4F46E5', '#6366F1']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={styles.scannerGradient}
           >
@@ -239,7 +239,7 @@ export default function PartnerDashboardScreen() {
             {activeStoreData ? (
               <StoreThumb store={activeStoreData} size={wp(44)} />
             ) : (
-              <Ionicons name="storefront-outline" size={wp(22)} color="#FB923C" />
+              <Ionicons name="storefront-outline" size={wp(22)} color="#6366F1" />
             )}
           </View>
           <View style={{ flex: 1 }}>
@@ -265,11 +265,11 @@ export default function PartnerDashboardScreen() {
         <SectionLabel label="Actions rapides" />
         <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.actionsRow}>
           {([
-            { icon: 'receipt-outline', label: 'Historique', route: '/(partner)/history', color: '#818CF8', bg: 'rgba(129,140,248,0.12)' },
-            { icon: 'storefront-outline', label: 'Magasins', route: '/(partner)/stores', color: '#FB923C', bg: 'rgba(251,146,60,0.12)' },
-            { icon: 'people-outline', label: 'Équipe', route: '/(partner)/team', color: '#34D399', bg: 'rgba(52,211,153,0.12)' },
-            { icon: 'settings-outline', label: 'Gestion', route: '/(partner)/store-management', color: '#FBBF24', bg: 'rgba(251,191,36,0.12)' },
-          ] as { icon: IoniconsName; label: string; route: string; color: string; bg: string }[]).map(
+            { icon: 'receipt-outline', label: 'Historique', route: '/(partner)/history' },
+            { icon: 'storefront-outline', label: 'Magasins', route: '/(partner)/stores' },
+            { icon: 'people-outline', label: 'Équipe', route: '/(partner)/team' },
+            { icon: 'settings-outline', label: 'Gestion', route: '/(partner)/store-management' },
+          ] as { icon: IoniconsName; label: string; route: string }[]).map(
             (action) => (
               <TouchableOpacity
                 key={action.label}
@@ -277,8 +277,8 @@ export default function PartnerDashboardScreen() {
                 onPress={() => router.push(action.route as any)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIcon, { backgroundColor: action.bg }]}>
-                  <Ionicons name={action.icon} size={wp(22)} color={action.color} />
+                <View style={styles.actionIcon}>
+                  <Ionicons name={action.icon} size={wp(22)} color="#6366F1" />
                 </View>
                 <Text style={styles.actionLabel}>{action.label}</Text>
               </TouchableOpacity>
@@ -289,20 +289,20 @@ export default function PartnerDashboardScreen() {
         {/* ── KPIs ── */}
         <SectionLabel label="Vue globale" />
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.kpiGrid}>
-          <KPICard color="#818CF8" value={formatNumber(partnerScansQ.data?.count ?? 0)} label="Scans total" />
-          <KPICard color="#FB923C" value={formatNumber(stores.length)} label="Magasins" />
-          <KPICard color="#34D399" value={formatNumber(kpis.totalPersons)} label="Personnes" />
+          <KPICard value={formatNumber(partnerScansQ.data?.count ?? 0)} label="Scans total" />
+          <KPICard value={formatNumber(stores.length)} label="Magasins" />
+          <KPICard value={formatNumber(kpis.totalPersons)} label="Personnes" />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(180).springify()} style={styles.kpiGrid}>
-          <KPICard color="#818CF8" value={formatPrice(kpis.totalGross)} label="CA brut" />
-          <KPICard color="#FBBF24" value={formatPrice(kpis.totalDiscount)} label="Réductions" />
-          <KPICard color="#34D399" value={formatPrice(kpis.totalNet)} label="CA net" />
+          <KPICard value={formatPrice(kpis.totalGross)} label="CA brut" />
+          <KPICard value={formatPrice(kpis.totalDiscount)} label="Réductions" />
+          <KPICard value={formatPrice(kpis.totalNet)} label="CA net" />
         </Animated.View>
 
         {/* Panier moyen — large card */}
         <Animated.View entering={FadeInDown.delay(220).springify()} style={styles.avgCard}>
-          <View style={[styles.kpiAccent, { backgroundColor: '#818CF8' }]} />
+          <View style={[styles.kpiAccent, { backgroundColor: '#6366F1' }]} />
           <View style={styles.avgInner}>
             <View style={{ flex: 1 }}>
               <Text style={styles.avgLabel}>Panier moyen</Text>
@@ -346,15 +346,11 @@ function SectionLabel({ label }: { label: string }) {
 }
 
 /* ── KPI card ── */
-function KPICard({
-  color, value, label,
-}: {
-  color: string; value: string; label: string;
-}) {
+function KPICard({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.kpiCard}>
-      <View style={[styles.kpiAccent, { backgroundColor: color }]} />
-      <Text style={[styles.kpiValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <View style={styles.kpiAccent} />
+      <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
     </View>
   );
@@ -366,7 +362,7 @@ function TxRow({ tx }: { tx: any }) {
   return (
     <View style={styles.txCard}>
       <View style={styles.txIconWrap}>
-        <Ionicons name="receipt-outline" size={wp(16)} color="#818CF8" />
+        <Ionicons name="receipt-outline" size={wp(16)} color="#6366F1" />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.txName} numberOfLines={1}>
@@ -491,12 +487,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(99,102,241,0.25)',
+    backgroundColor: 'rgba(99,102,241,0.1)',
   },
   actionLabel: {
     fontSize: wp(10),
     fontFamily: fontFamily.semiBold,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
   },
 
@@ -528,6 +525,7 @@ const styles = StyleSheet.create({
     height: 3,
     borderTopLeftRadius: borderRadius['2xl'],
     borderTopRightRadius: borderRadius['2xl'],
+    backgroundColor: '#6366F1',
   },
   kpiValue: {
     fontSize: wp(17),
@@ -567,7 +565,7 @@ const styles = StyleSheet.create({
   avgValue: {
     fontSize: wp(22),
     fontFamily: fontFamily.bold,
-    color: '#818CF8',
+    color: '#6366F1',
     marginTop: 3,
   },
   txCountBadge: {
@@ -601,7 +599,7 @@ const styles = StyleSheet.create({
     width: wp(44),
     height: wp(44),
     borderRadius: borderRadius.xl,
-    backgroundColor: 'rgba(251,146,60,0.12)',
+    backgroundColor: 'rgba(99,102,241,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -628,14 +626,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[2],
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(255,122,24,0.1)',
+    backgroundColor: 'rgba(99,102,241,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255,122,24,0.2)',
+    borderColor: 'rgba(99,102,241,0.25)',
   },
   changeTxt: {
     fontSize: wp(11),
     fontFamily: fontFamily.semiBold,
-    color: '#FF7A18',
+    color: '#6366F1',
   },
 
   /* Transactions */
@@ -654,7 +652,7 @@ const styles = StyleSheet.create({
     width: wp(36),
     height: wp(36),
     borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(129,140,248,0.12)',
+    backgroundColor: 'rgba(99,102,241,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },

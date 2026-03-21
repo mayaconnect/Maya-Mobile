@@ -62,7 +62,7 @@ function PartnerTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             return (
               <TouchableOpacity key={route.key} style={tbStyles.centerWrap} onPress={onPress} activeOpacity={0.85}>
                 <LinearGradient
-                  colors={['#FF6A00', '#FF9F45']}
+                  colors={['#4F46E5', '#818CF8']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   style={tbStyles.scanBtn}
                 >
@@ -78,7 +78,7 @@ function PartnerTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               <Ionicons
                 name={focused ? tabDef.iconActive : tabDef.icon}
                 size={wp(22)}
-                color={focused ? '#FF7A18' : 'rgba(255,255,255,0.35)'}
+                color={focused ? '#6366F1' : 'rgba(255,255,255,0.35)'}
               />
               <Text style={[tbStyles.label, focused && tbStyles.labelActive]}>
                 {tabDef.title}
@@ -122,7 +122,7 @@ const tbStyles = StyleSheet.create({
     ...shadows.xl,
   },
   bg: {
-    backgroundColor: isIOS ? 'rgba(10,15,28,0.75)' : '#0C1526',
+    backgroundColor: isIOS ? 'rgba(13,14,32,0.8)' : '#0D0E20',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.07)',
   },
@@ -146,7 +146,7 @@ const tbStyles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
   },
   labelActive: {
-    color: '#FF7A18',
+    color: '#6366F1',
     fontFamily: fontFamily.semiBold,
   },
 
@@ -165,6 +165,6 @@ const tbStyles = StyleSheet.create({
     justifyContent: 'center',
     ...shadows.lg,
     borderWidth: 3,
-    borderColor: '#0C1526',
+    borderColor: '#0D0E20',
   },
 });
