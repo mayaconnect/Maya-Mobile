@@ -48,12 +48,16 @@ export default function PartnerScannerScreen() {
   const { alert, AlertModal } = useAppAlert();
   const user = useAuthStore((s) => s.user);
   const activeStore = usePartnerStore((s) => s.activeStore);
+  const partner = usePartnerStore((s) => s.partner);
+  const stores = usePartnerStore((s) => s.stores);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [scannedToken, setScannedToken] = useState('');
   const [validateResult, setValidateResult] = useState<QrValidateResultDto | null>(null);
   const [preview, setPreview] = useState<QrPreviewDiscountResultDto | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [planInfo, setPlanInfo] = useState<QrPreviewDiscountResultDto | null>(null);
+  const [planInfoLoading, setPlanInfoLoading] = useState(false);
   const scannedRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -70,14 +74,21 @@ export default function PartnerScannerScreen() {
   const watchedAmount = useWatch({ control, name: 'amountGross' });
 
   const resolveIds = useCallback(() => {
-    const store = activeStoreQ.data;
-    const storeIdVal = store?.storeId ?? activeStore?.storeId ?? '';
-    const partner = usePartnerStore.getState().partner;
-    const storesArr = usePartnerStore.getState().stores;
-    const matchedStore = storesArr.find((s) => s.id === storeIdVal);
-    const partnerIdVal = partner?.id ?? matchedStore?.partnerId ?? '';
+    const opStores = user?.partnerData?.operatorStores ?? [];
+    const storeIdVal =
+      activeStoreQ.data?.storeId ??
+      activeStore?.storeId ??
+      opStores[0]?.id ?? '';
+    const matchedStore = stores.find((s) => s.id === storeIdVal);
+    const partnerIdVal =
+      partner?.id ??
+      matchedStore?.partnerId ??
+      opStores.find((s) => s.id === storeIdVal)?.partnerId ??
+      opStores.find((s) => s.id === storeIdVal)?.partner?.id ??
+      opStores[0]?.partnerId ??
+      opStores[0]?.partner?.id ?? '';
     return { storeIdVal, partnerIdVal };
-  }, [activeStoreQ.data, activeStore]);
+  }, [activeStoreQ.data, activeStore, partner, stores, user]);
 
   useEffect(() => {
     if (scanState !== 'form' || !scannedToken) return;
@@ -91,8 +102,8 @@ export default function PartnerScannerScreen() {
       try {
         const res = await qrApi.previewDiscount({
           qrToken: scannedToken, partnerId: partnerIdVal,
-          storeId: storeIdVal || undefined, amountGross: amount,
-        });
+          ...(storeIdVal ? { storeId: storeIdVal } : {}), amountGross: amount,
+        } as any);
         setPreview(res.data);
       } catch { setPreview(null); }
       finally { setPreviewLoading(false); }
@@ -127,7 +138,7 @@ export default function PartnerScannerScreen() {
     const persons = parseInt(values.personsCount, 10) || 1;
     if (isNaN(amount) || amount <= 0) { alert('Erreur', 'Veuillez saisir un montant valide.'); return; }
     if (preview?.personsAllowed && persons > preview.personsAllowed) {
-      alert('Limite atteinte', `L'abonnement autorise ${preview.personsAllowed} personne${preview.personsAllowed > 1 ? 's' : ''} maximum.`);
+      alert('Limite atteinte', `Abonnement limité à ${preview.personsAllowed} personne${preview.personsAllowed > 1 ? 's' : ''}.`);
       return;
     }
     const { storeIdVal, partnerIdVal } = resolveIds();
@@ -139,9 +150,52 @@ export default function PartnerScannerScreen() {
     });
   };
 
+
+  /* ---- Plan info immédiat après scan ---- */
+  useEffect(() => {
+    if (scanState !== 'form' || !scannedToken) return;
+    const { storeIdVal, partnerIdVal } = resolveIds();
+
+    console.log('[PLAN_INFO] === Démarrage ===');
+    console.log('[PLAN_INFO] partnerIdVal:', partnerIdVal);
+    console.log('[PLAN_INFO] storeIdVal:', storeIdVal);
+    console.log('[PLAN_INFO] qrToken:', scannedToken);
+    console.log('[PLAN_INFO] payload:', JSON.stringify({
+      qrToken: scannedToken,
+      partnerId: partnerIdVal,
+      storeId: storeIdVal || null,
+      amountGross: 0,
+    }));
+
+    if (!partnerIdVal) {
+      console.warn('[PLAN_INFO] ❌ partnerIdVal vide — appel annulé');
+      return;
+    }
+
+    setPlanInfoLoading(true);
+    qrApi.previewDiscount({
+      qrToken: scannedToken,
+      partnerId: partnerIdVal,
+      storeId: storeIdVal || null,
+      amountGross: 0,
+    } as any)
+      .then((res) => {
+        console.log('[PLAN_INFO] ✅ Succès:', JSON.stringify(res.data));
+        setPlanInfo(res.data);
+      })
+      .catch((err: any) => {
+        console.warn('[PLAN_INFO] ❌ Erreur HTTP:', err?.response?.status);
+        console.warn('[PLAN_INFO] ❌ Body:', JSON.stringify(err?.response?.data));
+        console.warn('[PLAN_INFO] ❌ Message:', err?.message);
+        setPlanInfo(null);
+      })
+      .finally(() => setPlanInfoLoading(false));
+  }, [scanState, scannedToken, resolveIds]);
+
   const resetScanner = () => {
     scannedRef.current = false;
     setScannedToken(''); setValidateResult(null); setPreview(null); setPreviewLoading(false);
+    setPlanInfo(null); setPlanInfoLoading(false);
     reset(); setScanState('scanning');
   };
 
@@ -227,7 +281,8 @@ export default function PartnerScannerScreen() {
 
   /* ── Form ── */
   if (scanState === 'form') {
-    const pt = PLAN_THEME[(preview?.planCode ?? '').toUpperCase()] ?? PLAN_THEME.SOLO;
+    const activePlanCode = (planInfo?.planCode ?? preview?.planCode ?? '').toUpperCase();
+    const pt = PLAN_THEME[activePlanCode] ?? PLAN_THEME.SOLO;
     return (
       <View style={styles.container}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -261,19 +316,41 @@ export default function PartnerScannerScreen() {
                 <Ionicons name="checkmark-circle" size={wp(20)} color="#22C55E" />
               </View>
 
-              {/* Plan badge */}
-              {preview && (
-                <Animated.View entering={FadeIn.duration(250)} style={[styles.planCard, { backgroundColor: pt.bg, borderColor: pt.accent + '30' }]}>
-                  <View style={[styles.planIconWrap, { backgroundColor: pt.accent + '20' }]}>
-                    <Ionicons name={pt.icon as any} size={wp(20)} color={pt.accent} />
+              {/* ── Abonnement (chargé immédiatement après scan) ── */}
+              {planInfoLoading && !planInfo && (
+                <View style={styles.planLoadingCard}>
+                  <ActivityIndicator size="small" color="#818CF8" />
+                  <Text style={styles.planLoadingText}>Vérification abonnement…</Text>
+                </View>
+              )}
+              {planInfo && (
+                <Animated.View entering={FadeIn.duration(300)} style={[styles.subscriptionCard, { borderColor: pt.accent + '40' }]}>
+                  <View style={[styles.subscriptionBanner, { backgroundColor: pt.bg }]}>
+                    <View style={[styles.subscriptionIconWrap, { backgroundColor: pt.accent + '25' }]}>
+                      <Ionicons name={pt.icon as any} size={wp(22)} color={pt.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.subscriptionLabel}>Abonnement</Text>
+                      <Text style={[styles.subscriptionPlanName, { color: pt.accent }]}>
+                        {planInfo.planName || formatPlanLabel(planInfo.planCode)}
+                      </Text>
+                    </View>
+                    <View style={[styles.planCodeBadge, { backgroundColor: pt.accent + '20', borderColor: pt.accent + '40' }]}>
+                      <Text style={[styles.planCodeText, { color: pt.accent }]}>{planInfo.planCode}</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.planName, { color: pt.accent }]}>
-                      {preview.planName || formatPlanLabel(preview.planCode)}
-                    </Text>
-                    <Text style={styles.planSub}>
-                      {preview.personsAllowed} pers. · {preview.discountPercent}% réduction
-                    </Text>
+                  <View style={styles.subscriptionStats}>
+                    <View style={styles.subscriptionStat}>
+                      <Text style={[styles.subscriptionStatValue, { color: pt.accent }]}>{planInfo.discountPercent}%</Text>
+                      <Text style={styles.subscriptionStatLabel}>Réduction</Text>
+                    </View>
+                    <View style={styles.subscriptionStatDivider} />
+                    <View style={styles.subscriptionStat}>
+                      <Text style={[styles.subscriptionStatValue, { color: '#FFFFFF' }]}>{planInfo.personsAllowed}</Text>
+                      <Text style={styles.subscriptionStatLabel}>
+                        {planInfo.personsAllowed > 1 ? 'Personnes max' : 'Personne'}
+                      </Text>
+                    </View>
                   </View>
                 </Animated.View>
               )}
@@ -553,6 +630,50 @@ const styles = StyleSheet.create({
   tokenLabel: { fontSize: wp(9), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 0.5 },
   tokenValue: { fontSize: wp(12), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
 
+  /* Plan loading */
+  planLoadingCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2],
+    backgroundColor: '#1E293B', borderRadius: borderRadius.xl,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: spacing[3],
+  },
+  planLoadingText: { fontSize: wp(12), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.4)' },
+
+  /* Subscription card */
+  subscriptionCard: {
+    backgroundColor: '#1E293B', borderRadius: borderRadius.xl,
+    borderWidth: 1, overflow: 'hidden',
+    ...shadows.sm,
+  },
+  subscriptionBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    padding: spacing[3],
+  },
+  subscriptionIconWrap: {
+    width: wp(44), height: wp(44), borderRadius: borderRadius.lg,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  subscriptionLabel: {
+    fontSize: wp(9), fontFamily: fontFamily.semiBold,
+    color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 2,
+  },
+  subscriptionPlanName: { fontSize: wp(15), fontFamily: fontFamily.bold },
+  planCodeBadge: {
+    paddingHorizontal: spacing[2], paddingVertical: 4,
+    borderRadius: borderRadius.md, borderWidth: 1,
+  },
+  planCodeText: { fontSize: wp(10), fontFamily: fontFamily.bold, letterSpacing: 0.5 },
+  subscriptionStats: {
+    flexDirection: 'row',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  subscriptionStat: {
+    flex: 1, alignItems: 'center', paddingVertical: spacing[3],
+  },
+  subscriptionStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: spacing[2] },
+  subscriptionStatValue: { fontSize: wp(18), fontFamily: fontFamily.bold },
+  subscriptionStatLabel: { fontSize: wp(10), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
+
+  /* Legacy plan card (kept for success screen) */
   planCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing[3],
     borderRadius: borderRadius.xl, borderWidth: 1, padding: spacing[3],

@@ -40,7 +40,7 @@ import { wp } from '../../src/utils/responsive';
 import { LoadingSpinner, ErrorState } from '../../src/components/ui';
 import { OpeningHoursEditor, StoreImageManager } from '../../src/components/partner';
 import type { StoreOpeningHours, StorePatchDto } from '../../src/types';
-import { parseOpeningHours } from '../../src/types';
+import { parseOpeningHours, isStoreOpenNow } from '../../src/types';
 import { extractApiError } from '../../src/api/client';
 
 /* ══════════════════════════════════════════════════════════════════ */
@@ -245,6 +245,7 @@ export default function PartnerStoreManagementScreen() {
   const [editHours, setEditHours] = useState<StoreOpeningHours | null>(null);
   const currentHours = editHours ?? openingHours;
   const hasHoursChanges = editHours !== null;
+  const [hoursExpanded, setHoursExpanded] = useState(false);
 
   // ── Phone editing ──
   const [editingPhone, setEditingPhone] = useState(false);
@@ -450,13 +451,13 @@ export default function PartnerStoreManagementScreen() {
           {editingPhone ? (
             <View style={styles.phoneEditWrap}>
               <View style={styles.phoneInputWrap}>
-                <Ionicons name="call-outline" size={wp(16)} color="rgba(255,255,255,0.35)" />
+                <Ionicons name="call-outline" size={wp(16)} color="rgba(255,255,255,0.45)" />
                 <TextInput
                   style={styles.phoneInput}
                   value={phoneValue}
                   onChangeText={setPhoneValue}
                   placeholder="+33 6 00 00 00 00"
-                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  placeholderTextColor="rgba(255,255,255,0.25)"
                   keyboardType="phone-pad"
                   autoFocus
                 />
@@ -474,16 +475,31 @@ export default function PartnerStoreManagementScreen() {
                   onPress={() => savePhoneMutation.mutate(phoneValue.trim())}
                   disabled={savePhoneMutation.isPending}
                 >
-                  {savePhoneMutation.isPending
-                    ? <ActivityIndicator size="small" color="#FFFFFF" />
-                    : <Text style={styles.savePhoneText}>Enregistrer</Text>}
+                  <LinearGradient
+                    colors={['#FF7A18', '#FF4D00']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.saveGradient}
+                  >
+                    {savePhoneMutation.isPending
+                      ? <ActivityIndicator size="small" color="#FFFFFF" />
+                      : <Text style={styles.savePhoneText}>Enregistrer</Text>}
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <View style={styles.phoneDisplayWrap}>
-              <Text style={styles.phoneValue}>{store.phone ?? '—'}</Text>
-              {!store.phone && <Text style={styles.phoneHint}>Appuyez sur l'icône crayon pour ajouter</Text>}
+              {store.phone ? (
+                <View style={styles.phonePill}>
+                  <Ionicons name="call" size={wp(14)} color="#4ADE80" />
+                  <Text style={styles.phoneValue}>{store.phone}</Text>
+                </View>
+              ) : (
+                <View style={styles.phoneEmpty}>
+                  <Ionicons name="call-outline" size={wp(14)} color="rgba(255,255,255,0.2)" />
+                  <Text style={styles.phoneHint}>Aucun numéro — appuyez sur ✏️ pour ajouter</Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -492,7 +508,12 @@ export default function PartnerStoreManagementScreen() {
         {/*  Section 4 — Horaires d'ouverture        */}
         {/* ════════════════════════════════════════ */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          {/* ── Accordion header (cliquable) ── */}
+          <TouchableOpacity
+            style={[styles.sectionHeader, { marginBottom: hoursExpanded ? spacing[3] : 0 }]}
+            onPress={() => setHoursExpanded((v) => !v)}
+            activeOpacity={0.7}
+          >
             <View style={[styles.sectionIconWrap, { backgroundColor: 'rgba(251,191,36,0.12)' }]}>
               <Ionicons name="time" size={wp(16)} color="#FBBF24" />
             </View>
@@ -500,39 +521,70 @@ export default function PartnerStoreManagementScreen() {
               <Text style={styles.sectionTitle}>Horaires d'ouverture</Text>
               <Text style={styles.sectionDesc}>Jours et créneaux d'accueil</Text>
             </View>
+            {/* Statut ouvert/fermé */}
+            {(() => {
+              const open = isStoreOpenNow(currentHours);
+              return (
+                <View style={[styles.statusBadge, open ? styles.statusOpen : styles.statusClosed]}>
+                  <View style={[styles.statusDot, { backgroundColor: open ? '#4ADE80' : '#F87171' }]} />
+                  <Text style={[styles.statusText, { color: open ? '#4ADE80' : '#F87171' }]}>
+                    {open ? 'Ouvert' : 'Fermé'}
+                  </Text>
+                </View>
+              );
+            })()}
             {hasHoursChanges && (
-              <View style={styles.modifiedBadge}>
-                <Text style={styles.modifiedText}>Modifié</Text>
+              <View style={[styles.modifiedBadge, { marginLeft: spacing[1] }]}>
+                <Text style={styles.modifiedText}>•</Text>
               </View>
             )}
-          </View>
-
-          <OpeningHoursEditor value={currentHours} onChange={setEditHours} />
-
-          {hasHoursChanges && (
-            <View style={styles.hoursActions}>
-              <TouchableOpacity
-                style={styles.cancelHoursBtn}
-                onPress={() => setEditHours(null)}
-                disabled={saveHoursMutation.isPending}
-              >
-                <Text style={styles.cancelHoursText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.saveHoursBtn}
-                onPress={handleSaveHours}
-                disabled={saveHoursMutation.isPending}
-              >
-                {saveHoursMutation.isPending
-                  ? <ActivityIndicator size="small" color="#FFFFFF" />
-                  : (
-                    <>
-                      <Ionicons name="checkmark" size={wp(16)} color="#FFFFFF" />
-                      <Text style={styles.saveHoursText}>Enregistrer</Text>
-                    </>
-                  )}
-              </TouchableOpacity>
+            {/* Chevron */}
+            <View style={styles.accordionChevron}>
+              <Ionicons
+                name={hoursExpanded ? 'chevron-up' : 'chevron-down'}
+                size={wp(14)}
+                color="rgba(255,255,255,0.4)"
+              />
             </View>
+          </TouchableOpacity>
+
+          {/* ── Contenu accordéon ── */}
+          {hoursExpanded && (
+            <>
+              <View style={styles.accordionDivider} />
+              <OpeningHoursEditor value={currentHours} onChange={setEditHours} />
+              {hasHoursChanges && (
+                <View style={styles.hoursActions}>
+                  <TouchableOpacity
+                    style={styles.cancelHoursBtn}
+                    onPress={() => setEditHours(null)}
+                    disabled={saveHoursMutation.isPending}
+                  >
+                    <Text style={styles.cancelHoursText}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.saveHoursBtn}
+                    onPress={handleSaveHours}
+                    disabled={saveHoursMutation.isPending}
+                  >
+                    <LinearGradient
+                      colors={['#FF7A18', '#FF4D00']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={styles.saveGradient}
+                    >
+                      {saveHoursMutation.isPending
+                        ? <ActivityIndicator size="small" color="#FFFFFF" />
+                        : (
+                          <>
+                            <Ionicons name="checkmark" size={wp(16)} color="#FFFFFF" />
+                            <Text style={styles.saveHoursText}>Enregistrer</Text>
+                          </>
+                        )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
           )}
         </View>
 
@@ -600,7 +652,7 @@ const styles = StyleSheet.create({
   backBtn: { width: wp(40), height: wp(40), borderRadius: wp(20), backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { ...textStyles.h4, fontFamily: fontFamily.bold, color: '#FFFFFF' },
-  headerSub: { ...textStyles.micro, color: 'rgba(255,255,255,0.35)', marginTop: 2 },
+  headerSub: { ...textStyles.micro, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
 
   /* Scroll */
   scroll: { padding: spacing[4], gap: spacing[4] },
@@ -614,41 +666,62 @@ const styles = StyleSheet.create({
     padding: spacing[4],
     ...shadows.sm,
   },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[4] },
-  sectionIconWrap: { width: wp(34), height: wp(34), borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[4] },
+  sectionIconWrap: { width: wp(38), height: wp(38), borderRadius: borderRadius.lg, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
-  sectionDesc: { ...textStyles.micro, color: 'rgba(255,255,255,0.3)', marginTop: 2 },
+  sectionDesc: { ...textStyles.micro, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
   editIconBtn: { width: wp(34), height: wp(34), borderRadius: wp(17), backgroundColor: 'rgba(255,106,0,0.1)', alignItems: 'center', justifyContent: 'center' },
 
   /* Phone */
-  phoneDisplayWrap: { gap: spacing[1] },
-  phoneValue: { ...textStyles.h4, color: '#FFFFFF', fontFamily: fontFamily.semiBold },
-  phoneHint: { ...textStyles.micro, color: 'rgba(255,255,255,0.25)' },
+  phoneDisplayWrap: { gap: spacing[2] },
+  phonePill: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2],
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(74,222,128,0.08)',
+    borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[2],
+  },
+  phoneValue: { ...textStyles.body, color: '#FFFFFF', fontFamily: fontFamily.semiBold },
+  phoneEmpty: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  phoneHint: { ...textStyles.micro, color: 'rgba(255,255,255,0.3)' },
   phoneEditWrap: { gap: spacing[3] },
   phoneInputWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: borderRadius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', paddingHorizontal: spacing[3], paddingVertical: spacing[2] },
   phoneInput: { flex: 1, ...textStyles.body, color: '#FFFFFF', paddingVertical: 0 },
   phoneActions: { flexDirection: 'row', gap: spacing[3] },
   cancelPhoneBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing[3], borderRadius: borderRadius.lg, backgroundColor: 'rgba(255,255,255,0.05)' },
   cancelPhoneText: { ...textStyles.body, color: 'rgba(255,255,255,0.5)', fontFamily: fontFamily.medium },
-  savePhoneBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing[3], borderRadius: borderRadius.lg, backgroundColor: colors.orange[500] },
+  savePhoneBtn: { flex: 1, borderRadius: borderRadius.lg, overflow: 'hidden' },
   savePhoneText: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
+  saveGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[1], paddingVertical: spacing[3] },
 
   /* Modified badge */
   modifiedBadge: { paddingHorizontal: spacing[2], paddingVertical: 2, borderRadius: borderRadius.full, backgroundColor: 'rgba(251,191,36,0.15)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.2)' },
   modifiedText: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: '#FBBF24' },
 
+  /* Open / Closed status badge */
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing[2], paddingVertical: 4, borderRadius: borderRadius.full, borderWidth: 1 },
+  statusOpen: { backgroundColor: 'rgba(74,222,128,0.1)', borderColor: 'rgba(74,222,128,0.25)' },
+  statusClosed: { backgroundColor: 'rgba(248,113,113,0.1)', borderColor: 'rgba(248,113,113,0.25)' },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: { fontSize: wp(10), fontFamily: fontFamily.semiBold },
+
+  /* Accordion */
+  accordionChevron: { width: wp(28), height: wp(28), borderRadius: wp(14), backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center', marginLeft: spacing[1] },
+  accordionDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: spacing[3] },
+
   /* Hours actions */
   hoursActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
   cancelHoursBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing[3], borderRadius: borderRadius.lg, backgroundColor: 'rgba(255,255,255,0.05)' },
   cancelHoursText: { ...textStyles.body, color: 'rgba(255,255,255,0.5)', fontFamily: fontFamily.medium },
-  saveHoursBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[1], paddingVertical: spacing[3], borderRadius: borderRadius.lg, backgroundColor: colors.orange[500] },
+  saveHoursBtn: { flex: 1, borderRadius: borderRadius.lg, overflow: 'hidden' },
   saveHoursText: { ...textStyles.body, fontFamily: fontFamily.bold, color: '#FFFFFF' },
 
   /* Info rows */
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing[2] },
   infoRowMulti: { paddingVertical: spacing[2], gap: spacing[1] },
   infoSep: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)' },
-  infoLabel: { ...textStyles.caption, color: 'rgba(255,255,255,0.4)' },
+  infoLabel: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 },
   infoValue: { ...textStyles.body, fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.8)', textAlign: 'right', flex: 1, marginLeft: spacing[3] },
   infoValueMulti: { ...textStyles.body, fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.8)' },
 

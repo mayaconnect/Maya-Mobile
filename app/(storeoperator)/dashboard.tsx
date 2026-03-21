@@ -116,15 +116,19 @@ export default function StoreOperatorDashboardScreen() {
   }, [storeId, stores]);
   const activeStoreName = activeStoreData?.name ?? null;
 
-  // Dériver partnerId depuis le magasin actif (pas depuis partner?.id qui
-  // reflète toujours le 1er partenaire trouvé au init)
+  // Dériver partnerId : partner Zustand → stores → user.partnerData fallback
   const partnerId = useMemo(() => {
+    if (partner?.id) return partner.id;
+    const opStores = user?.partnerData?.operatorStores ?? [];
     if (storeId) {
-      const found = stores.find((s) => s.id === storeId);
-      if (found?.partnerId) return found.partnerId;
+      const fromStore = stores.find((s) => s.id === storeId)?.partnerId;
+      if (fromStore) return fromStore;
+      const fromOp = opStores.find((s) => s.id === storeId);
+      if (fromOp?.partnerId) return fromOp.partnerId;
+      if (fromOp?.partner?.id) return fromOp.partner.id;
     }
-    return partner?.id;
-  }, [storeId, stores, partner?.id]);
+    return opStores[0]?.partnerId ?? opStores[0]?.partner?.id ?? undefined;
+  }, [partner, storeId, stores, user]);
 
   /* ---- Store scan count ---- */
   const storeScansQ = useQuery({
@@ -142,21 +146,28 @@ export default function StoreOperatorDashboardScreen() {
     select: (res) => res.data,
   });
 
-  /* ---- Partner-level transactions (all stores, recent) ---- */
-  const partnerTxQ = useQuery({
-    queryKey: ['partnerAllTx', partnerId],
+  /* ---- Active store recent transactions (via getFiltered) ---- */
+  const recentQ = useQuery({
+    queryKey: ['storeRecentTx', storeId],
     queryFn: () =>
-      transactionsApi.getByPartner(partnerId!, { page: 1, pageSize: 20 }),
-    enabled: !!partnerId,
+      transactionsApi.getFiltered({
+        StoreId: storeId,
+        PartnerId: partnerId,
+        Page: 1,
+        PageSize: 5,
+      }),
+    enabled: !!storeId,
     select: (res) => res.data,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
-  /* ---- Active store recent transactions ---- */
-  const recentQ = useQuery({
-    queryKey: ['partnerRecentTx', partnerId, storeId],
+  /* ---- Store-level transactions for KPIs (panier moyen par magasin) ---- */
+  const partnerTxQ = useQuery({
+    queryKey: ['storeKpiTx', storeId],
     queryFn: () =>
-      transactionsApi.getByPartner(partnerId!, { storeId, page: 1, pageSize: 5 }),
-    enabled: !!partnerId,
+      transactionsApi.getFiltered({ StoreId: storeId, PartnerId: partnerId, Page: 1, PageSize: 100 }),
+    enabled: !!storeId,
     select: (res) => res.data,
   });
 
@@ -325,7 +336,7 @@ export default function StoreOperatorDashboardScreen() {
               <Ionicons name="basket" size={wp(20)} color={colors.violet[500]} />
             </View>
             <View style={{ flex: 1, marginLeft: spacing[3] }}>
-              <Text style={styles.avgLabel}>Panier moyen</Text>
+              <Text style={styles.avgLabel}>Panier moyen (ce magasin)</Text>
               <Text style={styles.avgValue}>{formatPrice(kpis.avgBasket)}</Text>
             </View>
             <MBadge

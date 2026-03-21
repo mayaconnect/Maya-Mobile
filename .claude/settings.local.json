@@ -31,7 +31,10 @@
       "Bash(ls \"C:\\\\Users\\\\guill\\\\Documents\\\\Freelance\\\\Maya-Orga\\\\Maya\\\\app\\\\\\(storeoperator\\)\")",
       "Bash(find:*)",
       "Bash(wc:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:maya-dev-api-cgc5agebeke0hxhq.francecentral-01.azurewebsites.net)",
+      "Bash(curl -s \"https://maya-dev-api-cgc5agebeke0hxhq.francecentral-01.azurewebsites.net/swagger/v1/swagger.json\")",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
