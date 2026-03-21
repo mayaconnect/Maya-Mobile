@@ -138,7 +138,7 @@ export default function StoreOperatorHistoryScreen() {
         <View style={styles.txMain}>
           <View style={styles.txTop}>
             <Text style={styles.txName} numberOfLines={1}>
-              {formatClientNameShort(item.clientName ?? item.customerName, `Client #${item.customerUserId?.slice(0, 6) ?? '—'}`)}
+              {item.clientName ?? item.customerName ?? `Client #${item.customerUserId?.slice(0, 6) ?? '—'}`}
             </Text>
             <Text style={styles.txGross}>{formatPrice(item.amountGross ?? 0)}</Text>
           </View>

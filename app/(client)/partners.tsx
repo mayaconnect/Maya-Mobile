@@ -2,7 +2,7 @@
  * Maya Connect V2 — Partners List Screen
  * Pagination client-side — grid 2 colonnes + navigateur de pages
  */
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -226,8 +226,11 @@ export default function PartnersScreen() {
   const isRefreshing = storesQ.isRefetching && !storesQ.isFetchingNextPage;
   const onRefresh = () => { storesQ.refetch(); categoriesQ.refetch(); };
 
+  const listRef = useRef<FlatList>(null);
+
   const goToPage = (p: number) => {
     setCurrentPage(p);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
   // ── Grid card ──
@@ -346,6 +349,7 @@ export default function PartnersScreen() {
         />
       ) : (
         <FlatList
+          ref={listRef}
           data={pageItems}
           numColumns={2}
           renderItem={renderGridCard}

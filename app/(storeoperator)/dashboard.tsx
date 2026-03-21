@@ -366,7 +366,7 @@ export default function StoreOperatorDashboardScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.txName} numberOfLines={1}>
-                    {formatClientNameShort(tx.clientName ?? tx.customerName, `Client #${tx.customerUserId?.slice(0, 6) ?? '—'}`)}
+                    {tx.clientName ?? tx.customerName ?? `Client #${tx.customerUserId?.slice(0, 6) ?? '—'}`}
                   </Text>
                   <Text style={styles.txDate}>{formatDateTime(tx.createdAt)}</Text>
                 </View>

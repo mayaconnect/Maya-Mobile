@@ -97,7 +97,7 @@ export default function StoreOperatorScannerScreen() {
   /* ---- Debounced discount preview ---- */
   useEffect(() => {
     if (scanState !== 'form' || !scannedToken) return;
-    const amount = parseFloat(watchedAmount);
+    const amount = parseFloat(watchedAmount.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) { setPreview(null); return; }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -144,7 +144,7 @@ export default function StoreOperatorScannerScreen() {
   };
 
   const onSubmit = (values: any) => {
-    const amount = parseFloat(values.amountGross);
+    const amount = parseFloat(values.amountGross.replace(',', '.'));
     const persons = parseInt(values.personsCount, 10) || 1;
     if (isNaN(amount) || amount <= 0) { alert('Erreur', 'Veuillez saisir un montant valide.'); return; }
     if (preview?.personsAllowed && persons > preview.personsAllowed) {
