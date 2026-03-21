@@ -30,18 +30,35 @@ import { config } from '../../src/constants/config';
 
 const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
 
-function StoreImage({ item, isActive }: { item: any; isActive: boolean }) {
-  const [errored, setErrored] = React.useState(false);
-  const imageUri = item.imageUrl || item.partnerImageUrl ||
-    (item.partnerId ? `${config.api.baseUrl}/api/partners/${item.partnerId}/image` : null);
+function resolveUri(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return `${config.api.baseUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+}
 
-  if (!errored && imageUri) {
+function StoreImage({ item, isActive }: { item: any; isActive: boolean }) {
+  // Prioritise store-specific image only (imageUrl field → /api/stores/:id/image endpoint)
+  const uris = React.useMemo(() => {
+    const candidates: string[] = [];
+    const a = resolveUri(item.imageUrl);
+    const b = item.id ? `${config.api.baseUrl}/api/stores/${item.id}/image` : null;
+    if (a) candidates.push(a);
+    if (b && b !== a) candidates.push(b);
+    return candidates;
+  }, [item.imageUrl, item.id]);
+
+  const [index, setIndex] = React.useState(0);
+  React.useEffect(() => { setIndex(0); }, [item.id]);
+
+  const uri = uris[index] ?? null;
+
+  if (uri) {
     return (
       <Image
-        source={{ uri: imageUri }}
+        source={{ uri }}
         style={[styles.storeImage, isActive && styles.storeImageActive]}
         resizeMode="cover"
-        onError={() => setErrored(true)}
+        onError={() => setIndex((i) => i + 1)}
       />
     );
   }
@@ -50,7 +67,7 @@ function StoreImage({ item, isActive }: { item: any; isActive: boolean }) {
     <Image
       source={DEFAULT_IMAGE}
       style={[styles.storeImage, isActive && styles.storeImageActive]}
-      resizeMode="cover"
+      resizeMode="contain"
     />
   );
 }

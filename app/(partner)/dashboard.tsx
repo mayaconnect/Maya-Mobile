@@ -10,6 +10,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -27,6 +28,49 @@ import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { formatPrice, formatNumber, formatDateTime } from '../../src/utils/format';
 import { MAvatar, LoadingSpinner, ErrorState } from '../../src/components/ui';
+import { config } from '../../src/constants/config';
+
+const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
+
+function resolveUri(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return `${config.api.baseUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+}
+
+function StoreThumb({ store, size }: { store: any; size: number }) {
+  const uris = React.useMemo(() => {
+    const candidates: string[] = [];
+    const a = resolveUri(store?.imageUrl);
+    const b = store?.id ? `${config.api.baseUrl}/api/stores/${store.id}/image` : null;
+    if (a) candidates.push(a);
+    if (b && b !== a) candidates.push(b);
+    return candidates;
+  }, [store?.imageUrl, store?.id]);
+
+  const [index, setIndex] = React.useState(0);
+  React.useEffect(() => { setIndex(0); }, [store?.id]);
+
+  const uri = uris[index] ?? null;
+
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: borderRadius.xl }}
+        resizeMode="cover"
+        onError={() => setIndex((i) => i + 1)}
+      />
+    );
+  }
+  return (
+    <Image
+      source={DEFAULT_IMAGE}
+      style={{ width: size, height: size, borderRadius: borderRadius.xl }}
+      resizeMode="contain"
+    />
+  );
+}
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -61,11 +105,11 @@ export default function PartnerDashboardScreen() {
 
   const storeId = activeStoreQ.data?.storeId ?? activeStoreZus?.storeId;
 
-  const activeStoreName = useMemo(() => {
-    if (!storeId) return null;
-    const found = stores.find((s) => s.id === storeId);
-    return found?.name ?? null;
-  }, [storeId, stores]);
+  const activeStoreData = useMemo(
+    () => stores.find((s) => s.id === storeId) ?? null,
+    [storeId, stores],
+  );
+  const activeStoreName = activeStoreData?.name ?? null;
 
   /* ---- Queries ---- */
   const partnerScansQ = useQuery({
@@ -188,9 +232,38 @@ export default function PartnerDashboardScreen() {
           />
         )}
 
+        {/* ── Magasin actif ── */}
+        <SectionLabel label="Magasin actif" />
+        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.storeCard}>
+          <View style={styles.storeIconWrap}>
+            {activeStoreData ? (
+              <StoreThumb store={activeStoreData} size={wp(44)} />
+            ) : (
+              <Ionicons name="storefront-outline" size={wp(22)} color="#FB923C" />
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.storeLabel}>
+              {storeId ? 'Sélectionné' : 'Aucun magasin actif'}
+            </Text>
+            <Text style={styles.storeName} numberOfLines={1}>
+              {activeStoreName ?? `Magasin #${store?.storeId?.slice(0, 6) ?? '—'}`}
+            </Text>
+            {storeScansQ.data ? (
+              <Text style={styles.storeSub}>{formatNumber(storeScansQ.data.count)} scans</Text>
+            ) : null}
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/(partner)/stores' as any)}
+            style={styles.changeBtn}
+          >
+            <Text style={styles.changeTxt}>Changer</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
         {/* ── Quick actions ── */}
         <SectionLabel label="Actions rapides" />
-        <Animated.View entering={FadeInDown.delay(60).springify()} style={styles.actionsRow}>
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.actionsRow}>
           {([
             { icon: 'receipt-outline', label: 'Historique', route: '/(partner)/history', color: '#818CF8', bg: 'rgba(129,140,248,0.12)' },
             { icon: 'storefront-outline', label: 'Magasins', route: '/(partner)/stores', color: '#FB923C', bg: 'rgba(251,146,60,0.12)' },
@@ -215,75 +288,30 @@ export default function PartnerDashboardScreen() {
 
         {/* ── KPIs ── */}
         <SectionLabel label="Vue globale" />
-        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.kpiGrid}>
-          <KPICard
-            icon="scan-outline" color="#818CF8" bg="rgba(129,140,248,0.12)"
-            value={formatNumber(partnerScansQ.data?.count ?? 0)} label="Scans total"
-          />
-          <KPICard
-            icon="storefront-outline" color="#FB923C" bg="rgba(251,146,60,0.12)"
-            value={formatNumber(stores.length)} label="Magasins"
-          />
-          <KPICard
-            icon="people-outline" color="#34D399" bg="rgba(52,211,153,0.12)"
-            value={formatNumber(kpis.totalPersons)} label="Personnes"
-          />
+        <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.kpiGrid}>
+          <KPICard color="#818CF8" value={formatNumber(partnerScansQ.data?.count ?? 0)} label="Scans total" />
+          <KPICard color="#FB923C" value={formatNumber(stores.length)} label="Magasins" />
+          <KPICard color="#34D399" value={formatNumber(kpis.totalPersons)} label="Personnes" />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.kpiGrid}>
-          <KPICard
-            icon="cash-outline" color="#818CF8" bg="rgba(129,140,248,0.12)"
-            value={formatPrice(kpis.totalGross)} label="CA brut"
-          />
-          <KPICard
-            icon="pricetag-outline" color="#FBBF24" bg="rgba(251,191,36,0.12)"
-            value={formatPrice(kpis.totalDiscount)} label="Réductions"
-          />
-          <KPICard
-            icon="wallet-outline" color="#34D399" bg="rgba(52,211,153,0.12)"
-            value={formatPrice(kpis.totalNet)} label="CA net"
-          />
+        <Animated.View entering={FadeInDown.delay(180).springify()} style={styles.kpiGrid}>
+          <KPICard color="#818CF8" value={formatPrice(kpis.totalGross)} label="CA brut" />
+          <KPICard color="#FBBF24" value={formatPrice(kpis.totalDiscount)} label="Réductions" />
+          <KPICard color="#34D399" value={formatPrice(kpis.totalNet)} label="CA net" />
         </Animated.View>
 
         {/* Panier moyen — large card */}
-        <Animated.View entering={FadeInDown.delay(180).springify()} style={styles.avgCard}>
-          <View style={styles.avgLeft}>
-            <View style={styles.avgIconWrap}>
-              <Ionicons name="basket-outline" size={wp(20)} color="#818CF8" />
-            </View>
-            <View>
+        <Animated.View entering={FadeInDown.delay(220).springify()} style={styles.avgCard}>
+          <View style={[styles.kpiAccent, { backgroundColor: '#818CF8' }]} />
+          <View style={styles.avgInner}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.avgLabel}>Panier moyen</Text>
               <Text style={styles.avgValue}>{formatPrice(kpis.avgBasket)}</Text>
             </View>
+            <View style={styles.txCountBadge}>
+              <Text style={styles.txCountText}>{allTx.length} tx</Text>
+            </View>
           </View>
-          <View style={styles.txCountBadge}>
-            <Text style={styles.txCountText}>{allTx.length} tx</Text>
-          </View>
-        </Animated.View>
-
-        {/* ── Magasin actif ── */}
-        <SectionLabel label="Magasin actif" />
-        <Animated.View entering={FadeInDown.delay(220).springify()} style={styles.storeCard}>
-          <View style={styles.storeIconWrap}>
-            <Ionicons name="storefront-outline" size={wp(22)} color="#FB923C" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.storeLabel}>
-              {storeId ? 'Sélectionné' : 'Aucun magasin actif'}
-            </Text>
-            <Text style={styles.storeName} numberOfLines={1}>
-              {activeStoreName ?? `Magasin #${store?.storeId?.slice(0, 6) ?? '—'}`}
-            </Text>
-            {storeScansQ.data ? (
-              <Text style={styles.storeSub}>{formatNumber(storeScansQ.data.count)} scans</Text>
-            ) : null}
-          </View>
-          <TouchableOpacity
-            onPress={() => router.push('/(partner)/stores' as any)}
-            style={styles.changeBtn}
-          >
-            <Text style={styles.changeTxt}>Changer</Text>
-          </TouchableOpacity>
         </Animated.View>
 
         {/* ── Transactions récentes ── */}
@@ -319,16 +347,14 @@ function SectionLabel({ label }: { label: string }) {
 
 /* ── KPI card ── */
 function KPICard({
-  icon, color, bg, value, label,
+  color, value, label,
 }: {
-  icon: IoniconsName; color: string; bg: string; value: string; label: string;
+  color: string; value: string; label: string;
 }) {
   return (
     <View style={styles.kpiCard}>
-      <View style={[styles.kpiIcon, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={wp(16)} color={color} />
-      </View>
-      <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <View style={[styles.kpiAccent, { backgroundColor: color }]} />
+      <Text style={[styles.kpiValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
     </View>
   );
@@ -486,21 +512,25 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius['2xl'],
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
-    padding: spacing[3],
+    paddingHorizontal: spacing[3],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[3],
     alignItems: 'center',
     gap: spacing[1],
+    overflow: 'hidden',
     ...shadows.sm,
   },
-  kpiIcon: {
-    width: wp(32),
-    height: wp(32),
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing[1],
+  kpiAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderTopLeftRadius: borderRadius['2xl'],
+    borderTopRightRadius: borderRadius['2xl'],
   },
   kpiValue: {
-    fontSize: wp(15),
+    fontSize: wp(17),
     fontFamily: fontFamily.bold,
     color: '#FFFFFF',
   },
@@ -513,29 +543,19 @@ const styles = StyleSheet.create({
 
   /* Panier moyen */
   avgCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#1E293B',
     borderRadius: borderRadius['2xl'],
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
-    padding: spacing[4],
     marginBottom: spacing[4],
+    overflow: 'hidden',
     ...shadows.sm,
   },
-  avgLeft: {
+  avgInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[3],
-  },
-  avgIconWrap: {
-    width: wp(40),
-    height: wp(40),
-    borderRadius: borderRadius.lg,
-    backgroundColor: 'rgba(129,140,248,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    padding: spacing[4],
   },
   avgLabel: {
     fontSize: wp(10),
@@ -545,10 +565,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   avgValue: {
-    fontSize: wp(20),
+    fontSize: wp(22),
     fontFamily: fontFamily.bold,
-    color: '#FFFFFF',
-    marginTop: 2,
+    color: '#818CF8',
+    marginTop: 3,
   },
   txCountBadge: {
     paddingHorizontal: spacing[3],

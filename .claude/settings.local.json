@@ -30,7 +30,8 @@
       "Bash(npx expo-cli:*)",
       "Bash(ls \"C:\\\\Users\\\\guill\\\\Documents\\\\Freelance\\\\Maya-Orga\\\\Maya\\\\app\\\\\\(storeoperator\\)\")",
       "Bash(find:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

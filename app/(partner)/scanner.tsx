@@ -1,11 +1,5 @@
 /**
- * Maya Connect V2 — Partner QR Scanner Screen
- *
- * Redesigned with:
- * - Real-time discount preview (via API debounce 500ms)
- * - Subscription plan displayed prominently after scan
- * - Persons count as secondary compact stepper
- * - Live discount + net amount calculation
+ * Maya Connect V2 — Partner QR Scanner Screen (dark redesign)
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -17,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useForm, Controller, useWatch } from 'react-hook-form';
@@ -25,29 +20,24 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import Animated, {
-  FadeInUp,
-  FadeIn,
-} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { qrApi } from '../../src/api/qr.api';
 import { storeOperatorsApi } from '../../src/api/store-operators.api';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { usePartnerStore } from '../../src/stores/partner.store';
-import { partnerColors as colors } from '../../src/theme/colors';
-import { textStyles, fontFamily } from '../../src/theme/typography';
-import { spacing, borderRadius } from '../../src/theme/spacing';
+import { fontFamily } from '../../src/theme/typography';
+import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { formatPrice, formatPlanLabel } from '../../src/utils/format';
-import { MButton, MInput, MCard, MHeader } from '../../src/components/ui';
-
 import { useAppAlert } from '../../src/hooks/use-app-alert';
 import type { QrValidateResultDto, QrPreviewDiscountResultDto } from '../../src/types';
 
-const PLAN_THEME: Record<string, { bg: string; text: string; icon: string }> = {
-  SOLO:   { bg: '#EDE9FE', text: '#7C3AED', icon: 'person' },
-  DUO:    { bg: '#DBEAFE', text: '#2563EB', icon: 'people' },
-  FAMILY: { bg: '#FEF3C7', text: '#D97706', icon: 'home' },
-  VIP:    { bg: '#FEE2E2', text: '#DC2626', icon: 'diamond' },
+const PLAN_THEME: Record<string, { bg: string; accent: string; icon: string }> = {
+  SOLO:   { bg: 'rgba(124,58,237,0.12)', accent: '#818CF8', icon: 'person' },
+  DUO:    { bg: 'rgba(37,99,235,0.12)',  accent: '#60A5FA', icon: 'people' },
+  FAMILY: { bg: 'rgba(217,119,6,0.12)',  accent: '#FBBF24', icon: 'home' },
+  VIP:    { bg: 'rgba(220,38,38,0.12)',  accent: '#F87171', icon: 'diamond' },
 };
 
 type ScanState = 'scanning' | 'form' | 'success' | 'error';
@@ -57,42 +47,28 @@ export default function PartnerScannerScreen() {
   const insets = useSafeAreaInsets();
   const { alert, AlertModal } = useAppAlert();
   const user = useAuthStore((s) => s.user);
-  const stores = usePartnerStore((s) => s.stores);
   const activeStore = usePartnerStore((s) => s.activeStore);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [scannedToken, setScannedToken] = useState('');
-
   const [validateResult, setValidateResult] = useState<QrValidateResultDto | null>(null);
   const [preview, setPreview] = useState<QrPreviewDiscountResultDto | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const scannedRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ---- Active store ---- */
   const activeStoreQ = useQuery({
     queryKey: ['activeStore'],
     queryFn: () => storeOperatorsApi.getActiveStore(),
     select: (res) => res.data,
   });
 
-  /* ---- Form ---- */
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<{ amountGross: string; personsCount: string }>({
-    defaultValues: {
-      amountGross: '',
-      personsCount: '1',
-    },
-  });
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<{
+    amountGross: string; personsCount: string;
+  }>({ defaultValues: { amountGross: '', personsCount: '1' } });
 
-  // Watch amount for real-time preview
   const watchedAmount = useWatch({ control, name: 'amountGross' });
 
-  /* ---- Resolve partner & store IDs ---- */
   const resolveIds = useCallback(() => {
     const store = activeStoreQ.data;
     const storeIdVal = store?.storeId ?? activeStore?.storeId ?? '';
@@ -103,44 +79,27 @@ export default function PartnerScannerScreen() {
     return { storeIdVal, partnerIdVal };
   }, [activeStoreQ.data, activeStore]);
 
-  /* ---- Real-time discount preview (debounced 500ms) ---- */
   useEffect(() => {
     if (scanState !== 'form' || !scannedToken) return;
-
     const amount = parseFloat(watchedAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setPreview(null);
-      return;
-    }
-
+    if (isNaN(amount) || amount <= 0) { setPreview(null); return; }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       const { storeIdVal, partnerIdVal } = resolveIds();
       if (!partnerIdVal) return;
-
       setPreviewLoading(true);
       try {
         const res = await qrApi.previewDiscount({
-          qrToken: scannedToken,
-          partnerId: partnerIdVal,
-          storeId: storeIdVal || undefined,
-          amountGross: amount,
+          qrToken: scannedToken, partnerId: partnerIdVal,
+          storeId: storeIdVal || undefined, amountGross: amount,
         });
         setPreview(res.data);
-      } catch {
-        // Silently ignore preview errors — the validate call will catch real issues
-        setPreview(null);
-      } finally {
-        setPreviewLoading(false);
-      }
+      } catch { setPreview(null); }
+      finally { setPreviewLoading(false); }
     }, 500);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [watchedAmount, scanState, scannedToken, resolveIds]);
 
-  /* ---- Validate mutation ---- */
   const validateMutation = useMutation({
     mutationFn: (dto: any) => qrApi.validate(dto),
     onSuccess: (response) => {
@@ -151,14 +110,10 @@ export default function PartnerScannerScreen() {
     onError: (err: any) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setScanState('error');
-      alert(
-        'Erreur de validation',
-        err?.response?.data?.detail ?? 'Le QR code est invalide ou expiré.',
-      );
+      alert('Erreur de validation', err?.response?.data?.detail ?? 'Le QR code est invalide ou expiré.');
     },
   });
 
-  /* ---- Handle barcode scanned ---- */
   const onBarcodeScanned = ({ data }: { data: string }) => {
     if (scannedRef.current || scanState !== 'scanning') return;
     scannedRef.current = true;
@@ -167,605 +122,516 @@ export default function PartnerScannerScreen() {
     setScanState('form');
   };
 
-  /* ---- Submit validation ---- */
   const onSubmit = (values: any) => {
     const amount = parseFloat(values.amountGross);
     const persons = parseInt(values.personsCount, 10) || 1;
-
-    if (isNaN(amount) || amount <= 0) {
-      alert('Erreur', 'Veuillez saisir un montant valide.');
-      return;
-    }
-
-    // Enforce subscription seat limit
+    if (isNaN(amount) || amount <= 0) { alert('Erreur', 'Veuillez saisir un montant valide.'); return; }
     if (preview?.personsAllowed && persons > preview.personsAllowed) {
-      alert(
-        'Limite atteinte',
-        `L'abonnement ${preview.planName || preview.planCode} autorise ${preview.personsAllowed} personne${preview.personsAllowed > 1 ? 's' : ''} maximum.`,
-      );
+      alert('Limite atteinte', `L'abonnement autorise ${preview.personsAllowed} personne${preview.personsAllowed > 1 ? 's' : ''} maximum.`);
       return;
     }
-
     const { storeIdVal, partnerIdVal } = resolveIds();
-
-    if (!partnerIdVal) {
-      alert('Erreur', "Impossible de déterminer le partenaire. Veuillez sélectionner un magasin.");
-      return;
-    }
-
+    if (!partnerIdVal) { alert('Erreur', "Impossible de déterminer le partenaire."); return; }
     validateMutation.mutate({
-      partnerId: partnerIdVal,
-      storeId: storeIdVal,
-      operatorUserId: user?.id ?? '',
-      qrToken: scannedToken,
-      amountGross: amount,
-      personsCount: persons,
+      partnerId: partnerIdVal, storeId: storeIdVal,
+      operatorUserId: user?.id ?? '', qrToken: scannedToken,
+      amountGross: amount, personsCount: persons,
     });
   };
 
-  /* ---- Reset to scan again ---- */
   const resetScanner = () => {
     scannedRef.current = false;
-    setScannedToken('');
-    setValidateResult(null);
-    setPreview(null);
-    setPreviewLoading(false);
-    reset();
-    setScanState('scanning');
+    setScannedToken(''); setValidateResult(null); setPreview(null); setPreviewLoading(false);
+    reset(); setScanState('scanning');
   };
 
-  /* ---- Auto-reset when screen regains focus ---- */
-  useFocusEffect(
-    useCallback(() => {
-      // Always reset to camera mode when navigating back to scanner tab
-      resetScanner();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
-  );
+  useFocusEffect(useCallback(() => { resetScanner(); }, []));
 
-  /* ---- Permission ---- */
-  if (!permission) {
-    return <View style={styles.container} />;
-  }
+  if (!permission) return <View style={styles.container} />;
 
   if (!permission.granted) {
     return (
-      <View style={styles.permissionContainer}>
-        <Ionicons name="camera-outline" size={wp(60)} color={colors.neutral[300]} />
-        <Text style={styles.permTitle}>Caméra requise</Text>
-        <Text style={styles.permDesc}>
-          Autorisez l'accès à la caméra pour scanner les QR codes clients.
-        </Text>
-        <MButton title="Autoriser la caméra" onPress={requestPermission} />
+      <View style={styles.guardContainer}>
+        <View style={styles.guardIconWrap}>
+          <Ionicons name="camera-outline" size={wp(36)} color="rgba(255,255,255,0.4)" />
+        </View>
+        <Text style={styles.guardTitle}>Caméra requise</Text>
+        <Text style={styles.guardDesc}>Autorisez l'accès à la caméra pour scanner les QR codes clients.</Text>
+        <TouchableOpacity style={styles.guardBtn} onPress={requestPermission}>
+          <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.guardBtnInner}>
+            <Text style={styles.guardBtnText}>Autoriser la caméra</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  /* ---- No active store guard ---- */
-  const hasStore = !!(activeStoreQ.data?.storeId);
-
-  if (!hasStore && !activeStoreQ.isLoading) {
+  if (!activeStoreQ.data?.storeId && !activeStoreQ.isLoading) {
     return (
-      <View style={styles.permissionContainer}>
-        <Ionicons name="storefront-outline" size={wp(60)} color={colors.neutral[300]} />
-        <Text style={styles.permTitle}>Aucun magasin actif</Text>
-        <Text style={styles.permDesc}>
-          Sélectionnez un magasin pour commencer à scanner.
-        </Text>
-        <MButton
-          title="Choisir un magasin"
-          onPress={() => router.push('/(partner)/stores')}
-        />
+      <View style={styles.guardContainer}>
+        <View style={styles.guardIconWrap}>
+          <Ionicons name="storefront-outline" size={wp(36)} color="rgba(255,255,255,0.4)" />
+        </View>
+        <Text style={styles.guardTitle}>Aucun magasin actif</Text>
+        <Text style={styles.guardDesc}>Sélectionnez un magasin pour commencer à scanner.</Text>
+        <TouchableOpacity style={styles.guardBtn} onPress={() => router.push('/(partner)/stores')}>
+          <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.guardBtnInner}>
+            <Text style={styles.guardBtnText}>Choisir un magasin</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  return (
-    <View style={styles.container}>
-      {scanState === 'scanning' && (
-        <>
-          <CameraView
-            style={StyleSheet.absoluteFill}
-            facing="back"
-            barcodeScannerSettings={{
-              barcodeTypes: ['qr'],
-            }}
-            onBarcodeScanned={onBarcodeScanned}
-          />
-
-          {/* Overlay */}
-          <View style={styles.overlay}>
-            <View style={[styles.overlayTop, { paddingTop: insets.top }]}>
-              <MHeader title="Scanner un QR" showBack transparent />
-              {/* Active store badge */}
-              <TouchableOpacity
-                style={styles.storeBadge}
-                onPress={() => router.push('/(partner)/stores')}
-              >
-                <Ionicons name="storefront" size={wp(14)} color={colors.violet[600]} />
-                <Text style={styles.storeBadgeText} numberOfLines={1}>
-                  {(activeStoreQ.data as any)?.name ?? `Magasin #${activeStoreQ.data?.storeId?.slice(0, 6) ?? '—'}`}
-                </Text>
-                <Ionicons name="chevron-down" size={wp(14)} color={colors.neutral[500]} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Scan frame */}
-            <View style={styles.scanFrame}>
-              <View style={styles.cornerTL} />
-              <View style={styles.cornerTR} />
-              <View style={styles.cornerBL} />
-              <View style={styles.cornerBR} />
-            </View>
-
-            <View style={styles.overlayBottom}>
-              <Text style={styles.scanHint}>
-                Placez le QR code du client dans le cadre
+  /* ── Scanning ── */
+  if (scanState === 'scanning') {
+    return (
+      <View style={styles.container}>
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={onBarcodeScanned}
+        />
+        <View style={styles.overlay}>
+          {/* Top bar */}
+          <View style={[styles.overlayTop, { paddingTop: insets.top + spacing[3] }]}>
+            <Text style={styles.overlayTitle}>Scanner un QR</Text>
+            <TouchableOpacity style={styles.storePill} onPress={() => router.push('/(partner)/stores')}>
+              <Ionicons name="storefront" size={wp(12)} color="#FF7A18" />
+              <Text style={styles.storePillText} numberOfLines={1}>
+                {(activeStoreQ.data as any)?.name ?? `#${activeStoreQ.data?.storeId?.slice(0, 6) ?? '—'}`}
               </Text>
+              <Ionicons name="chevron-down" size={wp(12)} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Frame */}
+          <View style={styles.frameWrap}>
+            <View style={styles.scanFrame}>
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
             </View>
           </View>
-        </>
-      )}
 
-      {scanState === 'form' && (
-        <KeyboardAvoidingView
-          style={styles.formContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
+          {/* Bottom */}
+          <View style={[styles.overlayBottom, { paddingBottom: insets.bottom + spacing[6] }]}>
+            <Text style={styles.scanHint}>Placez le QR code dans le cadre</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  /* ── Form ── */
+  if (scanState === 'form') {
+    const pt = PLAN_THEME[(preview?.planCode ?? '').toUpperCase()] ?? PLAN_THEME.SOLO;
+    return (
+      <View style={styles.container}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView
-            contentContainerStyle={[
-              styles.formContent,
-              { paddingTop: insets.top + spacing[4] },
-            ]}
+            contentContainerStyle={[styles.formScroll, { paddingTop: insets.top + spacing[2] }]}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <MHeader title="Validation" showBack onBack={resetScanner} />
+            {/* Header */}
+            <View style={styles.formHeader}>
+              <TouchableOpacity style={styles.backBtn} onPress={resetScanner}>
+                <Ionicons name="chevron-back" size={wp(20)} color="rgba(255,255,255,0.85)" />
+              </TouchableOpacity>
+              <Text style={styles.formTitle}>Validation</Text>
+              <View style={styles.scannedBadge}>
+                <Ionicons name="checkmark-circle" size={wp(13)} color="#22C55E" />
+                <Text style={styles.scannedBadgeText}>Scanné</Text>
+              </View>
+            </View>
 
-            <Animated.View entering={FadeInUp.duration(400)}>
-              <MCard style={styles.tokenCard} elevation="md">
-                <View style={styles.tokenRow}>
-                  <View style={styles.tokenIcon}>
-                    <Ionicons name="qr-code" size={wp(24)} color={colors.violet[500]} />
+            <Animated.View entering={FadeInUp.duration(350)} style={styles.formBody}>
+              {/* Token card */}
+              <View style={styles.tokenCard}>
+                <View style={styles.tokenIconWrap}>
+                  <Ionicons name="qr-code" size={wp(18)} color="#818CF8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.tokenLabel}>QR Token</Text>
+                  <Text style={styles.tokenValue} numberOfLines={1}>{scannedToken.slice(0, 24)}…</Text>
+                </View>
+                <Ionicons name="checkmark-circle" size={wp(20)} color="#22C55E" />
+              </View>
+
+              {/* Plan badge */}
+              {preview && (
+                <Animated.View entering={FadeIn.duration(250)} style={[styles.planCard, { backgroundColor: pt.bg, borderColor: pt.accent + '30' }]}>
+                  <View style={[styles.planIconWrap, { backgroundColor: pt.accent + '20' }]}>
+                    <Ionicons name={pt.icon as any} size={wp(20)} color={pt.accent} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.tokenLabel}>QR Token scanné</Text>
-                    <Text style={styles.tokenValue} numberOfLines={1}>
-                      {scannedToken.slice(0, 20)}…
+                    <Text style={[styles.planName, { color: pt.accent }]}>
+                      {preview.planName || formatPlanLabel(preview.planCode)}
+                    </Text>
+                    <Text style={styles.planSub}>
+                      {preview.personsAllowed} pers. · {preview.discountPercent}% réduction
                     </Text>
                   </View>
-                  <Ionicons name="checkmark-circle" size={wp(22)} color={colors.success[500]} />
-                </View>
-              </MCard>
-
-              {/* ── Plan badge (prominent) ── */}
-              {preview && (() => {
-                const pt = PLAN_THEME[preview.planCode?.toUpperCase()] ?? PLAN_THEME.SOLO;
-                return (
-                  <Animated.View entering={FadeIn.duration(300)}>
-                    <MCard style={[styles.planCard, { backgroundColor: pt.bg }]} elevation="sm">
-                      <View style={styles.planRow}>
-                        <View style={[styles.planIconWrap, { backgroundColor: pt.text + '20' }]}>
-                          <Ionicons name={pt.icon as any} size={wp(22)} color={pt.text} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.planTitle, { color: pt.text }]}>
-                            {preview.planName || formatPlanLabel(preview.planCode)}
-                          </Text>
-                          <Text style={[styles.planSub, { color: pt.text + 'AA' }]}>
-                            {preview.personsAllowed} pers. autorisées · {preview.discountPercent}% de réduction
-                          </Text>
-                        </View>
-                      </View>
-                    </MCard>
-                  </Animated.View>
-                );
-              })()}
-
-              {/* ── Amount input (primary) ── */}
-              <Controller
-                control={control}
-                name="amountGross"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <MInput
-                    label="Montant brut (€)"
-                    placeholder="Ex: 45.50"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    error={errors.amountGross?.message}
-                    keyboardType="decimal-pad"
-                    icon="cash-outline"
-                  />
-                )}
-              />
-
-              {/* ── Real-time discount preview ── */}
-              {(preview || previewLoading) && (
-                <Animated.View entering={FadeIn.duration(200)}>
-                  <MCard style={styles.previewCard} elevation="sm">
-                    {previewLoading ? (
-                      <View style={styles.previewLoading}>
-                        <ActivityIndicator size="small" color={colors.violet[500]} />
-                        <Text style={styles.previewLoadingText}>Calcul en cours…</Text>
-                      </View>
-                    ) : preview ? (
-                      <>
-                        <View style={styles.previewRow}>
-                          <Text style={styles.previewLabel}>Réduction ({preview.discountPercent}%)</Text>
-                          <Text style={[styles.previewValue, { color: colors.success[600] }]}>
-                            -{formatPrice(preview.discountAmount)}
-                          </Text>
-                        </View>
-                        <View style={styles.previewDivider} />
-                        <View style={styles.previewRow}>
-                          <Text style={[styles.previewLabel, { fontFamily: fontFamily.bold }]}>Net à payer</Text>
-                          <Text style={[styles.previewValueBig, { color: colors.neutral[900] }]}>
-                            {formatPrice(preview.amountNet)}
-                          </Text>
-                        </View>
-                      </>
-                    ) : null}
-                  </MCard>
                 </Animated.View>
               )}
 
-              {/* ── Persons count (secondary compact stepper) ── */}
+              {/* Amount input */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Montant brut</Text>
+                <Controller
+                  control={control}
+                  name="amountGross"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <View style={styles.inputWrap}>
+                      <Ionicons name="cash-outline" size={wp(16)} color="rgba(255,255,255,0.3)" />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="0.00"
+                        placeholderTextColor="rgba(255,255,255,0.2)"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        keyboardType="decimal-pad"
+                      />
+                      <Text style={styles.inputUnit}>€</Text>
+                    </View>
+                  )}
+                />
+              </View>
+
+              {/* Preview */}
+              {(preview || previewLoading) && (
+                <Animated.View entering={FadeIn.duration(200)} style={styles.previewCard}>
+                  {previewLoading ? (
+                    <View style={styles.previewLoading}>
+                      <ActivityIndicator size="small" color="#818CF8" />
+                      <Text style={styles.previewLoadingText}>Calcul en cours…</Text>
+                    </View>
+                  ) : preview ? (
+                    <>
+                      <View style={styles.previewRow}>
+                        <Text style={styles.previewLabel}>Réduction ({preview.discountPercent}%)</Text>
+                        <Text style={styles.previewDiscount}>-{formatPrice(preview.discountAmount)}</Text>
+                      </View>
+                      <View style={styles.previewSep} />
+                      <View style={styles.previewRow}>
+                        <Text style={[styles.previewLabel, { fontFamily: fontFamily.semiBold, color: '#FFFFFF' }]}>Net à payer</Text>
+                        <Text style={styles.previewNet}>{formatPrice(preview.amountNet)}</Text>
+                      </View>
+                    </>
+                  ) : null}
+                </Animated.View>
+              )}
+
+              {/* Persons stepper */}
               <View style={styles.personsRow}>
-                <View style={styles.personsLabelWrap}>
-                  <Ionicons name="people-outline" size={wp(16)} color={colors.neutral[400]} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+                  <Ionicons name="people-outline" size={wp(16)} color="rgba(255,255,255,0.4)" />
                   <Text style={styles.personsLabel}>Nombre de personnes</Text>
                 </View>
                 <Controller
                   control={control}
                   name="personsCount"
                   render={({ field: { onChange, value } }) => (
-                    <View style={styles.personsInput}>
-                      <TouchableOpacity
-                        style={styles.personsBtn}
-                        onPress={() => {
-                          const n = Math.max(1, parseInt(value, 10) - 1);
-                          onChange(String(n));
-                        }}
-                      >
-                        <Ionicons name="remove" size={wp(18)} color={colors.neutral[600]} />
+                    <View style={styles.stepper}>
+                      <TouchableOpacity style={styles.stepperBtn} onPress={() => onChange(String(Math.max(1, parseInt(value, 10) - 1)))}>
+                        <Ionicons name="remove" size={wp(16)} color="rgba(255,255,255,0.7)" />
                       </TouchableOpacity>
-                      <Text style={styles.personsValue}>{value}</Text>
-                      <TouchableOpacity
-                        style={styles.personsBtn}
-                        onPress={() => {
-                          const max = preview?.personsAllowed ?? 10;
-                          const n = Math.min(max, parseInt(value, 10) + 1);
-                          onChange(String(n));
-                        }}
-                      >
-                        <Ionicons name="add" size={wp(18)} color={colors.neutral[600]} />
+                      <Text style={styles.stepperValue}>{value}</Text>
+                      <TouchableOpacity style={styles.stepperBtn} onPress={() => onChange(String(Math.min(preview?.personsAllowed ?? 10, parseInt(value, 10) + 1)))}>
+                        <Ionicons name="add" size={wp(16)} color="rgba(255,255,255,0.7)" />
                       </TouchableOpacity>
                     </View>
                   )}
                 />
               </View>
 
-              <MButton
-                title="Valider la transaction"
+              {/* Submit */}
+              <TouchableOpacity
+                style={[styles.submitBtn, validateMutation.isPending && { opacity: 0.6 }]}
                 onPress={handleSubmit(onSubmit)}
-                loading={validateMutation.isPending}
-                style={{ marginTop: spacing[4] }}
-              />
+                disabled={validateMutation.isPending}
+                activeOpacity={0.85}
+              >
+                <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
+                  {validateMutation.isPending
+                    ? <ActivityIndicator color="#FFFFFF" size="small" />
+                    : <>
+                        <Ionicons name="checkmark-circle-outline" size={wp(18)} color="#FFFFFF" />
+                        <Text style={styles.submitBtnText}>Valider la transaction</Text>
+                      </>
+                  }
+                </LinearGradient>
+              </TouchableOpacity>
 
-              <MButton
-                title="Annuler"
-                variant="ghost"
-                onPress={resetScanner}
-                style={{ marginTop: spacing[2] }}
-              />
+              <TouchableOpacity style={styles.cancelBtn} onPress={resetScanner}>
+                <Text style={styles.cancelBtnText}>Annuler</Text>
+              </TouchableOpacity>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
-      )}
+        <AlertModal />
+      </View>
+    );
+  }
 
-      {scanState === 'success' && (
-        <View style={[styles.resultContainer, { paddingTop: insets.top }]}>
-          <Animated.View
-            entering={FadeInUp.springify().damping(15)}
-            style={styles.resultContent}
-          >
-            <View style={styles.successCircle}>
-              <Ionicons name="checkmark" size={wp(48)} color="#FFFFFF" />
+  /* ── Success ── */
+  if (scanState === 'success') {
+    const planKey = (validateResult?.planCode ?? '').toUpperCase();
+    const pt = PLAN_THEME[planKey] ?? PLAN_THEME.SOLO;
+    return (
+      <View style={[styles.container, styles.resultContainer, { paddingTop: insets.top }]}>
+        <Animated.View entering={FadeInUp.springify().damping(15)} style={styles.resultContent}>
+          <View style={styles.successCircle}>
+            <Ionicons name="checkmark" size={wp(44)} color="#FFFFFF" />
+          </View>
+          <Text style={styles.resultTitle}>Transaction validée !</Text>
+          <Text style={styles.resultDesc}>La réduction a été appliquée avec succès.</Text>
+
+          {validateResult && (
+            <View style={styles.resultCard}>
+              {/* Plan */}
+              <View style={[styles.planCard, { backgroundColor: pt.bg, borderColor: pt.accent + '30', marginBottom: 0 }]}>
+                <View style={[styles.planIconWrap, { backgroundColor: pt.accent + '20' }]}>
+                  <Ionicons name={pt.icon as any} size={wp(20)} color={pt.accent} />
+                </View>
+                <Text style={[styles.planName, { color: pt.accent, flex: 1 }]}>
+                  {formatPlanLabel(validateResult.planCode)}
+                </Text>
+              </View>
+
+              <View style={styles.resultSep} />
+
+              <View style={styles.resultRow}>
+                <Ionicons name="trending-down-outline" size={wp(16)} color="#34D399" />
+                <Text style={styles.resultRowLabel}>Réduction</Text>
+                <Text style={[styles.resultRowValue, { color: '#34D399' }]}>
+                  -{formatPrice(validateResult.discountAmount)} ({validateResult.discountPercent}%)
+                </Text>
+              </View>
+
+              <View style={styles.resultSep} />
+
+              <View style={styles.resultRow}>
+                <Ionicons name="cash-outline" size={wp(16)} color="#FF7A18" />
+                <Text style={styles.resultRowLabel}>Net à payer</Text>
+                <Text style={[styles.resultRowValue, { color: '#FFFFFF', fontFamily: fontFamily.bold, fontSize: wp(17) }]}>
+                  {formatPrice(validateResult.amountNet)}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.resultTitle}>Transaction validée !</Text>
-            <Text style={styles.resultDesc}>
-              La réduction a été appliquée avec succès.
-            </Text>
+          )}
 
-            {validateResult && (
-              <MCard style={styles.resultDetailsCard} elevation="md">
-                {/* Plan — prominent badge */}
-                <View style={styles.resultPlanRow}>
-                  <View style={[
-                    styles.resultPlanBadge,
-                    { backgroundColor: (PLAN_THEME[validateResult.planCode?.toUpperCase()]?.bg ?? '#EDE9FE') }
-                  ]}>
-                    <Ionicons
-                      name={(PLAN_THEME[validateResult.planCode?.toUpperCase()]?.icon ?? 'person') as any}
-                      size={wp(16)}
-                      color={PLAN_THEME[validateResult.planCode?.toUpperCase()]?.text ?? '#7C3AED'}
-                    />
-                    <Text style={[
-                      styles.resultPlanText,
-                      { color: PLAN_THEME[validateResult.planCode?.toUpperCase()]?.text ?? '#7C3AED' }
-                    ]}>
-                      {formatPlanLabel(validateResult.planCode)}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.resultDivider} />
-                <View style={styles.resultDetailRow}>
-                  <Ionicons name="trending-down-outline" size={wp(18)} color={colors.success[500]} />
-                  <Text style={styles.resultDetailLabel}>Réduction</Text>
-                  <Text style={[styles.resultDetailValue, { color: colors.success[600] }]}>
-                    -{formatPrice(validateResult.discountAmount)} ({validateResult.discountPercent}%)
-                  </Text>
-                </View>
-                <View style={styles.resultDivider} />
-                <View style={styles.resultDetailRow}>
-                  <Ionicons name="cash-outline" size={wp(18)} color={colors.orange[500]} />
-                  <Text style={styles.resultDetailLabel}>Net à payer</Text>
-                  <Text style={[styles.resultDetailValue, { fontFamily: fontFamily.bold, fontSize: wp(18) }]}>
-                    {formatPrice(validateResult.amountNet)}
-                  </Text>
-                </View>
-              </MCard>
-            )}
+          <TouchableOpacity style={[styles.submitBtn, { marginTop: spacing[6] }]} onPress={resetScanner} activeOpacity={0.85}>
+            <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
+              <Ionicons name="scan-outline" size={wp(18)} color="#FFFFFF" />
+              <Text style={styles.submitBtnText}>Scanner un autre QR</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+        <AlertModal />
+      </View>
+    );
+  }
 
-            <MButton
-              title="Scanner un autre QR"
-              onPress={resetScanner}
-              style={{ marginTop: spacing[6] }}
-            />
-          </Animated.View>
+  /* ── Error ── */
+  return (
+    <View style={[styles.container, styles.resultContainer, { paddingTop: insets.top }]}>
+      <Animated.View entering={FadeInUp.springify().damping(15)} style={styles.resultContent}>
+        <View style={[styles.successCircle, { backgroundColor: '#EF4444' }]}>
+          <Ionicons name="close" size={wp(44)} color="#FFFFFF" />
         </View>
-      )}
-
-      {scanState === 'error' && (
-        <View style={[styles.resultContainer, { paddingTop: insets.top }]}>
-          <Animated.View
-            entering={FadeInUp.springify().damping(15)}
-            style={styles.resultContent}
-          >
-            <View style={[styles.successCircle, { backgroundColor: colors.error[500] }]}>
-              <Ionicons name="close" size={wp(48)} color="#FFFFFF" />
-            </View>
-            <Text style={styles.resultTitle}>Échec de validation</Text>
-            <Text style={styles.resultDesc}>
-              Le QR code est invalide, expiré ou déjà utilisé.
-            </Text>
-            <MButton
-              title="Réessayer"
-              onPress={resetScanner}
-              style={{ marginTop: spacing[6] }}
-            />
-          </Animated.View>
-        </View>
-      )}
-
+        <Text style={styles.resultTitle}>Échec de validation</Text>
+        <Text style={styles.resultDesc}>Le QR code est invalide, expiré ou déjà utilisé.</Text>
+        <TouchableOpacity style={[styles.submitBtn, { marginTop: spacing[6] }]} onPress={resetScanner} activeOpacity={0.85}>
+          <LinearGradient colors={['#FF6A00', '#FF9F45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitBtnInner}>
+            <Ionicons name="refresh-outline" size={wp(18)} color="#FFFFFF" />
+            <Text style={styles.submitBtnText}>Réessayer</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
       <AlertModal />
     </View>
   );
 }
 
-/* ---- Frame corner helper ---- */
-const CORNER = wp(24);
 const FRAME = wp(240);
-const cornerBase: any = {
-  position: 'absolute',
-  width: CORNER,
-  height: CORNER,
-  borderColor: colors.orange[400],
-};
+const CORNER_SIZE = wp(22);
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  permissionContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing[6],
+  container: { flex: 1, backgroundColor: '#0F172A' },
+
+  /* Guards */
+  guardContainer: {
+    flex: 1, backgroundColor: '#0F172A',
+    alignItems: 'center', justifyContent: 'center', padding: spacing[6],
   },
-  permTitle: {
-    ...textStyles.h3,
-    color: colors.neutral[900],
-    marginTop: spacing[4],
-    marginBottom: spacing[2],
+  guardIconWrap: {
+    width: wp(80), height: wp(80), borderRadius: wp(40),
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: spacing[4],
   },
-  permDesc: {
-    ...textStyles.body,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    marginBottom: spacing[5],
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-  },
+  guardTitle: { fontSize: wp(18), fontFamily: fontFamily.bold, color: '#FFFFFF', marginBottom: spacing[2] },
+  guardDesc: { fontSize: wp(13), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginBottom: spacing[5] },
+  guardBtn: { borderRadius: borderRadius['2xl'], overflow: 'hidden', width: '100%' },
+  guardBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing[4] },
+  guardBtnText: { fontSize: wp(15), fontFamily: fontFamily.bold, color: '#FFFFFF' },
+
+  /* Scan overlay */
+  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
   overlayTop: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: spacing[4],
+    paddingBottom: spacing[4],
+    alignItems: 'center',
+    gap: spacing[2],
   },
-  scanFrame: {
-    width: FRAME,
-    height: FRAME,
-    alignSelf: 'center',
+  overlayTitle: { fontSize: wp(17), fontFamily: fontFamily.bold, color: '#FFFFFF' },
+  storePill: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[1],
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[3], paddingVertical: spacing[1],
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  cornerTL: {
-    ...cornerBase,
-    top: 0,
-    left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderTopLeftRadius: 12,
+  storePillText: { fontSize: wp(11), fontFamily: fontFamily.semiBold, color: '#FFFFFF', maxWidth: wp(160) },
+  frameWrap: { alignItems: 'center', justifyContent: 'center' },
+  scanFrame: { width: FRAME, height: FRAME },
+  corner: {
+    position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE,
+    borderColor: '#FF7A18',
   },
-  cornerTR: {
-    ...cornerBase,
-    top: 0,
-    right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    borderTopRightRadius: 12,
-  },
-  cornerBL: {
-    ...cornerBase,
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderBottomLeftRadius: 12,
-  },
-  cornerBR: {
-    ...cornerBase,
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderBottomRightRadius: 12,
-  },
+  cornerTL: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
+  cornerTR: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
+  cornerBL: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 10 },
+  cornerBR: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 10 },
   overlayBottom: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: spacing[6],
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', paddingTop: spacing[5],
   },
-  scanHint: {
-    ...textStyles.body,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
+  scanHint: { fontSize: wp(13), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.7)' },
+
+  /* Form */
+  formScroll: { padding: spacing[4] },
+  formHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    marginBottom: spacing[4],
   },
-  formContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
+  backBtn: {
+    width: wp(36), height: wp(36), borderRadius: wp(18),
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  formContent: {
-    padding: spacing[4],
+  formTitle: { flex: 1, fontSize: wp(18), fontFamily: fontFamily.bold, color: '#FFFFFF' },
+  scannedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(34,197,94,0.1)',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing[2], paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)',
   },
+  scannedBadgeText: { fontSize: wp(10), fontFamily: fontFamily.semiBold, color: '#22C55E' },
+
+  formBody: { gap: spacing[3] },
+
   tokenCard: {
-    marginBottom: spacing[3],
-    backgroundColor: '#111827',
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    backgroundColor: '#1E293B',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    padding: spacing[3],
   },
-  tokenRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  tokenIconWrap: {
+    width: wp(38), height: wp(38), borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(129,140,248,0.12)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  tokenIcon: {
-    width: wp(44),
-    height: wp(44),
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.violet[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing[3],
+  tokenLabel: { fontSize: wp(9), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  tokenValue: { fontSize: wp(12), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+
+  planCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+    borderRadius: borderRadius.xl, borderWidth: 1, padding: spacing[3],
+    marginBottom: 0,
   },
-  tokenLabel: {
-    ...textStyles.micro,
-    color: colors.neutral[400],
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  tokenValue: {
-    ...textStyles.body,
-    fontFamily: fontFamily.medium,
-    color: colors.neutral[900],
-    marginTop: spacing[1],
-  },
-  // Plan card (prominent after scan)
-  planCard: { marginBottom: spacing[3], padding: spacing[3] },
-  planRow: { flexDirection: 'row', alignItems: 'center' },
   planIconWrap: {
-    width: wp(44), height: wp(44), borderRadius: borderRadius.lg,
-    alignItems: 'center', justifyContent: 'center', marginRight: spacing[3],
+    width: wp(40), height: wp(40), borderRadius: borderRadius.lg,
+    alignItems: 'center', justifyContent: 'center',
   },
-  planTitle: { ...textStyles.h4, fontFamily: fontFamily.bold },
-  planSub: { ...textStyles.caption, marginTop: 2 },
-  // Preview card (live discount calculation)
-  previewCard: { marginTop: spacing[2], marginBottom: spacing[2], padding: spacing[3], backgroundColor: '#F0FDF4' },
+  planName: { fontSize: wp(14), fontFamily: fontFamily.bold },
+  planSub: { fontSize: wp(11), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
+
+  fieldGroup: { gap: spacing[1] },
+  fieldLabel: { fontSize: wp(11), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  inputWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing[2],
+    backgroundColor: '#1E293B',
+    borderRadius: borderRadius.xl, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: spacing[3], paddingVertical: Platform.OS === 'ios' ? spacing[3] : spacing[2],
+  },
+  input: { flex: 1, fontSize: wp(16), fontFamily: fontFamily.medium, color: '#FFFFFF', padding: 0 },
+  inputUnit: { fontSize: wp(14), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.3)' },
+
+  previewCard: {
+    backgroundColor: '#1E293B', borderRadius: borderRadius.xl,
+    borderWidth: 1, borderColor: 'rgba(34,197,94,0.15)', padding: spacing[3],
+  },
   previewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing[1] },
-  previewLabel: { ...textStyles.body, color: colors.neutral[600] },
-  previewValue: { ...textStyles.body, fontFamily: fontFamily.semiBold },
-  previewValueBig: { fontSize: wp(20), fontFamily: fontFamily.bold },
-  previewDivider: { height: 1, backgroundColor: '#D1FAE5', marginVertical: spacing[1] },
-  previewLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: spacing[2] },
-  previewLoadingText: { ...textStyles.caption, color: colors.neutral[500], marginLeft: spacing[2] },
-  // Persons row (secondary compact stepper)
+  previewLabel: { fontSize: wp(13), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.5)' },
+  previewDiscount: { fontSize: wp(13), fontFamily: fontFamily.semiBold, color: '#34D399' },
+  previewNet: { fontSize: wp(18), fontFamily: fontFamily.bold, color: '#FFFFFF' },
+  previewSep: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: spacing[1] },
+  previewLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], padding: spacing[2] },
+  previewLoadingText: { fontSize: wp(12), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.4)' },
+
   personsRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: spacing[3], paddingHorizontal: spacing[2], marginTop: spacing[1],
-    backgroundColor: colors.neutral[50], borderRadius: borderRadius.md,
-    borderWidth: 1, borderColor: colors.neutral[100],
+    backgroundColor: '#1E293B', borderRadius: borderRadius.xl,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    paddingVertical: spacing[3], paddingHorizontal: spacing[3],
   },
-  personsLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  personsLabel: { ...textStyles.caption, color: colors.neutral[500] },
-  personsInput: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  personsBtn: {
-    width: wp(32), height: wp(32), borderRadius: wp(16),
-    backgroundColor: colors.neutral[100], alignItems: 'center', justifyContent: 'center',
+  personsLabel: { fontSize: wp(13), fontFamily: fontFamily.medium, color: 'rgba(255,255,255,0.6)' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  stepperBtn: {
+    width: wp(30), height: wp(30), borderRadius: wp(15),
+    backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  personsValue: { ...textStyles.body, fontFamily: fontFamily.bold, color: colors.neutral[900], minWidth: wp(24), textAlign: 'center' },
-  resultContainer: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing[6],
+  stepperValue: { fontSize: wp(15), fontFamily: fontFamily.bold, color: '#FFFFFF', minWidth: wp(22), textAlign: 'center' },
+
+  submitBtn: { borderRadius: borderRadius['2xl'], overflow: 'hidden' },
+  submitBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[2], paddingVertical: spacing[4] },
+  submitBtnText: { fontSize: wp(15), fontFamily: fontFamily.bold, color: '#FFFFFF' },
+  cancelBtn: {
+    alignItems: 'center', paddingVertical: spacing[3],
+    borderRadius: borderRadius.xl, backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
   },
-  resultContent: {
-    alignItems: 'center',
-    width: '100%',
-  },
+  cancelBtnText: { fontSize: wp(14), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.5)' },
+
+  /* Result screens */
+  resultContainer: { alignItems: 'center', justifyContent: 'center', padding: spacing[5] },
+  resultContent: { alignItems: 'center', width: '100%' },
   successCircle: {
-    width: wp(96),
-    height: wp(96),
-    borderRadius: wp(48),
-    backgroundColor: colors.success[500],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing[5],
+    width: wp(88), height: wp(88), borderRadius: wp(44),
+    backgroundColor: '#22C55E', alignItems: 'center', justifyContent: 'center',
+    marginBottom: spacing[4],
+    ...shadows.md,
   },
-  resultTitle: {
-    ...textStyles.h2,
-    color: colors.neutral[900],
-    textAlign: 'center',
+  resultTitle: { fontSize: wp(22), fontFamily: fontFamily.bold, color: '#FFFFFF', textAlign: 'center' },
+  resultDesc: { fontSize: wp(13), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: spacing[2] },
+  resultCard: {
+    width: '100%', marginTop: spacing[5],
+    backgroundColor: '#1E293B', borderRadius: borderRadius['2xl'],
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    padding: spacing[4], gap: spacing[2],
   },
-  resultDesc: {
-    ...textStyles.body,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    marginTop: spacing[2],
-  },
-  resultDetailsCard: { width: '100%', marginTop: spacing[5], padding: spacing[4] },
-  resultDetailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing[2] },
-  resultDetailLabel: { ...textStyles.body, color: colors.neutral[500], flex: 1, marginLeft: spacing[2] },
-  resultDetailValue: { ...textStyles.body, fontFamily: fontFamily.medium, color: colors.neutral[900] },
-  resultDivider: { height: 1, backgroundColor: colors.neutral[100], marginVertical: spacing[1] },
-  resultPlanRow: { alignItems: 'center', paddingVertical: spacing[2] },
-  resultPlanBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing[4], paddingVertical: spacing[2],
-    borderRadius: borderRadius.full, gap: spacing[2],
-  },
-  resultPlanText: { fontFamily: fontFamily.bold, fontSize: wp(14) },
-  storeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-    borderRadius: borderRadius.full,
-    gap: spacing[2],
-    marginTop: spacing[2],
-  },
-  storeBadgeText: {
-    ...textStyles.caption,
-    fontFamily: fontFamily.semiBold,
-    color: colors.neutral[800],
-    maxWidth: wp(160),
-  },
+  resultSep: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)' },
+  resultRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  resultRowLabel: { flex: 1, fontSize: wp(13), fontFamily: fontFamily.regular, color: 'rgba(255,255,255,0.5)' },
+  resultRowValue: { fontSize: wp(13), fontFamily: fontFamily.semiBold, color: 'rgba(255,255,255,0.8)' },
 });

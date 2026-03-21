@@ -1079,7 +1079,7 @@ const mStyles = StyleSheet.create({
   stepNum: {
     fontSize: wp(11),
     fontFamily: fontFamily.semiBold,
-    color: 'rgba(255,255,255,0.25)',
+    color: 'rgba(255,255,255,0.75)',
   },
   stepNumActive: {
     color: colors.orange[400],
@@ -1087,11 +1087,11 @@ const mStyles = StyleSheet.create({
   stepLabel: {
     fontSize: wp(9),
     fontFamily: fontFamily.medium,
-    color: 'rgba(255,255,255,0.2)',
+    color: 'rgba(255,255,255,0.7)',
     marginLeft: spacing[1],
   },
   stepLabelActive: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.9)',
   },
   stepLine: {
     width: wp(20),
@@ -1132,7 +1132,7 @@ const mStyles = StyleSheet.create({
   },
   formPartnerName: {
     ...textStyles.caption,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255,255,255,0.75)',
     marginTop: 1,
   },
 
@@ -1149,7 +1149,7 @@ const mStyles = StyleSheet.create({
   },
   fieldLabel: {
     ...textStyles.caption,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: spacing[1],
   },
   required: {
@@ -1157,7 +1157,7 @@ const mStyles = StyleSheet.create({
   },
   fieldHint: {
     ...textStyles.micro,
-    color: 'rgba(255,255,255,0.2)',
+    color: 'rgba(255,255,255,0.65)',
     marginTop: spacing[1],
   },
   row2: {
@@ -1236,7 +1236,7 @@ const mStyles = StyleSheet.create({
   accordionTitle: {
     flex: 1,
     ...textStyles.body,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(255,255,255,0.85)',
     fontFamily: fontFamily.medium,
   },
   accordionTitleActive: {
@@ -1259,7 +1259,7 @@ const mStyles = StyleSheet.create({
   summaryTitle: {
     ...textStyles.caption,
     fontFamily: fontFamily.semiBold,
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.75)',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginBottom: spacing[3],
@@ -1272,7 +1272,7 @@ const mStyles = StyleSheet.create({
   },
   summaryText: {
     ...textStyles.body,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.85)',
     flex: 1,
   },
 

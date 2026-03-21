@@ -30,6 +30,8 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { formatPrice, formatNumber, formatDateTime, formatClientNameShort } from '../../src/utils/format';
+import { Image } from 'react-native';
+import { config } from '../../src/constants/config';
 import {
   MCard,
   MBadge,
@@ -38,6 +40,48 @@ import {
   EmptyState,
   ErrorState,
 } from '../../src/components/ui';
+
+const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
+
+function resolveUri(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return `${config.api.baseUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+}
+
+function StoreThumb({ store, size }: { store: any; size: number }) {
+  const uris = React.useMemo(() => {
+    const candidates: string[] = [];
+    const a = resolveUri(store?.imageUrl);
+    const b = store?.id ? `${config.api.baseUrl}/api/stores/${store.id}/image` : null;
+    if (a) candidates.push(a);
+    if (b && b !== a) candidates.push(b);
+    return candidates;
+  }, [store?.imageUrl, store?.id]);
+
+  const [index, setIndex] = React.useState(0);
+  React.useEffect(() => { setIndex(0); }, [store?.id]);
+
+  const uri = uris[index] ?? null;
+
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: borderRadius.lg }}
+        resizeMode="cover"
+        onError={() => setIndex((i) => i + 1)}
+      />
+    );
+  }
+  return (
+    <Image
+      source={DEFAULT_IMAGE}
+      style={{ width: size, height: size, borderRadius: borderRadius.lg }}
+      resizeMode="contain"
+    />
+  );
+}
 
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -65,12 +109,12 @@ export default function StoreOperatorDashboardScreen() {
 
   const storeId = activeStoreQ.data?.storeId ?? activeStoreZus?.storeId;
 
-  // Map store name from the stores array (since StoreOperatorDto has no name)
-  const activeStoreName = useMemo(() => {
+  // Map store name + data from the stores array
+  const activeStoreData = useMemo(() => {
     if (!storeId) return null;
-    const found = stores.find((s) => s.id === storeId);
-    return found?.name ?? null;
+    return stores.find((s) => s.id === storeId) ?? null;
   }, [storeId, stores]);
+  const activeStoreName = activeStoreData?.name ?? null;
 
   // Dériver partnerId depuis le magasin actif (pas depuis partner?.id qui
   // reflète toujours le 1er partenaire trouvé au init)
@@ -226,7 +270,11 @@ export default function StoreOperatorDashboardScreen() {
         <MCard style={styles.storeCard} elevation="md">
           <View style={styles.storeRow}>
             <View style={styles.storeIcon}>
-              <Ionicons name="storefront" size={wp(22)} color={colors.violet[500]} />
+              {activeStoreData ? (
+                <StoreThumb store={activeStoreData} size={wp(44)} />
+              ) : (
+                <Ionicons name="storefront" size={wp(22)} color={colors.violet[500]} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.storeLabel}>

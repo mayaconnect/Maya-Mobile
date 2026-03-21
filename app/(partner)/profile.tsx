@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: wp(10),
     fontFamily: fontFamily.medium,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255,255,255,0.6)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: wp(11),
     fontFamily: fontFamily.semiBold,
-    color: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255,255,255,0.65)',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: spacing[2],
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
   itemSublabel: {
     fontSize: wp(11),
     fontFamily: fontFamily.regular,
-    color: 'rgba(255,255,255,0.35)',
+    color: 'rgba(255,255,255,0.55)',
     marginTop: 2,
   },
   itemChevron: {

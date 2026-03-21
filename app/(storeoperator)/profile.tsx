@@ -25,6 +25,8 @@ import { operatorColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
+import { Image } from 'react-native';
+import { config } from '../../src/constants/config';
 import {
   MButton,
   MCard,
@@ -33,6 +35,48 @@ import {
   MDivider,
   MModal,
 } from '../../src/components/ui';
+
+const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
+
+function resolveUri(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return `${config.api.baseUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+}
+
+function StoreThumb({ store, size }: { store: any; size: number }) {
+  const uris = React.useMemo(() => {
+    const candidates: string[] = [];
+    const a = resolveUri(store?.imageUrl);
+    const b = store?.id ? `${config.api.baseUrl}/api/stores/${store.id}/image` : null;
+    if (a) candidates.push(a);
+    if (b && b !== a) candidates.push(b);
+    return candidates;
+  }, [store?.imageUrl, store?.id]);
+
+  const [index, setIndex] = React.useState(0);
+  React.useEffect(() => { setIndex(0); }, [store?.id]);
+
+  const uri = uris[index] ?? null;
+
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: borderRadius.lg }}
+        resizeMode="cover"
+        onError={() => setIndex((i) => i + 1)}
+      />
+    );
+  }
+  return (
+    <Image
+      source={DEFAULT_IMAGE}
+      style={{ width: size, height: size, borderRadius: borderRadius.lg }}
+      resizeMode="contain"
+    />
+  );
+}
 
 
 export default function StoreOperatorProfileScreen() {
@@ -60,10 +104,11 @@ export default function StoreOperatorProfileScreen() {
   const profile = profileQ.data ?? user;
 
   // Résoudre le nom du magasin depuis le tableau stores (StoreOperatorDto n'a pas storeName)
-  const storeName = useMemo(() => {
-    if (!activeStore?.storeId) return null;
-    return stores.find((s) => s.id === activeStore.storeId)?.name ?? null;
-  }, [activeStore?.storeId, stores]);
+  const activeStoreData = useMemo(
+    () => stores.find((s) => s.id === activeStore?.storeId) ?? null,
+    [activeStore?.storeId, stores],
+  );
+  const storeName = activeStoreData?.name ?? null;
 
   // Check if user is Manager on the active store
   const operatorStores = user?.partnerData?.operatorStores ?? [];
@@ -194,7 +239,11 @@ export default function StoreOperatorProfileScreen() {
         <MCard style={styles.storeCard} elevation="md">
           <View style={styles.storeCardHeader}>
             <View style={styles.storeIcon}>
-              <Ionicons name="storefront" size={wp(22)} color={colors.violet[500]} />
+              {activeStoreData ? (
+                <StoreThumb store={activeStoreData} size={wp(44)} />
+              ) : (
+                <Ionicons name="storefront" size={wp(22)} color={colors.violet[500]} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.storeCardLabel}>Magasin actif</Text>

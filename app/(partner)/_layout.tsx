@@ -34,7 +34,7 @@ function PartnerTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const visibleRoutes = state.routes.slice(0, 5);
 
   return (
-    <View style={[tbStyles.wrapper, { paddingBottom: insets.bottom, height: wp(72) + insets.bottom }]}>
+    <View style={[tbStyles.wrapper, { paddingBottom: insets.bottom, height: wp(50) + insets.bottom }]}>
       {/* Background */}
       {isIOS ? (
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
@@ -129,8 +129,7 @@ const tbStyles = StyleSheet.create({
   row: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingTop: 8,
+    alignItems: 'center',
     paddingHorizontal: 4,
   },
 
@@ -138,6 +137,7 @@ const tbStyles = StyleSheet.create({
   tabItem: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 3,
   },
   label: {
@@ -154,8 +154,8 @@ const tbStyles = StyleSheet.create({
   centerWrap: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginTop: wp(-16),
+    justifyContent: 'center',
+    marginTop: wp(-22),
   },
   scanBtn: {
     width: wp(56),
