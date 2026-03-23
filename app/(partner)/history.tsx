@@ -1,7 +1,5 @@
 /**
  * Maya Connect V2 — Partner Transaction History Screen
- *
- * Paginated list of transactions for the current partner / store operator.
  */
 import React, { useCallback } from 'react';
 import {
@@ -12,24 +10,18 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { transactionsApi } from '../../src/api/transactions.api';
-import { partnerColors as colors } from '../../src/theme/colors';
-import { textStyles, fontFamily } from '../../src/theme/typography';
+import { storeOperatorsApi } from '../../src/api/store-operators.api';
+import { fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
-import { formatPrice, formatDateTime, formatPercent } from '../../src/utils/format';
-import {
-  MCard,
-  MBadge,
-  LoadingSpinner,
-  EmptyState,
-  ErrorState,
-} from '../../src/components/ui';
+import { formatPrice, formatDateTime } from '../../src/utils/format';
+import { LoadingSpinner, ErrorState } from '../../src/components/ui';
 import { usePartnerStore } from '../../src/stores/partner.store';
 
 const PAGE_SIZE = 15;
@@ -37,21 +29,34 @@ const PAGE_SIZE = 15;
 export default function PartnerHistoryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const activeStore = usePartnerStore((s) => s.activeStore);
+  const activeStoreZus = usePartnerStore((s) => s.activeStore);
   const partner = usePartnerStore((s) => s.partner);
-  const storeId = activeStore?.storeId ?? undefined;
   const partnerId = partner?.id ?? undefined;
+
+  // Same pattern as dashboard — get active store from API first, fallback to Zustand
+  const activeStoreQ = useQuery({
+    queryKey: ['activeStore'],
+    queryFn: () => storeOperatorsApi.getActiveStore(),
+    select: (res) => res.data,
+    retry: (count, error: any) => {
+      if (error?.response?.status === 404) return false;
+      return count < 2;
+    },
+  });
+
+  const storeId = activeStoreQ.data?.storeId ?? activeStoreZus?.storeId ?? undefined;
 
   const txQ = useInfiniteQuery({
     queryKey: ['partnerTxHistory', partnerId, storeId],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
-      transactionsApi.getByPartner(partnerId!, {
-        storeId,
-        page: pageParam,
-        pageSize: PAGE_SIZE,
+      transactionsApi.getFiltered({
+        PartnerId: partnerId,
+        StoreId: storeId,
+        Page: pageParam,
+        PageSize: PAGE_SIZE,
       }),
-    enabled: !!partnerId,
+    enabled: !!partnerId || !!storeId,
     getNextPageParam: (lastPage) => {
       const d = lastPage.data;
       return d.page < d.totalPages ? d.page + 1 : undefined;
@@ -61,81 +66,92 @@ export default function PartnerHistoryScreen() {
   const items = txQ.data?.pages.flatMap((p) => p.data.items ?? []) ?? [];
   const totalCount = txQ.data?.pages[0]?.data.totalCount ?? 0;
 
-  /* ---- Summary stats ---- */
   const totalGross = items.reduce((a: number, t: any) => a + (t.amountGross ?? 0), 0);
   const totalDiscount = items.reduce((a: number, t: any) => a + (t.discountAmount ?? 0), 0);
 
   const renderTx = useCallback(
-    ({ item }: any) => (
-      <MCard style={styles.txCard} elevation="sm">
-        <View style={styles.txRow}>
+    ({ item }: any) => {
+      const discount = item.discountPercent ?? 0;
+      return (
+        <View style={styles.txCard}>
+          {/* Left accent */}
+          <View style={[styles.txAccent, { backgroundColor: discount > 0 ? '#FBBF24' : '#6366F1' }]} />
+
           <View style={styles.txIcon}>
-            <Ionicons
-              name="receipt-outline"
-              size={wp(18)}
-              color={colors.violet[500]}
-            />
+            <Ionicons name="receipt-outline" size={wp(16)} color="#6366F1" />
           </View>
 
           <View style={styles.txInfo}>
             <Text style={styles.txName} numberOfLines={1}>
-              {item.customerName ??
-                item.storeName ??
-                `Transaction #${item.transactionId?.slice(0, 6) ?? '—'}`}
+              {item.customerName ?? `Transaction #${item.transactionId?.slice(0, 6) ?? '—'}`}
             </Text>
-            <Text style={styles.txDate}>
-              {formatDateTime(item.createdAt)}
-            </Text>
-            <View style={styles.txMeta}>
-              {item.personsCount ? (
-                <View style={styles.metaItem}>
-                  <Ionicons
-                    name="people-outline"
-                    size={wp(12)}
-                    color={colors.neutral[400]}
-                  />
-                  <Text style={styles.metaText}>
-                    {item.personsCount} pers.
-                  </Text>
-                </View>
-              ) : null}
-            </View>
+            <Text style={styles.txDate}>{formatDateTime(item.createdAt)}</Text>
+            {item.personsCount ? (
+              <View style={styles.txMeta}>
+                <Ionicons name="people-outline" size={wp(11)} color="rgba(255,255,255,0.3)" />
+                <Text style={styles.metaText}>{item.personsCount} pers.</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.txAmounts}>
             <Text style={styles.txGross}>{formatPrice(item.amountGross ?? 0)}</Text>
-            <MBadge
-              label={`-${item.discountPercent ?? 0}%`}
-              variant="warning"
-              size="sm"
-            />
-            <Text style={styles.txNet}>
-              Net: {formatPrice(item.amountNet ?? 0)}
-            </Text>
+            {discount > 0 && (
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountText}>-{discount}%</Text>
+              </View>
+            )}
+            <Text style={styles.txNet}>{formatPrice(item.amountNet ?? 0)} net</Text>
           </View>
         </View>
-      </MCard>
-    ),
+      );
+    },
     [],
   );
 
-  if (txQ.isLoading) {
-    return <LoadingSpinner message="Chargement de l'historique…" />;
-  }
+  const Header = (
+    <LinearGradient
+      colors={['#0D0E20', '#1a1b3e']}
+      style={[styles.header, { paddingTop: insets.top + spacing[2] }]}
+    >
+      {/* Nav row */}
+      <View style={styles.headerNav}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={wp(20)} color="rgba(255,255,255,0.85)" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Historique</Text>
+        <View style={styles.countChip}>
+          <Text style={styles.countChipText}>{totalCount} tx</Text>
+        </View>
+      </View>
+
+      {/* Stats row */}
+      <View style={styles.statsRow}>
+        <View style={styles.statItem}>
+          <View style={[styles.statAccent, { backgroundColor: '#6366F1' }]} />
+          <Text style={styles.statValue}>{formatPrice(totalGross)}</Text>
+          <Text style={styles.statLabel}>CA brut</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <View style={[styles.statAccent, { backgroundColor: '#FBBF24' }]} />
+          <Text style={styles.statValue}>{formatPrice(totalDiscount)}</Text>
+          <Text style={styles.statLabel}>Réductions</Text>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+
+  if (txQ.isLoading) return <LoadingSpinner message="Chargement de l'historique…" />;
 
   if (txQ.isError) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={['#FF6A00', '#FFB347']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + spacing[2] }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Historique</Text>
-        </LinearGradient>
+        {Header}
         <ErrorState
           fullScreen
           title="Erreur de chargement"
-          description="Impossible de charger l'historique des transactions."
+          description="Impossible de charger l'historique."
           onRetry={() => txQ.refetch()}
           icon="receipt-outline"
         />
@@ -145,189 +161,228 @@ export default function PartnerHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Gradient header */}
-      <LinearGradient
-        colors={['#FF6A00', '#FFB347']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: insets.top + spacing[2] }]}
-      >
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={wp(22)} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Historique</Text>
-        <Text style={styles.headerSubtitle}>
-          {totalCount} transaction{totalCount !== 1 ? 's' : ''}
-        </Text>
-
-        {/* Summary pills in header */}
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryPill}>
-            <Text style={styles.summaryValue}>{formatPrice(totalGross)}</Text>
-            <Text style={styles.summaryLabel}>CA Brut</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryPill}>
-            <Text style={styles.summaryValue}>{formatPrice(totalDiscount)}</Text>
-            <Text style={styles.summaryLabel}>Réductions</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryPill}>
-            <Text style={styles.summaryValue}>{totalCount}</Text>
-            <Text style={styles.summaryLabel}>Transactions</Text>
-          </View>
-        </View>
-      </LinearGradient>
-
+      {Header}
       <FlatList
         data={items}
         keyExtractor={(item: any) => item.transactionId ?? Math.random().toString()}
         renderItem={renderTx}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + wp(100) }]}
         showsVerticalScrollIndicator={false}
         onEndReached={() => {
-          if (txQ.hasNextPage && !txQ.isFetchingNextPage) {
-            txQ.fetchNextPage();
-          }
+          if (txQ.hasNextPage && !txQ.isFetchingNextPage) txQ.fetchNextPage();
         }}
         onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
             refreshing={txQ.isRefetching && !txQ.isFetchingNextPage}
             onRefresh={() => txQ.refetch()}
-            tintColor={colors.violet[500]}
+            tintColor="#6366F1"
           />
         }
         ListEmptyComponent={
-          <EmptyState
-            icon="receipt-outline"
-            title="Aucune transaction"
-            description="L'historique des transactions apparaîtra ici."
-          />
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="receipt-outline" size={wp(32)} color="rgba(255,255,255,0.15)" />
+            </View>
+            <Text style={styles.emptyTitle}>Aucune transaction</Text>
+            <Text style={styles.emptyDesc}>L'historique apparaîtra ici.</Text>
+          </View>
         }
-        ListFooterComponent={
-          txQ.isFetchingNextPage ? (
-            <LoadingSpinner message="" />
-          ) : null
-        }
+        ListFooterComponent={txQ.isFetchingNextPage ? <LoadingSpinner message="" /> : null}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.neutral[50] },
+  container: { flex: 1, backgroundColor: '#0F172A' },
 
+  /* Header */
   header: {
     paddingHorizontal: spacing[4],
     paddingBottom: spacing[5],
+    borderBottomLeftRadius: wp(24),
+    borderBottomRightRadius: wp(24),
+    ...shadows.md,
+  },
+  headerNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing[5],
+    gap: spacing[3],
   },
   backBtn: {
     width: wp(36),
     height: wp(36),
     borderRadius: wp(18),
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing[2],
   },
   headerTitle: {
-    ...textStyles.h3,
+    flex: 1,
+    fontSize: wp(18),
+    fontFamily: fontFamily.bold,
     color: '#FFFFFF',
   },
-  headerSubtitle: {
-    ...textStyles.caption,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: spacing[1],
-    marginBottom: spacing[4],
+  countChip: {
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[1],
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  summaryRow: {
+  countChipText: {
+    fontSize: wp(11),
+    fontFamily: fontFamily.semiBold,
+    color: 'rgba(255,255,255,0.5)',
+  },
+
+  /* Stats */
+  statsRow: {
     flexDirection: 'row',
+    backgroundColor: '#1E293B',
+    borderRadius: borderRadius['2xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  statItem: {
+    flex: 1,
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    borderRadius: borderRadius.xl,
     paddingVertical: spacing[3],
     paddingHorizontal: spacing[2],
   },
-  summaryPill: {
-    flex: 1,
-    alignItems: 'center',
+  statAccent: {
+    width: wp(24),
+    height: 3,
+    borderRadius: 2,
+    marginBottom: spacing[2],
   },
-  summaryDivider: {
-    width: 1,
-    height: wp(28),
-    backgroundColor: 'rgba(255,255,255,0.25)',
-  },
-  summaryValue: {
-    ...textStyles.bodyBold,
+  statValue: {
+    fontSize: wp(13),
+    fontFamily: fontFamily.bold,
     color: '#FFFFFF',
   },
-  summaryLabel: {
-    ...textStyles.micro,
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: spacing[1],
+  statLabel: {
+    fontSize: wp(9),
+    fontFamily: fontFamily.medium,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 2,
   },
+  statDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginVertical: spacing[3],
+  },
+
+  /* List */
   list: {
-    paddingHorizontal: spacing[4],
-    paddingTop: spacing[4],
-    paddingBottom: wp(100),
+    padding: spacing[4],
+    gap: spacing[2],
   },
+
+  /* Transaction card */
   txCard: {
-    marginBottom: spacing[2],
-    backgroundColor: '#111827',
-  },
-  txRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    padding: spacing[3],
+    gap: spacing[3],
+    overflow: 'hidden',
+    ...shadows.sm,
+  },
+  txAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
   },
   txIcon: {
-    width: wp(40),
-    height: wp(40),
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.violet[50],
+    width: wp(36),
+    height: wp(36),
+    borderRadius: borderRadius.lg,
+    backgroundColor: 'rgba(99,102,241,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing[3],
+    marginLeft: spacing[1],
+    flexShrink: 0,
   },
-  txInfo: {
-    flex: 1,
-  },
+  txInfo: { flex: 1 },
   txName: {
-    ...textStyles.body,
-    fontFamily: fontFamily.medium,
-    color: colors.neutral[900],
+    fontSize: wp(13),
+    fontFamily: fontFamily.semiBold,
+    color: '#FFFFFF',
   },
   txDate: {
-    ...textStyles.micro,
-    color: colors.neutral[400],
-    marginTop: spacing[1],
+    fontSize: wp(10),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 2,
   },
   txMeta: {
     flexDirection: 'row',
-    gap: spacing[2],
-    marginTop: spacing[1],
-  },
-  metaItem: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[1],
+    gap: 4,
+    marginTop: 4,
   },
   metaText: {
-    ...textStyles.micro,
-    color: colors.neutral[400],
+    fontSize: wp(10),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.3)',
   },
-  txAmounts: {
-    alignItems: 'flex-end',
-  },
+  txAmounts: { alignItems: 'flex-end', gap: 3 },
   txGross: {
-    ...textStyles.body,
+    fontSize: wp(13),
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+  },
+  discountBadge: {
+    paddingHorizontal: spacing[2],
+    paddingVertical: 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(251,191,36,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.2)',
+  },
+  discountText: {
+    fontSize: wp(9),
     fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
-    marginBottom: spacing[1],
+    color: '#FBBF24',
   },
   txNet: {
-    ...textStyles.micro,
-    color: colors.neutral[500],
-    marginTop: spacing[1],
+    fontSize: wp(9),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.3)',
+  },
+
+  /* Empty */
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: wp(60),
+    gap: spacing[3],
+  },
+  emptyIcon: {
+    width: wp(64),
+    height: wp(64),
+    borderRadius: wp(32),
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontSize: wp(15),
+    fontFamily: fontFamily.semiBold,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  emptyDesc: {
+    fontSize: wp(12),
+    fontFamily: fontFamily.regular,
+    color: 'rgba(255,255,255,0.2)',
   },
 });

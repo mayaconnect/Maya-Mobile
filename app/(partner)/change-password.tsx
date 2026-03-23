@@ -91,7 +91,7 @@ export default function PartnerChangePasswordScreen() {
 
       {/* Card sombre */}
       <LinearGradient
-        colors={['#1E293B', '#0F172A']}
+        colors={['#1a1b3e', '#0D0E20']}
         style={[styles.card, { paddingBottom: insets.bottom + spacing[6] }]}
       >
         <ScrollView

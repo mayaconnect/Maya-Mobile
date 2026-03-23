@@ -30,6 +30,8 @@ import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
 import { wp } from '../../src/utils/responsive';
 import { formatPrice, formatNumber, formatDateTime, formatClientNameShort } from '../../src/utils/format';
+import { Image } from 'react-native';
+import { config } from '../../src/constants/config';
 import {
   MCard,
   MBadge,
@@ -38,6 +40,48 @@ import {
   EmptyState,
   ErrorState,
 } from '../../src/components/ui';
+
+const DEFAULT_IMAGE = require('../../assets/images/centered_logo_gradient.png');
+
+function resolveUri(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return `${config.api.baseUrl}${raw.startsWith('/') ? '' : '/'}${raw}`;
+}
+
+function StoreThumb({ store, size }: { store: any; size: number }) {
+  const uris = React.useMemo(() => {
+    const candidates: string[] = [];
+    const a = resolveUri(store?.imageUrl);
+    const b = store?.id ? `${config.api.baseUrl}/api/stores/${store.id}/image` : null;
+    if (a) candidates.push(a);
+    if (b && b !== a) candidates.push(b);
+    return candidates;
+  }, [store?.imageUrl, store?.id]);
+
+  const [index, setIndex] = React.useState(0);
+  React.useEffect(() => { setIndex(0); }, [store?.id]);
+
+  const uri = uris[index] ?? null;
+
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: borderRadius.lg }}
+        resizeMode="cover"
+        onError={() => setIndex((i) => i + 1)}
+      />
+    );
+  }
+  return (
+    <Image
+      source={DEFAULT_IMAGE}
+      style={{ width: size, height: size, borderRadius: borderRadius.lg }}
+      resizeMode="contain"
+    />
+  );
+}
 
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -65,22 +109,26 @@ export default function StoreOperatorDashboardScreen() {
 
   const storeId = activeStoreQ.data?.storeId ?? activeStoreZus?.storeId;
 
-  // Map store name from the stores array (since StoreOperatorDto has no name)
-  const activeStoreName = useMemo(() => {
+  // Map store name + data from the stores array
+  const activeStoreData = useMemo(() => {
     if (!storeId) return null;
-    const found = stores.find((s) => s.id === storeId);
-    return found?.name ?? null;
+    return stores.find((s) => s.id === storeId) ?? null;
   }, [storeId, stores]);
+  const activeStoreName = activeStoreData?.name ?? null;
 
-  // Dériver partnerId depuis le magasin actif (pas depuis partner?.id qui
-  // reflète toujours le 1er partenaire trouvé au init)
+  // Dériver partnerId : partner Zustand → stores → user.partnerData fallback
   const partnerId = useMemo(() => {
+    if (partner?.id) return partner.id;
+    const opStores = user?.partnerData?.operatorStores ?? [];
     if (storeId) {
-      const found = stores.find((s) => s.id === storeId);
-      if (found?.partnerId) return found.partnerId;
+      const fromStore = stores.find((s) => s.id === storeId)?.partnerId;
+      if (fromStore) return fromStore;
+      const fromOp = opStores.find((s) => s.id === storeId);
+      if (fromOp?.partnerId) return fromOp.partnerId;
+      if (fromOp?.partner?.id) return fromOp.partner.id;
     }
-    return partner?.id;
-  }, [storeId, stores, partner?.id]);
+    return opStores[0]?.partnerId ?? opStores[0]?.partner?.id ?? undefined;
+  }, [partner, storeId, stores, user]);
 
   /* ---- Store scan count ---- */
   const storeScansQ = useQuery({
@@ -98,21 +146,28 @@ export default function StoreOperatorDashboardScreen() {
     select: (res) => res.data,
   });
 
-  /* ---- Partner-level transactions (all stores, recent) ---- */
-  const partnerTxQ = useQuery({
-    queryKey: ['partnerAllTx', partnerId],
+  /* ---- Active store recent transactions (via getFiltered) ---- */
+  const recentQ = useQuery({
+    queryKey: ['storeRecentTx', storeId],
     queryFn: () =>
-      transactionsApi.getByPartner(partnerId!, { page: 1, pageSize: 20 }),
-    enabled: !!partnerId,
+      transactionsApi.getFiltered({
+        StoreId: storeId,
+        PartnerId: partnerId,
+        Page: 1,
+        PageSize: 5,
+      }),
+    enabled: !!storeId,
     select: (res) => res.data,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
-  /* ---- Active store recent transactions ---- */
-  const recentQ = useQuery({
-    queryKey: ['partnerRecentTx', partnerId, storeId],
+  /* ---- Store-level transactions for KPIs (panier moyen par magasin) ---- */
+  const partnerTxQ = useQuery({
+    queryKey: ['storeKpiTx', storeId],
     queryFn: () =>
-      transactionsApi.getByPartner(partnerId!, { storeId, page: 1, pageSize: 5 }),
-    enabled: !!partnerId,
+      transactionsApi.getFiltered({ StoreId: storeId, PartnerId: partnerId, Page: 1, PageSize: 100 }),
+    enabled: !!storeId,
     select: (res) => res.data,
   });
 
@@ -226,7 +281,11 @@ export default function StoreOperatorDashboardScreen() {
         <MCard style={styles.storeCard} elevation="md">
           <View style={styles.storeRow}>
             <View style={styles.storeIcon}>
-              <Ionicons name="storefront" size={wp(22)} color={colors.violet[500]} />
+              {activeStoreData ? (
+                <StoreThumb store={activeStoreData} size={wp(44)} />
+              ) : (
+                <Ionicons name="storefront" size={wp(22)} color={colors.violet[500]} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.storeLabel}>
@@ -277,7 +336,7 @@ export default function StoreOperatorDashboardScreen() {
               <Ionicons name="basket" size={wp(20)} color={colors.violet[500]} />
             </View>
             <View style={{ flex: 1, marginLeft: spacing[3] }}>
-              <Text style={styles.avgLabel}>Panier moyen</Text>
+              <Text style={styles.avgLabel}>Panier moyen (ce magasin)</Text>
               <Text style={styles.avgValue}>{formatPrice(kpis.avgBasket)}</Text>
             </View>
             <MBadge
@@ -307,7 +366,7 @@ export default function StoreOperatorDashboardScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.txName} numberOfLines={1}>
-                    {formatClientNameShort(tx.clientName ?? tx.customerName, `Client #${tx.customerUserId?.slice(0, 6) ?? '—'}`)}
+                    {tx.clientName ?? tx.customerName ?? `Client #${tx.customerUserId?.slice(0, 6) ?? '—'}`}
                   </Text>
                   <Text style={styles.txDate}>{formatDateTime(tx.createdAt)}</Text>
                 </View>

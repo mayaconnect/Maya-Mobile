@@ -9,8 +9,9 @@
  * The notification handler is configured lazily (not at module top-level)
  * to avoid crashes on app startup.
  */
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../stores/auth.store';
 
 // Lazy imports — resolved only when the hook actually runs
@@ -144,8 +145,10 @@ export function usePushNotifications() {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any>(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -166,6 +169,12 @@ export function usePushNotifications() {
 
       if (token) {
         setExpoPushToken(token);
+
+        // Persist token for logout unregister
+        try {
+          const { setItemAsync } = await import('expo-secure-store');
+          await setItemAsync('expo_push_token', token);
+        } catch {}
 
         // Send token to backend (retry up to 3 times)
         let registered = false;
@@ -204,8 +213,11 @@ export function usePushNotifications() {
             const data = response.notification.request.content.data;
             console.log('[Push] Notification tapped, data:', data);
 
-            if (data?.type === 'transaction_confirmed') {
-              console.log('[Push] Transaction confirmed:', data.transactionId);
+            const role = user?.role;
+            if (data?.type === 'transaction_confirmed' || data?.type === 'transaction_pending') {
+              if (role === 'partner') router.push('/(partner)/history');
+              else if (role === 'storeoperator') router.push('/(storeoperator)/history');
+              else router.push('/(client)/history');
             }
           }
         );

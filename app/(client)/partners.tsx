@@ -1,13 +1,8 @@
 /**
  * Maya Connect V2 — Partners List Screen
- *
- * Premium Uber Eats–inspired layout:
- *  • Fancy pill category filters with icons & count badges
- *  • Each category shows a horizontal scroll of store cards
- *  • Tapping a category shows a 2-column grid
- *  • Store image fallback: store → partner → Maya default
+ * Pagination client-side — grid 2 colonnes + navigateur de pages
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,7 +13,6 @@ import {
   RefreshControl,
   Image,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
@@ -45,19 +39,18 @@ import type { StoreDto, StoreCategoryDto } from '../../src/types';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_WIDTH = (SCREEN_WIDTH - spacing[6] * 2 - spacing[3]) / 2;
 const DEFAULT_STORE_IMAGE = require('../../assets/images/centered_logo_gradient.png');
+const PER_PAGE = 12; // items par page dans la grille
+const FETCH_SIZE = 200; // charge un max de stores une fois
 
 /** Image avec fallback sur erreur */
 function StoreImage({ store, style }: { store: StoreDto; style: any }) {
   const [errored, setErrored] = React.useState(false);
-
   const directUri = (store as any).imageUrl || (store as any).partnerImageUrl || null;
   const fallbackUri = store.partnerId
     ? `${config.api.baseUrl}/api/partners/${store.partnerId}/image`
     : null;
   const imageUri = directUri || fallbackUri;
-
   const source = !errored && imageUri ? { uri: imageUri } : DEFAULT_STORE_IMAGE;
-
   return (
     <Image
       source={source}
@@ -68,13 +61,93 @@ function StoreImage({ store, style }: { store: StoreDto; style: any }) {
   );
 }
 
+/* ── Navigateur de pages ── */
+function PageNav({
+  page,
+  total,
+  onChange,
+}: {
+  page: number;
+  total: number;
+  onChange: (p: number) => void;
+}) {
+  if (total <= 1) return null;
+
+  // Calcul des pages à afficher (max 5 pilules)
+  const pages: (number | '…')[] = [];
+  if (total <= 5) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('…');
+    const start = Math.max(2, page - 1);
+    const end = Math.min(total - 1, page + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (page < total - 2) pages.push('…');
+    pages.push(total);
+  }
+
+  return (
+    <View style={pnStyles.row}>
+      {/* Prev */}
+      <TouchableOpacity
+        style={[pnStyles.chevron, page === 1 && pnStyles.chevronDisabled]}
+        onPress={() => onChange(page - 1)}
+        disabled={page === 1}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="chevron-back" size={wp(16)} color={page === 1 ? colors.neutral[300] : colors.orange[500]} />
+      </TouchableOpacity>
+
+      {/* Page pills */}
+      {pages.map((p, i) =>
+        p === '…' ? (
+          <Text key={`dots-${i}`} style={pnStyles.dots}>…</Text>
+        ) : (
+          <TouchableOpacity
+            key={p}
+            style={[pnStyles.pill, p === page && pnStyles.pillActive]}
+            onPress={() => onChange(p as number)}
+            activeOpacity={0.7}
+          >
+            {p === page ? (
+              <LinearGradient
+                colors={[...colors.gradients.primary]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={pnStyles.pillGradient}
+              >
+                <Text style={pnStyles.pillTextActive}>{p}</Text>
+              </LinearGradient>
+            ) : (
+              <Text style={pnStyles.pillText}>{p}</Text>
+            )}
+          </TouchableOpacity>
+        )
+      )}
+
+      {/* Next */}
+      <TouchableOpacity
+        style={[pnStyles.chevron, page === total && pnStyles.chevronDisabled]}
+        onPress={() => onChange(page + 1)}
+        disabled={page === total}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="chevron-forward" size={wp(16)} color={page === total ? colors.neutral[300] : colors.orange[500]} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function PartnersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const debouncedSearch = useDebounced(search, 400);
-  const PAGE_SIZE = 60;
+
+  // Reset page quand le filtre/recherche change
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch, selectedCategory]);
 
   // ── Fetch store categories ──
   const categoriesQ = useQuery({
@@ -84,19 +157,16 @@ export default function PartnersScreen() {
     staleTime: 30 * 60 * 1000,
   });
 
-  // ── Fetch all stores ──
+  // ── Fetch tous les stores (grand batch unique) ──
   const storesQ = useInfiniteQuery({
     queryKey: ['partners'],
     queryFn: ({ pageParam = 1 }) =>
-      storesApi.search({ page: pageParam, pageSize: PAGE_SIZE }),
+      storesApi.search({ page: pageParam, pageSize: FETCH_SIZE }),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => {
       const data = lastPage.data;
       if (!data?.items) return undefined;
-      const loaded = allPages.reduce(
-        (sum, p) => sum + (p.data?.items?.length ?? 0),
-        0,
-      );
+      const loaded = allPages.reduce((sum, p) => sum + (p.data?.items?.length ?? 0), 0);
       return loaded < (data.totalCount ?? 0) ? allPages.length + 1 : undefined;
     },
   });
@@ -106,64 +176,64 @@ export default function PartnersScreen() {
     [storesQ.data],
   );
 
-  // ── Client-side search filter ──
+  // ── Filtre recherche ──
   const filteredStores = useMemo(() => {
-    if (!debouncedSearch) return allStores;
-    const q = debouncedSearch.toLowerCase();
-    return allStores.filter(
-      (s: StoreDto) =>
-        (s.name ?? '').toLowerCase().includes(q) ||
-        (s.partnerName ?? '').toLowerCase().includes(q) ||
-        (s.city ?? '').toLowerCase().includes(q) ||
-        (s.category ?? '').toLowerCase().includes(q),
-    );
-  }, [allStores, debouncedSearch]);
+    let result = allStores;
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter(
+        (s: StoreDto) =>
+          (s.name ?? '').toLowerCase().includes(q) ||
+          (s.partnerName ?? '').toLowerCase().includes(q) ||
+          (s.city ?? '').toLowerCase().includes(q) ||
+          (s.category ?? '').toLowerCase().includes(q),
+      );
+    }
+    if (selectedCategory) {
+      result = result.filter((s: StoreDto) => (s.categoryId ?? 'other') === selectedCategory);
+    }
+    return result;
+  }, [allStores, debouncedSearch, selectedCategory]);
 
-  // ── Group stores by category (sorted by store count desc) ──
+  // ── Pagination client-side ──
+  const totalPages = Math.max(1, Math.ceil(filteredStores.length / PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageItems = useMemo(
+    () => filteredStores.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE),
+    [filteredStores, safePage],
+  );
+
+  // ── Catégories actives ──
   const storesByCategory = useMemo(() => {
-    const map = new Map<string, { category: StoreCategoryDto; stores: StoreDto[] }>();
-
-    for (const store of filteredStores) {
+    const map = new Map<string, { category: StoreCategoryDto; count: number }>();
+    for (const store of allStores) {
       const catName = store.category ?? 'Autre';
       const catId = store.categoryId ?? 'other';
       if (!map.has(catId)) {
-        const cat = categoriesQ.data?.find((c) => c.id === catId) ?? {
-          id: catId,
-          code: null,
-          name: catName,
-        };
-        map.set(catId, { category: cat, stores: [] });
+        const cat = categoriesQ.data?.find((c) => c.id === catId) ?? { id: catId, code: null, name: catName };
+        map.set(catId, { category: cat, count: 0 });
       }
-      map.get(catId)!.stores.push(store);
+      map.get(catId)!.count++;
     }
-
-    return Array.from(map.values()).sort((a, b) => b.stores.length - a.stores.length);
-  }, [filteredStores, categoriesQ.data]);
-
-  const activeCategories = useMemo(
-    () => storesByCategory.map((g) => g.category),
-    [storesByCategory],
-  );
-
-  const selectedStores = useMemo(
-    () => storesByCategory.find((g) => g.category.id === selectedCategory)?.stores ?? [],
-    [selectedCategory, storesByCategory],
-  );
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [allStores, categoriesQ.data]);
 
   const navigateToStore = useCallback(
-    (id: string) =>
-      router.push({ pathname: '/(client)/partner-details', params: { id } }),
+    (id: string) => router.push({ pathname: '/(client)/partner-details', params: { id } }),
     [router],
   );
 
   const isRefreshing = storesQ.isRefetching && !storesQ.isFetchingNextPage;
+  const onRefresh = () => { storesQ.refetch(); categoriesQ.refetch(); };
 
-  const onRefresh = () => {
-    storesQ.refetch();
-    categoriesQ.refetch();
+  const listRef = useRef<FlatList>(null);
+
+  const goToPage = (p: number) => {
+    setCurrentPage(p);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
-  // ── Grid store card (2-column) ──
+  // ── Grid card ──
   const renderGridCard = useCallback(
     ({ item }: { item: StoreDto }) => (
       <TouchableOpacity
@@ -176,9 +246,7 @@ export default function PartnersScreen() {
           <Text style={styles.gridCardName} numberOfLines={1}>
             {item.name || item.partnerName || 'Partenaire'}
           </Text>
-          <Text style={styles.gridCardCity} numberOfLines={1}>
-            {item.city || ''}
-          </Text>
+          <Text style={styles.gridCardCity} numberOfLines={1}>{item.city || ''}</Text>
           {item.avgDiscountPercent > 0 && (
             <MBadge
               label={`-${Math.round(item.avgDiscountPercent)}%`}
@@ -193,7 +261,6 @@ export default function PartnersScreen() {
     [navigateToStore],
   );
 
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
@@ -201,13 +268,10 @@ export default function PartnersScreen() {
         <View>
           <Text style={styles.title}>Partenaires</Text>
           <Text style={styles.subtitle}>
-            {allStores.length} magasin{allStores.length !== 1 ? 's' : ''} disponible{allStores.length !== 1 ? 's' : ''}
+            {filteredStores.length} résultat{filteredStores.length !== 1 ? 's' : ''}
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={() => router.push('/(client)/stores-map')}
-          style={styles.mapBtn}
-        >
+        <TouchableOpacity onPress={() => router.push('/(client)/stores-map')} style={styles.mapBtn}>
           <Ionicons name="map-outline" size={wp(20)} color={colors.orange[500]} />
         </TouchableOpacity>
       </View>
@@ -216,43 +280,26 @@ export default function PartnersScreen() {
       <View style={styles.searchWrap}>
         <MSearchBar
           value={search}
-          onChangeText={(text: string) => {
-            setSearch(text);
-            if (selectedCategory) setSelectedCategory(null);
-          }}
+          onChangeText={(text: string) => { setSearch(text); if (selectedCategory) setSelectedCategory(null); }}
           placeholder="Rechercher un partenaire, une ville…"
         />
       </View>
 
-      {/* ── Category Filters — fancy pills ── */}
-      {activeCategories.length > 0 && (
+      {/* ── Category Filters ── */}
+      {storesByCategory.length > 0 && (
         <View style={styles.filtersWrap}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersContainer}
-          >
-            {/* "All" filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersContainer}>
+            {/* "Tous" */}
             <TouchableOpacity
-              style={[
-                styles.filterPill,
-                !selectedCategory && styles.filterPillActive,
-              ]}
+              style={[styles.filterPill, !selectedCategory && styles.filterPillActive]}
               onPress={() => setSelectedCategory(null)}
               activeOpacity={0.8}
             >
               {!selectedCategory ? (
-                <LinearGradient
-                  colors={[...colors.gradients.primary]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.filterPillGradient}
-                >
+                <LinearGradient colors={[...colors.gradients.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.filterPillGradient}>
                   <Ionicons name="grid-outline" size={wp(14)} color="#FFF" />
                   <Text style={styles.filterPillTextActive}>Tous</Text>
-                  <View style={styles.filterCount}>
-                    <Text style={styles.filterCountText}>{filteredStores.length}</Text>
-                  </View>
+                  <View style={styles.filterCount}><Text style={styles.filterCountText}>{allStores.length}</Text></View>
                 </LinearGradient>
               ) : (
                 <>
@@ -262,45 +309,24 @@ export default function PartnersScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Category filters */}
-            {activeCategories.map((cat) => {
+            {storesByCategory.map(({ category: cat, count }) => {
               const isActive = selectedCategory === cat.id;
-              const count = storesByCategory.find((g) => g.category.id === cat.id)?.stores.length ?? 0;
-
               return (
                 <TouchableOpacity
                   key={cat.id}
-                  style={[
-                    styles.filterPill,
-                    isActive && styles.filterPillActive,
-                  ]}
-                  onPress={() =>
-                    setSelectedCategory(isActive ? null : cat.id)
-                  }
+                  style={[styles.filterPill, isActive && styles.filterPillActive]}
+                  onPress={() => setSelectedCategory(isActive ? null : cat.id)}
                   activeOpacity={0.8}
                 >
                   {isActive ? (
-                    <LinearGradient
-                      colors={[...colors.gradients.primary]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.filterPillGradient}
-                    >
-                      <Text style={styles.filterPillTextActive}>
-                        {cat.name || cat.code || 'Autre'}
-                      </Text>
-                      <View style={styles.filterCount}>
-                        <Text style={styles.filterCountText}>{count}</Text>
-                      </View>
+                    <LinearGradient colors={[...colors.gradients.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.filterPillGradient}>
+                      <Text style={styles.filterPillTextActive}>{cat.name || cat.code || 'Autre'}</Text>
+                      <View style={styles.filterCount}><Text style={styles.filterCountText}>{count}</Text></View>
                     </LinearGradient>
                   ) : (
                     <>
-                      <Text style={styles.filterPillText}>
-                        {cat.name || cat.code || 'Autre'}
-                      </Text>
-                      <View style={styles.filterCountInactive}>
-                        <Text style={styles.filterCountTextInactive}>{count}</Text>
-                      </View>
+                      <Text style={styles.filterPillText}>{cat.name || cat.code || 'Autre'}</Text>
+                      <View style={styles.filterCountInactive}><Text style={styles.filterCountTextInactive}>{count}</Text></View>
                     </>
                   )}
                 </TouchableOpacity>
@@ -310,7 +336,7 @@ export default function PartnersScreen() {
         </View>
       )}
 
-      {/* Content */}
+      {/* ── Content ── */}
       {storesQ.isLoading ? (
         <LoadingSpinner fullScreen message="Chargement des partenaires…" />
       ) : storesQ.isError ? (
@@ -322,21 +348,17 @@ export default function PartnersScreen() {
           icon="storefront-outline"
         />
       ) : (
-        /* 2-column grid — all stores or filtered by category */
         <FlatList
-          data={selectedCategory ? selectedStores! : filteredStores}
+          ref={listRef}
+          data={pageItems}
           numColumns={2}
           renderItem={renderGridCard}
           keyExtractor={(item) => item.id}
           columnWrapperStyle={styles.gridRow}
-          contentContainerStyle={styles.gridList}
+          contentContainerStyle={[styles.gridList, { paddingBottom: insets.bottom + wp(100) }]}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.orange[500]}
-            />
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.orange[500]} />
           }
           ListEmptyComponent={
             <EmptyState
@@ -348,20 +370,16 @@ export default function PartnersScreen() {
             />
           }
           ListFooterComponent={
-            storesQ.hasNextPage ? (
-              <TouchableOpacity
-                style={styles.loadMoreBtn}
-                onPress={() => storesQ.fetchNextPage()}
-                disabled={storesQ.isFetchingNextPage}
-              >
-                {storesQ.isFetchingNextPage ? (
-                  <ActivityIndicator size="small" color={colors.orange[500]} />
-                ) : (
-                  <Text style={styles.loadMoreText}>
-                    Charger plus de partenaires
-                  </Text>
-                )}
-              </TouchableOpacity>
+            filteredStores.length > 0 ? (
+              <View style={styles.paginationWrap}>
+                {/* Info page */}
+                <Text style={styles.pageInfo}>
+                  Page {safePage} / {totalPages}
+                  {'  ·  '}
+                  {(safePage - 1) * PER_PAGE + 1}–{Math.min(safePage * PER_PAGE, filteredStores.length)} sur {filteredStores.length}
+                </Text>
+                <PageNav page={safePage} total={totalPages} onChange={goToPage} />
+              </View>
             ) : null
           }
         />
@@ -370,10 +388,72 @@ export default function PartnersScreen() {
   );
 }
 
+/* ── Page nav styles ── */
+const pnStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+  },
+  chevron: {
+    width: wp(36),
+    height: wp(36),
+    borderRadius: wp(18),
+    backgroundColor: colors.neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  chevronDisabled: {
+    backgroundColor: colors.neutral[50],
+    borderColor: colors.neutral[100],
+  },
+  pill: {
+    minWidth: wp(36),
+    height: wp(36),
+    borderRadius: wp(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral[100],
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    overflow: 'hidden',
+  },
+  pillActive: {
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  pillGradient: {
+    width: wp(36),
+    height: wp(36),
+    borderRadius: wp(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillText: {
+    fontSize: wp(13),
+    fontFamily: fontFamily.semiBold,
+    color: colors.neutral[600],
+  },
+  pillTextActive: {
+    fontSize: wp(13),
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+  },
+  dots: {
+    fontSize: wp(14),
+    fontFamily: fontFamily.medium,
+    color: colors.neutral[400],
+    paddingHorizontal: spacing[1],
+  },
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.neutral[50] },
 
-  /* ── Header ── */
+  /* Header */
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -382,151 +462,60 @@ const styles = StyleSheet.create({
     paddingTop: spacing[3],
     paddingBottom: spacing[1],
   },
-  title: {
-    ...textStyles.h2,
-    color: colors.neutral[900],
-  },
-  subtitle: {
-    ...textStyles.micro,
-    color: colors.neutral[500],
-    marginTop: spacing[1],
-  },
+  title: { ...textStyles.h2, color: colors.neutral[900] },
+  subtitle: { ...textStyles.micro, color: colors.neutral[500], marginTop: spacing[1] },
   mapBtn: {
-    width: wp(44),
-    height: wp(44),
-    borderRadius: wp(22),
-    backgroundColor: colors.orange[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.sm,
+    width: wp(44), height: wp(44), borderRadius: wp(22),
+    backgroundColor: colors.orange[50], alignItems: 'center', justifyContent: 'center', ...shadows.sm,
   },
-  searchWrap: {
-    paddingHorizontal: spacing[6],
-    paddingVertical: spacing[2],
-  },
+  searchWrap: { paddingHorizontal: spacing[6], paddingVertical: spacing[2] },
 
-  /* ── Fancy Filter Pills ── */
-  filtersWrap: {
-    marginBottom: spacing[3],
-  },
-  filtersContainer: {
-    paddingHorizontal: spacing[6],
-    gap: spacing[2],
-    alignItems: 'center',
-  },
+  /* Filters */
+  filtersWrap: { marginBottom: spacing[3] },
+  filtersContainer: { paddingHorizontal: spacing[6], gap: spacing[2], alignItems: 'center' },
   filterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    borderRadius: borderRadius.full,
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    gap: spacing[2],
-    ...shadows.sm,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+    borderRadius: borderRadius.full, backgroundColor: '#1E293B',
+    borderWidth: 1, borderColor: colors.neutral[200], gap: spacing[2], ...shadows.sm,
   },
-  filterPillActive: {
-    borderWidth: 0,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-  },
+  filterPillActive: { borderWidth: 0, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent', overflow: 'hidden' },
   filterPillGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    borderRadius: borderRadius.full,
-    gap: spacing[2],
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing[4], paddingVertical: spacing[2],
+    borderRadius: borderRadius.full, gap: spacing[2],
   },
-  filterPillText: {
-    ...textStyles.caption,
-    fontFamily: fontFamily.medium,
-    color: colors.neutral[700],
-  },
-  filterPillTextActive: {
-    ...textStyles.caption,
-    fontFamily: fontFamily.semiBold,
-    color: '#FFFFFF',
-  },
+  filterPillText: { ...textStyles.caption, fontFamily: fontFamily.medium, color: colors.neutral[700] },
+  filterPillTextActive: { ...textStyles.caption, fontFamily: fontFamily.semiBold, color: '#FFFFFF' },
   filterCount: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: wp(10),
-    minWidth: wp(20),
-    height: wp(20),
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing[1],
+    backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: wp(10),
+    minWidth: wp(20), height: wp(20), alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[1],
   },
-  filterCountText: {
-    ...textStyles.micro,
-    fontFamily: fontFamily.bold,
-    color: '#FFFFFF',
-    fontSize: wp(10),
-  },
+  filterCountText: { ...textStyles.micro, fontFamily: fontFamily.bold, color: '#FFFFFF', fontSize: wp(10) },
   filterCountInactive: {
-    backgroundColor: colors.neutral[100],
-    borderRadius: wp(10),
-    minWidth: wp(20),
-    height: wp(20),
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing[1],
+    backgroundColor: colors.neutral[100], borderRadius: wp(10),
+    minWidth: wp(20), height: wp(20), alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[1],
   },
-  filterCountTextInactive: {
-    ...textStyles.micro,
-    fontFamily: fontFamily.bold,
-    color: colors.neutral[500],
-    fontSize: wp(10),
-  },
+  filterCountTextInactive: { ...textStyles.micro, fontFamily: fontFamily.bold, color: colors.neutral[500], fontSize: wp(10) },
 
-  /* ── Grid view (2-column) ── */
-  gridList: {
-    paddingHorizontal: spacing[6],
-    paddingBottom: wp(100),
-  },
-  gridRow: {
-    justifyContent: 'space-between',
-    marginBottom: spacing[3],
-  },
-  gridCard: {
-    width: CARD_WIDTH,
-    backgroundColor: '#1E293B',
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    ...shadows.sm,
-  },
-  gridCardImage: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 0.65,
-    resizeMode: 'cover',
-    backgroundColor: colors.neutral[100],
-  },
-  gridCardBody: {
-    padding: spacing[3],
-  },
-  gridCardName: {
-    ...textStyles.body,
-    fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
-  },
-  gridCardCity: {
-    ...textStyles.micro,
-    color: colors.neutral[500],
-    marginTop: spacing[1],
-  },
+  /* Grid */
+  gridList: { paddingHorizontal: spacing[6] },
+  gridRow: { justifyContent: 'space-between', marginBottom: spacing[3] },
+  gridCard: { width: CARD_WIDTH, backgroundColor: '#1E293B', borderRadius: borderRadius.xl, overflow: 'hidden', ...shadows.sm },
+  gridCardImage: { width: CARD_WIDTH, height: CARD_WIDTH * 0.65, resizeMode: 'cover', backgroundColor: colors.neutral[100] },
+  gridCardBody: { padding: spacing[3] },
+  gridCardName: { ...textStyles.body, fontFamily: fontFamily.semiBold, color: colors.neutral[900] },
+  gridCardCity: { ...textStyles.micro, color: colors.neutral[500], marginTop: spacing[1] },
 
-  /* ── Load more ── */
-  loadMoreBtn: {
+  /* Pagination */
+  paginationWrap: {
+    paddingVertical: spacing[5],
     alignItems: 'center',
-    paddingVertical: spacing[4],
-    marginBottom: spacing[4],
+    gap: spacing[3],
   },
-  loadMoreText: {
-    ...textStyles.body,
-    color: colors.orange[500],
-    fontFamily: fontFamily.semiBold,
+  pageInfo: {
+    fontSize: wp(11),
+    fontFamily: fontFamily.medium,
+    color: colors.neutral[400],
   },
 });

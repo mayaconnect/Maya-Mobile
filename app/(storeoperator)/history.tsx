@@ -2,6 +2,8 @@
  * Maya Connect V2 — Store Operator Transaction History
  */
 import React, { useCallback, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useAuthStore } from '../../src/stores/auth.store';
 import {
   View,
   Text,
@@ -9,11 +11,12 @@ import {
   FlatList,
   RefreshControl,
 } from 'react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { transactionsApi } from '../../src/api/transactions.api';
+import { storeOperatorsApi } from '../../src/api/store-operators.api';
 import { usePartnerStore } from '../../src/stores/partner.store';
 import { operatorColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
@@ -26,38 +29,91 @@ const PAGE_SIZE = 15;
 
 export default function StoreOperatorHistoryScreen() {
   const insets = useSafeAreaInsets();
+  const user = useAuthStore((s) => s.user);
   const activeStore = usePartnerStore((s) => s.activeStore);
   const stores = usePartnerStore((s) => s.stores);
-  const storeId = activeStore?.storeId ?? undefined;
+  const partner = usePartnerStore((s) => s.partner);
 
+  // Source primaire : même appel API que le scanner
+  const activeStoreQ = useQuery({
+    queryKey: ['activeStore'],
+    queryFn: () => storeOperatorsApi.getActiveStore(),
+    select: (res) => res.data,
+    staleTime: 30_000,
+  });
+
+  // storeId : API → Zustand → auth fallback
+  const storeId = useMemo(() => {
+    const opStores = user?.partnerData?.operatorStores ?? [];
+    const resolved =
+      activeStoreQ.data?.storeId ??
+      activeStore?.storeId ??
+      opStores.find((s) => s.isActiveStore)?.id ??
+      opStores[0]?.id ??
+      undefined;
+    console.log('[HISTORY] storeId resolved:', resolved);
+    return resolved;
+  }, [activeStoreQ.data, activeStore, user]);
+
+  // partnerId : Zustand partner → stores → auth fallback
   const partnerId = useMemo(() => {
-    if (storeId) {
-      const found = stores.find((s) => s.id === storeId);
-      if (found?.partnerId) return found.partnerId;
+    const opStores = user?.partnerData?.operatorStores ?? [];
+    let resolved: string | undefined;
+    if (partner?.id) { resolved = partner.id; }
+    else if (storeId) {
+      const fromStore = stores.find((s) => s.id === storeId)?.partnerId;
+      if (fromStore) resolved = fromStore;
+      else {
+        const fromOp = opStores.find((s) => s.id === storeId);
+        resolved = fromOp?.partnerId ?? fromOp?.partner?.id;
+      }
     }
-    return undefined;
-  }, [storeId, stores]);
+    if (!resolved) {
+      resolved = opStores[0]?.partnerId ?? opStores[0]?.partner?.id;
+    }
+    console.log('[HISTORY] partnerId resolved:', resolved);
+    return resolved;
+  }, [partner, storeId, stores, user]);
 
   const storeName = useMemo(() => {
     if (!storeId) return 'Mon magasin';
-    return stores.find((s) => s.id === storeId)?.name ?? 'Mon magasin';
-  }, [storeId, stores]);
+    return (
+      stores.find((s) => s.id === storeId)?.name ??
+      user?.partnerData?.operatorStores?.find((s) => s.id === storeId)?.name ??
+      'Mon magasin'
+    );
+  }, [storeId, stores, user]);
 
   const txQ = useInfiniteQuery({
     queryKey: ['operatorTxHistory', partnerId, storeId],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) =>
-      transactionsApi.getByPartner(partnerId!, {
-        storeId,
-        page: pageParam,
-        pageSize: PAGE_SIZE,
-      }),
-    enabled: !!partnerId,
+    queryFn: async ({ pageParam }) => {
+      console.log('[HISTORY] queryFn fired — storeId:', storeId, 'partnerId:', partnerId, 'page:', pageParam);
+      const res = await transactionsApi.getFiltered({
+        PartnerId: partnerId,
+        StoreId: storeId,
+        Page: pageParam,
+        PageSize: PAGE_SIZE,
+      });
+      console.log('[HISTORY] API response — totalCount:', res.data.totalCount, 'items:', res.data.items?.length ?? 0);
+      return res;
+    },
+    enabled: !!storeId,
+    staleTime: 0,
+    refetchOnMount: 'always',
     getNextPageParam: (lastPage) => {
       const d = lastPage.data;
+      console.log('[HISTORY] getNextPageParam — page:', d.page, 'totalPages:', d.totalPages);
       return d.page < d.totalPages ? d.page + 1 : undefined;
     },
   });
+
+  // Refetch dès que l'écran revient au premier plan
+  useFocusEffect(
+    useCallback(() => {
+      if (storeId) txQ.refetch();
+    }, [storeId]),
+  );
 
   const items = txQ.data?.pages.flatMap((p) => p.data.items ?? []) ?? [];
   const totalCount = txQ.data?.pages[0]?.data.totalCount ?? 0;
@@ -82,7 +138,7 @@ export default function StoreOperatorHistoryScreen() {
         <View style={styles.txMain}>
           <View style={styles.txTop}>
             <Text style={styles.txName} numberOfLines={1}>
-              {formatClientNameShort(item.clientName ?? item.customerName, `Client #${item.customerUserId?.slice(0, 6) ?? '—'}`)}
+              {item.clientName ?? item.customerName ?? `Client #${item.customerUserId?.slice(0, 6) ?? '—'}`}
             </Text>
             <Text style={styles.txGross}>{formatPrice(item.amountGross ?? 0)}</Text>
           </View>
@@ -113,16 +169,16 @@ export default function StoreOperatorHistoryScreen() {
     [],
   );
 
-  if (!partnerId) {
+  if (!storeId) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Historique</Text>
         </View>
         <EmptyState
-          icon="receipt-outline"
-          title="Données non disponibles"
-          description="Impossible de récupérer les informations du partenaire."
+          icon="storefront-outline"
+          title="Aucun magasin actif"
+          description="Sélectionnez un magasin pour voir les transactions."
         />
       </View>
     );
