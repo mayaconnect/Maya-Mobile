@@ -27,6 +27,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { qrApi } from '../../src/api/qr.api';
 import { subscriptionsApi } from '../../src/api/subscriptions.api';
+import { promoCodesApi } from '../../src/api/promo-codes.api';
 import { clientColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
@@ -59,11 +60,26 @@ export default function QrCodeScreen() {
     queryFn: () => subscriptionsApi.getMySubscription(),
     select: (res) => res.data,
     staleTime: 60_000,
-    enabled: !!subQuery.data,
+    enabled: !!subQuery.data, // tourne dès qu'on sait qu'il y a une sub (principale ou addon)
+    retry: false,             // 404 = pas de plan principal, on n'insiste pas
   });
 
-  const hasSubscription = subQuery.data ?? false;
-  const subLoading = subQuery.isLoading;
+  const addonSubsQuery = useQuery({
+    queryKey: ['myAddonSubscriptions'],
+    queryFn: () => subscriptionsApi.getMyAddonSubscriptions(),
+    select: (res) => res.data ?? [],
+    staleTime: 60_000,
+  });
+
+  // QR code uniquement avec un plan principal (Solo/Duo/Famille)
+  // mySubQuery.data = plan principal → si absent, l'user n'a pas de plan principal
+  const hasMainPlan = !mySubQuery.isError && !!mySubQuery.data;
+  const hasAddonSubs = (addonSubsQuery.data?.length ?? 0) > 0;
+  // User qui a uniquement Shotgun/Sunbed (pas de plan principal)
+  const hasOnlyAddon = !hasMainPlan && hasAddonSubs;
+  // Pour le QR code, seul le plan principal compte
+  const hasSubscription = hasMainPlan;
+  const subLoading = subQuery.isLoading || addonSubsQuery.isLoading || (subQuery.data === true && mySubQuery.isLoading);
 
   const qrQuery = useQuery({
     queryKey: ['qrToken'],
@@ -95,6 +111,10 @@ export default function QrCodeScreen() {
         <ActivityIndicator size="large" color={colors.orange[500]} />
       </View>
     );
+  }
+
+  if (hasOnlyAddon) {
+    return <AddonOnlyScreen />;
   }
 
   if (!hasAvatar || !hasSubscription) {
@@ -237,6 +257,62 @@ export default function QrCodeScreen() {
   );
 }
 
+/* ── Addon Only Screen — Shotgun/Sunbed sans plan principal ── */
+function AddonOnlyScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <LinearGradient colors={['#0F172A', '#1E293B']} style={styles.gateHeader}>
+        <View style={styles.gateLockWrap}>
+          <View style={styles.gateLock}>
+            <Ionicons name="lock-closed" size={wp(32)} color={colors.orange[500]} />
+          </View>
+        </View>
+        <Text style={styles.gateTitle}>QR Code non disponible</Text>
+        <Text style={styles.gateSubtitle}>
+          Votre accès Shotgun / Sunbed donne droit{'\n'}aux codes promo, pas au QR code.
+        </Text>
+      </LinearGradient>
+
+      <View style={[styles.gateContent, { paddingBottom: insets.bottom + wp(100) }]}>
+        <View style={[styles.stepCard]}>
+          <View style={styles.stepLeft}>
+            <View style={[styles.stepIconBox, styles.stepIconPending]}>
+              <Ionicons name="diamond" size={wp(18)} color={colors.orange[500]} />
+            </View>
+            <View style={styles.stepInfo}>
+              <Text style={styles.stepTitle}>Abonnement Solo, Duo ou Famille</Text>
+              <Text style={styles.stepDesc}>
+                Pour accéder au QR code et bénéficier de réductions chez les partenaires, souscrivez à un plan principal.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.stepBtn}
+            onPress={() => router.push('/(client)/subscription' as any)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.stepBtnText}>Voir les offres</Text>
+            <Ionicons name="arrow-forward" size={wp(14)} color={colors.orange[500]} />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.stepBtn}
+          onPress={() => router.push('/(client)/promo-codes' as any)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="pricetags-outline" size={wp(16)} color={colors.orange[500]} />
+          <Text style={styles.stepBtnText}>Voir mes codes promo</Text>
+          <Ionicons name="arrow-forward" size={wp(14)} color={colors.orange[500]} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 /* ── Gate Screen ── */
 function GateScreen({ hasAvatar, hasSubscription }: { hasAvatar: boolean; hasSubscription: boolean }) {
   const insets = useSafeAreaInsets();
@@ -255,7 +331,7 @@ function GateScreen({ hasAvatar, hasSubscription }: { hasAvatar: boolean; hasSub
       done: hasSubscription,
       icon: 'diamond' as const,
       title: 'Abonnement actif',
-      description: 'Souscrivez à un abonnement Maya pour accéder à vos réductions.',
+      description: 'Souscrivez à un abonnement Solo, Duo ou Famille pour accéder au QR code et bénéficier de réductions chez nos partenaires.',
       actionLabel: 'Voir les offres',
       onAction: () => router.push('/(client)/subscription'),
     },

@@ -446,6 +446,11 @@ export default function ProfileScreen() {
             onPress: () => router.push('/(client)/subscription'),
           },
           {
+            icon: 'pricetag-outline' as const,
+            label: 'Mes codes promo',
+            onPress: () => router.push('/(client)/promo-codes' as any),
+          },
+          {
             icon: 'time-outline' as const,
             label: 'Historique des transactions',
             onPress: () => router.push('/(client)/history'),

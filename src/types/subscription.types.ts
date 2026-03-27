@@ -77,6 +77,16 @@ export interface PlanChangePreview {
   message: string;
 }
 
+export interface AddonSubscriptionDto {
+  id: string;
+  planCode: string;
+  planName?: string | null;
+  price: number;
+  isActive: boolean;
+  startedAt: string;
+  expiresAt?: string | null;
+}
+
 export interface InvoiceDto {
   id: string;
   userId: string;

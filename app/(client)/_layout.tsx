@@ -153,6 +153,10 @@ export default function ClientTabLayout() {
         name="invoices"
         options={{ href: null }}
       />
+      <Tabs.Screen
+        name="promo-codes"
+        options={{ href: null }}
+      />
     </Tabs>
   );
 }

@@ -8,3 +8,4 @@ export * from './partner.types';
 export * from './transaction.types';
 export * from './subscription.types';
 export * from './qr.types';
+export * from './promo-codes.types';

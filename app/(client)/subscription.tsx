@@ -26,7 +26,7 @@ import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { subscriptionsApi, paymentsApi } from '../../src/api/subscriptions.api';
-import type { PlanChangePreview } from '../../src/types';
+import type { PlanChangePreview, AddonSubscriptionDto } from '../../src/types';
 import { clientColors as colors } from '../../src/theme/colors';
 import { textStyles, fontFamily } from '../../src/theme/typography';
 import { spacing, borderRadius, shadows } from '../../src/theme/spacing';
@@ -51,6 +51,7 @@ export default function SubscriptionScreen() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<PlanChangePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'main' | 'addon'>('main');
 
   type ModalType = 'success-checkout' | 'success-change' | 'success-downgrade-scheduled' | 'confirm-cancel' | 'success-cancel' | 'confirm-upgrade' | 'confirm-downgrade' | 'cooldown-blocked' | 'error';
   const [modal, setModal] = useState<{ type: ModalType; message?: string } | null>(null);
@@ -79,6 +80,12 @@ export default function SubscriptionScreen() {
     select: (res) => res.data,
     enabled: hasSubQ.data === true,
     retry: false,
+  });
+
+  const addonSubsQ = useQuery({
+    queryKey: ['myAddonSubscriptions'],
+    queryFn: () => subscriptionsApi.getMyAddonSubscriptions(),
+    select: (res) => res.data ?? [],
   });
 
   const plansQ = useQuery({
@@ -114,6 +121,8 @@ export default function SubscriptionScreen() {
       console.log('[Subscription] checkout onSuccess — result type:', result.type);
       queryClient.invalidateQueries({ queryKey: ['hasSubscription'] });
       queryClient.invalidateQueries({ queryKey: ['mySubscription'] });
+      queryClient.invalidateQueries({ queryKey: ['myAddonSubscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['myPromoCodes'] });
       if (result.type === 'success') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setModal({ type: 'success-checkout' });
@@ -202,17 +211,23 @@ export default function SubscriptionScreen() {
       return;
     }
     const hasActive = hasSubQ.data === true;
-    console.log('[Subscription] handleSubscribe — planCode:', plan.code, '| hasActiveSub:', hasActive);
+    const ADDON_CODES = ['shotgun', 'sunbed'];
+    const isAddon =
+      ADDON_CODES.some((k) =>
+        (plan.code ?? '').toLowerCase().includes(k) ||
+        (plan.name ?? '').toLowerCase().includes(k),
+      ) || addonPlanCodes.has(plan.code);
+    console.log('[Subscription] handleSubscribe — planCode:', plan.code, '| hasActiveSub:', hasActive, '| isAddon:', isAddon, '| tier:', plan.tier);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    if (!hasActive) {
-      // New subscription — direct checkout
+    // Add-ons always go through direct checkout (never plan change preview)
+    if (!hasActive || isAddon) {
       setSelectedPlan(plan.id);
       checkoutMutation.mutate(plan.code);
       return;
     }
 
-    // Existing subscription — preview first
+    // Main plan change — preview first
     setSelectedPlan(plan.id);
     setPreviewLoading(true);
     try {
@@ -267,12 +282,24 @@ export default function SubscriptionScreen() {
     );
   }
 
-  const plans = plansQ.data?.items ?? [];
+  const allPlans = plansQ.data?.items ?? [];
   const currentSub = currentSubQ.data;
   const hasActiveSub = hasSubQ.data === true && !!currentSub;
+  const addonSubs: AddonSubscriptionDto[] = addonSubsQ.data ?? [];
+  const addonPlanCodes = new Set(addonSubs.map((a) => a.planCode));
+
+  const ADDON_CODES = ['shotgun', 'sunbed'];
+  const isAddonPlan = (p: any) =>
+    ADDON_CODES.some((k) =>
+      (p.code ?? '').toLowerCase().includes(k) ||
+      (p.name ?? '').toLowerCase().includes(k),
+    );
+  const mainPlans = allPlans.filter((p: any) => !isAddonPlan(p));
+  const addonPlansList = allPlans.filter((p: any) => isAddonPlan(p));
 
   return (
     <View style={styles.container}>
+      {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={wp(22)} color={colors.neutral[700]} />
@@ -281,233 +308,294 @@ export default function SubscriptionScreen() {
         <View style={{ width: wp(36) }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + spacing[6] },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ─── Active Subscription Details ─── */}
-        {hasActiveSub ? (
-          <>
-            {/* Status Hero */}
-            <View style={styles.hero}>
-              <View style={styles.heroIconWrap}>
-                <Ionicons name="diamond" size={wp(28)} color={colors.orange[500]} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.heroTitle}>Abonnement actif</Text>
-                <Text style={styles.heroDesc}>Profitez de vos avantages chez tous nos partenaires</Text>
-              </View>
-              <View style={styles.heroActiveBadge}>
-                <View style={styles.heroActiveDot} />
-                <Text style={styles.heroActiveTxt}>Actif</Text>
-              </View>
+      {/* ── Hero ── */}
+      {hasActiveSub ? (
+        <View style={styles.heroPad}>
+          <LinearGradient colors={[...colors.gradients.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroActiveBanner}>
+            <View style={styles.heroIconWrap}>
+              <Ionicons name="diamond" size={wp(22)} color="#FFF" />
             </View>
-
-            {/* Subscription Card */}
-            <MCard style={styles.subCard} elevation="lg">
-              <View style={styles.subCardHeader}>
-                <View>
-                  <Text style={styles.subPlanName}>
-                    {currentSub.planCode || 'Premium'}
-                  </Text>
-                  <MBadge
-                    label="Actif"
-                    variant="success"
-                    size="md"
-                    style={{ marginTop: spacing[1] }}
-                  />
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.subPrice}>
-                    {formatPrice(currentSub.price)}
-                  </Text>
-                  <Text style={styles.subPricePeriod}>/mois</Text>
-                </View>
-              </View>
-
-              <MDivider style={{ marginVertical: spacing[4] }} />
-
-              {/* Details Grid */}
-              <View style={styles.detailsGrid}>
-                <View style={styles.detailItem}>
-                  <Ionicons name="calendar-outline" size={wp(18)} color={colors.orange[500]} />
-                  <Text style={styles.detailLabel}>Début</Text>
-                  <Text style={styles.detailValue}>
-                    {formatDate(currentSub.startedAt)}
-                  </Text>
-                </View>
-                {currentSub.expiresAt && (
-                  <View style={styles.detailItem}>
-                    <Ionicons name="time-outline" size={wp(18)} color={colors.orange[500]} />
-                    <Text style={styles.detailLabel}>Expire le</Text>
-                    <Text style={styles.detailValue}>
-                      {formatDate(currentSub.expiresAt)}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.detailItem}>
-                  <Ionicons name="people-outline" size={wp(18)} color={colors.orange[500]} />
-                  <Text style={styles.detailLabel}>Places</Text>
-                  <Text style={styles.detailValue}>{currentSub.personsAllowed}</Text>
-                </View>
-              </View>
-
-              <MDivider style={{ marginVertical: spacing[4] }} />
-
-              {/* Actions */}
-              <TouchableOpacity style={styles.actionRow}>
-                <Ionicons name="receipt-outline" size={wp(20)} color={colors.orange[500]} />
-                <Text style={styles.actionLabel}>Voir mes factures</Text>
-                <Ionicons name="chevron-forward" size={wp(18)} color={colors.neutral[300]} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.actionRow, styles.actionRowDanger]}
-                onPress={handleCancel}
-                disabled={cancelMutation.isPending}
-              >
-                <Ionicons name="close-circle-outline" size={wp(20)} color={colors.error[500]} />
-                <Text style={styles.actionLabelDanger}>
-                  {cancelMutation.isPending ? 'Annulation…' : "Annuler l'abonnement"}
-                </Text>
-                <Ionicons name="chevron-forward" size={wp(18)} color={colors.neutral[300]} />
-              </TouchableOpacity>
-            </MCard>
-
-            {/* Upgrade prompt */}
-            {plans.length > 0 && (
-              <Text style={styles.upgradeHint}>
-                Vous souhaitez changer de formule ? Explorez nos offres ci-dessous.
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroActiveTitle}>
+                {currentSub.planName ?? currentSub.planCode ?? 'Abonnement'}
               </Text>
-            )}
-          </>
-        ) : (
-          /* ─── No Subscription — Hero ─── */
-          <View style={styles.heroNoSub}>
-            <View style={styles.heroNoSubIcon}>
-              <LinearGradient colors={[...colors.gradients.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroNoSubGradient}>
-                <Ionicons name="diamond" size={wp(32)} color="#FFF" />
-              </LinearGradient>
+              <Text style={styles.heroActiveDesc}>
+                {formatPrice(currentSub.price)}/mois · Actif
+              </Text>
             </View>
-            <Text style={styles.heroNoSubTitle}>Choisissez votre formule</Text>
-            <Text style={styles.heroNoSubDesc}>Débloquez des réductions exclusives chez tous nos partenaires</Text>
+            <View style={styles.heroActiveDotWrap}>
+              <View style={styles.heroActiveDot} />
+            </View>
+          </LinearGradient>
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => router.push('/(client)/invoices' as any)}>
+              <Ionicons name="receipt-outline" size={wp(18)} color={colors.orange[500]} />
+              <Text style={styles.quickBtnText}>Factures</Text>
+            </TouchableOpacity>
+            <View style={styles.quickDivider} />
+            <TouchableOpacity style={styles.quickBtn} onPress={handleCancel} disabled={cancelMutation.isPending}>
+              <Ionicons name="close-circle-outline" size={wp(18)} color={colors.error[500]} />
+              <Text style={[styles.quickBtnText, { color: colors.error[500] }]}>
+                {cancelMutation.isPending ? 'Annulation…' : 'Annuler'}
+              </Text>
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
+      ) : (
+        <View style={styles.heroPad}>
+          <LinearGradient colors={[...colors.gradients.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroNoBanner}>
+            <View style={styles.heroIconWrap}>
+              <Ionicons name="diamond" size={wp(22)} color="#FFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroActiveTitle}>Choisissez votre formule</Text>
+              <Text style={styles.heroActiveDesc}>Réductions exclusives chez nos partenaires</Text>
+            </View>
+          </LinearGradient>
+        </View>
+      )}
 
-        {/* ─── Plans ─── */}
-        {plans.map((plan: any, idx: number) => {
+      {/* ── Tab switcher ── */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'main' && styles.tabItemActive]}
+          onPress={() => setActiveTab('main')}
+          activeOpacity={0.8}
+        >
+          {activeTab === 'main' ? (
+            <LinearGradient colors={[...colors.gradients.primary]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabGradient}>
+              <Ionicons name="qr-code" size={wp(15)} color="#FFF" />
+              <Text style={styles.tabTextActive}>Formules</Text>
+              {hasActiveSub && <View style={styles.tabActiveDot} />}
+            </LinearGradient>
+          ) : (
+            <View style={styles.tabInner}>
+              <Ionicons name="qr-code-outline" size={wp(15)} color={colors.neutral[500]} />
+              <Text style={styles.tabText}>Formules</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabItem, activeTab === 'addon' && styles.tabItemAddonActive]}
+          onPress={() => setActiveTab('addon')}
+          activeOpacity={0.8}
+        >
+          {activeTab === 'addon' ? (
+            <LinearGradient colors={['#FF6A00', '#FF8C42']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.tabGradient}>
+              <Ionicons name="pricetag" size={wp(15)} color="#FFF" />
+              <Text style={styles.tabTextActive}>Accès partenaires</Text>
+              {addonSubs.length > 0 && <View style={styles.tabActiveDot} />}
+            </LinearGradient>
+          ) : (
+            <View style={styles.tabInner}>
+              <Ionicons name="pricetag-outline" size={wp(15)} color={colors.neutral[500]} />
+              <Text style={styles.tabText}>Accès partenaires</Text>
+              {addonSubs.length > 0 && <View style={[styles.tabDotInactive, { backgroundColor: '#FF6A00' }]} />}
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* ── Plans list (scrollable) ── */}
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing[6] }]}
+        showsVerticalScrollIndicator={false}
+        key={activeTab}
+      >
+        {/* ── ONGLET FORMULES ── */}
+        {activeTab === 'main' && mainPlans.map((plan: any, idx: number) => {
           const isPopular = idx === 1;
           const isSelected = selectedPlan === plan.id;
           const isCurrentPlan = hasActiveSub && currentSub?.planCode === plan.code;
-
-          // Determine upgrade vs downgrade using tier
-          const currentPlanObj = hasActiveSub
-            ? plans.find((p: any) => p.code === currentSub?.planCode)
-            : null;
-          const isUpgradePlan = currentPlanObj && (plan.tier ?? 0) > (currentPlanObj.tier ?? 0);
-          const isDowngradePlan = currentPlanObj && (plan.tier ?? 0) < (currentPlanObj.tier ?? 0);
-
-          const changeBtnTitle = hasActiveSub
-            ? isUpgradePlan
-              ? 'Passer au supérieur'
-              : isDowngradePlan
-                ? 'Réduire ma formule'
-                : 'Changer de formule'
-            : plan.trialDays
-              ? `Essayer ${plan.trialDays} jours gratuitement`
-              : "S'abonner";
+          const currentPlanObj = hasActiveSub ? mainPlans.find((p: any) => p.code === currentSub?.planCode) : null;
+          const isUpgrade = currentPlanObj && (plan.tier ?? 0) > (currentPlanObj.tier ?? 0);
+          const isDowngrade = currentPlanObj && (plan.tier ?? 0) < (currentPlanObj.tier ?? 0);
+          const seats = plan.defaultSeats ?? 1;
+          const planIcon = seats >= 3 ? 'people' : seats === 2 ? 'people-outline' : 'person';
+          const btnTitle = hasActiveSub
+            ? isUpgrade ? '↑ Passer au supérieur'
+            : isDowngrade ? '↓ Réduire ma formule'
+            : 'Changer de formule'
+            : plan.trialDays ? `Essayer ${plan.trialDays} jours gratuitement`
+            : "S'abonner";
 
           return (
-            <TouchableOpacity
-              key={plan.id}
-              onPress={() => setSelectedPlan(plan.id)}
-              activeOpacity={0.9}
-              disabled={changePlanMutation.isPending || checkoutMutation.isPending}
-            >
-              <MCard
-                style={StyleSheet.flatten([
-                  styles.planCard,
-                  isSelected && styles.planSelected,
-                  isPopular && styles.planPopular,
-                  isCurrentPlan && styles.planCurrent,
-                ].filter(Boolean)) as ViewStyle}
-                elevation={isSelected ? 'lg' : 'sm'}
-              >
+            <TouchableOpacity key={plan.id} onPress={() => setSelectedPlan(plan.id)} activeOpacity={0.9}
+              disabled={changePlanMutation.isPending || checkoutMutation.isPending}>
+              <View style={[
+                styles.planCard,
+                isSelected && styles.planSelected,
+                isCurrentPlan && styles.planCurrent,
+              ]}>
+                {/* Gradient accent top bar */}
+                {(isPopular || isCurrentPlan) && (
+                  <LinearGradient
+                    colors={isCurrentPlan ? [colors.success[400], colors.success[600]] : [...colors.gradients.primary]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.planAccentBar}
+                  />
+                )}
+
+                {/* Badge row */}
+                <View style={styles.planBadgeRow}>
+                  {isCurrentPlan && <MBadge label="✓ Votre formule" variant="success" size="sm" />}
+                  {isPopular && !isCurrentPlan && <MBadge label="⭐ Populaire" variant="orange" size="sm" />}
+                  {isUpgrade && !isCurrentPlan && <MBadge label="Upgrade" variant="orange" size="sm" />}
+                </View>
+
+                {/* Header: icon + name + price */}
                 <View style={styles.planHeader}>
+                  <View style={styles.planIconCircle}>
+                    <Ionicons name={planIcon as any} size={wp(20)} color={colors.orange[500]} />
+                  </View>
                   <View style={{ flex: 1 }}>
-                    {isPopular && (
-                      <MBadge
-                        label="Le plus populaire"
-                        variant="violet"
-                        size="md"
-                        style={{ alignSelf: 'flex-start', marginBottom: spacing[2] }}
-                      />
-                    )}
-                    {isCurrentPlan && (
-                      <MBadge
-                        label="Votre formule"
-                        variant="success"
-                        size="md"
-                        style={{ alignSelf: 'flex-start', marginBottom: spacing[2] }}
-                      />
-                    )}
                     <Text style={styles.planName}>{plan.name}</Text>
+                    <Text style={styles.planSeats}>
+                      {seats === 1 ? '1 personne' : seats === 2 ? '2 personnes' : `Jusqu'à ${seats} personnes`}
+                    </Text>
                   </View>
                   <View style={styles.priceBlock}>
-                    <Text style={styles.planPrice}>
-                      {formatPrice(plan.priceAmount ?? 0)}
-                    </Text>
+                    <Text style={styles.planPrice}>{formatPrice(plan.priceAmount ?? 0)}</Text>
                     <Text style={styles.planPeriod}>/mois</Text>
                   </View>
                 </View>
 
+                {/* Divider */}
+                <View style={styles.planDivider} />
+
                 {/* Features */}
                 <View style={styles.features}>
                   {[
-                    `Jusqu'à ${plan.defaultPercent ?? 0}% de réduction`,
-                    `${plan.defaultSeats ?? 1} place(s) incluse(s)`,
-                    plan.trialDays
-                      ? `${plan.trialDays} jours d'essai gratuit`
-                      : null,
+                    plan.defaultPercent > 0 ? `Jusqu'à ${plan.defaultPercent}% de réduction` : null,
+                    plan.trialDays ? `${plan.trialDays} jours d'essai gratuit` : null,
                     'Accès à tous les partenaires',
                     'QR code illimité',
-                  ]
-                    .filter(Boolean)
-                    .map((feat, fi) => (
-                      <View key={fi} style={styles.featureRow}>
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={wp(18)}
-                          color={colors.success[500]}
-                        />
-                        <Text style={styles.featureText}>{feat}</Text>
-                      </View>
-                    ))}
+                  ].filter(Boolean).map((feat, fi) => (
+                    <View key={fi} style={styles.featureRow}>
+                      <Ionicons name="checkmark-circle" size={wp(17)} color={colors.success[500]} />
+                      <Text style={styles.featureText}>{feat}</Text>
+                    </View>
+                  ))}
                 </View>
 
                 {!isCurrentPlan && (
-                  <MButton
-                    title={changeBtnTitle}
-                    onPress={() => handleSubscribe(plan)}
-                    variant={isPopular ? 'secondary' : isDowngradePlan ? 'outline' : 'primary'}
-                    loading={
-                      selectedPlan === plan.id &&
-                      (checkoutMutation.isPending || changePlanMutation.isPending || previewLoading)
-                    }
-                    style={{ marginTop: spacing[4] }}
-                  />
+                  <MButton title={btnTitle} onPress={() => handleSubscribe(plan)}
+                    variant={isDowngrade ? 'outline' : 'primary'}
+                    loading={selectedPlan === plan.id && (checkoutMutation.isPending || changePlanMutation.isPending || previewLoading)}
+                    style={{ marginTop: spacing[4] }} />
                 )}
-              </MCard>
+              </View>
             </TouchableOpacity>
           );
         })}
 
-        {/* Fine print */}
+        {/* ── ONGLET ACCÈS PARTENAIRES ── */}
+        {activeTab === 'addon' && (
+          <>
+            {/* Active addons banner */}
+            {addonSubs.length > 0 && (
+              <View style={styles.addonActiveBanner}>
+                {addonSubs.map((addon) => (
+                  <View key={addon.id} style={styles.addonActivePill}>
+                    <View style={styles.heroActiveDot} />
+                    <Text style={styles.addonActivePillText}>{addon.planName ?? addon.planCode}</Text>
+                    <Text style={styles.addonActivePillSub}>
+                      {addon.expiresAt ? `exp. ${formatDate(addon.expiresAt)}` : 'actif'}
+                    </Text>
+                  </View>
+                ))}
+                <TouchableOpacity style={styles.addonPromoBtn}
+                  onPress={() => router.push('/(client)/promo-codes' as any)} activeOpacity={0.8}>
+                  <Ionicons name="pricetags-outline" size={wp(16)} color={colors.orange[500]} />
+                  <Text style={styles.addonPromoBtnText}>Voir mes codes promo</Text>
+                  <Ionicons name="chevron-forward" size={wp(14)} color={colors.neutral[300]} />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {addonPlansList.map((plan: any) => {
+              const isSelected = selectedPlan === plan.id;
+              const isCurrentAddon = addonSubs.some((a) => a.planCode === plan.code);
+              const activeAddonSub = addonSubs.find((a) => a.planCode === plan.code);
+              const btnTitle = plan.trialDays
+                ? `Essayer ${plan.trialDays} jours gratuitement`
+                : 'Ajouter cet accès';
+
+              return (
+                <TouchableOpacity key={plan.id} onPress={() => setSelectedPlan(plan.id)} activeOpacity={0.9}
+                  disabled={checkoutMutation.isPending}>
+                  <View style={[styles.planCard, isSelected && styles.planSelected, isCurrentAddon && styles.planCurrent]}>
+                    {isCurrentAddon && (
+                      <LinearGradient colors={[colors.success[400], colors.success[600]]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.planAccentBar} />
+                    )}
+
+                    <View style={styles.planBadgeRow}>
+                      {isCurrentAddon && <MBadge label="✓ Actif" variant="success" size="sm" />}
+                    </View>
+
+                    <View style={styles.planHeader}>
+                      <View style={styles.planIconCircle}>
+                        <Ionicons name="pricetag" size={wp(20)} color={colors.orange[500]} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.planName}>{plan.name}</Text>
+                        <Text style={styles.planSeats}>Codes promo exclusifs</Text>
+                      </View>
+                      <View style={styles.priceBlock}>
+                        <Text style={styles.planPrice}>{formatPrice(plan.priceAmount ?? 0)}</Text>
+                        <Text style={styles.planPeriod}>/mois</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.planDivider} />
+
+                    <View style={styles.features}>
+                      {[
+                        `Codes promo ${plan.name ?? plan.code} inclus`,
+                        plan.trialDays ? `${plan.trialDays} jours d'essai gratuit` : null,
+                        'Cumulable avec une formule QR code',
+                      ].filter(Boolean).map((feat, fi) => (
+                        <View key={fi} style={styles.featureRow}>
+                          <Ionicons name="checkmark-circle" size={wp(17)} color={colors.success[500]} />
+                          <Text style={styles.featureText}>{feat}</Text>
+                        </View>
+                      ))}
+                      <View style={styles.featureRow}>
+                        <Ionicons name="close-circle" size={wp(17)} color={colors.neutral[300]} />
+                        <Text style={[styles.featureText, { color: 'rgba(255,255,255,0.3)' }]}>Accès QR code non inclus</Text>
+                      </View>
+                    </View>
+
+                    {isCurrentAddon && activeAddonSub?.expiresAt && (
+                      <View style={styles.addonExpiry}>
+                        <Ionicons name="time-outline" size={wp(13)} color={colors.neutral[400]} />
+                        <Text style={styles.addonExpiryText}>Expire le {formatDate(activeAddonSub.expiresAt)}</Text>
+                      </View>
+                    )}
+
+                    {!isCurrentAddon && (
+                      <MButton title={btnTitle} onPress={() => handleSubscribe(plan)} variant="primary"
+                        loading={selectedPlan === plan.id && checkoutMutation.isPending}
+                        style={{ marginTop: spacing[4] }} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            {addonPlansList.length === 0 && (
+              <View style={styles.emptyTab}>
+                <Ionicons name="pricetag-outline" size={wp(40)} color={colors.neutral[300]} />
+                <Text style={styles.emptyTabText}>Aucun accès partenaire disponible</Text>
+              </View>
+            )}
+          </>
+        )}
+
         <Text style={styles.finePrint}>
-          En vous abonnant, vous acceptez nos conditions générales d'utilisation.
+          En vous abonnant, vous acceptez nos conditions générales d'utilisation.{'\n'}
           Vous pouvez annuler à tout moment depuis votre profil.
         </Text>
       </ScrollView>
@@ -537,7 +625,7 @@ export default function SubscriptionScreen() {
           {/* ── Success change plan (upgrade) ── */}
           {modal?.type === 'success-change' && (
             <>
-              <LinearGradient colors={['#7C3AED', '#A78BFA']} style={mStyles.iconCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <LinearGradient colors={['#FF6A00', '#FF8C42']} style={mStyles.iconCircle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                 <Ionicons name="arrow-up-circle" size={wp(32)} color="#FFF" />
               </LinearGradient>
               <Text style={mStyles.title}>Formule mise à niveau !</Text>
@@ -714,7 +802,11 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
   },
 
-  /* Hero — abonnement actif (inline row) */
+  /* Hero pad */
+  heroPad: {
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[3],
+  },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -723,14 +815,14 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius['2xl'],
     borderWidth: 1,
     borderColor: colors.orange[100],
-    paddingVertical: spacing[4],
+    paddingVertical: spacing[3],
     paddingHorizontal: spacing[4],
-    marginBottom: spacing[4],
+    marginBottom: spacing[2],
   },
   heroIconWrap: {
-    width: wp(44),
-    height: wp(44),
-    borderRadius: wp(22),
+    width: wp(40),
+    height: wp(40),
+    borderRadius: wp(20),
     backgroundColor: colors.orange[100],
     alignItems: 'center',
     justifyContent: 'center',
@@ -744,7 +836,7 @@ const styles = StyleSheet.create({
   heroDesc: {
     ...textStyles.micro,
     color: colors.neutral[500],
-    marginTop: 2,
+    marginTop: 1,
   },
   heroActiveBadge: {
     flexDirection: 'row',
@@ -767,152 +859,303 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     color: colors.success[600],
   },
-
-  /* Hero — pas d'abonnement (centré) */
-  heroNoSub: {
+  quickActions: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.neutral[100],
+    overflow: 'hidden',
+    ...shadows.sm,
+  },
+  quickBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[6],
+    justifyContent: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+  },
+  quickBtnText: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.semiBold,
+    color: colors.orange[600],
+  },
+  quickDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: colors.neutral[100],
+  },
+  heroNoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    borderRadius: borderRadius['2xl'],
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
+  },
+  heroNoBannerTitle: {
+    ...textStyles.body,
+    fontFamily: fontFamily.bold,
+    color: '#FFF',
+  },
+  heroNoBannerSub: {
+    ...textStyles.micro,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+
+  /* Tab switcher */
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: spacing[5],
+    marginBottom: spacing[3],
+    backgroundColor: colors.neutral[100],
+    borderRadius: borderRadius['2xl'],
+    padding: spacing[1],
+    gap: spacing[1],
+  },
+  tabItem: {
+    flex: 1,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+  },
+  tabItemActive: {},
+  tabItemAddonActive: {},
+  tabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[2],
+  },
+  tabGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[2],
+    borderRadius: borderRadius.xl,
+  },
+  tabText: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.semiBold,
+    color: colors.neutral[500],
+  },
+  tabTextActive: {
+    ...textStyles.caption,
+    fontFamily: fontFamily.bold,
+    color: '#FFF',
+  },
+  tabActiveDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+  },
+  tabDotInactive: {
+    width: 6, height: 6, borderRadius: 3,
+  },
+  emptyTab: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: spacing[3],
+  },
+  emptyTabText: {
+    ...textStyles.body,
+    color: colors.neutral[400],
+  },
+
+  /* ── Active addons banner (inside main section) ── */
+  addonActiveBanner: {
+    backgroundColor: '#FFF7F0',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+    overflow: 'hidden',
     marginBottom: spacing[4],
   },
-  heroNoSubIcon: {
-    marginBottom: spacing[4],
-    ...shadows.md,
+  addonActivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#FFE4CC',
   },
-  heroNoSubGradient: {
-    width: wp(72),
-    height: wp(72),
-    borderRadius: wp(36),
+  addonActivePillText: {
+    ...textStyles.body,
+    fontFamily: fontFamily.semiBold,
+    color: '#CC4B00',
+    flex: 1,
+  },
+  addonActivePillSub: {
+    ...textStyles.micro,
+    color: '#FF6A00',
+  },
+  addonPromoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
+    gap: spacing[3],
+    backgroundColor: colors.orange[50],
+  },
+  addonPromoBtnText: {
+    ...textStyles.body,
+    fontFamily: fontFamily.semiBold,
+    color: colors.orange[600],
+    flex: 1,
+  },
+
+  /* ── Addon plan cards ── */
+  addonPlanCard: {
+    backgroundColor: '#1E1B2E',
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF6A00',
+  },
+  addonPlanSelected: {
+    borderWidth: 2,
+    borderColor: '#FF6A00',
+    borderLeftWidth: 2,
+  },
+  addonPlanCurrent: {
+    borderWidth: 2,
+    borderColor: colors.success[500],
+    borderLeftWidth: 2,
+    opacity: 0.85,
+  },
+  addonPlanNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  addonPlanIconSmall: {
+    width: wp(26),
+    height: wp(26),
+    borderRadius: wp(13),
+    backgroundColor: '#FFF0E6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroNoSubTitle: {
-    ...textStyles.h3,
-    color: colors.neutral[900],
-    fontFamily: fontFamily.bold,
-    textAlign: 'center',
-    marginBottom: spacing[2],
+  addonPlanBtn: {
+    borderColor: '#FF6A00',
   },
-  heroNoSubDesc: {
-    ...textStyles.body,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    paddingHorizontal: spacing[6],
-    lineHeight: 22,
-  },
-
-  /* Active Subscription Card */
-  subCard: {
-    marginBottom: spacing[4],
-    padding: spacing[5],
-    backgroundColor: '#1E293B',
-  },
-  subCardHeader: {
+  addonExpiry: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  subPlanName: {
-    ...textStyles.h4,
-    color: colors.neutral[900],
-  },
-  subPrice: {
-    ...textStyles.h3,
-    color: colors.orange[500],
-  },
-  subPricePeriod: {
-    ...textStyles.caption,
-    color: colors.neutral[500],
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  detailItem: {
     alignItems: 'center',
     gap: spacing[1],
+    marginTop: spacing[1],
   },
-  detailLabel: {
+  addonExpiryText: {
     ...textStyles.micro,
-    color: colors.neutral[500],
-  },
-  detailValue: {
-    ...textStyles.body,
-    fontFamily: fontFamily.semiBold,
-    color: colors.neutral[900],
+    color: colors.neutral[400],
   },
 
-  /* Actions */
-  actionRow: {
+  /* ── Hero active banner ── */
+  heroActiveBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing[3],
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.neutral[100],
+    gap: spacing[3],
+    borderRadius: borderRadius['2xl'],
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
+    marginBottom: spacing[3],
   },
-  actionLabel: {
+  heroActiveTitle: {
     ...textStyles.body,
-    color: colors.neutral[800],
-    marginLeft: spacing[3],
-    flex: 1,
+    fontFamily: fontFamily.bold,
+    color: '#FFF',
   },
-  actionRowDanger: {
-    borderTopWidth: 0,
+  heroActiveDesc: {
+    ...textStyles.micro,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
   },
-  actionLabelDanger: {
-    ...textStyles.body,
-    color: colors.error[500],
-    marginLeft: spacing[3],
-    flex: 1,
-  },
-  upgradeHint: {
-    ...textStyles.caption,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    marginBottom: spacing[4],
+  heroActiveDotWrap: {
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  /* Plans */
+  /* ── Plan cards ── */
   planCard: {
+    backgroundColor: '#1A1F2E',
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     marginBottom: spacing[4],
-    padding: spacing[5],
-    backgroundColor: '#1E293B',
+    overflow: 'hidden',
+    ...shadows.sm,
   },
   planSelected: {
+    borderColor: colors.orange[400],
     borderWidth: 2,
-    borderColor: colors.orange[500],
-  },
-  planPopular: {
-    borderWidth: 2,
-    borderColor: colors.violet[600],
   },
   planCurrent: {
+    borderColor: colors.success[400],
     borderWidth: 2,
-    borderColor: colors.success[500],
-    opacity: 0.85,
+  },
+  planAccentBar: {
+    height: 4,
+    width: '100%',
+  },
+  planBadgeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
+    gap: spacing[2],
+    minHeight: spacing[4],
   },
   planHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: spacing[4],
+    paddingTop: spacing[3],
+    paddingBottom: spacing[2],
+    gap: spacing[3],
+  },
+  planIconCircle: {
+    width: wp(44),
+    height: wp(44),
+    borderRadius: wp(22),
+    backgroundColor: 'rgba(255,106,0,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   planName: {
-    ...textStyles.h4,
-    color: colors.neutral[900],
+    ...textStyles.body,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
+  },
+  planSeats: {
+    ...textStyles.micro,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
   },
   priceBlock: {
     alignItems: 'flex-end',
+    flexShrink: 0,
   },
   planPrice: {
-    ...textStyles.h2,
-    color: colors.orange[500],
+    ...textStyles.h4,
+    fontFamily: fontFamily.bold,
+    color: '#FFFFFF',
   },
   planPeriod: {
-    ...textStyles.caption,
-    color: colors.neutral[500],
-    marginTop: -spacing[1],
+    ...textStyles.micro,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  planDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginHorizontal: spacing[4],
+    marginBottom: spacing[3],
   },
   features: {
-    marginTop: spacing[4],
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[4],
     gap: spacing[2],
   },
   featureRow: {
@@ -921,15 +1164,16 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   featureText: {
-    ...textStyles.body,
-    color: colors.neutral[700],
+    ...textStyles.caption,
+    color: 'rgba(255,255,255,0.75)',
+    flex: 1,
   },
   finePrint: {
     ...textStyles.micro,
     color: colors.neutral[400],
     textAlign: 'center',
-    paddingHorizontal: spacing[4],
-    marginTop: spacing[2],
+    marginTop: spacing[4],
+    lineHeight: 16,
   },
 });
 

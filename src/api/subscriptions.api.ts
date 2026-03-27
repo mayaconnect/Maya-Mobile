@@ -13,6 +13,7 @@ import apiClient from './client';
 import type {
   SubscriptionPlanDto,
   SubscriptionDto,
+  AddonSubscriptionDto,
   CreateCheckoutRequest,
   ChangePlanRequest,
   ChangePlanResult,
@@ -43,6 +44,10 @@ export const subscriptionsApi = {
   /** GET /api/Users/me/subscription — any authenticated user */
   getMySubscription: () =>
     apiClient.get<SubscriptionDto>('/api/Users/me/subscription'),
+
+  /** GET /api/users/me/addon-subscriptions — add-ons actifs (Shotgun, Sunbed…) */
+  getMyAddonSubscriptions: () =>
+    apiClient.get<AddonSubscriptionDto[]>('/api/users/me/addon-subscriptions'),
 };
 
 export const paymentsApi = {
